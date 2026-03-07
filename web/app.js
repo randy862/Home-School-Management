@@ -78,6 +78,15 @@ function studentCourseAverage(studentId, courseId) {
     .map((t) => pct(t.score, t.maxScore));
   return avg(vals);
 }
+function studentCourseAverageByRange(studentId, courseId, startDate, endDate) {
+  const vals = state.tests
+    .filter((t) =>
+      t.studentId === studentId
+      && t.courseId === courseId
+      && inRange(t.date, startDate, endDate))
+    .map((t) => pct(t.score, t.maxScore));
+  return avg(vals);
+}
 function studentAbsenceCount(studentId) {
   const startDate = state.settings.schoolYear.startDate;
   const endDate = state.settings.schoolYear.endDate;
@@ -92,6 +101,18 @@ function studentAbsenceCount(studentId) {
 function studentAttendanceSummary(studentId) {
   const startDate = state.settings.schoolYear.startDate;
   const endDate = state.settings.schoolYear.endDate;
+  const today = todayISO();
+  const records = state.attendance.filter((a) =>
+    a.studentId === studentId
+    && a.date >= startDate
+    && a.date <= endDate
+    && a.date <= today);
+  return {
+    attended: records.filter((a) => a.present).length,
+    absent: records.filter((a) => !a.present).length
+  };
+}
+function studentAttendanceSummaryByRange(studentId, startDate, endDate) {
   const today = todayISO();
   const records = state.attendance.filter((a) =>
     a.studentId === studentId
@@ -194,6 +215,19 @@ function renderSelects() {
     if (Array.from(attendanceFilterQuarter.options).some((o) => o.value === current)) attendanceFilterQuarter.value = current;
   }
 
+  const detailQuarterFilter = document.getElementById("student-detail-quarter-filter");
+  if (detailQuarterFilter) {
+    const current = detailQuarterFilter.value || "all";
+    detailQuarterFilter.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      detailQuarterFilter.appendChild(option);
+    });
+    if (Array.from(detailQuarterFilter.options).some((o) => o.value === current)) detailQuarterFilter.value = current;
+  }
+
   const gradeStudentSelect = document.getElementById("grades-filter-student");
   if (gradeStudentSelect) {
     const current = gradeStudentSelect.value || "all";
@@ -238,31 +272,7 @@ function renderSelects() {
     if (current && Array.from(schoolYearSelect.options).some((o) => o.value === current)) schoolYearSelect.value = current;
   }
 
-  const gradeSubjectSelect = document.getElementById("grades-filter-subject");
-  if (gradeSubjectSelect) {
-    const current = gradeSubjectSelect.value || "all";
-    gradeSubjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
-    state.subjects.forEach((s) => {
-      const option = document.createElement("option");
-      option.value = s.id;
-      option.textContent = s.name;
-      gradeSubjectSelect.appendChild(option);
-    });
-    if (Array.from(gradeSubjectSelect.options).some((o) => o.value === current)) gradeSubjectSelect.value = current;
-  }
-
-  const gradeCourseSelect = document.getElementById("grades-filter-course");
-  if (gradeCourseSelect) {
-    const current = gradeCourseSelect.value || "all";
-    gradeCourseSelect.innerHTML = "<option value='all'>All Courses</option>";
-    state.courses.forEach((c) => {
-      const option = document.createElement("option");
-      option.value = c.id;
-      option.textContent = `${c.name} (${getSubjectName(c.subjectId)})`;
-      gradeCourseSelect.appendChild(option);
-    });
-    if (Array.from(gradeCourseSelect.options).some((o) => o.value === current)) gradeCourseSelect.value = current;
-  }
+  syncGradesFilterSubjectCourseOptions();
 }
 
 function rowOrEmpty(tbody, html, emptyMsg, cols) {
@@ -311,20 +321,35 @@ function renderStudentDetail() {
   panel.classList.remove("hidden");
   document.getElementById("student-detail-title").textContent = `${student.firstName} ${student.lastName} | Grade ${student.grade} | Age ${calculateAge(student.birthdate)}`;
 
+  const quarterSelect = document.getElementById("student-detail-quarter-filter");
+  const selectedQuarter = quarterSelect ? quarterSelect.value || "all" : "all";
+  const quarterRange = state.settings.quarters.find((q) => q.name === selectedQuarter);
+  const rangeStart = quarterRange ? quarterRange.startDate : state.settings.schoolYear.startDate;
+  const rangeEnd = quarterRange ? quarterRange.endDate : state.settings.schoolYear.endDate;
+
   const enrollmentRows = state.enrollments
     .filter((e) => e.studentId === student.id)
     .map((e) => {
       const course = getCourse(e.courseId);
       const subject = course ? getSubjectName(course.subjectId) : "Unknown Subject";
-      const courseAvg = studentCourseAverage(student.id, e.courseId);
-      return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${courseAvg.toFixed(1)}%</td><td><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></td></tr>`;
+      const courseAvg = studentCourseAverageByRange(student.id, e.courseId, rangeStart, rangeEnd);
+      const avgDisplay = courseAvg === 0 ? "No grades" : `${courseAvg.toFixed(1)}%`;
+      return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${avgDisplay}</td><td><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></td></tr>`;
     });
+  const courseAverages = state.enrollments
+    .filter((e) => e.studentId === student.id)
+    .map((e) => studentCourseAverageByRange(student.id, e.courseId, rangeStart, rangeEnd))
+    .filter((value) => value > 0);
+  if (enrollmentRows.length) {
+    const avgOfCourses = courseAverages.length ? `${avg(courseAverages).toFixed(1)}%` : "No grades";
+    enrollmentRows.push(`<tr><td colspan="2"><strong>Average</strong></td><td><strong>${avgOfCourses}</strong></td><td></td></tr>`);
+  }
   rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 4);
 
-  const attendanceRows = state.students.map((s) => {
-    const summary = studentAttendanceSummary(s.id);
-    return `<tr><td>${s.firstName} ${s.lastName}</td><td>${summary.attended}</td><td>${summary.absent}</td></tr>`;
-  });
+  const summary = studentAttendanceSummaryByRange(student.id, rangeStart, rangeEnd);
+  const attendanceRows = [
+    `<tr><td>${student.firstName} ${student.lastName}</td><td>${summary.attended}</td><td>${summary.absent}</td></tr>`
+  ];
   rowOrEmpty(document.getElementById("student-attendance-summary-table"), attendanceRows, "No students available.", 3);
 }
 
@@ -430,6 +455,61 @@ function getEligibleSubjectsForStudent(studentId, includeSubjectId) {
   if (includeSubjectId) subjectIds.add(includeSubjectId);
 
   return state.subjects.filter((s) => subjectIds.has(s.id));
+}
+
+function getEnrolledCoursesForStudent(studentId) {
+  const enrolledCourseIds = new Set(
+    state.enrollments
+      .filter((e) => e.studentId === studentId)
+      .map((e) => e.courseId)
+  );
+  return state.courses.filter((c) => enrolledCourseIds.has(c.id));
+}
+
+function syncGradesFilterSubjectCourseOptions() {
+  const studentFilter = document.getElementById("grades-filter-student")?.value || "all";
+  const subjectSelect = document.getElementById("grades-filter-subject");
+  const courseSelect = document.getElementById("grades-filter-course");
+  if (!subjectSelect || !courseSelect) return;
+
+  const previousSubject = subjectSelect.value || "all";
+  const previousCourse = courseSelect.value || "all";
+  let subjectPool = state.subjects;
+  let coursePool = state.courses;
+
+  if (studentFilter !== "all") {
+    const enrolledCourses = getEnrolledCoursesForStudent(studentFilter);
+    const subjectIds = new Set(enrolledCourses.map((c) => c.subjectId));
+    subjectPool = state.subjects.filter((s) => subjectIds.has(s.id));
+    coursePool = enrolledCourses;
+  }
+
+  subjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+  subjectPool.forEach((s) => {
+    const option = document.createElement("option");
+    option.value = s.id;
+    option.textContent = s.name;
+    subjectSelect.appendChild(option);
+  });
+  if (Array.from(subjectSelect.options).some((o) => o.value === previousSubject)) {
+    subjectSelect.value = previousSubject;
+  }
+
+  const activeSubject = subjectSelect.value || "all";
+  const filteredCourses = activeSubject === "all"
+    ? coursePool
+    : coursePool.filter((c) => c.subjectId === activeSubject);
+
+  courseSelect.innerHTML = "<option value='all'>All Courses</option>";
+  filteredCourses.forEach((c) => {
+    const option = document.createElement("option");
+    option.value = c.id;
+    option.textContent = `${c.name} (${getSubjectName(c.subjectId)})`;
+    courseSelect.appendChild(option);
+  });
+  if (Array.from(courseSelect.options).some((o) => o.value === previousCourse)) {
+    courseSelect.value = previousCourse;
+  }
 }
 
 function getEligibleCoursesForStudentSubject(studentId, subjectId, includeCourseId) {
@@ -963,6 +1043,10 @@ function bindEvents() {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderAttendance());
   });
+  const studentDetailQuarterFilter = document.getElementById("student-detail-quarter-filter");
+  if (studentDetailQuarterFilter) {
+    studentDetailQuarterFilter.addEventListener("change", () => renderStudentDetail());
+  }
 
   document.getElementById("add-grade-row-btn").addEventListener("click", () => {
     if (!state.students.length || !state.subjects.length || !state.courses.length) {
@@ -974,7 +1058,12 @@ function bindEvents() {
   ["grades-filter-student", "grades-filter-quarter", "grades-filter-school-year", "grades-filter-subject", "grades-filter-course", "grades-filter-grade-type"]
     .forEach((id) => {
       const el = document.getElementById(id);
-      if (el) el.addEventListener("change", () => renderTests());
+      if (el) el.addEventListener("change", () => {
+        if (id === "grades-filter-student" || id === "grades-filter-subject") {
+          syncGradesFilterSubjectCourseOptions();
+        }
+        renderTests();
+      });
     });
 
   document.addEventListener("change", (e) => {

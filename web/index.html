@@ -102,6 +102,13 @@
           <div id="student-detail-empty" class="muted">Select a student to view enrollments and manage course enrollment.</div>
           <div id="student-detail-panel" class="detail-panel hidden">
             <p id="student-detail-title" class="detail-title"></p>
+            <form id="student-detail-filter-form" class="inline-form">
+              <label>Quarter
+                <select id="student-detail-quarter-filter">
+                  <option value="all">All Quarters</option>
+                </select>
+              </label>
+            </form>
             <form id="student-enrollment-form" class="grid-form">
               <label>Course<select id="student-enroll-course" required></select></label>
               <button type="submit">Enroll Student</button>
