@@ -89,6 +89,20 @@ function studentAbsenceCount(studentId) {
     && a.date <= endDate
     && a.date <= today).length;
 }
+function studentAttendanceSummary(studentId) {
+  const startDate = state.settings.schoolYear.startDate;
+  const endDate = state.settings.schoolYear.endDate;
+  const today = todayISO();
+  const records = state.attendance.filter((a) =>
+    a.studentId === studentId
+    && a.date >= startDate
+    && a.date <= endDate
+    && a.date <= today);
+  return {
+    attended: records.filter((a) => a.present).length,
+    absent: records.filter((a) => !a.present).length
+  };
+}
 
 function dateDiffDays(a, b){ return Math.floor((b - a) / (1000 * 60 * 60 * 24)); }
 function progress(startDate, endDate, ref = new Date()) {
@@ -153,6 +167,32 @@ function renderSelects() {
   options("calendar-student", state.students, (s) => `${s.firstName} ${s.lastName}`, "All Students");
   options("attendance-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
   options("test-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
+
+  const attendanceFilterStudent = document.getElementById("attendance-filter-student");
+  if (attendanceFilterStudent) {
+    const current = attendanceFilterStudent.value || "all";
+    attendanceFilterStudent.innerHTML = "<option value='all'>All Students</option>";
+    state.students.forEach((s) => {
+      const option = document.createElement("option");
+      option.value = s.id;
+      option.textContent = `${s.firstName} ${s.lastName}`;
+      attendanceFilterStudent.appendChild(option);
+    });
+    if (Array.from(attendanceFilterStudent.options).some((o) => o.value === current)) attendanceFilterStudent.value = current;
+  }
+
+  const attendanceFilterQuarter = document.getElementById("attendance-filter-quarter");
+  if (attendanceFilterQuarter) {
+    const current = attendanceFilterQuarter.value || "all";
+    attendanceFilterQuarter.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      attendanceFilterQuarter.appendChild(option);
+    });
+    if (Array.from(attendanceFilterQuarter.options).some((o) => o.value === current)) attendanceFilterQuarter.value = current;
+  }
 
   const gradeStudentSelect = document.getElementById("grades-filter-student");
   if (gradeStudentSelect) {
@@ -280,6 +320,12 @@ function renderStudentDetail() {
       return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${courseAvg.toFixed(1)}%</td><td><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></td></tr>`;
     });
   rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 4);
+
+  const attendanceRows = state.students.map((s) => {
+    const summary = studentAttendanceSummary(s.id);
+    return `<tr><td>${s.firstName} ${s.lastName}</td><td>${summary.attended}</td><td>${summary.absent}</td></tr>`;
+  });
+  rowOrEmpty(document.getElementById("student-attendance-summary-table"), attendanceRows, "No students available.", 3);
 }
 
 function renderHolidays() {
@@ -299,7 +345,17 @@ function renderPlans() {
 }
 
 function renderAttendance() {
-  const rows = [...state.attendance]
+  const studentFilter = document.getElementById("attendance-filter-student")?.value || "all";
+  const quarterFilter = document.getElementById("attendance-filter-quarter")?.value || "all";
+  const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
+
+  const filtered = state.attendance.filter((a) => {
+    if (studentFilter !== "all" && a.studentId !== studentFilter) return false;
+    if (quarterFilter !== "all" && quarterRange && !inRange(a.date, quarterRange.startDate, quarterRange.endDate)) return false;
+    return true;
+  });
+
+  const rows = [...filtered]
     .sort((a,b)=>b.date.localeCompare(a.date))
     .slice(0,100)
     .map((a) => `<tr><td>${a.date}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td><button type='button' data-edit-attendance='${a.id}'>Edit</button></td></tr>`);
@@ -351,26 +407,65 @@ function getCoursesBySubject(subjectId) {
   return state.courses.filter((c) => c.subjectId === subjectId);
 }
 
+function getEligibleSubjectsForStudent(studentId, includeSubjectId) {
+  const enrolledCourseIds = new Set(
+    state.enrollments
+      .filter((e) => e.studentId === studentId)
+      .map((e) => e.courseId)
+  );
+
+  const subjectIds = new Set(
+    state.courses
+      .filter((c) => enrolledCourseIds.has(c.id))
+      .map((c) => c.subjectId)
+  );
+
+  if (includeSubjectId) subjectIds.add(includeSubjectId);
+
+  return state.subjects.filter((s) => subjectIds.has(s.id));
+}
+
+function getEligibleCoursesForStudentSubject(studentId, subjectId, includeCourseId) {
+  const enrolledCourseIds = new Set(
+    state.enrollments
+      .filter((e) => e.studentId === studentId)
+      .map((e) => e.courseId)
+  );
+
+  if (includeCourseId) enrolledCourseIds.add(includeCourseId);
+
+  return state.courses.filter((c) => {
+    if (!enrolledCourseIds.has(c.id)) return false;
+    if (subjectId && c.subjectId !== subjectId) return false;
+    return true;
+  });
+}
+
 function buildGradeEntryRow(existingGrade) {
   const tr = document.createElement("tr");
 
   const dateValue = existingGrade ? existingGrade.date : todayISO();
   const gradeValue = existingGrade ? Number(existingGrade.score || 0) : "";
-  const selectedStudentId = existingGrade ? existingGrade.studentId : (state.students[0] ? state.students[0].id : "");
+  const selectedGradeStudentId = existingGrade ? existingGrade.studentId : (state.students[0] ? state.students[0].id : "");
   const selectedSubjectId = existingGrade ? existingGrade.subjectId : (state.subjects[0] ? state.subjects[0].id : "");
   const selectedCourseId = existingGrade ? existingGrade.courseId : "";
   const selectedGradeType = existingGrade ? (existingGrade.gradeType || existingGrade.testName || "Test") : "Quiz";
 
   const studentOptions = state.students
-    .map((s) => `<option value="${s.id}"${s.id === selectedStudentId ? " selected" : ""}>${s.firstName} ${s.lastName}</option>`)
+    .map((s) => `<option value="${s.id}"${s.id === selectedGradeStudentId ? " selected" : ""}>${s.firstName} ${s.lastName}</option>`)
     .join("");
-  const subjectOptions = state.subjects
-    .map((s) => `<option value="${s.id}"${s.id === selectedSubjectId ? " selected" : ""}>${s.name}</option>`)
-    .join("");
-  const defaultSubjectId = selectedSubjectId || (state.subjects[0] ? state.subjects[0].id : "");
-  const courseOptions = getCoursesBySubject(defaultSubjectId)
+
+  const eligibleSubjects = getEligibleSubjectsForStudent(selectedGradeStudentId, selectedSubjectId);
+  const defaultSubjectId = eligibleSubjects.some((s) => s.id === selectedSubjectId)
+    ? selectedSubjectId
+    : (eligibleSubjects[0] ? eligibleSubjects[0].id : "");
+  const subjectOptions = eligibleSubjects.length
+    ? eligibleSubjects.map((s) => `<option value="${s.id}"${s.id === defaultSubjectId ? " selected" : ""}>${s.name}</option>`).join("")
+    : "<option value=''>No enrolled subjects</option>";
+
+  const courseOptions = getEligibleCoursesForStudentSubject(selectedGradeStudentId, defaultSubjectId, selectedCourseId)
     .map((c) => `<option value="${c.id}"${c.id === selectedCourseId ? " selected" : ""}>${c.name}</option>`)
-    .join("");
+    .join("") || "<option value=''>No enrolled courses</option>";
 
   if (existingGrade) {
     tr.setAttribute("data-edit-grade-id", existingGrade.id);
@@ -383,6 +478,7 @@ function buildGradeEntryRow(existingGrade) {
     <td><select class="grade-row-course">${courseOptions}</select></td>
     <td>
       <select class="grade-row-type">
+        <option value="Assignment"${selectedGradeType === "Assignment" ? " selected" : ""}>Assignment</option>
         <option value="Quiz"${selectedGradeType === "Quiz" ? " selected" : ""}>Quiz</option>
         <option value="Test"${selectedGradeType === "Test" ? " selected" : ""}>Test</option>
         <option value="Quarterly Final"${selectedGradeType === "Quarterly Final" ? " selected" : ""}>Quarterly Final</option>
@@ -397,15 +493,29 @@ function buildGradeEntryRow(existingGrade) {
 }
 
 function updateGradeRowCourses(row) {
+  const studentSelect = row.querySelector(".grade-row-student");
   const subjectSelect = row.querySelector(".grade-row-subject");
   const courseSelect = row.querySelector(".grade-row-course");
-  if (!subjectSelect || !courseSelect) return;
+  if (!studentSelect || !subjectSelect || !courseSelect) return;
 
-  const subjectId = subjectSelect.value;
-  const optionsHtml = getCoursesBySubject(subjectId)
-    .map((c) => `<option value="${c.id}">${c.name}</option>`)
-    .join("");
-  courseSelect.innerHTML = optionsHtml;
+  const studentId = studentSelect.value;
+  const currentSubjectId = subjectSelect.value;
+  const currentCourseId = courseSelect.value;
+
+  const eligibleSubjects = getEligibleSubjectsForStudent(studentId, currentSubjectId);
+  subjectSelect.innerHTML = eligibleSubjects.length
+    ? eligibleSubjects.map((s) => `<option value="${s.id}"${s.id === currentSubjectId ? " selected" : ""}>${s.name}</option>`).join("")
+    : "<option value=''>No enrolled subjects</option>";
+
+  const subjectId = eligibleSubjects.some((s) => s.id === currentSubjectId)
+    ? currentSubjectId
+    : (eligibleSubjects[0] ? eligibleSubjects[0].id : "");
+  if (subjectId) subjectSelect.value = subjectId;
+
+  const courseOptions = getEligibleCoursesForStudentSubject(studentId, subjectId, currentCourseId);
+  courseSelect.innerHTML = courseOptions.length
+    ? courseOptions.map((c) => `<option value="${c.id}"${c.id === currentCourseId ? " selected" : ""}>${c.name}</option>`).join("")
+    : "<option value=''>No enrolled courses</option>";
 }
 
 function gradeAnalytics() {
@@ -842,6 +952,10 @@ function bindEvents() {
     resetAttendanceEditMode();
     renderAll();
   });
+  ["attendance-filter-student", "attendance-filter-quarter"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderAttendance());
+  });
 
   document.getElementById("add-grade-row-btn").addEventListener("click", () => {
     if (!state.students.length || !state.subjects.length || !state.courses.length) {
@@ -859,7 +973,7 @@ function bindEvents() {
   document.addEventListener("change", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
-    if (t.classList.contains("grade-row-subject")) {
+    if (t.classList.contains("grade-row-subject") || t.classList.contains("grade-row-student")) {
       const row = t.closest("tr");
       if (row) updateGradeRowCourses(row);
     }

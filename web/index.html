@@ -112,6 +112,13 @@
                 <tbody id="student-enrollment-table"></tbody>
               </table>
             </div>
+            <h4>Attendance Summary</h4>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Student</th><th>Days Attended</th><th>Days Absent</th></tr></thead>
+                <tbody id="student-attendance-summary-table"></tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -252,6 +259,18 @@
         </label>
         <button id="attendance-submit-btn" type="submit">Save Attendance</button>
         <button id="attendance-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+      </form>
+      <form id="attendance-filter-form" class="grid-form">
+        <label>Student
+          <select id="attendance-filter-student">
+            <option value="all">All Students</option>
+          </select>
+        </label>
+        <label>Quarter
+          <select id="attendance-filter-quarter">
+            <option value="all">All Quarters</option>
+          </select>
+        </label>
       </form>
       <div class="table-wrap">
         <table>
