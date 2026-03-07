@@ -23,6 +23,29 @@ Starter workspace for building a Home School Management web application with a m
 3. Open:
    - `http://127.0.0.1:5500/web/`
 
+## Current MVP Features
+
+- Management interface:
+  - Create and manage students (first name, last name, birthdate, grade)
+  - Auto-calculate age and record age-at-entry
+  - Create and manage subjects
+  - Create and manage courses linked to subjects
+  - Enroll students into courses
+- Planning and calendar:
+  - Configure school year and quarter date ranges
+  - Configure holidays and breaks
+  - Create annual, quarterly, and weekly instructional plans
+  - Calendar views for daily, weekly, monthly, quarterly, and annual schedules
+- Records and grading:
+  - Attendance logging by student and date
+  - Test logging with subject, course, score, and max score
+  - Grade dashboard with averages by student, by subject, running, quarterly, and annual
+- Instruction progress indicators:
+  - Instructional days completed vs total
+  - Instructional hours completed vs total
+  - School year progress
+  - Current quarter progress
+
 ## Agent Collaboration Model
 
 1. Plan in `WORKPLAN.md`.
