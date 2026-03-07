@@ -258,6 +258,52 @@ button:hover {
   align-items: center;
 }
 
+.checklist-vertical {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 220px;
+}
+
+.checklist-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.checklist-row label {
+  display: inline;
+  cursor: pointer;
+}
+
+.multi-select-dropdown {
+  border: 1px solid #ccb48d;
+  border-radius: 8px;
+  padding: 0;
+  background: #fff;
+  width: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.multi-select-dropdown summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 0.42rem 0.55rem;
+  line-height: 1.2;
+  list-style-position: inside;
+}
+
+.multi-select-dropdown[open] .checklist-vertical {
+  margin-top: 0.45rem;
+  max-height: 190px;
+  overflow: auto;
+  padding: 0 0.55rem 0.45rem;
+}
+
+.attendance-student-field {
+  align-self: stretch;
+}
+
 .table-wrap {
   overflow: auto;
 }

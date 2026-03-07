@@ -186,8 +186,8 @@ function renderSelects() {
   options("test-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
   options("plan-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
   options("calendar-student", state.students, (s) => `${s.firstName} ${s.lastName}`, "All Students");
-  options("attendance-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
   options("test-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
+  renderAttendanceStudentChecklist();
 
   const attendanceFilterStudent = document.getElementById("attendance-filter-student");
   if (attendanceFilterStudent) {
@@ -273,6 +273,27 @@ function renderSelects() {
   }
 
   syncGradesFilterSubjectCourseOptions();
+}
+
+function renderAttendanceStudentChecklist(preselectedStudentIds = []) {
+  const container = document.getElementById("attendance-student-dropdown");
+  const optionsWrap = document.getElementById("attendance-student-options");
+  if (!container || !optionsWrap) return;
+  const selected = new Set(preselectedStudentIds);
+  const checkboxes = state.students.map((s, idx) => {
+    const checked = selected.has(s.id) ? " checked" : "";
+    const inputId = `attendance-student-${idx}-${s.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="attendance-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
+  updateAttendanceStudentSummary();
+}
+
+function updateAttendanceStudentSummary() {
+  const summary = document.getElementById("attendance-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".attendance-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
 }
 
 function rowOrEmpty(tbody, html, emptyMsg, cols) {
@@ -395,6 +416,7 @@ function resetAttendanceEditMode() {
   if (cancelBtn) cancelBtn.classList.add("hidden");
   const dateInput = document.getElementById("attendance-date");
   if (dateInput) dateInput.value = todayISO();
+  renderAttendanceStudentChecklist([]);
 }
 
 function renderTests() {
@@ -1011,11 +1033,13 @@ function bindEvents() {
 
   document.getElementById("attendance-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    const studentId = document.getElementById("attendance-student").value;
+    const studentIds = Array.from(document.querySelectorAll(".attendance-student-checkbox:checked")).map((el) => el.value);
     const date = document.getElementById("attendance-date").value;
     const status = document.getElementById("attendance-status").value;
-    if (!studentId || !date) return;
+    if (!studentIds.length) { alert("Select at least one student."); return; }
+    if (!date) return;
     if (editingAttendanceId) {
+      const studentId = studentIds[0];
       const target = state.attendance.find((a) => a.id === editingAttendanceId);
       if (target) {
         target.studentId = studentId;
@@ -1028,9 +1052,11 @@ function bindEvents() {
         state.attendance = state.attendance.filter((a) => a.id !== editingAttendanceId);
       }
     } else {
-      const existing = state.attendance.find((a)=>a.studentId===studentId && a.date===date);
-      if (existing) existing.present = status === "present";
-      else state.attendance.push({ id: uid(), studentId, date, present: status === "present" });
+      studentIds.forEach((studentId) => {
+        const existing = state.attendance.find((a)=>a.studentId===studentId && a.date===date);
+        if (existing) existing.present = status === "present";
+        else state.attendance.push({ id: uid(), studentId, date, present: status === "present" });
+      });
     }
     resetAttendanceEditMode();
     saveState(); renderAll();
@@ -1069,6 +1095,10 @@ function bindEvents() {
   document.addEventListener("change", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
+    if (t.classList.contains("attendance-student-checkbox")) {
+      updateAttendanceStudentSummary();
+      return;
+    }
     if (t.classList.contains("grade-row-subject") || t.classList.contains("grade-row-student")) {
       const row = t.closest("tr");
       if (row) updateGradeRowCourses(row);
@@ -1084,7 +1114,7 @@ function bindEvents() {
       const target = state.attendance.find((a) => a.id === editAttendanceId);
       if (!target) return;
       editingAttendanceId = target.id;
-      document.getElementById("attendance-student").value = target.studentId;
+      renderAttendanceStudentChecklist([target.studentId]);
       document.getElementById("attendance-date").value = target.date;
       document.getElementById("attendance-status").value = target.present ? "present" : "absent";
       document.getElementById("attendance-submit-btn").textContent = "Update Attendance";

@@ -256,7 +256,12 @@
       <h2>Attendance</h2>
       <h3>Attendance Tracker</h3>
       <form id="attendance-form" class="grid-form">
-        <label>Student<select id="attendance-student" required></select></label>
+        <label class="attendance-student-field">Student
+          <details id="attendance-student-dropdown" class="multi-select-dropdown">
+            <summary id="attendance-student-summary">Students (0 selected)</summary>
+            <div id="attendance-student-options" class="checklist-vertical"></div>
+          </details>
+        </label>
         <label>Date<input id="attendance-date" type="date" required></label>
         <label>Status
           <select id="attendance-status">
