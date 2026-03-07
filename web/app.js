@@ -153,6 +153,76 @@ function renderSelects() {
   options("calendar-student", state.students, (s) => `${s.firstName} ${s.lastName}`, "All Students");
   options("attendance-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
   options("test-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
+
+  const gradeStudentSelect = document.getElementById("grades-filter-student");
+  if (gradeStudentSelect) {
+    const current = gradeStudentSelect.value || "all";
+    gradeStudentSelect.innerHTML = "<option value='all'>All Students</option>";
+    state.students.forEach((s) => {
+      const option = document.createElement("option");
+      option.value = s.id;
+      option.textContent = `${s.firstName} ${s.lastName}`;
+      gradeStudentSelect.appendChild(option);
+    });
+    if (Array.from(gradeStudentSelect.options).some((o) => o.value === current)) gradeStudentSelect.value = current;
+  }
+  const quarterSelect = document.getElementById("grades-filter-quarter");
+  if (quarterSelect) {
+    const current = quarterSelect.value;
+    quarterSelect.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      quarterSelect.appendChild(option);
+    });
+    if (current && Array.from(quarterSelect.options).some((o) => o.value === current)) quarterSelect.value = current;
+  }
+
+  const schoolYearSelect = document.getElementById("grades-filter-school-year");
+  if (schoolYearSelect) {
+    const current = schoolYearSelect.value;
+    schoolYearSelect.innerHTML = "<option value='all'>All School Years</option>";
+    const option = document.createElement("option");
+    option.value = "current";
+    option.textContent = `Current (${state.settings.schoolYear.label})`;
+    schoolYearSelect.appendChild(option);
+    const yearSet = new Set(state.tests.map((t) => String(t.date).slice(0, 4)));
+    Array.from(yearSet).sort().forEach((year) => {
+      if (!year) return;
+      const yearOption = document.createElement("option");
+      yearOption.value = year;
+      yearOption.textContent = year;
+      schoolYearSelect.appendChild(yearOption);
+    });
+    if (current && Array.from(schoolYearSelect.options).some((o) => o.value === current)) schoolYearSelect.value = current;
+  }
+
+  const gradeSubjectSelect = document.getElementById("grades-filter-subject");
+  if (gradeSubjectSelect) {
+    const current = gradeSubjectSelect.value || "all";
+    gradeSubjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+    state.subjects.forEach((s) => {
+      const option = document.createElement("option");
+      option.value = s.id;
+      option.textContent = s.name;
+      gradeSubjectSelect.appendChild(option);
+    });
+    if (Array.from(gradeSubjectSelect.options).some((o) => o.value === current)) gradeSubjectSelect.value = current;
+  }
+
+  const gradeCourseSelect = document.getElementById("grades-filter-course");
+  if (gradeCourseSelect) {
+    const current = gradeCourseSelect.value || "all";
+    gradeCourseSelect.innerHTML = "<option value='all'>All Courses</option>";
+    state.courses.forEach((c) => {
+      const option = document.createElement("option");
+      option.value = c.id;
+      option.textContent = `${c.name} (${getSubjectName(c.subjectId)})`;
+      gradeCourseSelect.appendChild(option);
+    });
+    if (Array.from(gradeCourseSelect.options).some((o) => o.value === current)) gradeCourseSelect.value = current;
+  }
 }
 
 function rowOrEmpty(tbody, html, emptyMsg, cols) {
@@ -247,7 +317,27 @@ function resetAttendanceEditMode() {
 }
 
 function renderTests() {
-  const rows = [...state.tests]
+  const studentFilter = document.getElementById("grades-filter-student")?.value || "all";
+  const quarterFilter = document.getElementById("grades-filter-quarter")?.value || "all";
+  const schoolYearFilter = document.getElementById("grades-filter-school-year")?.value || "all";
+  const subjectFilter = document.getElementById("grades-filter-subject")?.value || "all";
+  const courseFilter = document.getElementById("grades-filter-course")?.value || "all";
+
+  const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
+  const schoolYearStart = state.settings.schoolYear.startDate;
+  const schoolYearEnd = state.settings.schoolYear.endDate;
+
+  const filtered = state.tests.filter((t) => {
+    if (studentFilter !== "all" && t.studentId !== studentFilter) return false;
+    if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
+    if (courseFilter !== "all" && t.courseId !== courseFilter) return false;
+    if (quarterFilter !== "all" && quarterRange && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
+    if (schoolYearFilter === "current" && !inRange(t.date, schoolYearStart, schoolYearEnd)) return false;
+    if (schoolYearFilter !== "all" && schoolYearFilter !== "current" && String(t.date).slice(0, 4) !== schoolYearFilter) return false;
+    return true;
+  });
+
+  const rows = [...filtered]
     .sort((a,b)=>b.date.localeCompare(a.date))
     .slice(0,150)
     .map((t) => {
@@ -760,6 +850,11 @@ function bindEvents() {
     }
     document.getElementById("grade-entry-body").appendChild(buildGradeEntryRow());
   });
+  ["grades-filter-student", "grades-filter-quarter", "grades-filter-school-year", "grades-filter-subject", "grades-filter-course"]
+    .forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("change", () => renderTests());
+    });
 
   document.addEventListener("change", (e) => {
     const t = e.target;
