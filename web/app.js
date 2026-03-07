@@ -3,7 +3,34 @@ const STORAGE_KEY = "hsm_state_v2";
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function uid() { return `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
-function toDate(s) { return new Date(`${s}T12:00:00`); }
+function toDate(s) {
+  if (s instanceof Date) {
+    return new Date(s.getFullYear(), s.getMonth(), s.getDate(), 12, 0, 0, 0);
+  }
+  if (typeof s !== "string") return new Date(NaN);
+  const value = s.trim();
+  if (!value) return new Date(NaN);
+
+  let match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const y = Number(match[1]);
+    const m = Number(match[2]) - 1;
+    const d = Number(match[3]);
+    return new Date(y, m, d, 12, 0, 0, 0);
+  }
+
+  match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const m = Number(match[1]) - 1;
+    const d = Number(match[2]);
+    const y = Number(match[3]);
+    return new Date(y, m, d, 12, 0, 0, 0);
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return new Date(NaN);
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate(), 12, 0, 0, 0);
+}
 function toISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 function todayISO() { return toISO(new Date()); }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
@@ -56,6 +83,9 @@ function loadState() {
 let state = loadState();
 let selectedStudentId = "";
 let editingAttendanceId = "";
+const expandedStudentAverageRows = new Set();
+const expandedSubjectAverageRows = new Set();
+const expandedStudentAttendanceRows = new Set();
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
 function getStudentName(id) { const s = state.students.find((x) => x.id === id); return s ? `${s.firstName} ${s.lastName}` : "Unknown Student"; }
@@ -135,11 +165,18 @@ function progress(startDate, endDate, ref = new Date()) {
 }
 
 function currentQuarter(ref = new Date()) {
-  const q = [...state.settings.quarters].sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  const q = [...state.settings.quarters]
+    .map((quarter) => ({ quarter, start: toDate(quarter.startDate), end: toDate(quarter.endDate) }))
+    .filter((entry) => !Number.isNaN(entry.start.getTime()) && !Number.isNaN(entry.end.getTime()))
+    .sort((a, b) => a.start - b.start);
+
   for (let i=0;i<q.length;i+=1) {
-    if (ref >= toDate(q[i].startDate) && ref <= toDate(q[i].endDate)) return q[i];
+    if (ref >= q[i].start && ref <= q[i].end) return q[i].quarter;
   }
-  return q[0] || null;
+  for (let i=0;i<q.length;i+=1) {
+    if (ref < q[i].start) return q[i].quarter;
+  }
+  return q.length ? q[q.length - 1].quarter : null;
 }
 
 function holidaySet() {
@@ -297,6 +334,7 @@ function updateAttendanceStudentSummary() {
 }
 
 function rowOrEmpty(tbody, html, emptyMsg, cols) {
+  if (!tbody) return;
   tbody.innerHTML = "";
   if (!html.length) { tbody.innerHTML = `<tr><td colspan='${cols}'>${emptyMsg}</td></tr>`; return; }
   tbody.innerHTML = html.join("");
@@ -685,17 +723,151 @@ function renderDashboard() {
   document.getElementById("quarter-progress-fill").style.width = `${qP.toFixed(1)}%`;
   document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
 
-  rowOrEmpty(document.getElementById("student-avg-table"),
-    g.student.sort((a,b)=>b.avg-a.avg).map((r)=>`<tr><td>${getStudentName(r.studentId)}</td><td>${r.avg.toFixed(1)}%</td><td>${r.count}</td></tr>`),
-    "No graded tests yet.", 3);
+  const validStudentIds = new Set(state.students.map((student) => student.id));
+  Array.from(expandedStudentAverageRows).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) expandedStudentAverageRows.delete(studentId);
+  });
+  Array.from(expandedSubjectAverageRows).forEach((subjectKey) => {
+    const studentId = subjectKey.split("::")[0];
+    if (!validStudentIds.has(studentId)) expandedSubjectAverageRows.delete(subjectKey);
+  });
+  Array.from(expandedStudentAttendanceRows).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) expandedStudentAttendanceRows.delete(studentId);
+  });
+
+  const quarterByName = new Map(state.settings.quarters.map((entry) => [entry.name, entry]));
+  const formatAvgCell = (vals) => vals.length ? `${avg(vals).toFixed(1)}%` : "No grades";
+  const gradeTypeOrder = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+  const studentMetrics = state.students
+    .map((student) => {
+      const studentTests = state.tests.filter((t) => t.studentId === student.id);
+      const totalVals = studentTests.map((t) => pct(t.score, t.maxScore));
+      const q1 = quarterByName.get("Q1");
+      const q2 = quarterByName.get("Q2");
+      const q3 = quarterByName.get("Q3");
+      const q4 = quarterByName.get("Q4");
+
+      const q1Vals = q1 ? studentTests.filter((t) => inRange(t.date, q1.startDate, q1.endDate)).map((t) => pct(t.score, t.maxScore)) : [];
+      const q2Vals = q2 ? studentTests.filter((t) => inRange(t.date, q2.startDate, q2.endDate)).map((t) => pct(t.score, t.maxScore)) : [];
+      const q3Vals = q3 ? studentTests.filter((t) => inRange(t.date, q3.startDate, q3.endDate)).map((t) => pct(t.score, t.maxScore)) : [];
+      const q4Vals = q4 ? studentTests.filter((t) => inRange(t.date, q4.startDate, q4.endDate)).map((t) => pct(t.score, t.maxScore)) : [];
+      const subjectMap = new Map();
+      studentTests.forEach((test) => {
+        const subjectId = test.subjectId || "__unknown_subject__";
+        if (!subjectMap.has(subjectId)) subjectMap.set(subjectId, []);
+        subjectMap.get(subjectId).push(test);
+      });
+      const subjectRows = Array.from(subjectMap.entries())
+        .sort((a, b) => getSubjectName(a[0]).localeCompare(getSubjectName(b[0])))
+        .flatMap(([subjectId, testsForSubject]) => {
+          const subjectName = getSubjectName(subjectId);
+          const totalValsBySubject = testsForSubject.map((test) => pct(test.score, test.maxScore));
+          const q1ValsBySubject = q1 ? testsForSubject.filter((test) => inRange(test.date, q1.startDate, q1.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
+          const q2ValsBySubject = q2 ? testsForSubject.filter((test) => inRange(test.date, q2.startDate, q2.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
+          const q3ValsBySubject = q3 ? testsForSubject.filter((test) => inRange(test.date, q3.startDate, q3.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
+          const q4ValsBySubject = q4 ? testsForSubject.filter((test) => inRange(test.date, q4.startDate, q4.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
+
+          const subjectKey = `${student.id}::${subjectId}`;
+          const expandedSubject = expandedSubjectAverageRows.has(subjectKey);
+          const subjectRow = `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell"><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${expandedSubject ? "-" : "+"}</button>${subjectName}</td><td>${formatAvgCell(totalValsBySubject)}</td><td>${formatAvgCell(q1ValsBySubject)}</td><td>${formatAvgCell(q2ValsBySubject)}</td><td>${formatAvgCell(q3ValsBySubject)}</td><td>${formatAvgCell(q4ValsBySubject)}</td></tr>`;
+
+          if (!expandedSubject) return [subjectRow];
+
+          const typeMap = new Map();
+          testsForSubject.forEach((test) => {
+            const gradeType = test.gradeType || test.testName || "Other";
+            if (!typeMap.has(gradeType)) typeMap.set(gradeType, []);
+            typeMap.get(gradeType).push(test);
+          });
+          const sortedTypes = Array.from(typeMap.keys()).sort((a, b) => {
+            const ai = gradeTypeOrder.indexOf(a);
+            const bi = gradeTypeOrder.indexOf(b);
+            const av = ai === -1 ? Number.MAX_SAFE_INTEGER : ai;
+            const bv = bi === -1 ? Number.MAX_SAFE_INTEGER : bi;
+            return av - bv || a.localeCompare(b);
+          });
+          const typeRows = sortedTypes.map((gradeType) => {
+            const typeTests = typeMap.get(gradeType) || [];
+            const totalValsByType = typeTests.map((test) => pct(test.score, test.maxScore));
+            const q1ValsByType = q1 ? typeTests.filter((test) => inRange(test.date, q1.startDate, q1.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
+            const q2ValsByType = q2 ? typeTests.filter((test) => inRange(test.date, q2.startDate, q2.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
+            const q3ValsByType = q3 ? typeTests.filter((test) => inRange(test.date, q3.startDate, q3.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
+            const q4ValsByType = q4 ? typeTests.filter((test) => inRange(test.date, q4.startDate, q4.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
+            return `<tr class="student-avg-type-row"><td class="student-avg-type-cell">${gradeType}</td><td>${formatAvgCell(totalValsByType)}</td><td>${formatAvgCell(q1ValsByType)}</td><td>${formatAvgCell(q2ValsByType)}</td><td>${formatAvgCell(q3ValsByType)}</td><td>${formatAvgCell(q4ValsByType)}</td></tr>`;
+          });
+          return [subjectRow, ...typeRows];
+        })
+        .join("");
+      const expanded = expandedStudentAverageRows.has(student.id);
+      const detailRows = subjectRows
+        ? subjectRows
+        : "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No subject grades yet.</td></tr>";
+
+      return {
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        totalVals,
+        q1Vals,
+        q2Vals,
+        q3Vals,
+        q4Vals,
+        totalValue: totalVals.length ? avg(totalVals) : -1,
+        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "-" : "+"}</button> ${student.firstName} ${student.lastName}</td><td>${formatAvgCell(totalVals)}</td><td>${formatAvgCell(q1Vals)}</td><td>${formatAvgCell(q2Vals)}</td><td>${formatAvgCell(q3Vals)}</td><td>${formatAvgCell(q4Vals)}</td></tr>`,
+        detailRow: expanded ? detailRows : ""
+      };
+    })
+    .sort((a, b) => b.totalValue - a.totalValue || a.studentName.localeCompare(b.studentName));
+
+  const studentRows = studentMetrics.flatMap((entry) => entry.detailRow ? [entry.row, entry.detailRow] : [entry.row]);
+  if (studentMetrics.length) {
+    const totals = {
+      total: studentMetrics.filter((entry) => entry.totalVals.length).map((entry) => avg(entry.totalVals)),
+      q1: studentMetrics.filter((entry) => entry.q1Vals.length).map((entry) => avg(entry.q1Vals)),
+      q2: studentMetrics.filter((entry) => entry.q2Vals.length).map((entry) => avg(entry.q2Vals)),
+      q3: studentMetrics.filter((entry) => entry.q3Vals.length).map((entry) => avg(entry.q3Vals)),
+      q4: studentMetrics.filter((entry) => entry.q4Vals.length).map((entry) => avg(entry.q4Vals))
+    };
+    studentRows.push(`<tr><td><strong>Average</strong></td><td><strong>${formatAvgCell(totals.total)}</strong></td><td><strong>${formatAvgCell(totals.q1)}</strong></td><td><strong>${formatAvgCell(totals.q2)}</strong></td><td><strong>${formatAvgCell(totals.q3)}</strong></td><td><strong>${formatAvgCell(totals.q4)}</strong></td></tr>`);
+  }
+  rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
+
+  const attendanceDatesThroughToday = dates.filter((d) => d <= todayISO());
+  const attendanceDateSet = new Set(attendanceDatesThroughToday);
+  const totalAttendanceDays = attendanceDatesThroughToday.length;
+  const studentAttendanceRows = state.students.flatMap((student) => {
+    const records = state.attendance.filter((a) => a.studentId === student.id && a.date <= todayISO() && attendanceDateSet.has(a.date));
+    const presentCount = records.filter((a) => a.present).length;
+    const absentCount = records.filter((a) => !a.present).length;
+    const attendanceAverage = totalAttendanceDays > 0 ? (presentCount / totalAttendanceDays) * 100 : 0;
+    const expandedAttendance = expandedStudentAttendanceRows.has(student.id);
+    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${student.id}" aria-expanded="${expandedAttendance ? "true" : "false"}">${expandedAttendance ? "-" : "+"}</button> ${student.firstName} ${student.lastName}</td><td>${totalAttendanceDays}</td><td>${presentCount}</td><td>${absentCount}</td><td>${totalAttendanceDays > 0 ? `${attendanceAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+    if (!expandedAttendance) return [studentRow];
+
+    const quarterRows = state.settings.quarters
+      .map((quarter) => {
+        const quarterDates = attendanceDatesThroughToday.filter((d) => inRange(d, quarter.startDate, quarter.endDate));
+        const quarterDateSet = new Set(quarterDates);
+        const quarterTotalDays = quarterDates.length;
+        const quarterRecords = records.filter((a) => quarterDateSet.has(a.date));
+        const quarterPresent = quarterRecords.filter((a) => a.present).length;
+        const quarterAbsent = quarterRecords.filter((a) => !a.present).length;
+        const quarterAverage = quarterTotalDays > 0 ? (quarterPresent / quarterTotalDays) * 100 : 0;
+        return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarterTotalDays}</td><td>${quarterPresent}</td><td>${quarterAbsent}</td><td>${quarterTotalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+      });
+    return [studentRow, ...quarterRows];
+  });
+  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
 
   rowOrEmpty(document.getElementById("subject-avg-table"),
     g.subject.sort((a,b)=>b.avg-a.avg).map((r)=>`<tr><td>${getSubjectName(r.subjectId)}</td><td>${r.avg.toFixed(1)}%</td><td>${r.count}</td></tr>`),
     "No graded tests yet.", 3);
 
-  const periodRows = g.quarterRows.map((qRow)=>`<tr><td>${qRow.label}</td><td>${qRow.avg.toFixed(1)}%</td><td>${qRow.count}</td></tr>`);
-  periodRows.push(`<tr><td>Annual (${state.settings.schoolYear.label})</td><td>${g.annualAvg.toFixed(1)}%</td><td>${g.annualCount}</td></tr>`);
-  rowOrEmpty(document.getElementById("period-avg-table"), periodRows, "No period data.", 3);
+  const periodTable = document.getElementById("period-avg-table");
+  if (periodTable) {
+    const periodRows = g.quarterRows.map((qRow)=>`<tr><td>${qRow.label}</td><td>${qRow.avg.toFixed(1)}%</td><td>${qRow.count}</td></tr>`);
+    periodRows.push(`<tr><td>Annual (${state.settings.schoolYear.label})</td><td>${g.annualAvg.toFixed(1)}%</td><td>${g.annualCount}</td></tr>`);
+    rowOrEmpty(periodTable, periodRows, "No period data.", 3);
+  }
 }
 function viewRange(view, refISO) {
   const ref = toDate(refISO);
@@ -1108,6 +1280,28 @@ function bindEvents() {
   document.addEventListener("click", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
+
+    const toggleStudentAvgId = t.getAttribute("data-toggle-student-avg");
+    if (toggleStudentAvgId) {
+      if (expandedStudentAverageRows.has(toggleStudentAvgId)) expandedStudentAverageRows.delete(toggleStudentAvgId);
+      else expandedStudentAverageRows.add(toggleStudentAvgId);
+      renderDashboard();
+      return;
+    }
+    const toggleSubjectAvgKey = t.getAttribute("data-toggle-subject-avg");
+    if (toggleSubjectAvgKey) {
+      if (expandedSubjectAverageRows.has(toggleSubjectAvgKey)) expandedSubjectAverageRows.delete(toggleSubjectAvgKey);
+      else expandedSubjectAverageRows.add(toggleSubjectAvgKey);
+      renderDashboard();
+      return;
+    }
+    const toggleStudentAttendanceId = t.getAttribute("data-toggle-student-attendance");
+    if (toggleStudentAttendanceId) {
+      if (expandedStudentAttendanceRows.has(toggleStudentAttendanceId)) expandedStudentAttendanceRows.delete(toggleStudentAttendanceId);
+      else expandedStudentAttendanceRows.add(toggleStudentAttendanceId);
+      renderDashboard();
+      return;
+    }
 
     const editAttendanceId = t.getAttribute("data-edit-attendance");
     if (editAttendanceId) {
