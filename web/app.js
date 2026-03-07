@@ -960,6 +960,25 @@ function renderGradeTrending() {
     return { ...entry, color: palette[idx % palette.length], monthly };
   });
 
+  const plottedValues = series.flatMap((lineSeries) =>
+    lineSeries.monthly.filter((row) => row.count > 0).map((row) => row.avg));
+  let yMin = 50;
+  let yMax = 100;
+  if (plottedValues.length) {
+    const rawMin = Math.min(...plottedValues);
+    const rawMax = Math.max(...plottedValues);
+    yMin = Math.max(50, Math.floor((rawMin - 2) / 5) * 5);
+    yMax = Math.min(100, Math.ceil((rawMax + 2) / 5) * 5);
+    if (yMax - yMin < 10) {
+      yMax = Math.min(100, yMin + 10);
+      yMin = Math.max(50, yMax - 10);
+    }
+  }
+  const yTickStep = (yMax - yMin) <= 30 ? 5 : 10;
+  const yTicks = [];
+  for (let tick = yMin; tick <= yMax; tick += yTickStep) yTicks.push(tick);
+  if (yTicks[yTicks.length - 1] !== yMax) yTicks.push(yMax);
+
   const width = 960;
   const height = 260;
   const margin = { top: 18, right: 20, bottom: 48, left: 52 };
@@ -969,9 +988,11 @@ function renderGradeTrending() {
   const xSpan = Math.max(1, plotW - (xPad * 2));
   const xStep = months.length > 1 ? xSpan / (months.length - 1) : 0;
   const xFor = (idx) => margin.left + xPad + (xStep * idx);
-  const yFor = (value) => margin.top + ((100 - value) / 100) * plotH;
+  const yFor = (value) => {
+    const clamped = clamp(value, yMin, yMax);
+    return margin.top + ((yMax - clamped) / (yMax - yMin)) * plotH;
+  };
 
-  const yTicks = [0, 25, 50, 75, 100];
   const yTickSvg = yTicks.map((tick) => {
     const y = yFor(tick);
     return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${tick}</text></g>`;
