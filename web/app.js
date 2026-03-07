@@ -378,6 +378,7 @@ function renderTests() {
   const schoolYearFilter = document.getElementById("grades-filter-school-year")?.value || "all";
   const subjectFilter = document.getElementById("grades-filter-subject")?.value || "all";
   const courseFilter = document.getElementById("grades-filter-course")?.value || "all";
+  const gradeTypeFilter = document.getElementById("grades-filter-grade-type")?.value || "all";
 
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
   const schoolYearStart = state.settings.schoolYear.startDate;
@@ -387,6 +388,8 @@ function renderTests() {
     if (studentFilter !== "all" && t.studentId !== studentFilter) return false;
     if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
     if (courseFilter !== "all" && t.courseId !== courseFilter) return false;
+    const thisGradeType = t.gradeType || t.testName || "Test";
+    if (gradeTypeFilter !== "all" && thisGradeType !== gradeTypeFilter) return false;
     if (quarterFilter !== "all" && quarterRange && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if (schoolYearFilter === "current" && !inRange(t.date, schoolYearStart, schoolYearEnd)) return false;
     if (schoolYearFilter !== "all" && schoolYearFilter !== "current" && String(t.date).slice(0, 4) !== schoolYearFilter) return false;
@@ -400,6 +403,10 @@ function renderTests() {
       const gradeType = t.gradeType || t.testName || "Test";
       return `<tr><td>${t.date}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${gradeType}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td><td><button type='button' data-edit-grade='${t.id}'>Edit</button></td></tr>`;
     });
+  const avgGrade = avg(filtered.map((t) => pct(t.score, t.maxScore)));
+  if (rows.length) {
+    rows.push(`<tr><td colspan="5"><strong>Average Grade</strong></td><td><strong>${avgGrade.toFixed(1)}%</strong></td><td></td></tr>`);
+  }
   rowOrEmpty(document.getElementById("test-table"), rows, "No grades logged yet.", 7);
 }
 
@@ -964,7 +971,7 @@ function bindEvents() {
     }
     document.getElementById("grade-entry-body").appendChild(buildGradeEntryRow());
   });
-  ["grades-filter-student", "grades-filter-quarter", "grades-filter-school-year", "grades-filter-subject", "grades-filter-course"]
+  ["grades-filter-student", "grades-filter-quarter", "grades-filter-school-year", "grades-filter-subject", "grades-filter-course", "grades-filter-grade-type"]
     .forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("change", () => renderTests());
