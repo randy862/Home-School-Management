@@ -55,6 +55,7 @@ function loadState() {
 
 let state = loadState();
 let selectedStudentId = "";
+let editingAttendanceId = "";
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
 function getStudentName(id) { const s = state.students.find((x) => x.id === id); return s ? `${s.firstName} ${s.lastName}` : "Unknown Student"; }
@@ -65,6 +66,29 @@ function getCourseName(id) { const c = getCourse(id); return c ? c.name : "Unkno
 function inRange(date, startDate, endDate) { return date >= startDate && date <= endDate; }
 function avg(vals){ return vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : 0; }
 function pct(score, max) { const s = Number(score), m = Number(max); return m > 0 ? (s / m) * 100 : 0; }
+function studentOverallAverage(studentId) {
+  const vals = state.tests
+    .filter((t) => t.studentId === studentId)
+    .map((t) => pct(t.score, t.maxScore));
+  return avg(vals);
+}
+function studentCourseAverage(studentId, courseId) {
+  const vals = state.tests
+    .filter((t) => t.studentId === studentId && t.courseId === courseId)
+    .map((t) => pct(t.score, t.maxScore));
+  return avg(vals);
+}
+function studentAbsenceCount(studentId) {
+  const startDate = state.settings.schoolYear.startDate;
+  const endDate = state.settings.schoolYear.endDate;
+  const today = todayISO();
+  return state.attendance.filter((a) =>
+    a.studentId === studentId
+    && !a.present
+    && a.date >= startDate
+    && a.date <= endDate
+    && a.date <= today).length;
+}
 
 function dateDiffDays(a, b){ return Math.floor((b - a) / (1000 * 60 * 60 * 24)); }
 function progress(startDate, endDate, ref = new Date()) {
@@ -139,9 +163,11 @@ function rowOrEmpty(tbody, html, emptyMsg, cols) {
 function renderStudents() {
   const rows = state.students.map((s) => {
     const ageNow = calculateAge(s.birthdate);
-    return `<tr><td>${s.firstName} ${s.lastName}</td><td>${s.grade}</td><td>${ageNow}</td><td><button data-open-student='${s.id}' type='button'>Open</button> <button data-remove-student='${s.id}' type='button'>Remove</button></td></tr>`;
+    const overallAvg = studentOverallAverage(s.id);
+    const absences = studentAbsenceCount(s.id);
+    return `<tr><td>${s.firstName} ${s.lastName}</td><td>${s.grade}</td><td>${ageNow}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td><button data-open-student='${s.id}' type='button'>Open</button> <button data-remove-student='${s.id}' type='button'>Remove</button></td></tr>`;
   });
-  rowOrEmpty(document.getElementById("student-table"), rows, "No students added yet.", 4);
+  rowOrEmpty(document.getElementById("student-table"), rows, "No students added yet.", 6);
 }
 
 function renderSubjects() {
@@ -180,9 +206,10 @@ function renderStudentDetail() {
     .map((e) => {
       const course = getCourse(e.courseId);
       const subject = course ? getSubjectName(course.subjectId) : "Unknown Subject";
-      return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></td></tr>`;
+      const courseAvg = studentCourseAverage(student.id, e.courseId);
+      return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${courseAvg.toFixed(1)}%</td><td><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></td></tr>`;
     });
-  rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 3);
+  rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 4);
 }
 
 function renderHolidays() {
@@ -205,16 +232,90 @@ function renderAttendance() {
   const rows = [...state.attendance]
     .sort((a,b)=>b.date.localeCompare(a.date))
     .slice(0,100)
-    .map((a) => `<tr><td>${a.date}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td></tr>`);
-  rowOrEmpty(document.getElementById("attendance-table"), rows, "No attendance recorded yet.", 3);
+    .map((a) => `<tr><td>${a.date}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td><button type='button' data-edit-attendance='${a.id}'>Edit</button></td></tr>`);
+  rowOrEmpty(document.getElementById("attendance-table"), rows, "No attendance recorded yet.", 4);
+}
+
+function resetAttendanceEditMode() {
+  editingAttendanceId = "";
+  const submitBtn = document.getElementById("attendance-submit-btn");
+  const cancelBtn = document.getElementById("attendance-cancel-edit-btn");
+  if (submitBtn) submitBtn.textContent = "Save Attendance";
+  if (cancelBtn) cancelBtn.classList.add("hidden");
+  const dateInput = document.getElementById("attendance-date");
+  if (dateInput) dateInput.value = todayISO();
 }
 
 function renderTests() {
   const rows = [...state.tests]
     .sort((a,b)=>b.date.localeCompare(a.date))
     .slice(0,150)
-    .map((t) => `<tr><td>${t.date}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${t.testName}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td></tr>`);
-  rowOrEmpty(document.getElementById("test-table"), rows, "No tests logged yet.", 6);
+    .map((t) => {
+      const gradeType = t.gradeType || t.testName || "Test";
+      return `<tr><td>${t.date}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${gradeType}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td><td><button type='button' data-edit-grade='${t.id}'>Edit</button></td></tr>`;
+    });
+  rowOrEmpty(document.getElementById("test-table"), rows, "No grades logged yet.", 7);
+}
+
+function getCoursesBySubject(subjectId) {
+  return state.courses.filter((c) => c.subjectId === subjectId);
+}
+
+function buildGradeEntryRow(existingGrade) {
+  const tr = document.createElement("tr");
+
+  const dateValue = existingGrade ? existingGrade.date : todayISO();
+  const gradeValue = existingGrade ? Number(existingGrade.score || 0) : "";
+  const selectedStudentId = existingGrade ? existingGrade.studentId : (state.students[0] ? state.students[0].id : "");
+  const selectedSubjectId = existingGrade ? existingGrade.subjectId : (state.subjects[0] ? state.subjects[0].id : "");
+  const selectedCourseId = existingGrade ? existingGrade.courseId : "";
+  const selectedGradeType = existingGrade ? (existingGrade.gradeType || existingGrade.testName || "Test") : "Quiz";
+
+  const studentOptions = state.students
+    .map((s) => `<option value="${s.id}"${s.id === selectedStudentId ? " selected" : ""}>${s.firstName} ${s.lastName}</option>`)
+    .join("");
+  const subjectOptions = state.subjects
+    .map((s) => `<option value="${s.id}"${s.id === selectedSubjectId ? " selected" : ""}>${s.name}</option>`)
+    .join("");
+  const defaultSubjectId = selectedSubjectId || (state.subjects[0] ? state.subjects[0].id : "");
+  const courseOptions = getCoursesBySubject(defaultSubjectId)
+    .map((c) => `<option value="${c.id}"${c.id === selectedCourseId ? " selected" : ""}>${c.name}</option>`)
+    .join("");
+
+  if (existingGrade) {
+    tr.setAttribute("data-edit-grade-id", existingGrade.id);
+  }
+
+  tr.innerHTML = `
+    <td><input class="grade-row-date" type="date" value="${dateValue}"></td>
+    <td><select class="grade-row-student">${studentOptions}</select></td>
+    <td><select class="grade-row-subject">${subjectOptions}</select></td>
+    <td><select class="grade-row-course">${courseOptions}</select></td>
+    <td>
+      <select class="grade-row-type">
+        <option value="Quiz"${selectedGradeType === "Quiz" ? " selected" : ""}>Quiz</option>
+        <option value="Test"${selectedGradeType === "Test" ? " selected" : ""}>Test</option>
+        <option value="Quarterly Final"${selectedGradeType === "Quarterly Final" ? " selected" : ""}>Quarterly Final</option>
+        <option value="Final"${selectedGradeType === "Final" ? " selected" : ""}>Final</option>
+      </select>
+    </td>
+    <td><input class="grade-row-value" type="number" min="0" max="100" step="0.1" placeholder="0-100" value="${gradeValue}"></td>
+    <td><button type="button" data-grade-save="1">${existingGrade ? "Update" : "Save"}</button> <button type="button" data-grade-cancel="1">Cancel</button></td>
+  `;
+
+  return tr;
+}
+
+function updateGradeRowCourses(row) {
+  const subjectSelect = row.querySelector(".grade-row-subject");
+  const courseSelect = row.querySelector(".grade-row-course");
+  if (!subjectSelect || !courseSelect) return;
+
+  const subjectId = subjectSelect.value;
+  const optionsHtml = getCoursesBySubject(subjectId)
+    .map((c) => `<option value="${c.id}">${c.name}</option>`)
+    .join("");
+  courseSelect.innerHTML = optionsHtml;
 }
 
 function gradeAnalytics() {
@@ -488,7 +589,6 @@ function fillSettingsForms() {
   document.getElementById("q4-end").value = q[3] ? q[3].endDate : "";
   if (!document.getElementById("calendar-date").value) document.getElementById("calendar-date").value = todayISO();
   if (!document.getElementById("attendance-date").value) document.getElementById("attendance-date").value = todayISO();
-  if (!document.getElementById("test-date").value) document.getElementById("test-date").value = todayISO();
 }
 
 function validRange(startDate, endDate) { return startDate && endDate && toDate(endDate) >= toDate(startDate); }
@@ -628,39 +728,139 @@ function bindEvents() {
     const date = document.getElementById("attendance-date").value;
     const status = document.getElementById("attendance-status").value;
     if (!studentId || !date) return;
-    const existing = state.attendance.find((a)=>a.studentId===studentId && a.date===date);
-    if (existing) existing.present = status === "present";
-    else state.attendance.push({ id: uid(), studentId, date, present: status === "present" });
+    if (editingAttendanceId) {
+      const target = state.attendance.find((a) => a.id === editingAttendanceId);
+      if (target) {
+        target.studentId = studentId;
+        target.date = date;
+        target.present = status === "present";
+      }
+      const duplicate = state.attendance.find((a) => a.id !== editingAttendanceId && a.studentId === studentId && a.date === date);
+      if (duplicate) {
+        duplicate.present = status === "present";
+        state.attendance = state.attendance.filter((a) => a.id !== editingAttendanceId);
+      }
+    } else {
+      const existing = state.attendance.find((a)=>a.studentId===studentId && a.date===date);
+      if (existing) existing.present = status === "present";
+      else state.attendance.push({ id: uid(), studentId, date, present: status === "present" });
+    }
+    resetAttendanceEditMode();
     saveState(); renderAll();
   });
-
-  document.getElementById("test-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const date = document.getElementById("test-date").value;
-    const studentId = document.getElementById("test-student").value;
-    const subjectId = document.getElementById("test-subject").value;
-    const courseId = document.getElementById("test-course").value;
-    const testName = document.getElementById("test-name").value.trim();
-    const score = Number(document.getElementById("test-score").value);
-    const maxScore = Number(document.getElementById("test-max").value);
-    if (!date || !studentId || !subjectId || !courseId || !testName || Number.isNaN(score) || Number.isNaN(maxScore)) { alert("Complete all test fields."); return; }
-    if (maxScore <= 0 || score < 0 || score > maxScore) { alert("Score must be between 0 and max score."); return; }
-    state.tests.push({ id: uid(), date, studentId, subjectId, courseId, testName, score, maxScore });
-    e.target.reset(); document.getElementById("test-date").value = todayISO(); saveState(); renderAll();
+  document.getElementById("attendance-cancel-edit-btn").addEventListener("click", () => {
+    resetAttendanceEditMode();
+    renderAll();
   });
 
-  document.getElementById("test-subject").addEventListener("change", () => {
-    const subjectId = document.getElementById("test-subject").value;
-    const sel = document.getElementById("test-course");
-    const courses = subjectId ? state.courses.filter((c)=>c.subjectId===subjectId) : state.courses;
-    sel.innerHTML = "";
-    courses.forEach((c) => { const o = document.createElement("option"); o.value = c.id; o.textContent = c.name; sel.appendChild(o); });
+  document.getElementById("add-grade-row-btn").addEventListener("click", () => {
+    if (!state.students.length || !state.subjects.length || !state.courses.length) {
+      alert("Add at least one student, subject, and course before entering grades.");
+      return;
+    }
+    document.getElementById("grade-entry-body").appendChild(buildGradeEntryRow());
+  });
+
+  document.addEventListener("change", (e) => {
+    const t = e.target;
+    if (!(t instanceof HTMLElement)) return;
+    if (t.classList.contains("grade-row-subject")) {
+      const row = t.closest("tr");
+      if (row) updateGradeRowCourses(row);
+    }
   });
 
   document.addEventListener("click", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
+
+    const editAttendanceId = t.getAttribute("data-edit-attendance");
+    if (editAttendanceId) {
+      const target = state.attendance.find((a) => a.id === editAttendanceId);
+      if (!target) return;
+      editingAttendanceId = target.id;
+      document.getElementById("attendance-student").value = target.studentId;
+      document.getElementById("attendance-date").value = target.date;
+      document.getElementById("attendance-status").value = target.present ? "present" : "absent";
+      document.getElementById("attendance-submit-btn").textContent = "Update Attendance";
+      document.getElementById("attendance-cancel-edit-btn").classList.remove("hidden");
+      return;
+    }
+
+    const saveGrade = t.getAttribute("data-grade-save");
+    if (saveGrade) {
+      const row = t.closest("tr");
+      if (!row) return;
+      const editGradeId = row.getAttribute("data-edit-grade-id");
+      const date = row.querySelector(".grade-row-date")?.value || "";
+      const studentId = row.querySelector(".grade-row-student")?.value || "";
+      const subjectId = row.querySelector(".grade-row-subject")?.value || "";
+      const courseId = row.querySelector(".grade-row-course")?.value || "";
+      const gradeType = row.querySelector(".grade-row-type")?.value || "";
+      const gradeValue = Number(row.querySelector(".grade-row-value")?.value);
+
+      if (!date || !studentId || !subjectId || !courseId || !gradeType || Number.isNaN(gradeValue)) {
+        alert("Complete all grade fields.");
+        return;
+      }
+      if (gradeValue < 0 || gradeValue > 100) {
+        alert("Grade must be between 0 and 100.");
+        return;
+      }
+
+      if (editGradeId) {
+        const existing = state.tests.find((x) => x.id === editGradeId);
+        if (existing) {
+          existing.date = date;
+          existing.studentId = studentId;
+          existing.subjectId = subjectId;
+          existing.courseId = courseId;
+          existing.gradeType = gradeType;
+          existing.testName = gradeType;
+          existing.score = gradeValue;
+          existing.maxScore = 100;
+        }
+      } else {
+        state.tests.push({
+          id: uid(),
+          date,
+          studentId,
+          subjectId,
+          courseId,
+          gradeType,
+          testName: gradeType,
+          score: gradeValue,
+          maxScore: 100
+        });
+      }
+
+      row.remove();
+      saveState();
+      renderAll();
+      return;
+    }
+
+    const cancelGrade = t.getAttribute("data-grade-cancel");
+    if (cancelGrade) {
+      const row = t.closest("tr");
+      if (row) row.remove();
+      return;
+    }
+
     const openStudentId = t.getAttribute("data-open-student"); if (openStudentId) { selectedStudentId = openStudentId; renderAll(); return; }
+    const editGradeId = t.getAttribute("data-edit-grade");
+    if (editGradeId) {
+      const existing = state.tests.find((x) => x.id === editGradeId);
+      if (!existing) return;
+      const entryBody = document.getElementById("grade-entry-body");
+      const existingRow = entryBody.querySelector(`tr[data-edit-grade-id="${editGradeId}"]`);
+      if (existingRow) {
+        existingRow.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        entryBody.prepend(buildGradeEntryRow(existing));
+      }
+      return;
+    }
     const studentId = t.getAttribute("data-remove-student"); if (studentId) { removeStudent(studentId); saveState(); renderAll(); return; }
     const subjectId = t.getAttribute("data-remove-subject"); if (subjectId) { removeSubject(subjectId); saveState(); renderAll(); return; }
     const courseId = t.getAttribute("data-remove-course"); if (courseId) { removeCourse(courseId); saveState(); renderAll(); return; }

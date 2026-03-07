@@ -277,6 +277,40 @@ td {
   font-weight: 700;
 }
 
+#student-form,
+#student-enrollment-form {
+  align-items: end;
+}
+
+#student-form > button,
+#student-enrollment-form > button {
+  justify-self: start;
+  align-self: end;
+  padding: 0.48rem 0.8rem;
+  font-size: 0.92rem;
+}
+
+#student-form > button {
+  grid-column: 2;
+}
+
+#student-enrollment-form > button {
+  grid-column: 2;
+  margin-left: 0.45rem;
+}
+
+#student-enrollment-form {
+  grid-template-columns: minmax(260px, 1fr) auto;
+}
+
+#student-enrollment-form label {
+  min-width: 0;
+}
+
+#student-enrollment-form select {
+  width: 100%;
+}
+
 .calendar-month-view {
   display: grid;
   gap: 0.55rem;
