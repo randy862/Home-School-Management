@@ -15,8 +15,10 @@
 
     <nav class="tabs" aria-label="Primary">
       <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
+      <button class="tab-btn" data-tab="students" type="button">Students</button>
       <button class="tab-btn" data-tab="management" type="button">Management</button>
-      <button class="tab-btn" data-tab="planning" type="button">Planning & Calendar</button>
+      <button class="tab-btn" data-tab="planning" type="button">Planning</button>
+      <button class="tab-btn" data-tab="calendar" type="button">Calendar</button>
       <button class="tab-btn" data-tab="records" type="button">Attendance & Testing</button>
     </nav>
 
@@ -72,11 +74,11 @@
       </div>
     </section>
 
-    <section id="tab-management" class="tab-panel panel">
-      <h2>Management</h2>
+    <section id="tab-students" class="tab-panel panel">
+      <h2>Student Management</h2>
       <div class="split">
         <div>
-          <h3>Students</h3>
+          <h3>Add Student</h3>
           <form id="student-form" class="grid-form">
             <label>First Name<input id="student-first" type="text" required></label>
             <label>Last Name<input id="student-last" type="text" required></label>
@@ -84,44 +86,57 @@
             <label>Grade<input id="student-grade" type="text" placeholder="5" required></label>
             <button type="submit">Add Student</button>
           </form>
+
+          <h3>Students</h3>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Name</th><th>Birthdate</th><th>Grade</th><th>Age</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Grade</th><th>Age</th><th>Actions</th></tr></thead>
               <tbody id="student-table"></tbody>
             </table>
           </div>
         </div>
 
         <div>
-          <h3>Subjects</h3>
-          <form id="subject-form" class="inline-form">
-            <input id="subject-name" type="text" placeholder="Math" required>
-            <button type="submit">Add Subject</button>
-          </form>
-          <ul id="subject-list" class="item-list"></ul>
-
-          <h3>Courses</h3>
-          <form id="course-form" class="grid-form">
-            <label>Course Name<input id="course-name" type="text" required></label>
-            <label>Subject<select id="course-subject" required></select></label>
-            <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
-            <button type="submit">Add Course</button>
-          </form>
-          <ul id="course-list" class="item-list"></ul>
-
-          <h3>Enroll Students to Courses</h3>
-          <form id="enrollment-form" class="grid-form">
-            <label>Student<select id="enroll-student" required></select></label>
-            <label>Course<select id="enroll-course" required></select></label>
-            <button type="submit">Enroll</button>
-          </form>
-          <ul id="enrollment-list" class="item-list"></ul>
+          <h3>Student Detail</h3>
+          <div id="student-detail-empty" class="muted">Select a student to view enrollments and manage course enrollment.</div>
+          <div id="student-detail-panel" class="detail-panel hidden">
+            <p id="student-detail-title" class="detail-title"></p>
+            <form id="student-enrollment-form" class="grid-form">
+              <label>Course<select id="student-enroll-course" required></select></label>
+              <button type="submit">Enroll Student</button>
+            </form>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Course</th><th>Subject</th><th>Actions</th></tr></thead>
+                <tbody id="student-enrollment-table"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
+    <section id="tab-management" class="tab-panel panel">
+      <h2>Management</h2>
+      <h3>Subjects</h3>
+      <form id="subject-form" class="inline-form">
+        <input id="subject-name" type="text" placeholder="Math" required>
+        <button type="submit">Add Subject</button>
+      </form>
+      <ul id="subject-list" class="item-list"></ul>
+
+      <h3>Courses</h3>
+      <form id="course-form" class="grid-form">
+        <label>Course Name<input id="course-name" type="text" required></label>
+        <label>Subject<select id="course-subject" required></select></label>
+        <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
+        <button type="submit">Add Course</button>
+      </form>
+      <ul id="course-list" class="item-list"></ul>
+    </section>
+
     <section id="tab-planning" class="tab-panel panel">
-      <h2>Planning & Calendar</h2>
+      <h2>Planning</h2>
 
       <h3>School Year & Quarters</h3>
       <form id="school-year-form" class="grid-form">
@@ -177,8 +192,10 @@
         <button type="submit">Add Plan</button>
       </form>
       <ul id="plan-list" class="item-list"></ul>
+    </section>
 
-      <h3>Calendar</h3>
+    <section id="tab-calendar" class="tab-panel panel">
+      <h2>Calendar</h2>
       <form id="calendar-form" class="grid-form">
         <label>View
           <select id="calendar-view">
@@ -194,9 +211,27 @@
         <button type="submit">Refresh Calendar</button>
       </form>
       <p id="calendar-range" class="muted"></p>
-      <div class="table-wrap">
+      <div id="calendar-month-view" class="calendar-month-view">
+        <div class="calendar-toolbar">
+          <button id="calendar-prev-month" type="button">Prev Month</button>
+          <p id="calendar-month-title" class="calendar-month-title"></p>
+          <button id="calendar-next-month" type="button">Next Month</button>
+        </div>
+        <div class="calendar-weekdays">
+          <div>Sun</div>
+          <div>Mon</div>
+          <div>Tue</div>
+          <div>Wed</div>
+          <div>Thu</div>
+          <div>Fri</div>
+          <div>Sat</div>
+        </div>
+        <div id="calendar-month-grid" class="calendar-month-grid"></div>
+      </div>
+
+      <div id="calendar-list-wrap" class="table-wrap hidden">
         <table>
-          <thead><tr><th>Date</th><th>Student</th><th>Subject</th><th>Course</th><th>Plan Type</th></tr></thead>
+          <thead><tr><th>Date</th><th>Student</th><th>Subjects and Time</th><th>Total Hours</th></tr></thead>
           <tbody id="calendar-table"></tbody>
         </table>
       </div>
