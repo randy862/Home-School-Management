@@ -304,6 +304,10 @@ button:hover {
   align-self: stretch;
 }
 
+.trend-student-field {
+  align-self: stretch;
+}
+
 .table-wrap {
   overflow: auto;
 }
@@ -356,6 +360,64 @@ td {
 
 .student-avg-detail-empty {
   padding: 0.3rem 0.15rem;
+}
+
+.chart-wrap {
+  border: 1px solid #e1cfad;
+  border-radius: 10px;
+  background: #fffaf1;
+  padding: 0.35rem 0.35rem 0.15rem;
+}
+
+.trend-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.trend-axis {
+  stroke: #9a845f;
+  stroke-width: 1;
+}
+
+.trend-grid {
+  stroke: #eadfcf;
+  stroke-width: 1;
+}
+
+.trend-line {
+  stroke: #875422;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trend-point {
+  fill: #b67a31;
+  stroke: #875422;
+  stroke-width: 1;
+}
+
+.trend-axis-label {
+  fill: #6c5847;
+  font-size: 11px;
+}
+
+.trend-axis-title {
+  fill: #2f1f14;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.trend-empty {
+  fill: #6c5847;
+  font-size: 13px;
+}
+
+.trend-value-label {
+  fill: #5a3a1a;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .item-list {

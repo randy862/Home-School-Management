@@ -47,16 +47,22 @@ function calculateAge(birthdate, ref = new Date()) {
 
 function defaultState() {
   const y = new Date().getFullYear();
+  const schoolYearId = uid();
+  const schoolYear = { id: schoolYearId, label: `${y}-${y+1}`, startDate: `${y}-01-01`, endDate: `${y}-12-31` };
+  const quarters = [
+    { id: uid(), schoolYearId, name: "Q1", startDate: `${y}-01-01`, endDate: `${y}-03-31` },
+    { id: uid(), schoolYearId, name: "Q2", startDate: `${y}-04-01`, endDate: `${y}-06-30` },
+    { id: uid(), schoolYearId, name: "Q3", startDate: `${y}-07-01`, endDate: `${y}-09-30` },
+    { id: uid(), schoolYearId, name: "Q4", startDate: `${y}-10-01`, endDate: `${y}-12-31` }
+  ];
   return {
     students: [], subjects: [], courses: [], enrollments: [], plans: [], attendance: [], tests: [],
     settings: {
-      schoolYear: { label: `${y}-${y+1}`, startDate: `${y}-01-01`, endDate: `${y}-12-31` },
-      quarters: [
-        { name: "Q1", startDate: `${y}-01-01`, endDate: `${y}-03-31` },
-        { name: "Q2", startDate: `${y}-04-01`, endDate: `${y}-06-30` },
-        { name: "Q3", startDate: `${y}-07-01`, endDate: `${y}-09-30` },
-        { name: "Q4", startDate: `${y}-10-01`, endDate: `${y}-12-31` }
-      ],
+      schoolYear: { ...schoolYear },
+      schoolYears: [schoolYear],
+      currentSchoolYearId: schoolYearId,
+      quarters: quarters.map((q) => ({ ...q })),
+      allQuarters: quarters,
       holidays: []
     }
   };
@@ -69,29 +75,100 @@ function validState(s) {
     && Array.isArray(s.settings.quarters) && Array.isArray(s.settings.holidays);
 }
 
+function normalizeSettingsShape(inputState) {
+  const s = inputState;
+  if (!s.settings) s.settings = {};
+
+  const legacySchoolYear = s.settings.schoolYear && s.settings.schoolYear.startDate && s.settings.schoolYear.endDate
+    ? s.settings.schoolYear
+    : null;
+  if (!Array.isArray(s.settings.schoolYears) || !s.settings.schoolYears.length) {
+    if (legacySchoolYear) {
+      s.settings.schoolYears = [{ id: uid(), label: legacySchoolYear.label || "School Year", startDate: legacySchoolYear.startDate, endDate: legacySchoolYear.endDate }];
+    } else {
+      const fallback = defaultState().settings.schoolYears[0];
+      s.settings.schoolYears = [{ ...fallback }];
+    }
+  } else {
+    s.settings.schoolYears = s.settings.schoolYears
+      .filter((year) => year && year.startDate && year.endDate)
+      .map((year) => ({ ...year, id: year.id || uid(), label: year.label || `${year.startDate} to ${year.endDate}` }));
+    if (!s.settings.schoolYears.length) s.settings.schoolYears = defaultState().settings.schoolYears;
+  }
+
+  if (!s.settings.currentSchoolYearId || !s.settings.schoolYears.some((year) => year.id === s.settings.currentSchoolYearId)) {
+    s.settings.currentSchoolYearId = s.settings.schoolYears[0].id;
+  }
+
+  const currentSchoolYear = s.settings.schoolYears.find((year) => year.id === s.settings.currentSchoolYearId) || s.settings.schoolYears[0];
+  s.settings.schoolYear = { label: currentSchoolYear.label, startDate: currentSchoolYear.startDate, endDate: currentSchoolYear.endDate };
+
+  const legacyQuarters = Array.isArray(s.settings.quarters) ? s.settings.quarters : [];
+  if (!Array.isArray(s.settings.allQuarters) || !s.settings.allQuarters.length) {
+    s.settings.allQuarters = legacyQuarters.map((q) => ({
+      id: q.id || uid(),
+      schoolYearId: q.schoolYearId || s.settings.currentSchoolYearId,
+      name: q.name,
+      startDate: q.startDate,
+      endDate: q.endDate
+    }));
+  } else {
+    s.settings.allQuarters = s.settings.allQuarters
+      .filter((q) => q && q.name && q.startDate && q.endDate)
+      .map((q) => ({ ...q, id: q.id || uid(), schoolYearId: q.schoolYearId || s.settings.currentSchoolYearId }));
+  }
+
+  s.settings.quarters = s.settings.allQuarters
+    .filter((q) => q.schoolYearId === s.settings.currentSchoolYearId)
+    .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
+    .map((q) => ({ id: q.id, schoolYearId: q.schoolYearId, name: q.name, startDate: q.startDate, endDate: q.endDate }));
+
+  if (!Array.isArray(s.settings.holidays)) s.settings.holidays = [];
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
     const parsed = JSON.parse(raw);
-    return validState(parsed) ? parsed : defaultState();
+    if (!validState(parsed)) return defaultState();
+    normalizeSettingsShape(parsed);
+    return parsed;
   } catch {
     return defaultState();
   }
 }
 
 let state = loadState();
+setCurrentSchoolYear(state.settings.currentSchoolYearId);
 let selectedStudentId = "";
 let editingAttendanceId = "";
 const expandedStudentAverageRows = new Set();
 const expandedSubjectAverageRows = new Set();
 const expandedStudentAttendanceRows = new Set();
+const trendSelectedStudentIds = new Set();
+let editingSchoolYearId = "";
+let editingQuarterSchoolYearId = "";
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
 function getStudentName(id) { const s = state.students.find((x) => x.id === id); return s ? `${s.firstName} ${s.lastName}` : "Unknown Student"; }
 function getSubjectName(id) { const s = state.subjects.find((x) => x.id === id); return s ? s.name : "Unknown Subject"; }
 function getCourse(id) { return state.courses.find((x) => x.id === id) || null; }
 function getCourseName(id) { const c = getCourse(id); return c ? c.name : "Unknown Course"; }
+function getSchoolYear(id) { return state.settings.schoolYears.find((x) => x.id === id) || null; }
+function currentSchoolYear() {
+  return getSchoolYear(state.settings.currentSchoolYearId) || state.settings.schoolYears[0] || state.settings.schoolYear;
+}
+function setCurrentSchoolYear(schoolYearId) {
+  const schoolYear = getSchoolYear(schoolYearId);
+  if (!schoolYear) return;
+  state.settings.currentSchoolYearId = schoolYear.id;
+  state.settings.schoolYear = { label: schoolYear.label, startDate: schoolYear.startDate, endDate: schoolYear.endDate };
+  state.settings.quarters = state.settings.allQuarters
+    .filter((q) => q.schoolYearId === schoolYear.id)
+    .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
+    .map((q) => ({ id: q.id, schoolYearId: q.schoolYearId, name: q.name, startDate: q.startDate, endDate: q.endDate }));
+}
 
 function inRange(date, startDate, endDate) { return date >= startDate && date <= endDate; }
 function avg(vals){ return vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : 0; }
@@ -225,6 +302,7 @@ function renderSelects() {
   options("calendar-student", state.students, (s) => `${s.firstName} ${s.lastName}`, "All Students");
   options("test-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
   renderAttendanceStudentChecklist();
+  renderTrendStudentChecklist(Array.from(trendSelectedStudentIds));
 
   const attendanceFilterStudent = document.getElementById("attendance-filter-student");
   if (attendanceFilterStudent) {
@@ -263,6 +341,20 @@ function renderSelects() {
       detailQuarterFilter.appendChild(option);
     });
     if (Array.from(detailQuarterFilter.options).some((o) => o.value === current)) detailQuarterFilter.value = current;
+  }
+
+  const quarterSchoolYear = document.getElementById("quarter-school-year");
+  if (quarterSchoolYear) {
+    const current = quarterSchoolYear.value || state.settings.currentSchoolYearId;
+    quarterSchoolYear.innerHTML = "";
+    state.settings.schoolYears.forEach((year) => {
+      const option = document.createElement("option");
+      option.value = year.id;
+      option.textContent = year.label;
+      quarterSchoolYear.appendChild(option);
+    });
+    if (Array.from(quarterSchoolYear.options).some((o) => o.value === current)) quarterSchoolYear.value = current;
+    else if (state.settings.currentSchoolYearId) quarterSchoolYear.value = state.settings.currentSchoolYearId;
   }
 
   const gradeStudentSelect = document.getElementById("grades-filter-student");
@@ -309,6 +401,50 @@ function renderSelects() {
     if (current && Array.from(schoolYearSelect.options).some((o) => o.value === current)) schoolYearSelect.value = current;
   }
 
+  const trendQuarterSelect = document.getElementById("trend-filter-quarter");
+  if (trendQuarterSelect) {
+    const current = trendQuarterSelect.value || "all";
+    trendQuarterSelect.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      trendQuarterSelect.appendChild(option);
+    });
+    if (Array.from(trendQuarterSelect.options).some((o) => o.value === current)) trendQuarterSelect.value = current;
+  }
+
+  const trendSubjectSelect = document.getElementById("trend-filter-subject");
+  if (trendSubjectSelect) {
+    const current = trendSubjectSelect.value || "all";
+    trendSubjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+    state.subjects.forEach((subject) => {
+      const option = document.createElement("option");
+      option.value = subject.id;
+      option.textContent = subject.name;
+      trendSubjectSelect.appendChild(option);
+    });
+    if (Array.from(trendSubjectSelect.options).some((o) => o.value === current)) trendSubjectSelect.value = current;
+  }
+
+  const trendGradeTypeSelect = document.getElementById("trend-filter-grade-type");
+  if (trendGradeTypeSelect) {
+    const current = trendGradeTypeSelect.value || "all";
+    const allTypes = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+    state.tests.forEach((test) => {
+      const type = test.gradeType || test.testName || "";
+      if (type && !allTypes.includes(type)) allTypes.push(type);
+    });
+    trendGradeTypeSelect.innerHTML = "<option value='all'>All Grade Types</option>";
+    allTypes.forEach((type) => {
+      const option = document.createElement("option");
+      option.value = type;
+      option.textContent = type;
+      trendGradeTypeSelect.appendChild(option);
+    });
+    if (Array.from(trendGradeTypeSelect.options).some((o) => o.value === current)) trendGradeTypeSelect.value = current;
+  }
+
   syncGradesFilterSubjectCourseOptions();
 }
 
@@ -331,6 +467,31 @@ function updateAttendanceStudentSummary() {
   if (!summary) return;
   const selectedCount = document.querySelectorAll(".attendance-student-checkbox:checked").length;
   summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function renderTrendStudentChecklist(preselectedStudentIds = []) {
+  const container = document.getElementById("trend-student-dropdown");
+  const optionsWrap = document.getElementById("trend-student-options");
+  if (!container || !optionsWrap) return;
+  const selected = new Set(preselectedStudentIds);
+  const checkboxes = state.students.map((s, idx) => {
+    const checked = selected.has(s.id) ? " checked" : "";
+    const inputId = `trend-student-${idx}-${s.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="trend-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
+  updateTrendStudentSummary();
+}
+
+function updateTrendStudentSummary() {
+  const summary = document.getElementById("trend-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".trend-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getTrendSelectedStudentIds() {
+  return Array.from(document.querySelectorAll(".trend-student-checkbox:checked")).map((el) => el.value);
 }
 
 function rowOrEmpty(tbody, html, emptyMsg, cols) {
@@ -418,6 +579,39 @@ function renderHolidays() {
   list.innerHTML = rows.length
     ? rows.map((h) => `<li><span>${h.name} (${h.type}) ${h.startDate} to ${h.endDate}</span><button data-remove-holiday='${h.id}' type='button'>Remove</button></li>`).join("")
     : "<li><span>No holidays/breaks defined.</span></li>";
+}
+
+function renderPlanningSettings() {
+  const schoolYear = currentSchoolYear();
+  const schoolYearCurrent = document.getElementById("school-year-current");
+  if (schoolYearCurrent) {
+    schoolYearCurrent.textContent = `Current School Year: ${schoolYear.label} (${schoolYear.startDate} to ${schoolYear.endDate})`;
+  }
+
+  const schoolYearRows = state.settings.schoolYears
+    .slice()
+    .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
+    .map((year) => `<tr><td>${year.label}${year.id === state.settings.currentSchoolYearId ? " (Current)" : ""}</td><td>${year.startDate}</td><td>${year.endDate}</td><td><button type="button" data-set-current-school-year="${year.id}">Set Current</button> <button type="button" data-edit-school-year="${year.id}">Edit</button></td></tr>`);
+  rowOrEmpty(document.getElementById("school-year-summary-table"), schoolYearRows, "No school years saved yet.", 4);
+
+  const quarterRows = state.settings.allQuarters
+    .slice()
+    .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
+    .map((quarter) => {
+      const year = getSchoolYear(quarter.schoolYearId);
+      return `<tr><td>${year ? year.label : "Unknown Year"}</td><td>${quarter.name}</td><td>${quarter.startDate}</td><td>${quarter.endDate}</td><td><button type="button" data-edit-quarters-year="${quarter.schoolYearId}">Edit</button></td></tr>`;
+    });
+  rowOrEmpty(document.getElementById("quarter-summary-table"), quarterRows, "No quarters saved yet.", 5);
+
+  const schoolYearSubmitBtn = document.getElementById("school-year-submit-btn");
+  const schoolYearCancelBtn = document.getElementById("school-year-cancel-edit-btn");
+  if (schoolYearSubmitBtn) schoolYearSubmitBtn.textContent = editingSchoolYearId ? "Update School Year" : "Save School Year";
+  if (schoolYearCancelBtn) schoolYearCancelBtn.classList.toggle("hidden", !editingSchoolYearId);
+
+  const quartersSubmitBtn = document.getElementById("quarters-submit-btn");
+  const quartersCancelBtn = document.getElementById("quarters-cancel-edit-btn");
+  if (quartersSubmitBtn) quartersSubmitBtn.textContent = editingQuarterSchoolYearId ? "Update Quarters" : "Save Quarters";
+  if (quartersCancelBtn) quartersCancelBtn.classList.toggle("hidden", !editingQuarterSchoolYearId);
 }
 
 function renderPlans() {
@@ -697,20 +891,168 @@ function gradeAnalytics() {
   };
 }
 
+function schoolYearMonths(startDate, endDate) {
+  const start = toDate(startDate);
+  const end = toDate(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), 1, 12, 0, 0);
+  const limit = new Date(end.getFullYear(), end.getMonth(), 1, 12, 0, 0);
+  const out = [];
+  while (cursor <= limit) {
+    out.push({ year: cursor.getFullYear(), month: cursor.getMonth() });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return out;
+}
+
+function renderGradeTrending() {
+  const chartHost = document.getElementById("grade-trending-chart");
+  if (!chartHost) return;
+
+  const sy = state.settings.schoolYear;
+  const syStart = toDate(sy.startDate);
+  const syEnd = toDate(sy.endDate);
+  const today = toDate(todayISO());
+  const effectiveEnd = syEnd < today ? syEnd : today;
+  const months = schoolYearMonths(sy.startDate, toISO(effectiveEnd));
+  if (!months.length) {
+    chartHost.innerHTML = syStart > today
+      ? "<p class='muted'>School year has not started yet.</p>"
+      : "<p class='muted'>No school year range set.</p>";
+    return;
+  }
+
+  const quarterFilter = document.getElementById("trend-filter-quarter")?.value || "all";
+  const subjectFilter = document.getElementById("trend-filter-subject")?.value || "all";
+  const gradeTypeFilter = document.getElementById("trend-filter-grade-type")?.value || "all";
+  const selectedStudentIds = getTrendSelectedStudentIds();
+  const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
+
+  const filteredTests = state.tests.filter((t) => {
+    if (!inRange(t.date, sy.startDate, sy.endDate)) return false;
+    if (quarterRange && quarterFilter !== "all" && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
+    if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
+    const gradeType = t.gradeType || t.testName || "Test";
+    if (gradeTypeFilter !== "all" && gradeType !== gradeTypeFilter) return false;
+    return true;
+  });
+
+  const seriesBase = selectedStudentIds.length
+    ? selectedStudentIds.map((studentId) => ({ id: studentId, label: getStudentName(studentId), tests: filteredTests.filter((t) => t.studentId === studentId) }))
+    : [{ id: "all", label: "All Students", tests: filteredTests }];
+  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
+
+  const series = seriesBase.map((entry, idx) => {
+    const monthly = months.map((monthEntry) => {
+      const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
+      const monthEnd = new Date(monthEntry.year, monthEntry.month + 1, 0, 12, 0, 0);
+      const monthStartIso = toISO(monthStart);
+      const monthEndIso = toISO(monthEnd);
+      const vals = entry.tests
+        .filter((t) => inRange(t.date, monthStartIso, monthEndIso))
+        .map((t) => pct(t.score, t.maxScore));
+      return {
+        label: monthStart.toLocaleDateString(undefined, { month: "short" }),
+        avg: vals.length ? avg(vals) : 0,
+        count: vals.length
+      };
+    });
+    return { ...entry, color: palette[idx % palette.length], monthly };
+  });
+
+  const width = 960;
+  const height = 260;
+  const margin = { top: 18, right: 20, bottom: 48, left: 52 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const xPad = 16;
+  const xSpan = Math.max(1, plotW - (xPad * 2));
+  const xStep = months.length > 1 ? xSpan / (months.length - 1) : 0;
+  const xFor = (idx) => margin.left + xPad + (xStep * idx);
+  const yFor = (value) => margin.top + ((100 - value) / 100) * plotH;
+
+  const yTicks = [0, 25, 50, 75, 100];
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${tick}</text></g>`;
+  }).join("");
+
+  const xTickSvg = months.map((row, idx) => {
+    const monthStart = new Date(row.year, row.month, 1, 12, 0, 0);
+    const x = xFor(idx);
+    return `<text x="${x.toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${monthStart.toLocaleDateString(undefined, { month: "short" })}</text>`;
+  }).join("");
+
+  const lineSvg = series.map((lineSeries) => {
+    let path = "";
+    lineSeries.monthly.forEach((row, idx) => {
+      const x = xFor(idx);
+      const y = yFor(row.avg || 0);
+      if (!path) path += `M ${x.toFixed(2)} ${y.toFixed(2)} `;
+      else path += `L ${x.toFixed(2)} ${y.toFixed(2)} `;
+    });
+    return `<path d="${path.trim()}" class="trend-line" style="stroke:${lineSeries.color}" fill="none"></path>`;
+  }).join("");
+
+  const pointSvg = series.flatMap((lineSeries) => lineSeries.monthly.map((row, idx) => {
+    const x = xFor(idx);
+    const y = yFor(row.avg || 0);
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${lineSeries.color};stroke:${lineSeries.color}"><title>${lineSeries.label} ${row.label}: ${row.avg.toFixed(1)}%</title></circle>`;
+  })).join("");
+
+  const valueLabelSvg = series.flatMap((lineSeries, lineIdx) => lineSeries.monthly.map((row, idx) => {
+    const x = xFor(idx);
+    const y = yFor(row.avg || 0);
+    const nearTop = y <= margin.top + 16;
+    const nearBottom = y >= (height - margin.bottom - 10);
+    const offsetBase = ((idx + lineIdx) % 2 === 0) ? -10 : 14;
+    const offset = nearTop ? 14 : (nearBottom ? -10 : offsetBase);
+    const yLabel = y + offset + (lineIdx * 8);
+    return `<text x="${x.toFixed(2)}" y="${yLabel.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${lineSeries.color}">${(row.avg || 0).toFixed(1)}%</text>`;
+  })).join("");
+
+  const legendSvg = series.map((lineSeries, idx) => {
+    const x = margin.left + 8 + (idx * 170);
+    const y = margin.top - 4;
+    return `<g><line x1="${x}" y1="${y}" x2="${x + 18}" y2="${y}" class="trend-line" style="stroke:${lineSeries.color}"></line><text x="${x + 24}" y="${y + 4}" class="trend-axis-label">${lineSeries.label}</text></g>`;
+  }).join("");
+
+  const hasData = series.some((lineSeries) => lineSeries.monthly.some((row) => row.count > 0));
+  const noData = hasData ? "" : `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No grade data for selected filters</text>`;
+
+  chartHost.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly grade trend line chart">
+      <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      ${legendSvg}
+      ${yTickSvg}
+      ${xTickSvg}
+      ${lineSvg}
+      ${pointSvg}
+      ${valueLabelSvg}
+      ${noData}
+      <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
+      <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Average Grade (%)</text>
+    </svg>`;
+}
+
 function renderDashboard() {
   const dates = instructionalDates();
   const dateSet = new Set(dates);
   const presentSet = new Set(state.attendance.filter((a) => a.present && a.date <= todayISO()).map((a) => a.date));
   const completeDays = Array.from(presentSet).filter((d) => dateSet.has(d)).length;
   const totalDays = dates.length;
-  const hoursPerDay = state.courses.reduce((sum,c)=>sum + Number(c.hoursPerDay || 0), 0);
 
   document.getElementById("kpi-days-complete").textContent = String(completeDays);
   document.getElementById("kpi-days-total").textContent = String(totalDays);
-  document.getElementById("kpi-hours-complete").textContent = (hoursPerDay * completeDays).toFixed(1);
-  document.getElementById("kpi-hours-total").textContent = (hoursPerDay * totalDays).toFixed(1);
 
   const g = gradeAnalytics();
+  const topStudent = g.student
+    .slice()
+    .sort((a,b)=>b.avg-a.avg || getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)))[0];
+  document.getElementById("kpi-superstar").textContent = topStudent
+    ? `${getStudentName(topStudent.studentId)} (${topStudent.avg.toFixed(1)}%)`
+    : "No grades yet";
   document.getElementById("kpi-running-avg").textContent = `${g.running.toFixed(1)}%`;
   document.getElementById("kpi-quarter-avg").textContent = `${g.currentQuarterAvg.toFixed(1)}%`;
 
@@ -733,6 +1075,9 @@ function renderDashboard() {
   });
   Array.from(expandedStudentAttendanceRows).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) expandedStudentAttendanceRows.delete(studentId);
+  });
+  Array.from(trendSelectedStudentIds).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) trendSelectedStudentIds.delete(studentId);
   });
 
   const quarterByName = new Map(state.settings.quarters.map((entry) => [entry.name, entry]));
@@ -857,10 +1202,14 @@ function renderDashboard() {
     return [studentRow, ...quarterRows];
   });
   rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
+  renderGradeTrending();
 
-  rowOrEmpty(document.getElementById("subject-avg-table"),
-    g.subject.sort((a,b)=>b.avg-a.avg).map((r)=>`<tr><td>${getSubjectName(r.subjectId)}</td><td>${r.avg.toFixed(1)}%</td><td>${r.count}</td></tr>`),
-    "No graded tests yet.", 3);
+  const subjectAvgTable = document.getElementById("subject-avg-table");
+  if (subjectAvgTable) {
+    rowOrEmpty(subjectAvgTable,
+      g.subject.sort((a,b)=>b.avg-a.avg).map((r)=>`<tr><td>${getSubjectName(r.subjectId)}</td><td>${r.avg.toFixed(1)}%</td><td>${r.count}</td></tr>`),
+      "No graded tests yet.", 3);
+  }
 
   const periodTable = document.getElementById("period-avg-table");
   if (periodTable) {
@@ -1056,10 +1405,17 @@ function renderCalendar() {
 }
 
 function fillSettingsForms() {
-  document.getElementById("school-year-label").value = state.settings.schoolYear.label;
-  document.getElementById("school-year-start").value = state.settings.schoolYear.startDate;
-  document.getElementById("school-year-end").value = state.settings.schoolYear.endDate;
-  const q = state.settings.quarters;
+  const schoolYear = currentSchoolYear();
+  document.getElementById("school-year-label").value = schoolYear.label;
+  document.getElementById("school-year-start").value = schoolYear.startDate;
+  document.getElementById("school-year-end").value = schoolYear.endDate;
+  const quarterSchoolYearInput = document.getElementById("quarter-school-year");
+  const selectedYearId = quarterSchoolYearInput && quarterSchoolYearInput.value
+    ? quarterSchoolYearInput.value
+    : state.settings.currentSchoolYearId;
+  const q = state.settings.allQuarters
+    .filter((quarter) => quarter.schoolYearId === selectedYearId)
+    .sort((a, b) => toDate(a.startDate) - toDate(b.startDate));
   document.getElementById("q1-start").value = q[0] ? q[0].startDate : "";
   document.getElementById("q1-end").value = q[0] ? q[0].endDate : "";
   document.getElementById("q2-start").value = q[1] ? q[1].startDate : "";
@@ -1070,6 +1426,36 @@ function fillSettingsForms() {
   document.getElementById("q4-end").value = q[3] ? q[3].endDate : "";
   if (!document.getElementById("calendar-date").value) document.getElementById("calendar-date").value = todayISO();
   if (!document.getElementById("attendance-date").value) document.getElementById("attendance-date").value = todayISO();
+}
+
+function beginSchoolYearEdit(schoolYearId) {
+  const schoolYear = getSchoolYear(schoolYearId);
+  if (!schoolYear) return;
+  editingSchoolYearId = schoolYearId;
+  document.getElementById("school-year-label").value = schoolYear.label;
+  document.getElementById("school-year-start").value = schoolYear.startDate;
+  document.getElementById("school-year-end").value = schoolYear.endDate;
+  renderPlanningSettings();
+}
+
+function cancelSchoolYearEdit() {
+  editingSchoolYearId = "";
+  fillSettingsForms();
+  renderPlanningSettings();
+}
+
+function beginQuarterEdit(schoolYearId) {
+  editingQuarterSchoolYearId = schoolYearId;
+  const select = document.getElementById("quarter-school-year");
+  if (select) select.value = schoolYearId;
+  fillSettingsForms();
+  renderPlanningSettings();
+}
+
+function cancelQuarterEdit() {
+  editingQuarterSchoolYearId = "";
+  fillSettingsForms();
+  renderPlanningSettings();
 }
 
 function validRange(startDate, endDate) { return startDate && endDate && toDate(endDate) >= toDate(startDate); }
@@ -1147,21 +1533,62 @@ function bindEvents() {
     const label = document.getElementById("school-year-label").value.trim();
     const startDate = document.getElementById("school-year-start").value;
     const endDate = document.getElementById("school-year-end").value;
+    if (!label) { alert("School year label is required."); return; }
     if (!validRange(startDate, endDate)) { alert("School year range is invalid."); return; }
-    state.settings.schoolYear = { label, startDate, endDate }; saveState(); renderAll();
+    const existing = state.settings.schoolYears.find((year) => year.id === editingSchoolYearId);
+    if (existing) {
+      existing.label = label;
+      existing.startDate = startDate;
+      existing.endDate = endDate;
+    } else {
+      const duplicate = state.settings.schoolYears.find((year) =>
+        year.label.toLowerCase() === label.toLowerCase()
+        && year.startDate === startDate
+        && year.endDate === endDate);
+      if (duplicate) { alert("That school year already exists."); return; }
+      state.settings.schoolYears.push({ id: uid(), label, startDate, endDate });
+    }
+    const schoolYearId = existing ? existing.id : state.settings.schoolYears[state.settings.schoolYears.length - 1].id;
+    setCurrentSchoolYear(schoolYearId);
+    editingSchoolYearId = "";
+    saveState();
+    renderAll();
   });
+  const schoolYearCancelEditBtn = document.getElementById("school-year-cancel-edit-btn");
+  if (schoolYearCancelEditBtn) {
+    schoolYearCancelEditBtn.addEventListener("click", () => cancelSchoolYearEdit());
+  }
 
   document.getElementById("quarters-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    const schoolYearId = document.getElementById("quarter-school-year").value;
+    if (!schoolYearId) { alert("Select a school year for these quarters."); return; }
     const q = [
-      { name: "Q1", startDate: document.getElementById("q1-start").value, endDate: document.getElementById("q1-end").value },
-      { name: "Q2", startDate: document.getElementById("q2-start").value, endDate: document.getElementById("q2-end").value },
-      { name: "Q3", startDate: document.getElementById("q3-start").value, endDate: document.getElementById("q3-end").value },
-      { name: "Q4", startDate: document.getElementById("q4-start").value, endDate: document.getElementById("q4-end").value }
+      { id: uid(), schoolYearId, name: "Q1", startDate: document.getElementById("q1-start").value, endDate: document.getElementById("q1-end").value },
+      { id: uid(), schoolYearId, name: "Q2", startDate: document.getElementById("q2-start").value, endDate: document.getElementById("q2-end").value },
+      { id: uid(), schoolYearId, name: "Q3", startDate: document.getElementById("q3-start").value, endDate: document.getElementById("q3-end").value },
+      { id: uid(), schoolYearId, name: "Q4", startDate: document.getElementById("q4-start").value, endDate: document.getElementById("q4-end").value }
     ];
     if (!q.every((x)=>validRange(x.startDate, x.endDate))) { alert("Each quarter needs a valid date range."); return; }
-    state.settings.quarters = q; saveState(); renderAll();
+    state.settings.allQuarters = state.settings.allQuarters.filter((quarter) => quarter.schoolYearId !== schoolYearId);
+    state.settings.allQuarters.push(...q);
+    if (schoolYearId === state.settings.currentSchoolYearId) setCurrentSchoolYear(schoolYearId);
+    editingQuarterSchoolYearId = "";
+    saveState();
+    renderAll();
   });
+  const quartersCancelEditBtn = document.getElementById("quarters-cancel-edit-btn");
+  if (quartersCancelEditBtn) {
+    quartersCancelEditBtn.addEventListener("click", () => cancelQuarterEdit());
+  }
+  const quarterSchoolYear = document.getElementById("quarter-school-year");
+  if (quarterSchoolYear) {
+    quarterSchoolYear.addEventListener("change", () => {
+      editingQuarterSchoolYearId = "";
+      fillSettingsForms();
+      renderPlanningSettings();
+    });
+  }
 
   document.getElementById("holiday-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -1263,12 +1690,23 @@ function bindEvents() {
         renderTests();
       });
     });
+  ["trend-filter-quarter", "trend-filter-subject", "trend-filter-grade-type"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderGradeTrending());
+  });
 
   document.addEventListener("change", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
     if (t.classList.contains("attendance-student-checkbox")) {
       updateAttendanceStudentSummary();
+      return;
+    }
+    if (t.classList.contains("trend-student-checkbox")) {
+      trendSelectedStudentIds.clear();
+      getTrendSelectedStudentIds().forEach((id) => trendSelectedStudentIds.add(id));
+      updateTrendStudentSummary();
+      renderGradeTrending();
       return;
     }
     if (t.classList.contains("grade-row-subject") || t.classList.contains("grade-row-student")) {
@@ -1280,6 +1718,24 @@ function bindEvents() {
   document.addEventListener("click", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
+
+    const setCurrentSchoolYearId = t.getAttribute("data-set-current-school-year");
+    if (setCurrentSchoolYearId) {
+      setCurrentSchoolYear(setCurrentSchoolYearId);
+      saveState();
+      renderAll();
+      return;
+    }
+    const editSchoolYearId = t.getAttribute("data-edit-school-year");
+    if (editSchoolYearId) {
+      beginSchoolYearEdit(editSchoolYearId);
+      return;
+    }
+    const editQuartersYearId = t.getAttribute("data-edit-quarters-year");
+    if (editQuartersYearId) {
+      beginQuarterEdit(editQuartersYearId);
+      return;
+    }
 
     const toggleStudentAvgId = t.getAttribute("data-toggle-student-avg");
     if (toggleStudentAvgId) {
@@ -1407,6 +1863,7 @@ function renderAll() {
   renderSubjects();
   renderCourses();
   renderHolidays();
+  renderPlanningSettings();
   renderPlans();
   renderAttendance();
   renderTests();

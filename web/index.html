@@ -15,8 +15,8 @@
       <nav class="tabs" aria-label="Primary">
         <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
         <button class="tab-btn" data-tab="students" type="button">Students</button>
-        <button class="tab-btn" data-tab="management" type="button">Management</button>
-        <button class="tab-btn" data-tab="planning" type="button">Planning</button>
+        <button class="tab-btn" data-tab="management" type="button">Cirriculum</button>
+        <button class="tab-btn" data-tab="planning" type="button">Schedule</button>
         <button class="tab-btn" data-tab="calendar" type="button">Calendar</button>
         <button class="tab-btn" data-tab="attendance" type="button">Attendance</button>
         <button class="tab-btn" data-tab="grades" type="button">Grades</button>
@@ -27,7 +27,7 @@
       <h2>Dashboard</h2>
       <div class="kpi-grid">
         <article class="kpi"><p class="kpi-label">Instruction Days</p><p class="kpi-value"><span id="kpi-days-complete">0</span> / <span id="kpi-days-total">0</span></p></article>
-        <article class="kpi"><p class="kpi-label">Instruction Hours</p><p class="kpi-value"><span id="kpi-hours-complete">0</span> / <span id="kpi-hours-total">0</span></p></article>
+        <article class="kpi"><p class="kpi-label">Super Star Student</p><p class="kpi-value"><span id="kpi-superstar">No grades yet</span></p></article>
         <article class="kpi"><p class="kpi-label">Running Grade Average</p><p class="kpi-value"><span id="kpi-running-avg">0%</span></p></article>
         <article class="kpi"><p class="kpi-label">Current Quarter Avg</p><p class="kpi-value"><span id="kpi-quarter-avg">0%</span></p></article>
       </div>
@@ -61,13 +61,37 @@
         </table>
       </div>
 
-      <h3>Average by Subject</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Subject</th><th>Avg</th><th>Tests</th></tr></thead>
-          <tbody id="subject-avg-table"></tbody>
-        </table>
-      </div>
+      <h3>Grade Trending</h3>
+      <form id="trend-filter-form" class="grid-form">
+        <label class="trend-student-field">Student
+          <details id="trend-student-dropdown" class="multi-select-dropdown">
+            <summary id="trend-student-summary">Students (0 selected)</summary>
+            <div id="trend-student-options" class="checklist-vertical"></div>
+          </details>
+        </label>
+        <label>Quarter
+          <select id="trend-filter-quarter">
+            <option value="all">All Quarters</option>
+          </select>
+        </label>
+        <label>Subject
+          <select id="trend-filter-subject">
+            <option value="all">All Subjects</option>
+          </select>
+        </label>
+        <label>Grade Type
+          <select id="trend-filter-grade-type">
+            <option value="all">All Grade Types</option>
+            <option value="Assignment">Assignment</option>
+            <option value="Quiz">Quiz</option>
+            <option value="Test">Test</option>
+            <option value="Quarterly Final">Quarterly Final</option>
+            <option value="Final">Final</option>
+          </select>
+        </label>
+      </form>
+      <div id="grade-trending-chart" class="chart-wrap"></div>
+
     </section>
 
     <section id="tab-students" class="tab-panel panel">
@@ -127,7 +151,7 @@
     </section>
 
     <section id="tab-management" class="tab-panel panel">
-      <h2>Management</h2>
+      <h2>Cirriculum</h2>
       <h3>Subjects</h3>
       <form id="subject-form" class="inline-form">
         <input id="subject-name" type="text" placeholder="Math" required>
@@ -146,17 +170,26 @@
     </section>
 
     <section id="tab-planning" class="tab-panel panel">
-      <h2>Planning</h2>
+      <h2>Schedule</h2>
 
       <h3>School Year & Quarters</h3>
       <form id="school-year-form" class="grid-form">
         <label>Year Label<input id="school-year-label" type="text" required></label>
         <label>Start Date<input id="school-year-start" type="date" required></label>
         <label>End Date<input id="school-year-end" type="date" required></label>
-        <button type="submit">Save School Year</button>
+        <button id="school-year-submit-btn" type="submit">Save School Year</button>
+        <button id="school-year-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
       </form>
+      <p id="school-year-current" class="muted"></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>School Year</th><th>Start Date</th><th>End Date</th><th>Actions</th></tr></thead>
+          <tbody id="school-year-summary-table"></tbody>
+        </table>
+      </div>
 
       <form id="quarters-form" class="quarter-grid">
+        <label>School Year<select id="quarter-school-year" required></select></label>
         <label>Q1 Start<input id="q1-start" type="date" required></label>
         <label>Q1 End<input id="q1-end" type="date" required></label>
         <label>Q2 Start<input id="q2-start" type="date" required></label>
@@ -165,8 +198,15 @@
         <label>Q3 End<input id="q3-end" type="date" required></label>
         <label>Q4 Start<input id="q4-start" type="date" required></label>
         <label>Q4 End<input id="q4-end" type="date" required></label>
-        <button type="submit">Save Quarters</button>
+        <button id="quarters-submit-btn" type="submit">Save Quarters</button>
+        <button id="quarters-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
       </form>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>School Year</th><th>Quarter</th><th>Start Date</th><th>End Date</th><th>Actions</th></tr></thead>
+          <tbody id="quarter-summary-table"></tbody>
+        </table>
+      </div>
 
       <h3>Holidays and Breaks</h3>
       <form id="holiday-form" class="grid-form">
