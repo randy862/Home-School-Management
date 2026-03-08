@@ -147,6 +147,9 @@ const expandedStudentAverageRows = new Set();
 const expandedSubjectAverageRows = new Set();
 const expandedStudentAttendanceRows = new Set();
 const trendSelectedStudentIds = new Set();
+const volumeSelectedStudentIds = new Set();
+const workSelectedStudentIds = new Set();
+let workDistributionGradeType = "Assignment";
 let editingSchoolYearId = "";
 let editingQuarterSchoolYearId = "";
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -303,6 +306,8 @@ function renderSelects() {
   options("test-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
   renderAttendanceStudentChecklist();
   renderTrendStudentChecklist(Array.from(trendSelectedStudentIds));
+  renderVolumeStudentChecklist(Array.from(volumeSelectedStudentIds));
+  renderWorkStudentChecklist(Array.from(workSelectedStudentIds));
 
   const attendanceFilterStudent = document.getElementById("attendance-filter-student");
   if (attendanceFilterStudent) {
@@ -445,6 +450,63 @@ function renderSelects() {
     if (Array.from(trendGradeTypeSelect.options).some((o) => o.value === current)) trendGradeTypeSelect.value = current;
   }
 
+  const volumeQuarterSelect = document.getElementById("volume-filter-quarter");
+  if (volumeQuarterSelect) {
+    const current = volumeQuarterSelect.value || "all";
+    volumeQuarterSelect.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      volumeQuarterSelect.appendChild(option);
+    });
+    if (Array.from(volumeQuarterSelect.options).some((o) => o.value === current)) volumeQuarterSelect.value = current;
+  }
+
+  const volumeSubjectSelect = document.getElementById("volume-filter-subject");
+  if (volumeSubjectSelect) {
+    const current = volumeSubjectSelect.value || "all";
+    volumeSubjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+    state.subjects.forEach((subject) => {
+      const option = document.createElement("option");
+      option.value = subject.id;
+      option.textContent = subject.name;
+      volumeSubjectSelect.appendChild(option);
+    });
+    if (Array.from(volumeSubjectSelect.options).some((o) => o.value === current)) volumeSubjectSelect.value = current;
+  }
+
+  const volumeGradeTypeSelect = document.getElementById("volume-filter-grade-type");
+  if (volumeGradeTypeSelect) {
+    const current = volumeGradeTypeSelect.value || "all";
+    const allTypes = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+    state.tests.forEach((test) => {
+      const type = test.gradeType || test.testName || "";
+      if (type && !allTypes.includes(type)) allTypes.push(type);
+    });
+    volumeGradeTypeSelect.innerHTML = "<option value='all'>All Grade Types</option>";
+    allTypes.forEach((type) => {
+      const option = document.createElement("option");
+      option.value = type;
+      option.textContent = type;
+      volumeGradeTypeSelect.appendChild(option);
+    });
+    if (Array.from(volumeGradeTypeSelect.options).some((o) => o.value === current)) volumeGradeTypeSelect.value = current;
+  }
+
+  const workQuarterSelect = document.getElementById("work-filter-quarter");
+  if (workQuarterSelect) {
+    const current = workQuarterSelect.value || "all";
+    workQuarterSelect.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      workQuarterSelect.appendChild(option);
+    });
+    if (Array.from(workQuarterSelect.options).some((o) => o.value === current)) workQuarterSelect.value = current;
+  }
+
   syncGradesFilterSubjectCourseOptions();
 }
 
@@ -492,6 +554,93 @@ function updateTrendStudentSummary() {
 
 function getTrendSelectedStudentIds() {
   return Array.from(document.querySelectorAll(".trend-student-checkbox:checked")).map((el) => el.value);
+}
+
+function renderVolumeStudentChecklist(preselectedStudentIds = []) {
+  const container = document.getElementById("volume-student-dropdown");
+  const optionsWrap = document.getElementById("volume-student-options");
+  if (!container || !optionsWrap) return;
+  const selected = new Set(preselectedStudentIds);
+  const checkboxes = state.students.map((s, idx) => {
+    const checked = selected.has(s.id) ? " checked" : "";
+    const inputId = `volume-student-${idx}-${s.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="volume-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
+  updateVolumeStudentSummary();
+}
+
+function updateVolumeStudentSummary() {
+  const summary = document.getElementById("volume-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".volume-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getVolumeSelectedStudentIds() {
+  return Array.from(document.querySelectorAll(".volume-student-checkbox:checked")).map((el) => el.value);
+}
+
+function canonicalGradeTypes() {
+  return ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+}
+
+function resolveGradeType(test) {
+  const allowed = canonicalGradeTypes();
+  const type = (test.gradeType || "").trim();
+  if (allowed.includes(type)) return type;
+  const name = String(test.testName || "").toLowerCase();
+  if (name.includes("quarterly final")) return "Quarterly Final";
+  if (name === "final" || /\bfinal\b/.test(name)) return "Final";
+  if (name.includes("quiz")) return "Quiz";
+  if (name.includes("assignment") || name.includes("homework")) return "Assignment";
+  if (name.includes("test")) return "Test";
+  return null;
+}
+
+function availableGradeTypes() {
+  return canonicalGradeTypes();
+}
+
+function renderWorkDistributionGradeTypeFilter() {
+  const host = document.getElementById("work-distribution-grade-type-filter");
+  if (!host) return;
+  const types = availableGradeTypes();
+  if (!types.includes(workDistributionGradeType)) workDistributionGradeType = types[0] || "Assignment";
+  host.innerHTML = `
+    <p class="work-dist-filter-title">Grade Type</p>
+    <div class="work-dist-options">
+      ${types.map((type, idx) => {
+        const id = `work-dist-grade-type-${idx}`;
+        const checked = type === workDistributionGradeType ? " checked" : "";
+        return `<label for="${id}" class="work-dist-option"><input id="${id}" type="checkbox" class="work-dist-grade-type-checkbox" value="${type}"${checked}>${type}</label>`;
+      }).join("")}
+    </div>`;
+}
+
+function renderWorkStudentChecklist(preselectedStudentIds = []) {
+  const container = document.getElementById("work-student-dropdown");
+  const optionsWrap = document.getElementById("work-student-options");
+  if (!container || !optionsWrap) return;
+  const selected = new Set(preselectedStudentIds);
+  const checkboxes = state.students.map((s, idx) => {
+    const checked = selected.has(s.id) ? " checked" : "";
+    const inputId = `work-student-${idx}-${s.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="work-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
+  updateWorkStudentSummary();
+}
+
+function updateWorkStudentSummary() {
+  const summary = document.getElementById("work-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".work-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getWorkSelectedStudentIds() {
+  return Array.from(document.querySelectorAll(".work-student-checkbox:checked")).map((el) => el.value);
 }
 
 function rowOrEmpty(tbody, html, emptyMsg, cols) {
@@ -981,7 +1130,7 @@ function renderGradeTrending() {
 
   const width = 960;
   const height = 260;
-  const margin = { top: 18, right: 20, bottom: 48, left: 52 };
+  const margin = { top: 62, right: 20, bottom: 48, left: 52 };
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
   const xPad = 16;
@@ -1021,22 +1170,60 @@ function renderGradeTrending() {
     return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${lineSeries.color};stroke:${lineSeries.color}"><title>${lineSeries.label} ${row.label}: ${row.avg.toFixed(1)}%</title></circle>`;
   })).join("");
 
-  const valueLabelSvg = series.flatMap((lineSeries, lineIdx) => lineSeries.monthly.map((row, idx) => {
-    const x = xFor(idx);
-    const y = yFor(row.avg || 0);
-    const nearTop = y <= margin.top + 16;
-    const nearBottom = y >= (height - margin.bottom - 10);
-    const offsetBase = ((idx + lineIdx) % 2 === 0) ? -10 : 14;
-    const offset = nearTop ? 14 : (nearBottom ? -10 : offsetBase);
-    const yLabel = y + offset + (lineIdx * 8);
-    return `<text x="${x.toFixed(2)}" y="${yLabel.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${lineSeries.color}">${(row.avg || 0).toFixed(1)}%</text>`;
-  })).join("");
+  const labelTop = margin.top + 10;
+  const labelBottom = height - margin.bottom - 6;
+  const minLabelGap = 12;
+  const valueLabelParts = [];
+  months.forEach((_, monthIdx) => {
+    const monthLabels = series.map((lineSeries, lineIdx) => {
+      const row = lineSeries.monthly[monthIdx];
+      const x = xFor(monthIdx);
+      const y = yFor(row.avg || 0);
+      const nearTop = y <= margin.top + 16;
+      const nearBottom = y >= (height - margin.bottom - 10);
+      const offsetBase = ((monthIdx + lineIdx) % 2 === 0) ? -10 : 14;
+      const offset = nearTop ? 22 : (nearBottom ? -10 : offsetBase);
+      const preferredY = clamp(y + offset, labelTop, labelBottom);
+      return {
+        color: lineSeries.color,
+        text: `${(row.avg || 0).toFixed(1)}%`,
+        x,
+        preferredY
+      };
+    }).sort((a, b) => a.preferredY - b.preferredY);
 
-  const legendSvg = series.map((lineSeries, idx) => {
-    const x = margin.left + 8 + (idx * 170);
-    const y = margin.top - 4;
-    return `<g><line x1="${x}" y1="${y}" x2="${x + 18}" y2="${y}" class="trend-line" style="stroke:${lineSeries.color}"></line><text x="${x + 24}" y="${y + 4}" class="trend-axis-label">${lineSeries.label}</text></g>`;
-  }).join("");
+    // Push labels down to enforce a minimum vertical gap.
+    for (let i = 1; i < monthLabels.length; i += 1) {
+      if (monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+        monthLabels[i].preferredY = monthLabels[i - 1].preferredY + minLabelGap;
+      }
+    }
+    // If we overflow bottom, pull labels up while preserving spacing.
+    const overflow = monthLabels.length ? monthLabels[monthLabels.length - 1].preferredY - labelBottom : 0;
+    if (overflow > 0) {
+      for (let i = monthLabels.length - 1; i >= 0; i -= 1) {
+        monthLabels[i].preferredY -= overflow;
+        if (i > 0 && monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+          monthLabels[i - 1].preferredY = monthLabels[i].preferredY - minLabelGap;
+        }
+      }
+    }
+    // Final clamp safety.
+    monthLabels.forEach((label) => {
+      label.preferredY = clamp(label.preferredY, labelTop, labelBottom);
+      valueLabelParts.push(`<text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text>`);
+    });
+  });
+  const valueLabelSvg = valueLabelParts.join("");
+
+  const legendHtml = `
+    <div class="trend-legend">
+      ${series.map((lineSeries) => `
+        <span class="trend-legend-item">
+          <span class="trend-legend-line" style="background:${lineSeries.color}"></span>
+          <span>${lineSeries.label}</span>
+        </span>`).join("")}
+    </div>`;
 
   const hasData = series.some((lineSeries) => lineSeries.monthly.some((row) => row.count > 0));
   const noData = hasData ? "" : `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No grade data for selected filters</text>`;
@@ -1045,7 +1232,6 @@ function renderGradeTrending() {
     <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly grade trend line chart">
       <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
       <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
-      ${legendSvg}
       ${yTickSvg}
       ${xTickSvg}
       ${lineSvg}
@@ -1054,7 +1240,234 @@ function renderGradeTrending() {
       ${noData}
       <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
       <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Average Grade (%)</text>
-    </svg>`;
+    </svg>
+    ${legendHtml}`;
+}
+
+function renderGradeTypeVolumeChart() {
+  const chartHost = document.getElementById("grade-type-volume-chart");
+  if (!chartHost) return;
+
+  const sy = state.settings.schoolYear;
+  const syStart = toDate(sy.startDate);
+  const syEnd = toDate(sy.endDate);
+  const today = toDate(todayISO());
+  const effectiveEnd = syEnd < today ? syEnd : today;
+  const months = schoolYearMonths(sy.startDate, toISO(effectiveEnd));
+  if (!months.length) {
+    chartHost.innerHTML = syStart > today
+      ? "<p class='muted'>School year has not started yet.</p>"
+      : "<p class='muted'>No school year range set.</p>";
+    return;
+  }
+
+  const quarterFilter = document.getElementById("volume-filter-quarter")?.value || "all";
+  const subjectFilter = document.getElementById("volume-filter-subject")?.value || "all";
+  const gradeTypeFilter = document.getElementById("volume-filter-grade-type")?.value || "all";
+  const selectedStudentIds = getVolumeSelectedStudentIds();
+  const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
+
+  const knownTypes = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+  const inYearTests = state.tests.filter((t) => inRange(t.date, sy.startDate, sy.endDate));
+  const filteredTests = inYearTests.filter((t) => {
+    if (quarterRange && quarterFilter !== "all" && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
+    if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
+    const thisType = t.gradeType || t.testName || "Test";
+    if (gradeTypeFilter !== "all" && thisType !== gradeTypeFilter) return false;
+    if (selectedStudentIds.length && !selectedStudentIds.includes(t.studentId)) return false;
+    return true;
+  });
+
+  filteredTests.forEach((test) => {
+    const gradeType = test.gradeType || test.testName || "Test";
+    if (!knownTypes.includes(gradeType)) knownTypes.push(gradeType);
+  });
+
+  const monthlyCounts = months.map((entry) => {
+    const monthStart = new Date(entry.year, entry.month, 1, 12, 0, 0);
+    const monthEnd = new Date(entry.year, entry.month + 1, 0, 12, 0, 0);
+    const monthStartIso = toISO(monthStart);
+    const monthEndIso = toISO(monthEnd);
+    const tests = filteredTests.filter((t) => inRange(t.date, monthStartIso, monthEndIso));
+    const counts = new Map(knownTypes.map((type) => [type, 0]));
+    tests.forEach((test) => {
+      const gradeType = test.gradeType || test.testName || "Test";
+      counts.set(gradeType, (counts.get(gradeType) || 0) + 1);
+    });
+    return {
+      label: monthStart.toLocaleDateString(undefined, { month: "short" }),
+      counts
+    };
+  });
+
+  const maxCount = Math.max(1, ...monthlyCounts.flatMap((m) => knownTypes.map((type) => m.counts.get(type) || 0)));
+  const yTickStep = maxCount <= 10 ? 1 : (maxCount <= 30 ? 5 : 10);
+  const yTicks = [];
+  for (let tick = 0; tick <= maxCount; tick += yTickStep) yTicks.push(tick);
+  if (yTicks[yTicks.length - 1] !== maxCount) yTicks.push(maxCount);
+
+  const width = 960;
+  const height = 300;
+  const margin = { top: 24, right: 20, bottom: 56, left: 52 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+
+  const groupCount = months.length;
+  const groupSlot = plotW / Math.max(1, groupCount);
+  const groupWidth = Math.min(86, groupSlot * 0.82);
+  const barGap = 2;
+  const barCount = Math.max(1, knownTypes.length);
+  const barWidth = Math.max(3, (groupWidth - (barGap * (barCount - 1))) / barCount);
+
+  const xGroupStart = (idx) => margin.left + (idx * groupSlot) + ((groupSlot - groupWidth) / 2);
+  const xForBar = (monthIdx, typeIdx) => xGroupStart(monthIdx) + (typeIdx * (barWidth + barGap));
+  const yFor = (value) => margin.top + ((maxCount - value) / maxCount) * plotH;
+
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${tick}</text></g>`;
+  }).join("");
+
+  const xTickSvg = monthlyCounts.map((row, idx) => {
+    const x = xGroupStart(idx) + (groupWidth / 2);
+    return `<text x="${x.toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${row.label}</text>`;
+  }).join("");
+
+  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
+  const barsSvg = monthlyCounts.flatMap((row, monthIdx) =>
+    knownTypes.map((type, typeIdx) => {
+      const count = row.counts.get(type) || 0;
+      const x = xForBar(monthIdx, typeIdx);
+      const y = yFor(count);
+      const h = Math.max(0, (height - margin.bottom) - y);
+      const color = palette[typeIdx % palette.length];
+      return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${h.toFixed(2)}" fill="${color}" opacity="0.9"><title>${row.label} ${type}: ${count}</title></rect>`;
+    })
+  ).join("");
+
+  const totalCounts = monthlyCounts.reduce((sum, row) =>
+    sum + knownTypes.reduce((inner, type) => inner + (row.counts.get(type) || 0), 0), 0);
+  const noData = totalCounts === 0
+    ? `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No grade entries for this school year</text>`
+    : "";
+
+  const legendHtml = `
+    <div class="trend-legend">
+      ${knownTypes.map((type, idx) => `
+        <span class="trend-legend-item">
+          <span class="volume-legend-box" style="background:${palette[idx % palette.length]}"></span>
+          <span>${type}</span>
+        </span>`).join("")}
+    </div>`;
+
+  chartHost.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly grade type volume bar chart">
+      <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      ${yTickSvg}
+      ${xTickSvg}
+      ${barsSvg}
+      ${noData}
+      <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
+      <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Count</text>
+    </svg>
+    ${legendHtml}`;
+}
+
+function renderWorkDistributionChart() {
+  const chartHost = document.getElementById("work-distribution-chart");
+  if (!chartHost) return;
+
+  const sy = state.settings.schoolYear;
+  const quarterFilter = document.getElementById("work-filter-quarter")?.value || "all";
+  const selectedStudentIds = getWorkSelectedStudentIds();
+  const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
+
+  const filteredTests = state.tests.filter((t) => {
+    if (!inRange(t.date, sy.startDate, sy.endDate)) return false;
+    if (quarterRange && quarterFilter !== "all" && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
+    if (selectedStudentIds.length && !selectedStudentIds.includes(t.studentId)) return false;
+    const gradeType = resolveGradeType(t);
+    if (!gradeType) return false;
+    return gradeType === workDistributionGradeType;
+  });
+
+  const bySubject = new Map();
+  filteredTests.forEach((test) => {
+    const subjectName = getSubjectName(test.subjectId);
+    bySubject.set(subjectName, (bySubject.get(subjectName) || 0) + 1);
+  });
+
+  const entries = Array.from(bySubject.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const total = entries.reduce((sum, [, count]) => sum + count, 0);
+
+  if (!total) {
+    chartHost.innerHTML = `<p class='muted'>No ${workDistributionGradeType} grades for this school year.</p>`;
+    return;
+  }
+
+  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
+  const size = 560;
+  const cx = 280;
+  const cy = 280;
+  const radius = 215;
+
+  function polarToCartesian(centerX, centerY, r, angleDeg) {
+    const angleRad = ((angleDeg - 90) * Math.PI) / 180;
+    return {
+      x: centerX + (r * Math.cos(angleRad)),
+      y: centerY + (r * Math.sin(angleRad))
+    };
+  }
+
+  function arcPath(centerX, centerY, r, startAngle, endAngle) {
+    const start = polarToCartesian(centerX, centerY, r, endAngle);
+    const end = polarToCartesian(centerX, centerY, r, startAngle);
+    const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+    return `M ${centerX} ${centerY} L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 0 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`;
+  }
+
+  let currentAngle = 0;
+  const slices = entries.map(([subject, count], idx) => {
+    const pctValue = (count / total) * 100;
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + ((count / total) * 360);
+    currentAngle = endAngle;
+    const color = palette[idx % palette.length];
+    return {
+      subject,
+      count,
+      pctText: `${pctValue.toFixed(1)}%`,
+      color,
+      isFull: pctValue >= 99.999,
+      path: arcPath(cx, cy, radius, startAngle, endAngle)
+    };
+  });
+
+  const sliceSvg = slices.map((slice) =>
+    slice.isFull
+      ? `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="${slice.color}" stroke="#ffffff" stroke-width="1"><title>${slice.subject}: ${slice.count} (${slice.pctText})</title></circle>`
+      : `<path d="${slice.path}" fill="${slice.color}" stroke="#ffffff" stroke-width="1"><title>${slice.subject}: ${slice.count} (${slice.pctText})</title></path>`
+  ).join("");
+
+  const labelSvg = slices.map((slice, idx) => {
+    const startAngle = idx === 0 ? 0 : slices.slice(0, idx).reduce((sum, s) => sum + ((s.count / total) * 360), 0);
+    const endAngle = startAngle + ((slice.count / total) * 360);
+    const midAngle = (startAngle + endAngle) / 2;
+    const point = polarToCartesian(cx, cy, radius * 0.62, midAngle);
+    const textColor = "#1a1a1a";
+    return `<text x="${point.x.toFixed(2)}" y="${point.y.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" class="pie-slice-label" fill="${textColor}">${slice.subject} ${slice.pctText}</text>`;
+  }).join("");
+
+  chartHost.innerHTML = `
+    <div class="pie-wrap">
+      <svg viewBox="0 0 ${size} ${size}" class="pie-chart" role="img" aria-label="Work distribution by subject">
+        ${sliceSvg}
+        ${labelSvg}
+      </svg>
+      <div class="pie-total">Total ${workDistributionGradeType}: ${total}</div>
+    </div>`;
 }
 
 function renderDashboard() {
@@ -1099,6 +1512,12 @@ function renderDashboard() {
   });
   Array.from(trendSelectedStudentIds).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) trendSelectedStudentIds.delete(studentId);
+  });
+  Array.from(volumeSelectedStudentIds).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) volumeSelectedStudentIds.delete(studentId);
+  });
+  Array.from(workSelectedStudentIds).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) workSelectedStudentIds.delete(studentId);
   });
 
   const quarterByName = new Map(state.settings.quarters.map((entry) => [entry.name, entry]));
@@ -1224,6 +1643,9 @@ function renderDashboard() {
   });
   rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
   renderGradeTrending();
+  renderGradeTypeVolumeChart();
+  renderWorkDistributionGradeTypeFilter();
+  renderWorkDistributionChart();
 
   const subjectAvgTable = document.getElementById("subject-avg-table");
   if (subjectAvgTable) {
@@ -1715,6 +2137,14 @@ function bindEvents() {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGradeTrending());
   });
+  ["volume-filter-quarter", "volume-filter-subject", "volume-filter-grade-type"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderGradeTypeVolumeChart());
+  });
+  ["work-filter-quarter"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderWorkDistributionChart());
+  });
 
   document.addEventListener("change", (e) => {
     const t = e.target;
@@ -1728,6 +2158,31 @@ function bindEvents() {
       getTrendSelectedStudentIds().forEach((id) => trendSelectedStudentIds.add(id));
       updateTrendStudentSummary();
       renderGradeTrending();
+      return;
+    }
+    if (t.classList.contains("volume-student-checkbox")) {
+      volumeSelectedStudentIds.clear();
+      getVolumeSelectedStudentIds().forEach((id) => volumeSelectedStudentIds.add(id));
+      updateVolumeStudentSummary();
+      renderGradeTypeVolumeChart();
+      return;
+    }
+    if (t.classList.contains("work-student-checkbox")) {
+      workSelectedStudentIds.clear();
+      getWorkSelectedStudentIds().forEach((id) => workSelectedStudentIds.add(id));
+      updateWorkStudentSummary();
+      renderWorkDistributionChart();
+      return;
+    }
+    if (t.classList.contains("work-dist-grade-type-checkbox")) {
+      const selectedType = t.getAttribute("value") || "";
+      if (!selectedType) return;
+      workDistributionGradeType = selectedType;
+      document.querySelectorAll(".work-dist-grade-type-checkbox").forEach((el) => {
+        if (!(el instanceof HTMLInputElement)) return;
+        el.checked = el.value === selectedType;
+      });
+      renderWorkDistributionChart();
       return;
     }
     if (t.classList.contains("grade-row-subject") || t.classList.contains("grade-row-student")) {

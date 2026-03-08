@@ -92,6 +92,56 @@
       </form>
       <div id="grade-trending-chart" class="chart-wrap"></div>
 
+      <h3>Grade Type Volume</h3>
+      <form id="volume-filter-form" class="grid-form">
+        <label class="volume-student-field">Student
+          <details id="volume-student-dropdown" class="multi-select-dropdown">
+            <summary id="volume-student-summary">Students (0 selected)</summary>
+            <div id="volume-student-options" class="checklist-vertical"></div>
+          </details>
+        </label>
+        <label>Quarter
+          <select id="volume-filter-quarter">
+            <option value="all">All Quarters</option>
+          </select>
+        </label>
+        <label>Subject
+          <select id="volume-filter-subject">
+            <option value="all">All Subjects</option>
+          </select>
+        </label>
+        <label>Grade Type
+          <select id="volume-filter-grade-type">
+            <option value="all">All Grade Types</option>
+            <option value="Assignment">Assignment</option>
+            <option value="Quiz">Quiz</option>
+            <option value="Test">Test</option>
+            <option value="Quarterly Final">Quarterly Final</option>
+            <option value="Final">Final</option>
+          </select>
+        </label>
+      </form>
+      <div id="grade-type-volume-chart" class="chart-wrap"></div>
+
+      <h3>Work Distribution</h3>
+      <div class="chart-wrap">
+        <form id="work-filter-form" class="grid-form">
+          <label class="work-student-field">Student
+            <details id="work-student-dropdown" class="multi-select-dropdown">
+              <summary id="work-student-summary">Students (0 selected)</summary>
+              <div id="work-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label>Quarter
+            <select id="work-filter-quarter">
+              <option value="all">All Quarters</option>
+            </select>
+          </label>
+        </form>
+        <div id="work-distribution-grade-type-filter" class="work-dist-filter"></div>
+        <div id="work-distribution-chart"></div>
+      </div>
+
     </section>
 
     <section id="tab-students" class="tab-panel panel">
