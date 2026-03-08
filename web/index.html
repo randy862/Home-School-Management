@@ -214,7 +214,8 @@
         <label>Course Name<input id="course-name" type="text" required></label>
         <label>Subject<select id="course-subject" required></select></label>
         <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
-        <button type="submit">Add Course</button>
+        <button id="course-submit-btn" type="submit">Add Course</button>
+        <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
       </form>
       <ul id="course-list" class="item-list"></ul>
     </section>
@@ -264,7 +265,8 @@
         <label>Type<select id="holiday-type"><option value="holiday">Holiday</option><option value="break">Break</option></select></label>
         <label>Start Date<input id="holiday-start" type="date" required></label>
         <label>End Date<input id="holiday-end" type="date" required></label>
-        <button type="submit">Add</button>
+        <button id="holiday-submit-btn" type="submit">Add</button>
+        <button id="holiday-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
       </form>
       <ul id="holiday-list" class="item-list"></ul>
 
@@ -278,9 +280,18 @@
           </select>
         </label>
         <label>Student<select id="plan-student" required></select></label>
-        <label>Course<select id="plan-course" required></select></label>
-        <label>Start Date<input id="plan-start" type="date" required></label>
-        <label>End Date<input id="plan-end" type="date" required></label>
+        <label class="plan-course-field">Course
+          <details id="plan-course-dropdown" class="multi-select-dropdown">
+            <summary id="plan-course-summary">Courses (0 selected)</summary>
+            <div id="plan-course-options" class="checklist-vertical"></div>
+          </details>
+        </label>
+        <label id="plan-start-wrap">Start Date<input id="plan-start" type="date" required></label>
+        <label id="plan-end-wrap">End Date<input id="plan-end" type="date" required></label>
+        <fieldset id="plan-quarter-fieldset" class="weekday-set hidden">
+          <legend>Quarter(s)</legend>
+          <div id="plan-quarter-options" class="checklist-vertical"></div>
+        </fieldset>
         <fieldset class="weekday-set">
           <legend>Weekdays</legend>
           <label><input type="checkbox" name="weekday" value="1" checked>Mon</label>
@@ -289,7 +300,8 @@
           <label><input type="checkbox" name="weekday" value="4" checked>Thu</label>
           <label><input type="checkbox" name="weekday" value="5" checked>Fri</label>
         </fieldset>
-        <button type="submit">Add Plan</button>
+        <button id="plan-submit-btn" type="submit">Add Plan</button>
+        <button id="plan-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
       </form>
       <ul id="plan-list" class="item-list"></ul>
     </section>
@@ -327,6 +339,36 @@
           <div>Sat</div>
         </div>
         <div id="calendar-month-grid" class="calendar-month-grid"></div>
+      </div>
+
+      <div id="calendar-detail-view" class="hidden">
+        <div class="calendar-toolbar">
+          <button id="calendar-prev-period" type="button">Previous</button>
+          <p id="calendar-detail-title" class="calendar-month-title"></p>
+          <button id="calendar-next-period" type="button">Next</button>
+        </div>
+
+        <div id="calendar-week-view" class="hidden">
+          <div class="calendar-weekdays">
+            <div>Mon</div>
+            <div>Tue</div>
+            <div>Wed</div>
+            <div>Thu</div>
+            <div>Fri</div>
+            <div>Sat</div>
+            <div>Sun</div>
+          </div>
+          <div id="calendar-week-grid" class="calendar-week-grid"></div>
+        </div>
+
+        <div id="calendar-day-view" class="hidden">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Hour</th><th>Student</th><th>Planned Instruction</th></tr></thead>
+              <tbody id="calendar-day-table"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div id="calendar-list-wrap" class="table-wrap hidden">

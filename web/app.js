@@ -150,6 +150,9 @@ const trendSelectedStudentIds = new Set();
 const volumeSelectedStudentIds = new Set();
 const workSelectedStudentIds = new Set();
 let workDistributionGradeType = "Assignment";
+let editingCourseId = "";
+let editingHolidayId = "";
+let editingPlanId = "";
 let editingSchoolYearId = "";
 let editingQuarterSchoolYearId = "";
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -296,10 +299,10 @@ function options(selectId, items, textFn, placeholder) {
 }
 
 function renderSelects() {
+  const selectedPlanCourseIds = getSelectedPlanCourseIds();
   options("course-subject", state.subjects, (s) => s.name, state.subjects.length ? null : "Add a subject first");
   options("test-subject", state.subjects, (s) => s.name, state.subjects.length ? null : "Add a subject first");
   options("student-enroll-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
-  options("plan-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
   options("test-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
   options("plan-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
   options("calendar-student", state.students, (s) => `${s.firstName} ${s.lastName}`, "All Students");
@@ -507,6 +510,11 @@ function renderSelects() {
     if (Array.from(workQuarterSelect.options).some((o) => o.value === current)) workQuarterSelect.value = current;
   }
 
+  const planStudentId = document.getElementById("plan-student")?.value || "";
+  renderPlanCourseChecklist(selectedPlanCourseIds, planStudentId);
+
+  renderPlanQuarterOptions(getSelectedPlanQuarters());
+
   syncGradesFilterSubjectCourseOptions();
 }
 
@@ -643,6 +651,97 @@ function getWorkSelectedStudentIds() {
   return Array.from(document.querySelectorAll(".work-student-checkbox:checked")).map((el) => el.value);
 }
 
+function getPlanEligibleCourses(studentId) {
+  if (!studentId) return [];
+  const enrolledCourseIds = new Set(
+    state.enrollments
+      .filter((e) => e.studentId === studentId)
+      .map((e) => e.courseId)
+  );
+  return state.courses.filter((course) => enrolledCourseIds.has(course.id));
+}
+
+function renderPlanCourseChecklist(preselectedCourseIds = [], studentId = "") {
+  const container = document.getElementById("plan-course-dropdown");
+  const optionsWrap = document.getElementById("plan-course-options");
+  if (!container || !optionsWrap) return;
+  const eligibleCourses = getPlanEligibleCourses(studentId);
+  const eligibleIds = new Set(eligibleCourses.map((course) => course.id));
+  const selected = new Set(preselectedCourseIds.filter((id) => eligibleIds.has(id)));
+  const checkboxes = eligibleCourses.map((course, idx) => {
+    const checked = selected.has(course.id) ? " checked" : "";
+    const inputId = `plan-course-${idx}-${course.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="plan-course-checkbox" value="${course.id}"${checked}><label for="${inputId}">${course.name} (${getSubjectName(course.subjectId)})</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No enrolled courses available for selected student.</span>";
+  updatePlanCourseSummary();
+}
+
+function updatePlanCourseSummary() {
+  const summary = document.getElementById("plan-course-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".plan-course-checkbox:checked").length;
+  summary.textContent = `Courses (${selectedCount} selected)`;
+}
+
+function getSelectedPlanCourseIds() {
+  return Array.from(document.querySelectorAll(".plan-course-checkbox:checked")).map((el) => el.value);
+}
+
+function renderPlanQuarterOptions(preselectedQuarterNames = []) {
+  const optionsWrap = document.getElementById("plan-quarter-options");
+  if (!optionsWrap) return;
+  const selected = new Set(preselectedQuarterNames);
+  optionsWrap.innerHTML = state.settings.quarters.map((q, idx) => {
+    const inputId = `plan-quarter-${idx}-${q.name}`;
+    const checked = selected.has(q.name) ? " checked" : "";
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="plan-quarter-checkbox" value="${q.name}"${checked}><label for="${inputId}">${q.name} (${q.startDate} to ${q.endDate})</label></div>`;
+  }).join("") || "<span>No quarters configured for current school year.</span>";
+}
+
+function getSelectedPlanQuarters() {
+  return Array.from(document.querySelectorAll(".plan-quarter-checkbox:checked")).map((el) => el.value);
+}
+
+function updatePlanFormMode() {
+  const planType = document.getElementById("plan-type")?.value || "annual";
+  const startWrap = document.getElementById("plan-start-wrap");
+  const endWrap = document.getElementById("plan-end-wrap");
+  const quarterFieldset = document.getElementById("plan-quarter-fieldset");
+  const startInput = document.getElementById("plan-start");
+  const endInput = document.getElementById("plan-end");
+  if (!startWrap || !endWrap || !quarterFieldset || !startInput || !endInput) return;
+
+  if (planType === "annual") {
+    startWrap.classList.remove("hidden");
+    endWrap.classList.remove("hidden");
+    quarterFieldset.classList.add("hidden");
+    startInput.disabled = false;
+    endInput.disabled = false;
+    startInput.value = state.settings.schoolYear.startDate;
+    endInput.value = state.settings.schoolYear.endDate;
+    startInput.readOnly = true;
+    endInput.readOnly = true;
+  } else if (planType === "quarterly") {
+    startWrap.classList.add("hidden");
+    endWrap.classList.add("hidden");
+    quarterFieldset.classList.remove("hidden");
+    startInput.disabled = true;
+    endInput.disabled = true;
+    startInput.readOnly = false;
+    endInput.readOnly = false;
+    if (!document.querySelector(".plan-quarter-checkbox")) renderPlanQuarterOptions();
+  } else {
+    startWrap.classList.remove("hidden");
+    endWrap.classList.remove("hidden");
+    quarterFieldset.classList.add("hidden");
+    startInput.disabled = false;
+    endInput.disabled = false;
+    startInput.readOnly = false;
+    endInput.readOnly = false;
+  }
+}
+
 function rowOrEmpty(tbody, html, emptyMsg, cols) {
   if (!tbody) return;
   tbody.innerHTML = "";
@@ -668,9 +767,13 @@ function renderSubjects() {
 
 function renderCourses() {
   const list = document.getElementById("course-list");
+  const submitBtn = document.getElementById("course-submit-btn");
+  const cancelBtn = document.getElementById("course-cancel-edit-btn");
+  if (submitBtn) submitBtn.textContent = editingCourseId ? "Update Course" : "Add Course";
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingCourseId);
   list.innerHTML = "";
   if (!state.courses.length) { list.innerHTML = "<li><span>No courses added yet.</span></li>"; return; }
-  list.innerHTML = state.courses.map((c) => `<li><span>${c.name} | ${getSubjectName(c.subjectId)} | ${Number(c.hoursPerDay).toFixed(2)} hrs/day</span><button data-remove-course='${c.id}' type='button'>Remove</button></li>`).join("");
+  list.innerHTML = state.courses.map((c) => `<li><span>${c.name} | ${getSubjectName(c.subjectId)} | ${Number(c.hoursPerDay).toFixed(2)} hrs/day</span><span><button data-edit-course='${c.id}' type='button'>Edit</button> <button data-remove-course='${c.id}' type='button'>Remove</button></span></li>`).join("");
 }
 
 function renderStudentDetail() {
@@ -726,8 +829,12 @@ function renderHolidays() {
   const list = document.getElementById("holiday-list");
   const rows = [...state.settings.holidays].sort((a,b)=>a.startDate.localeCompare(b.startDate));
   list.innerHTML = rows.length
-    ? rows.map((h) => `<li><span>${h.name} (${h.type}) ${h.startDate} to ${h.endDate}</span><button data-remove-holiday='${h.id}' type='button'>Remove</button></li>`).join("")
+    ? rows.map((h) => `<li><span>${h.name} (${h.type}) ${h.startDate} to ${h.endDate}</span><span><button data-edit-holiday='${h.id}' type='button'>Edit</button> <button data-remove-holiday='${h.id}' type='button'>Remove</button></span></li>`).join("")
     : "<li><span>No holidays/breaks defined.</span></li>";
+  const submitBtn = document.getElementById("holiday-submit-btn");
+  const cancelBtn = document.getElementById("holiday-cancel-edit-btn");
+  if (submitBtn) submitBtn.textContent = editingHolidayId ? "Update" : "Add";
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingHolidayId);
 }
 
 function renderPlanningSettings() {
@@ -767,8 +874,15 @@ function renderPlans() {
   const list = document.getElementById("plan-list");
   const rows = [...state.plans].sort((a,b)=>a.startDate.localeCompare(b.startDate));
   list.innerHTML = rows.length
-    ? rows.map((p) => `<li><span>${p.planType.toUpperCase()} | ${getStudentName(p.studentId)} | ${getCourseName(p.courseId)} | ${p.startDate} to ${p.endDate} | ${p.weekdays.map((w)=>DAY_NAMES[w]).join(", ")}</span><button data-remove-plan='${p.id}' type='button'>Remove</button></li>`).join("")
+    ? rows.map((p) => {
+      const periodLabel = p.planType === "quarterly" && p.quarterName ? ` (${p.quarterName})` : "";
+      return `<li><span>${p.planType.toUpperCase()}${periodLabel} | ${getStudentName(p.studentId)} | ${getCourseName(p.courseId)} | ${p.startDate} to ${p.endDate} | ${p.weekdays.map((w)=>DAY_NAMES[w]).join(", ")}</span><span><button data-edit-plan='${p.id}' type='button'>Edit</button> <button data-remove-plan='${p.id}' type='button'>Remove</button></span></li>`;
+    }).join("")
     : "<li><span>No instruction plans defined.</span></li>";
+  const submitBtn = document.getElementById("plan-submit-btn");
+  const cancelBtn = document.getElementById("plan-cancel-edit-btn");
+  if (submitBtn) submitBtn.textContent = editingPlanId ? "Update Plan" : "Add Plan";
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingPlanId);
 }
 
 function renderAttendance() {
@@ -1814,15 +1928,164 @@ function renderMonthCalendar(referenceISO, studentFilter) {
   };
 }
 
+function renderWeekCalendar(referenceISO, studentFilter) {
+  const ref = toDate(referenceISO || todayISO());
+  const start = new Date(ref);
+  const idx = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - idx);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+
+  const dayRows = calendarDateStudentRows(start, end, studentFilter);
+  const grouped = new Map();
+  dayRows.forEach((row) => {
+    if (!grouped.has(row.date)) grouped.set(row.date, []);
+    grouped.get(row.date).push(row);
+  });
+
+  const grid = document.getElementById("calendar-week-grid");
+  if (!grid) return { start, end };
+  grid.innerHTML = "";
+
+  const cursor = new Date(start);
+  for (let i = 0; i < 7; i += 1) {
+    const dateKey = toISO(cursor);
+    const rows = (grouped.get(dateKey) || [])
+      .sort((a, b) => getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)));
+    const items = rows.map((row) => {
+      const subjectParts = Array.from(row.subjects.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([subjectName, data]) => `${subjectName} ${data.hours.toFixed(1)}h`);
+      const body = subjectParts.length ? subjectParts.join(", ") : "-";
+      return `<div class="calendar-day-item"><span class="name">${getStudentName(row.studentId)}</span><br>${body}</div>`;
+    });
+    if (!items.length) items.push("<div class='calendar-day-item'>No scheduled instruction</div>");
+    const cell = document.createElement("div");
+    cell.className = "calendar-day";
+    cell.innerHTML = `<div class="calendar-day-header">${cursor.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</div><div class="calendar-day-items">${items.join("")}</div>`;
+    grid.appendChild(cell);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return { start, end };
+}
+
+function renderDayCalendar(referenceISO, studentFilter) {
+  const ref = toDate(referenceISO || todayISO());
+  const dateKey = toISO(ref);
+  const events = calendarEvents(ref, ref, studentFilter);
+
+  const formatTime = (minutes) => {
+    const h24 = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const ampm = h24 >= 12 ? "PM" : "AM";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}:${String(mins).padStart(2, "0")} ${ampm}`;
+  };
+
+  const byStudent = new Map();
+  events.forEach((event) => {
+    if (!byStudent.has(event.studentId)) byStudent.set(event.studentId, []);
+    byStudent.get(event.studentId).push(event);
+  });
+
+  const scheduledByHour = new Map();
+  const addBlock = (student, label, startMin, endMin) => {
+    if (endMin <= startMin) return;
+    const startHour = Math.floor(startMin / 60);
+    const endHour = Math.floor((endMin - 1) / 60);
+    for (let hour = startHour; hour <= endHour; hour += 1) {
+      if (hour < 0 || hour > 23) continue;
+      if (!scheduledByHour.has(hour)) scheduledByHour.set(hour, []);
+      scheduledByHour.get(hour).push({
+        student,
+        label,
+        start: startMin,
+        end: endMin
+      });
+    }
+  };
+
+  byStudent.forEach((studentEvents, studentId) => {
+    const shuffledEvents = [...studentEvents];
+    // Randomized course sequence per student (placeholder behavior requested by user).
+    for (let i = shuffledEvents.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = shuffledEvents[i];
+      shuffledEvents[i] = shuffledEvents[j];
+      shuffledEvents[j] = tmp;
+    }
+
+    const studentName = getStudentName(studentId);
+    let slot = 8 * 60;
+    let lunchAdded = false;
+    shuffledEvents.forEach((event, idx) => {
+      const course = getCourse(event.courseId);
+      if (!course) return;
+
+      const durationMinutes = Math.max(15, Math.round(Number(course.hoursPerDay || 1) * 60));
+
+      // Enforce fixed lunch window from 12:00 PM to 1:00 PM.
+      if (!lunchAdded && slot < 12 * 60 && slot + durationMinutes > 12 * 60) {
+        addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
+        lunchAdded = true;
+        slot = 13 * 60;
+      } else if (!lunchAdded && slot >= 12 * 60 && slot < 13 * 60) {
+        addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
+        lunchAdded = true;
+        slot = 13 * 60;
+      }
+
+      const startMin = slot;
+      const endMin = Math.min(24 * 60, startMin + durationMinutes);
+      addBlock(studentName, `${course.name} (${getSubjectName(course.subjectId)})`, startMin, endMin);
+      slot = endMin;
+
+      // Insert 5-minute break between courses.
+      if (idx < shuffledEvents.length - 1 && slot < 24 * 60) {
+        const breakStart = slot;
+        const breakEnd = Math.min(24 * 60, breakStart + 5);
+        addBlock(studentName, "Break", breakStart, breakEnd);
+        slot = breakEnd;
+      }
+    });
+
+    if (!lunchAdded) {
+      addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
+    }
+  });
+
+  const rows = [];
+  for (let hour = 0; hour < 24; hour += 1) {
+    const label = `${String(hour).padStart(2, "0")}:00`;
+    const items = (scheduledByHour.get(hour) || []).sort((a, b) =>
+      a.start - b.start || a.student.localeCompare(b.student) || a.label.localeCompare(b.label));
+    if (!items.length) {
+      rows.push(`<tr><td>${label}</td><td></td><td></td></tr>`);
+      continue;
+    }
+    items.forEach((item, idx) => {
+      rows.push(`<tr><td>${idx === 0 ? label : ""}</td><td>${item.student}</td><td>${item.label} (${formatTime(item.start)} - ${formatTime(item.end)})</td></tr>`);
+    });
+  }
+  rowOrEmpty(document.getElementById("calendar-day-table"), rows, "No scheduled instruction for this day.", 3);
+  return { dateKey };
+}
+
 function renderCalendar() {
   const view = document.getElementById("calendar-view").value;
   const ref = document.getElementById("calendar-date").value || todayISO();
   const studentFilter = document.getElementById("calendar-student").value;
   const monthView = document.getElementById("calendar-month-view");
+  const detailView = document.getElementById("calendar-detail-view");
+  const weekView = document.getElementById("calendar-week-view");
+  const dayView = document.getElementById("calendar-day-view");
   const listView = document.getElementById("calendar-list-wrap");
+  const detailTitle = document.getElementById("calendar-detail-title");
 
   if (view === "month") {
     monthView.classList.remove("hidden");
+    if (detailView) detailView.classList.add("hidden");
     listView.classList.add("hidden");
     const monthRange = renderMonthCalendar(ref, studentFilter);
     const monthStartIso = toISO(monthRange.start);
@@ -1831,7 +2094,34 @@ function renderCalendar() {
     return;
   }
 
+  if (view === "week") {
+    monthView.classList.add("hidden");
+    if (detailView) detailView.classList.remove("hidden");
+    if (weekView) weekView.classList.remove("hidden");
+    if (dayView) dayView.classList.add("hidden");
+    listView.classList.add("hidden");
+    const weekRange = renderWeekCalendar(ref, studentFilter);
+    const weekStartIso = toISO(weekRange.start);
+    const weekEndIso = toISO(weekRange.end);
+    if (detailTitle) detailTitle.textContent = `Week of ${weekStartIso}`;
+    document.getElementById("calendar-range").textContent = `Weekly view: ${weekStartIso} to ${weekEndIso}`;
+    return;
+  }
+
+  if (view === "day") {
+    monthView.classList.add("hidden");
+    if (detailView) detailView.classList.remove("hidden");
+    if (weekView) weekView.classList.add("hidden");
+    if (dayView) dayView.classList.remove("hidden");
+    listView.classList.add("hidden");
+    const dayRange = renderDayCalendar(ref, studentFilter);
+    if (detailTitle) detailTitle.textContent = dayRange.dateKey;
+    document.getElementById("calendar-range").textContent = `Daily view: ${dayRange.dateKey}`;
+    return;
+  }
+
   monthView.classList.add("hidden");
+  if (detailView) detailView.classList.add("hidden");
   listView.classList.remove("hidden");
 
   const range = viewRange(view, ref);
@@ -1924,6 +2214,78 @@ function removeCourse(id) {
   state.enrollments = state.enrollments.filter((e)=>e.courseId!==id);
   state.plans = state.plans.filter((p)=>p.courseId!==id);
   state.tests = state.tests.filter((t)=>t.courseId!==id);
+  if (editingCourseId === id) editingCourseId = "";
+}
+
+function beginCourseEdit(courseId) {
+  const course = state.courses.find((c) => c.id === courseId);
+  if (!course) return;
+  editingCourseId = course.id;
+  document.getElementById("course-name").value = course.name;
+  document.getElementById("course-subject").value = course.subjectId;
+  document.getElementById("course-hours").value = String(Number(course.hoursPerDay));
+  renderCourses();
+}
+
+function cancelCourseEdit() {
+  editingCourseId = "";
+  document.getElementById("course-form").reset();
+  renderSelects();
+  renderCourses();
+}
+
+function beginHolidayEdit(holidayId) {
+  const holiday = state.settings.holidays.find((h) => h.id === holidayId);
+  if (!holiday) return;
+  editingHolidayId = holiday.id;
+  document.getElementById("holiday-name").value = holiday.name;
+  document.getElementById("holiday-type").value = holiday.type;
+  document.getElementById("holiday-start").value = holiday.startDate;
+  document.getElementById("holiday-end").value = holiday.endDate;
+  renderHolidays();
+}
+
+function cancelHolidayEdit() {
+  editingHolidayId = "";
+  document.getElementById("holiday-form").reset();
+  renderHolidays();
+}
+
+function beginPlanEdit(planId) {
+  const plan = state.plans.find((p) => p.id === planId);
+  if (!plan) return;
+  editingPlanId = plan.id;
+  document.getElementById("plan-type").value = plan.planType;
+  updatePlanFormMode();
+  document.getElementById("plan-student").value = plan.studentId;
+  renderPlanCourseChecklist([plan.courseId], plan.studentId);
+  if (plan.planType === "quarterly") {
+    const quarterName = plan.quarterName || state.settings.quarters.find((q) => q.startDate === plan.startDate && q.endDate === plan.endDate)?.name;
+    renderPlanQuarterOptions(quarterName ? [quarterName] : []);
+  } else {
+    document.getElementById("plan-start").value = plan.startDate;
+    document.getElementById("plan-end").value = plan.endDate;
+  }
+  const selectedDays = new Set((plan.weekdays || []).map(Number));
+  document.querySelectorAll("input[name='weekday']").forEach((checkbox) => {
+    if (!(checkbox instanceof HTMLInputElement)) return;
+    checkbox.checked = selectedDays.has(Number(checkbox.value));
+  });
+  renderPlans();
+}
+
+function cancelPlanEdit() {
+  editingPlanId = "";
+  document.getElementById("plan-form").reset();
+  document.querySelectorAll("input[name='weekday']").forEach((checkbox) => {
+    if (!(checkbox instanceof HTMLInputElement)) return;
+    checkbox.checked = Number(checkbox.value) >= 1 && Number(checkbox.value) <= 5;
+  });
+  const planStudentId = document.getElementById("plan-student")?.value || "";
+  renderPlanCourseChecklist([], planStudentId);
+  renderPlanQuarterOptions([]);
+  updatePlanFormMode();
+  renderPlans();
 }
 
 function bindEvents() {
@@ -1959,8 +2321,25 @@ function bindEvents() {
     const subjectId = document.getElementById("course-subject").value;
     const hoursPerDay = Number(document.getElementById("course-hours").value);
     if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) { alert("Provide course name, subject, and hours/day."); return; }
-    state.courses.push({ id: uid(), name, subjectId, hoursPerDay }); e.target.reset(); saveState(); renderAll();
+    if (editingCourseId) {
+      const existing = state.courses.find((c) => c.id === editingCourseId);
+      if (existing) {
+        existing.name = name;
+        existing.subjectId = subjectId;
+        existing.hoursPerDay = hoursPerDay;
+      }
+      editingCourseId = "";
+    } else {
+      state.courses.push({ id: uid(), name, subjectId, hoursPerDay });
+    }
+    e.target.reset();
+    saveState();
+    renderAll();
   });
+  const courseCancelEditBtn = document.getElementById("course-cancel-edit-btn");
+  if (courseCancelEditBtn) {
+    courseCancelEditBtn.addEventListener("click", () => cancelCourseEdit());
+  }
 
   document.getElementById("student-enrollment-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -2040,20 +2419,146 @@ function bindEvents() {
     const startDate = document.getElementById("holiday-start").value;
     const endDate = document.getElementById("holiday-end").value;
     if (!name || !validRange(startDate, endDate)) { alert("Provide valid holiday/break values."); return; }
-    state.settings.holidays.push({ id: uid(), name, type, startDate, endDate }); e.target.reset(); saveState(); renderAll();
+    if (editingHolidayId) {
+      const existing = state.settings.holidays.find((h) => h.id === editingHolidayId);
+      if (existing) {
+        existing.name = name;
+        existing.type = type;
+        existing.startDate = startDate;
+        existing.endDate = endDate;
+      }
+      editingHolidayId = "";
+    } else {
+      state.settings.holidays.push({ id: uid(), name, type, startDate, endDate });
+    }
+    e.target.reset();
+    saveState();
+    renderAll();
   });
+  const holidayCancelEditBtn = document.getElementById("holiday-cancel-edit-btn");
+  if (holidayCancelEditBtn) {
+    holidayCancelEditBtn.addEventListener("click", () => cancelHolidayEdit());
+  }
 
   document.getElementById("plan-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const planType = document.getElementById("plan-type").value;
     const studentId = document.getElementById("plan-student").value;
-    const courseId = document.getElementById("plan-course").value;
-    const startDate = document.getElementById("plan-start").value;
-    const endDate = document.getElementById("plan-end").value;
+    const courseIds = getSelectedPlanCourseIds();
     const weekdays = Array.from(document.querySelectorAll("input[name='weekday']:checked")).map((x)=>Number(x.value));
-    if (!studentId || !courseId || !validRange(startDate, endDate) || !weekdays.length) { alert("Plan must include student, course, valid range, and at least one weekday."); return; }
-    state.plans.push({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays }); saveState(); renderAll();
+    if (!studentId || !courseIds.length || !weekdays.length) { alert("Plan must include student, at least one enrolled course, and at least one weekday."); return; }
+    if (editingPlanId && courseIds.length !== 1) { alert("When editing a plan, select exactly one course."); return; }
+    const editCourseId = courseIds[0];
+
+    if (planType === "annual") {
+      const startDate = state.settings.schoolYear.startDate;
+      const endDate = state.settings.schoolYear.endDate;
+      if (!validRange(startDate, endDate)) { alert("Current school year range is invalid."); return; }
+      if (editingPlanId) {
+        const existing = state.plans.find((p) => p.id === editingPlanId);
+        if (existing) {
+          existing.planType = planType;
+          existing.studentId = studentId;
+          existing.courseId = editCourseId;
+          existing.startDate = startDate;
+          existing.endDate = endDate;
+          existing.weekdays = weekdays;
+          delete existing.quarterName;
+        }
+        editingPlanId = "";
+      } else {
+        courseIds.forEach((courseId) => {
+          state.plans.push({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays });
+        });
+      }
+    } else if (planType === "quarterly") {
+      const selectedQuarterNames = getSelectedPlanQuarters();
+      if (!selectedQuarterNames.length) { alert("Select at least one quarter."); return; }
+      const selectedQuarters = selectedQuarterNames
+        .map((name) => state.settings.quarters.find((q) => q.name === name))
+        .filter(Boolean);
+      if (!selectedQuarters.length) { alert("Selected quarter configuration is invalid."); return; }
+
+      if (editingPlanId) {
+        if (selectedQuarters.length > 1) {
+          alert("When editing a plan, select exactly one quarter.");
+          return;
+        }
+        const targetQuarter = selectedQuarters[0];
+        const existing = state.plans.find((p) => p.id === editingPlanId);
+        if (existing) {
+          existing.planType = planType;
+          existing.studentId = studentId;
+          existing.courseId = editCourseId;
+          existing.startDate = targetQuarter.startDate;
+          existing.endDate = targetQuarter.endDate;
+          existing.weekdays = weekdays;
+          existing.quarterName = targetQuarter.name;
+        }
+        editingPlanId = "";
+      } else {
+        selectedQuarters.forEach((quarter) => {
+          courseIds.forEach((courseId) => {
+            state.plans.push({
+              id: uid(),
+              planType,
+              studentId,
+              courseId,
+              startDate: quarter.startDate,
+              endDate: quarter.endDate,
+              weekdays,
+              quarterName: quarter.name
+            });
+          });
+        });
+      }
+    } else {
+      const startDate = document.getElementById("plan-start").value;
+      const endDate = document.getElementById("plan-end").value;
+      if (!validRange(startDate, endDate)) { alert("Provide a valid weekly start/end range."); return; }
+      if (editingPlanId) {
+        const existing = state.plans.find((p) => p.id === editingPlanId);
+        if (existing) {
+          existing.planType = planType;
+          existing.studentId = studentId;
+          existing.courseId = editCourseId;
+          existing.startDate = startDate;
+          existing.endDate = endDate;
+          existing.weekdays = weekdays;
+          delete existing.quarterName;
+        }
+        editingPlanId = "";
+      } else {
+        courseIds.forEach((courseId) => {
+          state.plans.push({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays });
+        });
+      }
+    }
+    saveState();
+    renderAll();
   });
+  const planCancelEditBtn = document.getElementById("plan-cancel-edit-btn");
+  if (planCancelEditBtn) {
+    planCancelEditBtn.addEventListener("click", () => cancelPlanEdit());
+  }
+  const planTypeSelect = document.getElementById("plan-type");
+  if (planTypeSelect) {
+    planTypeSelect.addEventListener("change", () => {
+      editingPlanId = "";
+      const planStudentId = document.getElementById("plan-student")?.value || "";
+      renderPlanCourseChecklist([], planStudentId);
+      renderPlanQuarterOptions([]);
+      updatePlanFormMode();
+      renderPlans();
+    });
+  }
+  const planStudentSelect = document.getElementById("plan-student");
+  if (planStudentSelect) {
+    planStudentSelect.addEventListener("change", () => {
+      const selected = getSelectedPlanCourseIds();
+      renderPlanCourseChecklist(selected, planStudentSelect.value);
+    });
+  }
 
   document.getElementById("calendar-form").addEventListener("submit", (e) => { e.preventDefault(); renderCalendar(); });
   document.getElementById("calendar-prev-month").addEventListener("click", () => {
@@ -2070,6 +2575,26 @@ function bindEvents() {
     const moved = new Date(base.getFullYear(), base.getMonth() + 1, 1, 12, 0, 0);
     input.value = toISO(moved);
     document.getElementById("calendar-view").value = "month";
+    renderCalendar();
+  });
+  document.getElementById("calendar-prev-period").addEventListener("click", () => {
+    const input = document.getElementById("calendar-date");
+    const view = document.getElementById("calendar-view").value;
+    const base = toDate(input.value || todayISO());
+    const moved = new Date(base);
+    if (view === "week") moved.setDate(moved.getDate() - 7);
+    else moved.setDate(moved.getDate() - 1);
+    input.value = toISO(moved);
+    renderCalendar();
+  });
+  document.getElementById("calendar-next-period").addEventListener("click", () => {
+    const input = document.getElementById("calendar-date");
+    const view = document.getElementById("calendar-view").value;
+    const base = toDate(input.value || todayISO());
+    const moved = new Date(base);
+    if (view === "week") moved.setDate(moved.getDate() + 7);
+    else moved.setDate(moved.getDate() + 1);
+    input.value = toISO(moved);
     renderCalendar();
   });
 
@@ -2185,6 +2710,10 @@ function bindEvents() {
       renderWorkDistributionChart();
       return;
     }
+    if (t.classList.contains("plan-course-checkbox")) {
+      updatePlanCourseSummary();
+      return;
+    }
     if (t.classList.contains("grade-row-subject") || t.classList.contains("grade-row-student")) {
       const row = t.closest("tr");
       if (row) updateGradeRowCourses(row);
@@ -2210,6 +2739,21 @@ function bindEvents() {
     const editQuartersYearId = t.getAttribute("data-edit-quarters-year");
     if (editQuartersYearId) {
       beginQuarterEdit(editQuartersYearId);
+      return;
+    }
+    const editCourseId = t.getAttribute("data-edit-course");
+    if (editCourseId) {
+      beginCourseEdit(editCourseId);
+      return;
+    }
+    const editHolidayId = t.getAttribute("data-edit-holiday");
+    if (editHolidayId) {
+      beginHolidayEdit(editHolidayId);
+      return;
+    }
+    const editPlanId = t.getAttribute("data-edit-plan");
+    if (editPlanId) {
+      beginPlanEdit(editPlanId);
       return;
     }
 
@@ -2326,14 +2870,15 @@ function bindEvents() {
     const subjectId = t.getAttribute("data-remove-subject"); if (subjectId) { removeSubject(subjectId); saveState(); renderAll(); return; }
     const courseId = t.getAttribute("data-remove-course"); if (courseId) { removeCourse(courseId); saveState(); renderAll(); return; }
     const enrollmentId = t.getAttribute("data-remove-student-enrollment"); if (enrollmentId) { state.enrollments = state.enrollments.filter((x)=>x.id!==enrollmentId); saveState(); renderAll(); return; }
-    const holidayId = t.getAttribute("data-remove-holiday"); if (holidayId) { state.settings.holidays = state.settings.holidays.filter((x)=>x.id!==holidayId); saveState(); renderAll(); return; }
-    const planId = t.getAttribute("data-remove-plan"); if (planId) { state.plans = state.plans.filter((x)=>x.id!==planId); saveState(); renderAll(); }
+    const holidayId = t.getAttribute("data-remove-holiday"); if (holidayId) { state.settings.holidays = state.settings.holidays.filter((x)=>x.id!==holidayId); if (editingHolidayId === holidayId) editingHolidayId = ""; saveState(); renderAll(); return; }
+    const planId = t.getAttribute("data-remove-plan"); if (planId) { state.plans = state.plans.filter((x)=>x.id!==planId); if (editingPlanId === planId) editingPlanId = ""; saveState(); renderAll(); }
   });
 }
 
 function renderAll() {
   renderSelects();
   fillSettingsForms();
+  updatePlanFormMode();
   renderStudents();
   renderStudentDetail();
   renderSubjects();
