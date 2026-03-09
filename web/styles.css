@@ -1072,6 +1072,22 @@ td {
   font-weight: 600;
 }
 
+.calendar-student-link {
+  border: 0;
+  background: none;
+  color: var(--text);
+  padding: 0;
+  margin: 0;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.calendar-student-link:hover {
+  color: #5f3414;
+}
+
 #calendar-week-view .calendar-day {
   min-height: 280px;
 }

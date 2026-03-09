@@ -185,6 +185,8 @@ let showScheduleSchoolYears = false;
 let showScheduleQuarters = false;
 let showScheduleHolidays = false;
 let showSchedulePlans = false;
+let calendarBackToWeekContext = null;
+let calendarBackToMonthContext = null;
 function cloneGradeTypes(items) {
   return (items || []).map((gt) => ({ id: gt.id || uid(), name: String(gt.name || "").trim(), weight: gt.weight == null ? null : Number(gt.weight) }));
 }
@@ -2190,7 +2192,7 @@ function renderMonthCalendar(referenceISO, studentFilter) {
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([subjectName, data]) => `${subjectName} ${data.hours.toFixed(1)}h`);
       const body = subjectParts.length ? subjectParts.join(", ") : "-";
-      return `<div class="calendar-day-item"><span class="name">${getStudentName(row.studentId)}</span><br>${body}</div>`;
+      return `<div class="calendar-day-item"><button type="button" class="calendar-student-link" data-open-calendar-week="1" data-date="${dateKey}" data-student-id="${row.studentId}">${getStudentName(row.studentId)}</button><br>${body}</div>`;
     });
 
     if (!items.length) {
@@ -2240,7 +2242,7 @@ function renderWeekCalendar(referenceISO, studentFilter) {
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([subjectName, data]) => `${subjectName} ${data.hours.toFixed(1)}h`);
       const body = subjectParts.length ? subjectParts.join(", ") : "-";
-      return `<div class="calendar-day-item"><span class="name">${getStudentName(row.studentId)}</span><br>${body}</div>`;
+      return `<div class="calendar-day-item"><button type="button" class="calendar-student-link" data-open-calendar-day="1" data-date="${dateKey}" data-student-id="${row.studentId}">${getStudentName(row.studentId)}</button><br>${body}</div>`;
     });
     if (!items.length) items.push("<div class='calendar-day-item'>No scheduled instruction</div>");
     const cell = document.createElement("div");
@@ -2372,11 +2374,17 @@ function renderCalendar() {
   const dayView = document.getElementById("calendar-day-view");
   const listView = document.getElementById("calendar-list-wrap");
   const detailTitle = document.getElementById("calendar-detail-title");
+  const backMonthBtn = document.getElementById("calendar-back-month");
+  const backWeekBtn = document.getElementById("calendar-back-week");
 
   if (view === "month") {
     monthView.classList.remove("hidden");
     if (detailView) detailView.classList.add("hidden");
     listView.classList.add("hidden");
+    if (backMonthBtn) backMonthBtn.classList.add("hidden");
+    if (backWeekBtn) backWeekBtn.classList.add("hidden");
+    calendarBackToMonthContext = null;
+    calendarBackToWeekContext = null;
     const monthRange = renderMonthCalendar(ref, studentFilter);
     const monthStartIso = toISO(monthRange.start);
     const monthEndIso = toISO(monthRange.end);
@@ -2390,6 +2398,9 @@ function renderCalendar() {
     if (weekView) weekView.classList.remove("hidden");
     if (dayView) dayView.classList.add("hidden");
     listView.classList.add("hidden");
+    if (backMonthBtn) backMonthBtn.classList.toggle("hidden", !calendarBackToMonthContext);
+    if (backWeekBtn) backWeekBtn.classList.add("hidden");
+    calendarBackToWeekContext = null;
     const weekRange = renderWeekCalendar(ref, studentFilter);
     const weekStartIso = toISO(weekRange.start);
     const weekEndIso = toISO(weekRange.end);
@@ -2404,6 +2415,8 @@ function renderCalendar() {
     if (weekView) weekView.classList.add("hidden");
     if (dayView) dayView.classList.remove("hidden");
     listView.classList.add("hidden");
+    if (backMonthBtn) backMonthBtn.classList.add("hidden");
+    if (backWeekBtn) backWeekBtn.classList.toggle("hidden", !calendarBackToWeekContext);
     const dayRange = renderDayCalendar(ref, studentFilter);
     if (detailTitle) detailTitle.textContent = dayRange.dateKey;
     document.getElementById("calendar-range").textContent = `Daily view: ${dayRange.dateKey}`;
@@ -2413,6 +2426,10 @@ function renderCalendar() {
   monthView.classList.add("hidden");
   if (detailView) detailView.classList.add("hidden");
   listView.classList.remove("hidden");
+  if (backMonthBtn) backMonthBtn.classList.add("hidden");
+  if (backWeekBtn) backWeekBtn.classList.add("hidden");
+  calendarBackToMonthContext = null;
+  calendarBackToWeekContext = null;
 
   const range = viewRange(view, ref);
   document.getElementById("calendar-range").textContent = range.label;
@@ -2958,6 +2975,35 @@ function bindEvents() {
     input.value = toISO(moved);
     renderCalendar();
   });
+  const calendarBackWeekBtn = document.getElementById("calendar-back-week");
+  if (calendarBackWeekBtn) {
+    calendarBackWeekBtn.addEventListener("click", () => {
+      if (!calendarBackToWeekContext) return;
+      const viewInput = document.getElementById("calendar-view");
+      const dateInput = document.getElementById("calendar-date");
+      const studentInput = document.getElementById("calendar-student");
+      if (viewInput) viewInput.value = "week";
+      if (dateInput) dateInput.value = calendarBackToWeekContext.date;
+      if (studentInput) studentInput.value = calendarBackToWeekContext.studentFilter;
+      calendarBackToWeekContext = null;
+      renderCalendar();
+    });
+  }
+  const calendarBackMonthBtn = document.getElementById("calendar-back-month");
+  if (calendarBackMonthBtn) {
+    calendarBackMonthBtn.addEventListener("click", () => {
+      if (!calendarBackToMonthContext) return;
+      const viewInput = document.getElementById("calendar-view");
+      const dateInput = document.getElementById("calendar-date");
+      const studentInput = document.getElementById("calendar-student");
+      if (viewInput) viewInput.value = "month";
+      if (dateInput) dateInput.value = calendarBackToMonthContext.date;
+      if (studentInput) studentInput.value = calendarBackToMonthContext.studentFilter;
+      calendarBackToMonthContext = null;
+      calendarBackToWeekContext = null;
+      renderCalendar();
+    });
+  }
 
   document.getElementById("attendance-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -3159,6 +3205,43 @@ function bindEvents() {
   document.addEventListener("click", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
+    const openDayTarget = t.closest("[data-open-calendar-day]");
+    if (openDayTarget instanceof HTMLElement) {
+      const date = openDayTarget.getAttribute("data-date");
+      const studentId = openDayTarget.getAttribute("data-student-id");
+      if (!date || !studentId) return;
+      calendarBackToWeekContext = {
+        date: document.getElementById("calendar-date")?.value || todayISO(),
+        studentFilter: document.getElementById("calendar-student")?.value || ""
+      };
+      const viewInput = document.getElementById("calendar-view");
+      const dateInput = document.getElementById("calendar-date");
+      const studentInput = document.getElementById("calendar-student");
+      if (viewInput) viewInput.value = "day";
+      if (dateInput) dateInput.value = date;
+      if (studentInput) studentInput.value = studentId;
+      renderCalendar();
+      return;
+    }
+    const openWeekTarget = t.closest("[data-open-calendar-week]");
+    if (openWeekTarget instanceof HTMLElement) {
+      const date = openWeekTarget.getAttribute("data-date");
+      const studentId = openWeekTarget.getAttribute("data-student-id");
+      if (!date || !studentId) return;
+      calendarBackToMonthContext = {
+        date: document.getElementById("calendar-date")?.value || todayISO(),
+        studentFilter: document.getElementById("calendar-student")?.value || ""
+      };
+      calendarBackToWeekContext = null;
+      const viewInput = document.getElementById("calendar-view");
+      const dateInput = document.getElementById("calendar-date");
+      const studentInput = document.getElementById("calendar-student");
+      if (viewInput) viewInput.value = "week";
+      if (dateInput) dateInput.value = date;
+      if (studentInput) studentInput.value = studentId;
+      renderCalendar();
+      return;
+    }
 
     const setCurrentSchoolYearId = t.getAttribute("data-set-current-school-year");
     if (setCurrentSchoolYearId) {
