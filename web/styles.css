@@ -29,27 +29,20 @@ body {
   gap: 0.9rem;
 }
 
-.top h1 {
-  margin: 0;
-  font-family: "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif;
-  font-size: clamp(1.55rem, 2.4vw, 2.3rem);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1.08;
-  color: #090402;
-  background: linear-gradient(180deg, #170903 0%, #0d0502 55%, #050201 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: 0.25px rgba(255, 248, 236, 0.55);
-  text-shadow: 0 1px 0 rgba(255, 248, 236, 0.5), 0 2px 8px rgba(5, 2, 1, 0.62);
-  width: fit-content;
-  position: relative;
-  padding-bottom: 0.22rem;
+.title-logo {
+  display: block;
+  grid-area: title;
+  width: min(980px, 118%);
+  max-height: none;
+  object-fit: contain;
+  object-position: left center;
+  height: auto;
+  justify-self: start;
+  margin: -192px 0 -272px -150px;
 }
 
 .subtitle {
-  margin: 0.35rem 0 0;
+  margin: -0.32rem 0 0;
   color: #2f1b0f;
   font-family: "Segoe Script", "Lucida Handwriting", "Brush Script MT", "Palatino Linotype", cursive;
   font-weight: 700;
@@ -57,21 +50,21 @@ body {
   letter-spacing: 0.01em;
   text-transform: none;
   text-shadow: 0 1px 0 rgba(255, 248, 236, 0.7);
+  width: min(980px, 118%);
+  justify-self: start;
+  margin-left: -150px;
+  text-align: center;
 }
 
 .top {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: max-content 1fr;
   grid-template-areas:
     "brand title"
     "brand subtitle"
-    "brand nav";
-  gap: 0.15rem 0.85rem;
-  align-items: center;
-}
-
-.top h1 {
-  grid-area: title;
+    ". nav";
+  gap: 0 0.85rem;
+  align-items: start;
 }
 
 .top .subtitle {
@@ -80,15 +73,22 @@ body {
 
 .top .tabs {
   grid-area: nav;
-  margin-top: 0.35rem;
+  grid-column: 1 / -1;
+  margin-top: 1.22rem;
+  margin-left: 0;
 }
 
 .brand-photo {
   display: block;
   grid-area: brand;
-  width: 110px;
-  height: auto;
+  width: auto;
+  max-width: none;
+  height: 220px;
   margin: 0;
+  justify-self: start;
+  align-self: stretch;
+  object-fit: contain;
+  object-position: center top;
   border-radius: 12px;
   border: 1px solid #cfb086;
   box-shadow: 0 8px 20px rgba(95, 63, 27, 0.22);
@@ -1133,5 +1133,6 @@ td {
 
   .brand-photo {
     width: min(170px, 45vw);
+    height: auto;
   }
 }
