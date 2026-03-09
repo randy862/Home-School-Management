@@ -228,55 +228,55 @@
     <section id="tab-management" class="tab-panel panel">
       <h2>Cirriculum</h2>
       <div class="management-section management-section-subjects">
-        <h3>Subjects</h3>
-        <form id="subject-form" class="inline-form">
-          <input id="subject-name" type="text" placeholder="Math" required>
-          <button type="submit">Add Subject</button>
-        </form>
         <div class="subsection-toggle-row">
-          <button id="configured-subjects-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h4>Configured Subjects</h4>
+          <button id="management-subjects-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h3>Subjects</h3>
         </div>
-        <div id="configured-subjects-wrap" class="hidden">
+        <div id="management-subjects-wrap" class="hidden">
+          <form id="subject-form" class="inline-form">
+            <input id="subject-name" type="text" placeholder="Math" required>
+            <button type="submit">Add Subject</button>
+          </form>
+          <h4>Configured Subjects</h4>
           <ul id="subject-list" class="item-list"></ul>
         </div>
       </div>
 
       <div class="management-section management-section-courses">
-        <h3>Courses</h3>
-        <form id="course-form" class="grid-form">
-          <label>Course Name<input id="course-name" type="text" required></label>
-          <label>Subject<select id="course-subject" required></select></label>
-          <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
-          <button id="course-submit-btn" type="submit">Add Course</button>
-          <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
-        </form>
         <div class="subsection-toggle-row">
-          <button id="configured-courses-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h4>Configured Courses</h4>
+          <button id="management-courses-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h3>Courses</h3>
         </div>
-        <div id="configured-courses-wrap" class="hidden">
+        <div id="management-courses-wrap" class="hidden">
+          <form id="course-form" class="grid-form">
+            <label>Course Name<input id="course-name" type="text" required></label>
+            <label>Subject<select id="course-subject" required></select></label>
+            <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
+            <button id="course-submit-btn" type="submit">Add Course</button>
+            <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+          </form>
+          <h4>Configured Courses</h4>
           <ul id="course-list" class="item-list"></ul>
         </div>
       </div>
 
       <div class="management-section management-section-grade-types">
-      <h3>Grade Types</h3>
-      <div class="grade-types-apply-row">
-        <button id="grade-type-apply-btn" type="button">Apply Changes</button>
-        <button id="grade-type-cancel-changes-btn" type="button" class="hidden">Cancel Changes</button>
-      </div>
-        <form id="grade-type-form" class="grid-form">
-          <label>Grade Type<input id="grade-type-name" type="text" placeholder="Quiz" required></label>
-          <label>Grade Weight (%)<input id="grade-type-weight" type="number" min="0" max="100" step="0.1" placeholder="Optional"></label>
-          <button id="grade-type-submit-btn" type="submit">Add Grade Type</button>
-          <button id="grade-type-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
-        </form>
         <div class="subsection-toggle-row">
-          <button id="configured-grade-types-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h4>Configured Grade Types</h4>
+          <button id="management-grade-types-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h3>Grade Types</h3>
         </div>
-        <div id="configured-grade-types-wrap" class="hidden">
+        <div id="management-grade-types-wrap" class="hidden">
+          <div class="grade-types-apply-row">
+            <button id="grade-type-apply-btn" type="button">Apply Changes</button>
+            <button id="grade-type-cancel-changes-btn" type="button" class="hidden">Cancel Changes</button>
+          </div>
+          <form id="grade-type-form" class="grid-form">
+            <label>Grade Type<input id="grade-type-name" type="text" placeholder="Quiz" required></label>
+            <label>Grade Weight (%)<input id="grade-type-weight" type="number" min="0" max="100" step="0.1" placeholder="Optional"></label>
+            <button id="grade-type-submit-btn" type="submit">Add Grade Type</button>
+            <button id="grade-type-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+          </form>
+          <h4>Configured Grade Types</h4>
           <p id="grade-type-total" class="muted"></p>
           <div class="table-wrap">
             <table>
@@ -292,94 +292,114 @@
       <h2>Schedule</h2>
 
       <div class="schedule-section schedule-section-school-year">
-        <h3>School Year & Quarters</h3>
-        <form id="school-year-form" class="grid-form">
-          <label>Year Label<input id="school-year-label" type="text" required></label>
-          <label>Start Date<input id="school-year-start" type="date" required></label>
-          <label>End Date<input id="school-year-end" type="date" required></label>
-          <button id="school-year-submit-btn" type="submit">Save School Year</button>
-          <button id="school-year-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
-        </form>
-        <p id="school-year-current" class="muted"></p>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>School Year</th><th>Start Date</th><th>End Date</th><th>Actions</th></tr></thead>
-            <tbody id="school-year-summary-table"></tbody>
-          </table>
+        <div class="subsection-toggle-row">
+          <button id="schedule-school-years-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h3>School Years</h3>
+        </div>
+        <div id="schedule-school-years-wrap" class="hidden">
+          <form id="school-year-form" class="grid-form">
+            <label>Year Label<input id="school-year-label" type="text" required></label>
+            <label>Start Date<input id="school-year-start" type="date" required></label>
+            <label>End Date<input id="school-year-end" type="date" required></label>
+            <button id="school-year-submit-btn" type="submit">Save School Year</button>
+            <button id="school-year-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+          </form>
+          <p id="school-year-current" class="muted"></p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>School Year</th><th>Start Date</th><th>End Date</th><th>Actions</th></tr></thead>
+              <tbody id="school-year-summary-table"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <div class="schedule-section schedule-section-quarters">
-        <h3>Quarters</h3>
-        <form id="quarters-form" class="quarter-grid">
-          <label>School Year<select id="quarter-school-year" required></select></label>
-          <label>Q1 Start<input id="q1-start" type="date" required></label>
-          <label>Q1 End<input id="q1-end" type="date" required></label>
-          <label>Q2 Start<input id="q2-start" type="date" required></label>
-          <label>Q2 End<input id="q2-end" type="date" required></label>
-          <label>Q3 Start<input id="q3-start" type="date" required></label>
-          <label>Q3 End<input id="q3-end" type="date" required></label>
-          <label>Q4 Start<input id="q4-start" type="date" required></label>
-          <label>Q4 End<input id="q4-end" type="date" required></label>
-          <button id="quarters-submit-btn" type="submit">Save Quarters</button>
-          <button id="quarters-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
-        </form>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>School Year</th><th>Quarter</th><th>Start Date</th><th>End Date</th><th>Actions</th></tr></thead>
-            <tbody id="quarter-summary-table"></tbody>
-          </table>
+        <div class="subsection-toggle-row">
+          <button id="schedule-quarters-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h3>Quarters</h3>
+        </div>
+        <div id="schedule-quarters-wrap" class="hidden">
+          <form id="quarters-form" class="quarter-grid">
+            <label>School Year<select id="quarter-school-year" required></select></label>
+            <label>Q1 Start<input id="q1-start" type="date" required></label>
+            <label>Q1 End<input id="q1-end" type="date" required></label>
+            <label>Q2 Start<input id="q2-start" type="date" required></label>
+            <label>Q2 End<input id="q2-end" type="date" required></label>
+            <label>Q3 Start<input id="q3-start" type="date" required></label>
+            <label>Q3 End<input id="q3-end" type="date" required></label>
+            <label>Q4 Start<input id="q4-start" type="date" required></label>
+            <label>Q4 End<input id="q4-end" type="date" required></label>
+            <button id="quarters-submit-btn" type="submit">Save Quarters</button>
+            <button id="quarters-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+          </form>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>School Year</th><th>Quarter</th><th>Start Date</th><th>End Date</th><th>Actions</th></tr></thead>
+              <tbody id="quarter-summary-table"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       <div class="schedule-section schedule-section-holidays">
-        <h3>Holidays and Breaks</h3>
-        <form id="holiday-form" class="grid-form">
-          <label>Name<input id="holiday-name" type="text" required></label>
-          <label>Type<select id="holiday-type"><option value="holiday">Holiday</option><option value="break">Break</option></select></label>
-          <label>Start Date<input id="holiday-start" type="date" required></label>
-          <label>End Date<input id="holiday-end" type="date" required></label>
-          <button id="holiday-submit-btn" type="submit">Add</button>
-          <button id="holiday-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
-        </form>
-        <ul id="holiday-list" class="item-list"></ul>
+        <div class="subsection-toggle-row">
+          <button id="schedule-holidays-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h3>Holidays and Breaks</h3>
+        </div>
+        <div id="schedule-holidays-wrap" class="hidden">
+          <form id="holiday-form" class="grid-form">
+            <label>Name<input id="holiday-name" type="text" required></label>
+            <label>Type<select id="holiday-type"><option value="holiday">Holiday</option><option value="break">Break</option></select></label>
+            <label>Start Date<input id="holiday-start" type="date" required></label>
+            <label>End Date<input id="holiday-end" type="date" required></label>
+            <button id="holiday-submit-btn" type="submit">Add</button>
+            <button id="holiday-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+          </form>
+          <ul id="holiday-list" class="item-list"></ul>
+        </div>
       </div>
 
       <div class="schedule-section schedule-section-plans">
-        <h3>Instruction Plans (Annual, Quarterly, Weekly)</h3>
-        <form id="plan-form" class="grid-form">
-          <label>Plan Type
-            <select id="plan-type" required>
-              <option value="annual">Annual</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="weekly">Weekly</option>
-            </select>
-          </label>
-          <label>Student<select id="plan-student" required></select></label>
-          <label class="plan-course-field">Course
-            <details id="plan-course-dropdown" class="multi-select-dropdown">
-              <summary id="plan-course-summary">Courses (0 selected)</summary>
-              <div id="plan-course-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label id="plan-start-wrap">Start Date<input id="plan-start" type="date" required></label>
-          <label id="plan-end-wrap">End Date<input id="plan-end" type="date" required></label>
-          <fieldset id="plan-quarter-fieldset" class="weekday-set hidden">
-            <legend>Quarter(s)</legend>
-            <div id="plan-quarter-options" class="checklist-vertical"></div>
-          </fieldset>
-          <fieldset class="weekday-set">
-            <legend>Weekdays</legend>
-            <label><input type="checkbox" name="weekday" value="1" checked>Mon</label>
-            <label><input type="checkbox" name="weekday" value="2" checked>Tue</label>
-            <label><input type="checkbox" name="weekday" value="3" checked>Wed</label>
-            <label><input type="checkbox" name="weekday" value="4" checked>Thu</label>
-            <label><input type="checkbox" name="weekday" value="5" checked>Fri</label>
-          </fieldset>
-          <button id="plan-submit-btn" type="submit">Add Plan</button>
-          <button id="plan-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
-        </form>
-        <ul id="plan-list" class="item-list"></ul>
+        <div class="subsection-toggle-row">
+          <button id="schedule-plans-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h3>Instruction Plans (Annual, Quarterly, Weekly)</h3>
+        </div>
+        <div id="schedule-plans-wrap" class="hidden">
+          <form id="plan-form" class="grid-form">
+            <label>Plan Type
+              <select id="plan-type" required>
+                <option value="annual">Annual</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </label>
+            <label>Student<select id="plan-student" required></select></label>
+            <label class="plan-course-field">Course
+              <details id="plan-course-dropdown" class="multi-select-dropdown">
+                <summary id="plan-course-summary">Courses (0 selected)</summary>
+                <div id="plan-course-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label id="plan-start-wrap">Start Date<input id="plan-start" type="date" required></label>
+            <label id="plan-end-wrap">End Date<input id="plan-end" type="date" required></label>
+            <fieldset id="plan-quarter-fieldset" class="weekday-set hidden">
+              <legend>Quarter(s)</legend>
+              <div id="plan-quarter-options" class="checklist-vertical"></div>
+            </fieldset>
+            <fieldset class="weekday-set">
+              <legend>Weekdays</legend>
+              <label><input type="checkbox" name="weekday" value="1" checked>Mon</label>
+              <label><input type="checkbox" name="weekday" value="2" checked>Tue</label>
+              <label><input type="checkbox" name="weekday" value="3" checked>Wed</label>
+              <label><input type="checkbox" name="weekday" value="4" checked>Thu</label>
+              <label><input type="checkbox" name="weekday" value="5" checked>Fri</label>
+            </fieldset>
+            <button id="plan-submit-btn" type="submit">Add Plan</button>
+            <button id="plan-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+          </form>
+          <ul id="plan-list" class="item-list"></ul>
+        </div>
       </div>
     </section>
 
@@ -558,7 +578,7 @@
       <div class="grades-section grades-section-entry">
         <h3>New Grade Entry</h3>
         <button id="add-grade-row-btn" type="button">Enter New Grade</button>
-        <div class="table-wrap">
+        <div id="grade-entry-wrap" class="table-wrap hidden">
           <table>
             <thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead>
             <tbody id="grade-entry-body"></tbody>

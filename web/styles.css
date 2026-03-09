@@ -818,6 +818,10 @@ td {
   margin: 0;
 }
 
+.subsection-toggle-row h3 {
+  margin: 0;
+}
+
 .subsection-toggle-btn {
   width: 1.7rem;
   height: 1.7rem;

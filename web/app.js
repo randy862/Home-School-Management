@@ -178,9 +178,13 @@ let editingSchoolYearId = "";
 let editingQuarterSchoolYearId = "";
 let editingGradeTypeId = "";
 let gradeTypeDraftDirty = false;
-let showConfiguredSubjects = false;
-let showConfiguredCourses = false;
-let showConfiguredGradeTypes = false;
+let showManagementSubjects = false;
+let showManagementCourses = false;
+let showManagementGradeTypes = false;
+let showScheduleSchoolYears = false;
+let showScheduleQuarters = false;
+let showScheduleHolidays = false;
+let showSchedulePlans = false;
 function cloneGradeTypes(items) {
   return (items || []).map((gt) => ({ id: gt.id || uid(), name: String(gt.name || "").trim(), weight: gt.weight == null ? null : Number(gt.weight) }));
 }
@@ -896,34 +900,39 @@ function renderSubjects() {
   list.innerHTML = state.subjects.map((s) => `<li><span>${s.name}</span><button data-remove-subject='${s.id}' type='button'>Remove</button></li>`).join("");
 }
 
-function renderConfiguredSubjectsVisibility() {
-  const wrap = document.getElementById("configured-subjects-wrap");
-  const btn = document.getElementById("configured-subjects-toggle-btn");
-  if (!wrap || !btn) return;
-  wrap.classList.toggle("hidden", !showConfiguredSubjects);
-  btn.textContent = showConfiguredSubjects ? "-" : "+";
-  btn.setAttribute("aria-expanded", showConfiguredSubjects ? "true" : "false");
-  btn.setAttribute("aria-label", showConfiguredSubjects ? "Collapse configured subjects" : "Expand configured subjects");
+function renderManagementSectionVisibility() {
+  const mappings = [
+    { wrapId: "management-subjects-wrap", btnId: "management-subjects-toggle-btn", shown: showManagementSubjects, expandLabel: "Expand subjects", collapseLabel: "Collapse subjects" },
+    { wrapId: "management-courses-wrap", btnId: "management-courses-toggle-btn", shown: showManagementCourses, expandLabel: "Expand courses", collapseLabel: "Collapse courses" },
+    { wrapId: "management-grade-types-wrap", btnId: "management-grade-types-toggle-btn", shown: showManagementGradeTypes, expandLabel: "Expand grade types", collapseLabel: "Collapse grade types" }
+  ];
+  mappings.forEach((entry) => {
+    const wrap = document.getElementById(entry.wrapId);
+    const btn = document.getElementById(entry.btnId);
+    if (!wrap || !btn) return;
+    wrap.classList.toggle("hidden", !entry.shown);
+    btn.textContent = entry.shown ? "-" : "+";
+    btn.setAttribute("aria-expanded", entry.shown ? "true" : "false");
+    btn.setAttribute("aria-label", entry.shown ? entry.collapseLabel : entry.expandLabel);
+  });
 }
 
-function renderConfiguredCoursesVisibility() {
-  const wrap = document.getElementById("configured-courses-wrap");
-  const btn = document.getElementById("configured-courses-toggle-btn");
-  if (!wrap || !btn) return;
-  wrap.classList.toggle("hidden", !showConfiguredCourses);
-  btn.textContent = showConfiguredCourses ? "-" : "+";
-  btn.setAttribute("aria-expanded", showConfiguredCourses ? "true" : "false");
-  btn.setAttribute("aria-label", showConfiguredCourses ? "Collapse configured courses" : "Expand configured courses");
-}
-
-function renderConfiguredGradeTypesVisibility() {
-  const wrap = document.getElementById("configured-grade-types-wrap");
-  const btn = document.getElementById("configured-grade-types-toggle-btn");
-  if (!wrap || !btn) return;
-  wrap.classList.toggle("hidden", !showConfiguredGradeTypes);
-  btn.textContent = showConfiguredGradeTypes ? "-" : "+";
-  btn.setAttribute("aria-expanded", showConfiguredGradeTypes ? "true" : "false");
-  btn.setAttribute("aria-label", showConfiguredGradeTypes ? "Collapse configured grade types" : "Expand configured grade types");
+function renderScheduleSectionVisibility() {
+  const mappings = [
+    { wrapId: "schedule-school-years-wrap", btnId: "schedule-school-years-toggle-btn", shown: showScheduleSchoolYears, expandLabel: "Expand school years", collapseLabel: "Collapse school years" },
+    { wrapId: "schedule-quarters-wrap", btnId: "schedule-quarters-toggle-btn", shown: showScheduleQuarters, expandLabel: "Expand quarters", collapseLabel: "Collapse quarters" },
+    { wrapId: "schedule-holidays-wrap", btnId: "schedule-holidays-toggle-btn", shown: showScheduleHolidays, expandLabel: "Expand holidays and breaks", collapseLabel: "Collapse holidays and breaks" },
+    { wrapId: "schedule-plans-wrap", btnId: "schedule-plans-toggle-btn", shown: showSchedulePlans, expandLabel: "Expand instruction plans", collapseLabel: "Collapse instruction plans" }
+  ];
+  mappings.forEach((entry) => {
+    const wrap = document.getElementById(entry.wrapId);
+    const btn = document.getElementById(entry.btnId);
+    if (!wrap || !btn) return;
+    wrap.classList.toggle("hidden", !entry.shown);
+    btn.textContent = entry.shown ? "-" : "+";
+    btn.setAttribute("aria-expanded", entry.shown ? "true" : "false");
+    btn.setAttribute("aria-label", entry.shown ? entry.collapseLabel : entry.expandLabel);
+  });
 }
 
 function renderCourses() {
@@ -1335,6 +1344,13 @@ function updateGradeRowCourses(row) {
   courseSelect.innerHTML = courseOptions.length
     ? courseOptions.map((c) => `<option value="${c.id}"${c.id === currentCourseId ? " selected" : ""}>${c.name}</option>`).join("")
     : "<option value=''>No enrolled courses</option>";
+}
+
+function updateGradeEntryVisibility() {
+  const wrap = document.getElementById("grade-entry-wrap");
+  const body = document.getElementById("grade-entry-body");
+  if (!wrap || !body) return;
+  wrap.classList.toggle("hidden", !body.querySelector("tr"));
 }
 
 function gradeAnalytics() {
@@ -2997,6 +3013,7 @@ function bindEvents() {
       return;
     }
     document.getElementById("grade-entry-body").appendChild(buildGradeEntryRow());
+    updateGradeEntryVisibility();
   });
   ["grades-filter-student", "grades-filter-quarter", "grades-filter-school-year", "grades-filter-subject", "grades-filter-course", "grades-filter-grade-type"]
     .forEach((id) => {
@@ -3158,19 +3175,39 @@ function bindEvents() {
       beginCourseEdit(editCourseId);
       return;
     }
-    if (t.getAttribute("id") === "configured-subjects-toggle-btn") {
-      showConfiguredSubjects = !showConfiguredSubjects;
-      renderConfiguredSubjectsVisibility();
+    if (t.getAttribute("id") === "management-subjects-toggle-btn") {
+      showManagementSubjects = !showManagementSubjects;
+      renderManagementSectionVisibility();
       return;
     }
-    if (t.getAttribute("id") === "configured-courses-toggle-btn") {
-      showConfiguredCourses = !showConfiguredCourses;
-      renderConfiguredCoursesVisibility();
+    if (t.getAttribute("id") === "management-courses-toggle-btn") {
+      showManagementCourses = !showManagementCourses;
+      renderManagementSectionVisibility();
       return;
     }
-    if (t.getAttribute("id") === "configured-grade-types-toggle-btn") {
-      showConfiguredGradeTypes = !showConfiguredGradeTypes;
-      renderConfiguredGradeTypesVisibility();
+    if (t.getAttribute("id") === "management-grade-types-toggle-btn") {
+      showManagementGradeTypes = !showManagementGradeTypes;
+      renderManagementSectionVisibility();
+      return;
+    }
+    if (t.getAttribute("id") === "schedule-school-years-toggle-btn") {
+      showScheduleSchoolYears = !showScheduleSchoolYears;
+      renderScheduleSectionVisibility();
+      return;
+    }
+    if (t.getAttribute("id") === "schedule-quarters-toggle-btn") {
+      showScheduleQuarters = !showScheduleQuarters;
+      renderScheduleSectionVisibility();
+      return;
+    }
+    if (t.getAttribute("id") === "schedule-holidays-toggle-btn") {
+      showScheduleHolidays = !showScheduleHolidays;
+      renderScheduleSectionVisibility();
+      return;
+    }
+    if (t.getAttribute("id") === "schedule-plans-toggle-btn") {
+      showSchedulePlans = !showSchedulePlans;
+      renderScheduleSectionVisibility();
       return;
     }
     const editGradeTypeId = t.getAttribute("data-edit-grade-type");
@@ -3272,6 +3309,7 @@ function bindEvents() {
       }
 
       row.remove();
+      updateGradeEntryVisibility();
       saveState();
       renderAll();
       return;
@@ -3281,6 +3319,7 @@ function bindEvents() {
     if (cancelGrade) {
       const row = t.closest("tr");
       if (row) row.remove();
+      updateGradeEntryVisibility();
       return;
     }
 
@@ -3296,6 +3335,7 @@ function bindEvents() {
       } else {
         entryBody.prepend(buildGradeEntryRow(existing));
       }
+      updateGradeEntryVisibility();
       return;
     }
     const studentId = t.getAttribute("data-remove-student"); if (studentId) { removeStudent(studentId); saveState(); renderAll(); return; }
@@ -3322,16 +3362,16 @@ function renderAll() {
   renderStudents();
   renderStudentDetail();
   renderSubjects();
-  renderConfiguredSubjectsVisibility();
+  renderManagementSectionVisibility();
   renderCourses();
-  renderConfiguredCoursesVisibility();
   renderGradeTypes();
-  renderConfiguredGradeTypesVisibility();
   renderHolidays();
   renderPlanningSettings();
   renderPlans();
+  renderScheduleSectionVisibility();
   renderAttendance();
   renderTests();
+  updateGradeEntryVisibility();
   renderDashboard();
   renderCalendar();
 }
