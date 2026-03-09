@@ -2338,8 +2338,15 @@ function renderDayCalendar(referenceISO, studentFilter) {
     }
   });
 
+  const courseHours = Array.from(scheduledByHour.entries())
+    .filter(([, items]) => items.some((item) => !item.label.includes("Break")))
+    .map(([hour]) => Number(hour))
+    .filter((hour) => Number.isFinite(hour));
+  const minHour = courseHours.length ? Math.max(0, Math.min(...courseHours)) : 0;
+  const maxHour = courseHours.length ? Math.min(23, Math.max(...courseHours)) : 23;
+
   const rows = [];
-  for (let hour = 0; hour < 24; hour += 1) {
+  for (let hour = minHour; hour <= maxHour; hour += 1) {
     const label = `${String(hour).padStart(2, "0")}:00`;
     const items = (scheduledByHour.get(hour) || []).sort((a, b) =>
       a.start - b.start || a.student.localeCompare(b.student) || a.label.localeCompare(b.label));
