@@ -162,6 +162,7 @@ function loadState() {
 
 let state = loadState();
 setCurrentSchoolYear(state.settings.currentSchoolYearId);
+if (backfillAttendanceToToday()) saveState();
 let selectedStudentId = "";
 let editingAttendanceId = "";
 const expandedStudentAverageRows = new Set();
@@ -213,6 +214,48 @@ function setCurrentSchoolYear(schoolYearId) {
     .filter((q) => q.schoolYearId === schoolYear.id)
     .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
     .map((q) => ({ id: q.id, schoolYearId: q.schoolYearId, name: q.name, startDate: q.startDate, endDate: q.endDate }));
+}
+
+function backfillAttendanceToToday() {
+  const start = toDate(state.settings.schoolYear.startDate);
+  const today = toDate(todayISO());
+  if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime()) || today < start) return false;
+
+  const excluded = holidaySet();
+  const existingByStudentDate = new Map();
+  state.attendance.forEach((record) => {
+    const key = `${record.studentId}||${record.date}`;
+    if (!existingByStudentDate.has(key)) {
+      existingByStudentDate.set(key, record);
+      return;
+    }
+    // If duplicates exist, keep "Absent" precedence over "Present".
+    const existing = existingByStudentDate.get(key);
+    if (existing && existing.present && !record.present) {
+      existingByStudentDate.set(key, record);
+    }
+  });
+
+  let changed = false;
+  const cursor = new Date(start);
+  while (cursor <= today) {
+    const weekday = cursor.getDay();
+    const date = toISO(cursor);
+    const isInstructionalDay = weekday >= 1 && weekday <= 5 && !excluded.has(date);
+    if (isInstructionalDay) {
+      state.students.forEach((student) => {
+        const key = `${student.id}||${date}`;
+        if (!existingByStudentDate.has(key)) {
+          const record = { id: uid(), studentId: student.id, date, present: true };
+          state.attendance.push(record);
+          existingByStudentDate.set(key, record);
+          changed = true;
+        }
+      });
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return changed;
 }
 
 function inRange(date, startDate, endDate) { return date >= startDate && date <= endDate; }
@@ -1877,7 +1920,28 @@ function renderDashboard() {
     ? `${getStudentName(topStudent.studentId)} (${topStudent.avg.toFixed(1)}%)`
     : "No grades yet";
   document.getElementById("kpi-running-avg").textContent = `${g.running.toFixed(1)}%`;
-  document.getElementById("kpi-quarter-avg").textContent = `${g.currentQuarterAvg.toFixed(1)}%`;
+
+  const attendanceDatesThroughToday = dates.filter((d) => d <= todayISO());
+  const attendanceDateSet = new Set(attendanceDatesThroughToday);
+  const totalAttendanceDays = attendanceDatesThroughToday.length;
+  const attendanceLeaders = state.students
+    .map((student) => {
+      const records = state.attendance.filter((a) => a.studentId === student.id && a.date <= todayISO() && attendanceDateSet.has(a.date));
+      const presentCount = records.filter((a) => a.present).length;
+      const attendanceAverage = totalAttendanceDays > 0 ? (presentCount / totalAttendanceDays) * 100 : 0;
+      return {
+        studentId: student.id,
+        attendanceAverage
+      };
+    })
+    .sort((a, b) => b.attendanceAverage - a.attendanceAverage || getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)));
+  const topAttendance = attendanceLeaders.length ? attendanceLeaders[0].attendanceAverage : -1;
+  const topAttendanceStudents = attendanceLeaders
+    .filter((entry) => Math.abs(entry.attendanceAverage - topAttendance) < 0.0001)
+    .map((entry) => getStudentName(entry.studentId));
+  document.getElementById("kpi-attendance-star").textContent = topAttendanceStudents.length
+    ? `${topAttendanceStudents.join(", ")} (${topAttendance.toFixed(1)}%)`
+    : "No attendance yet";
 
   const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate);
   const q = currentQuarter(new Date());
@@ -2037,9 +2101,6 @@ function renderDashboard() {
   }
   rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
 
-  const attendanceDatesThroughToday = dates.filter((d) => d <= todayISO());
-  const attendanceDateSet = new Set(attendanceDatesThroughToday);
-  const totalAttendanceDays = attendanceDatesThroughToday.length;
   const studentAttendanceRows = state.students.flatMap((student) => {
     const records = state.attendance.filter((a) => a.studentId === student.id && a.date <= todayISO() && attendanceDateSet.has(a.date));
     const presentCount = records.filter((a) => a.present).length;

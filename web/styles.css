@@ -151,6 +151,7 @@ h3 {
   border-radius: 10px;
   background: linear-gradient(150deg, #fff8ee, #f6e8d4);
   padding: 0.65rem;
+  text-align: center;
 }
 
 .kpi-label {
