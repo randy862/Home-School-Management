@@ -2277,18 +2277,15 @@ function renderDayCalendar(referenceISO, studentFilter) {
   const scheduledByHour = new Map();
   const addBlock = (student, label, startMin, endMin) => {
     if (endMin <= startMin) return;
-    const startHour = Math.floor(startMin / 60);
-    const endHour = Math.floor((endMin - 1) / 60);
-    for (let hour = startHour; hour <= endHour; hour += 1) {
-      if (hour < 0 || hour > 23) continue;
-      if (!scheduledByHour.has(hour)) scheduledByHour.set(hour, []);
-      scheduledByHour.get(hour).push({
-        student,
-        label,
-        start: startMin,
-        end: endMin
-      });
-    }
+    const hour = Math.floor(startMin / 60);
+    if (hour < 0 || hour > 23) return;
+    if (!scheduledByHour.has(hour)) scheduledByHour.set(hour, []);
+    scheduledByHour.get(hour).push({
+      student,
+      label,
+      start: startMin,
+      end: endMin
+    });
   };
 
   byStudent.forEach((studentEvents, studentId) => {
@@ -2340,12 +2337,15 @@ function renderDayCalendar(referenceISO, studentFilter) {
     }
   });
 
-  const courseHours = Array.from(scheduledByHour.entries())
-    .filter(([, items]) => items.some((item) => !item.label.includes("Break")))
-    .map(([hour]) => Number(hour))
-    .filter((hour) => Number.isFinite(hour));
-  const minHour = courseHours.length ? Math.max(0, Math.min(...courseHours)) : 0;
-  const maxHour = courseHours.length ? Math.min(23, Math.max(...courseHours)) : 23;
+  const instructionalBlocks = Array.from(scheduledByHour.values())
+    .flat()
+    .filter((item) => !item.label.includes("Break"));
+  const minHour = instructionalBlocks.length
+    ? Math.max(0, Math.floor(Math.min(...instructionalBlocks.map((item) => item.start)) / 60))
+    : 0;
+  const maxHour = instructionalBlocks.length
+    ? Math.min(23, Math.floor((Math.max(...instructionalBlocks.map((item) => item.end)) - 1) / 60))
+    : 23;
 
   const rows = [];
   for (let hour = minHour; hour <= maxHour; hour += 1) {
