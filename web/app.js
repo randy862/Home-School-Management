@@ -488,6 +488,19 @@ function renderSelects() {
     else if (state.settings.currentSchoolYearId) quarterSchoolYear.value = state.settings.currentSchoolYearId;
   }
 
+  const planFilterStudent = document.getElementById("plan-filter-student");
+  if (planFilterStudent) {
+    const current = planFilterStudent.value || "all";
+    planFilterStudent.innerHTML = "<option value='all'>All Students</option>";
+    state.students.forEach((student) => {
+      const option = document.createElement("option");
+      option.value = student.id;
+      option.textContent = `${student.firstName} ${student.lastName}`;
+      planFilterStudent.appendChild(option);
+    });
+    if (Array.from(planFilterStudent.options).some((o) => o.value === current)) planFilterStudent.value = current;
+  }
+
   const gradeStudentSelect = document.getElementById("grades-filter-student");
   if (gradeStudentSelect) {
     const current = gradeStudentSelect.value || "all";
@@ -1093,7 +1106,16 @@ function renderPlanningSettings() {
 
 function renderPlans() {
   const list = document.getElementById("plan-list");
-  const rows = [...state.plans].sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  const typeFilter = document.getElementById("plan-filter-type")?.value || "all";
+  const studentFilter = document.getElementById("plan-filter-student")?.value || "all";
+
+  const rows = [...state.plans]
+    .filter((plan) => {
+      if (typeFilter !== "all" && plan.planType !== typeFilter) return false;
+      if (studentFilter !== "all" && plan.studentId !== studentFilter) return false;
+      return true;
+    })
+    .sort((a,b)=>a.startDate.localeCompare(b.startDate));
   list.innerHTML = rows.length
     ? rows.map((p) => {
       const periodLabel = p.planType === "quarterly" && p.quarterName ? ` (${p.quarterName})` : "";
@@ -2259,6 +2281,43 @@ function renderDayCalendar(referenceISO, studentFilter) {
   const ref = toDate(referenceISO || todayISO());
   const dateKey = toISO(ref);
   const events = calendarEvents(ref, ref, studentFilter);
+  const excludedDates = holidaySet();
+  const isInstructionalWeekday = ref.getDay() >= 1 && ref.getDay() <= 5;
+
+  // Fallback: if a student is enrolled in a course that has never had an instruction plan,
+  // still show it in daily view so the schedule reflects full enrollment.
+  if (isInstructionalWeekday && !excludedDates.has(dateKey)) {
+    const studentsToFill = studentFilter
+      ? [studentFilter]
+      : state.students.map((student) => student.id);
+    const plannedPairSet = new Set(events.map((event) => `${event.studentId}||${event.courseId}`));
+
+    studentsToFill.forEach((studentId) => {
+      const enrolledCourseIds = Array.from(new Set(
+        state.enrollments
+          .filter((enrollment) => enrollment.studentId === studentId)
+          .map((enrollment) => enrollment.courseId)
+      ));
+
+      enrolledCourseIds.forEach((courseId) => {
+        const pairKey = `${studentId}||${courseId}`;
+        if (plannedPairSet.has(pairKey)) return;
+
+        const hasAnyPlanForCourse = state.plans.some((plan) =>
+          plan.studentId === studentId && plan.courseId === courseId
+        );
+        if (hasAnyPlanForCourse) return;
+
+        events.push({
+          date: dateKey,
+          studentId,
+          courseId,
+          planType: "enrollment-fallback"
+        });
+        plannedPairSet.add(pairKey);
+      });
+    });
+  }
 
   const formatTime = (minutes) => {
     const h24 = Math.floor(minutes / 60);
@@ -3095,6 +3154,20 @@ function bindEvents() {
       });
       syncGradesFilterSubjectCourseOptions();
       renderTests();
+    });
+  }
+  ["plan-filter-type", "plan-filter-student"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderPlans());
+  });
+  const planClearFiltersBtn = document.getElementById("plan-clear-filters-btn");
+  if (planClearFiltersBtn) {
+    planClearFiltersBtn.addEventListener("click", () => {
+      const typeFilter = document.getElementById("plan-filter-type");
+      const studentFilter = document.getElementById("plan-filter-student");
+      if (typeFilter) typeFilter.value = "all";
+      if (studentFilter) studentFilter.value = "all";
+      renderPlans();
     });
   }
   ["trend-filter-quarter", "trend-filter-subject", "trend-filter-grade-type"].forEach((id) => {

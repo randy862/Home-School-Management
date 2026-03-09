@@ -982,6 +982,14 @@ td {
   width: auto;
 }
 
+#plan-filter-form > button {
+  align-self: end;
+  justify-self: start;
+  width: auto;
+  height: calc(1em + 0.84rem + 2px);
+  padding: 0.42rem 0.8rem;
+}
+
 .calendar-month-view {
   display: grid;
   gap: 0.55rem;

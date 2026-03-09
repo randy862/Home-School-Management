@@ -363,7 +363,7 @@
       <div class="schedule-section schedule-section-plans">
         <div class="subsection-toggle-row">
           <button id="schedule-plans-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h3>Instruction Plans (Annual, Quarterly, Weekly)</h3>
+          <h3>Instruction Plans</h3>
         </div>
         <div id="schedule-plans-wrap" class="hidden">
           <form id="plan-form" class="grid-form">
@@ -397,6 +397,22 @@
             </fieldset>
             <button id="plan-submit-btn" type="submit">Add Plan</button>
             <button id="plan-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+          </form>
+          <form id="plan-filter-form" class="grid-form">
+            <label>Plan Type
+              <select id="plan-filter-type">
+                <option value="all">All Plan Types</option>
+                <option value="annual">Annual</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </label>
+            <label>Student
+              <select id="plan-filter-student">
+                <option value="all">All Students</option>
+              </select>
+            </label>
+            <button id="plan-clear-filters-btn" type="button">Clear Filters</button>
           </form>
           <ul id="plan-list" class="item-list"></ul>
         </div>
