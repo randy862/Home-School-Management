@@ -1177,19 +1177,29 @@ function renderGradeTrending() {
   const syEnd = toDate(sy.endDate);
   const today = toDate(todayISO());
   const effectiveEnd = syEnd < today ? syEnd : today;
-  const months = schoolYearMonths(sy.startDate, toISO(effectiveEnd));
-  if (!months.length) {
-    chartHost.innerHTML = syStart > today
-      ? "<p class='muted'>School year has not started yet.</p>"
-      : "<p class='muted'>No school year range set.</p>";
-    return;
-  }
 
   const quarterFilter = document.getElementById("trend-filter-quarter")?.value || "all";
   const subjectFilter = document.getElementById("trend-filter-subject")?.value || "all";
   const gradeTypeFilter = document.getElementById("trend-filter-grade-type")?.value || "all";
   const selectedStudentIds = getTrendSelectedStudentIds();
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
+  const effectiveEndIso = toISO(effectiveEnd);
+  let monthStartIso = sy.startDate;
+  let monthEndIso = effectiveEndIso;
+  if (quarterRange && quarterFilter !== "all") {
+    if (toDate(quarterRange.startDate) > toDate(monthStartIso)) monthStartIso = quarterRange.startDate;
+    if (toDate(quarterRange.endDate) < toDate(monthEndIso)) monthEndIso = quarterRange.endDate;
+  }
+
+  const months = schoolYearMonths(monthStartIso, monthEndIso);
+  if (!months.length) {
+    chartHost.innerHTML = syStart > today
+      ? "<p class='muted'>School year has not started yet.</p>"
+      : (quarterFilter !== "all"
+        ? "<p class='muted'>No elapsed months in the selected quarter yet.</p>"
+        : "<p class='muted'>No school year range set.</p>");
+    return;
+  }
 
   const filteredTests = state.tests.filter((t) => {
     if (!inRange(t.date, sy.startDate, sy.endDate)) return false;
@@ -2691,14 +2701,57 @@ function bindEvents() {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGradeTrending());
   });
+  const trendClearFiltersBtn = document.getElementById("trend-clear-filters-btn");
+  if (trendClearFiltersBtn) {
+    trendClearFiltersBtn.addEventListener("click", () => {
+      const quarterFilter = document.getElementById("trend-filter-quarter");
+      const subjectFilter = document.getElementById("trend-filter-subject");
+      const gradeTypeFilter = document.getElementById("trend-filter-grade-type");
+      if (quarterFilter) quarterFilter.value = "all";
+      if (subjectFilter) subjectFilter.value = "all";
+      if (gradeTypeFilter) gradeTypeFilter.value = "all";
+      trendSelectedStudentIds.clear();
+      document.querySelectorAll(".trend-student-checkbox").forEach((el) => { el.checked = false; });
+      updateTrendStudentSummary();
+      renderGradeTrending();
+    });
+  }
   ["volume-filter-quarter", "volume-filter-subject", "volume-filter-grade-type"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGradeTypeVolumeChart());
   });
+  const volumeClearFiltersBtn = document.getElementById("volume-clear-filters-btn");
+  if (volumeClearFiltersBtn) {
+    volumeClearFiltersBtn.addEventListener("click", () => {
+      const quarterFilter = document.getElementById("volume-filter-quarter");
+      const subjectFilter = document.getElementById("volume-filter-subject");
+      const gradeTypeFilter = document.getElementById("volume-filter-grade-type");
+      if (quarterFilter) quarterFilter.value = "all";
+      if (subjectFilter) subjectFilter.value = "all";
+      if (gradeTypeFilter) gradeTypeFilter.value = "all";
+      volumeSelectedStudentIds.clear();
+      document.querySelectorAll(".volume-student-checkbox").forEach((el) => { el.checked = false; });
+      updateVolumeStudentSummary();
+      renderGradeTypeVolumeChart();
+    });
+  }
   ["work-filter-quarter"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderWorkDistributionChart());
   });
+  const workClearFiltersBtn = document.getElementById("work-clear-filters-btn");
+  if (workClearFiltersBtn) {
+    workClearFiltersBtn.addEventListener("click", () => {
+      const quarterFilter = document.getElementById("work-filter-quarter");
+      if (quarterFilter) quarterFilter.value = "all";
+      workSelectedStudentIds.clear();
+      document.querySelectorAll(".work-student-checkbox").forEach((el) => { el.checked = false; });
+      workDistributionGradeType = "Assignment";
+      updateWorkStudentSummary();
+      renderWorkDistributionGradeTypeFilter();
+      renderWorkDistributionChart();
+    });
+  }
 
   document.addEventListener("change", (e) => {
     const t = e.target;
