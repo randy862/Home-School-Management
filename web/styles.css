@@ -665,6 +665,87 @@ td {
   border-color: #d8cdbd;
 }
 
+.schedule-section {
+  border: 1px solid #d8cfbf;
+  border-radius: 10px;
+  padding: 0.65rem 0.7rem;
+}
+
+.schedule-section + .schedule-section {
+  margin-top: 0.6rem;
+}
+
+.schedule-section h3 {
+  margin: 0 0 0.35rem;
+}
+
+.schedule-section-school-year {
+  background: #f6f1e7;
+  border-color: #d2c3a8;
+}
+
+.schedule-section-quarters {
+  background: #edf4f7;
+  border-color: #c2d3dd;
+}
+
+.schedule-section-holidays {
+  background: #eff6ed;
+  border-color: #c7d8bf;
+}
+
+.schedule-section-plans {
+  background: #f3efe8;
+  border-color: #d8cdbd;
+}
+
+.attendance-section,
+.grades-section {
+  border: 1px solid #d8cfbf;
+  border-radius: 10px;
+  padding: 0.65rem 0.7rem;
+}
+
+.attendance-section + .attendance-section,
+.grades-section + .grades-section {
+  margin-top: 0.6rem;
+}
+
+.attendance-section h3,
+.grades-section h3 {
+  margin: 0 0 0.35rem;
+}
+
+.attendance-section-tracker {
+  background: #f6f1e7;
+  border-color: #d2c3a8;
+}
+
+.attendance-section-filters {
+  background: #edf4f7;
+  border-color: #c2d3dd;
+}
+
+.attendance-section-records {
+  background: #eff6ed;
+  border-color: #c7d8bf;
+}
+
+.grades-section-filters {
+  background: #f6f1e7;
+  border-color: #d2c3a8;
+}
+
+.grades-section-entry {
+  background: #edf4f7;
+  border-color: #c2d3dd;
+}
+
+.grades-section-records {
+  background: #f3efe8;
+  border-color: #d8cdbd;
+}
+
 #student-detail-panel .table-wrap {
   margin-top: 0;
 }
