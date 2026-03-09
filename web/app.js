@@ -1,6 +1,7 @@
 const STORAGE_KEY = "hsm_state_v2";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
 
 function uid() { return `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
 function toDate(s) {
@@ -63,7 +64,8 @@ function defaultState() {
       currentSchoolYearId: schoolYearId,
       quarters: quarters.map((q) => ({ ...q })),
       allQuarters: quarters,
-      holidays: []
+      holidays: [],
+      gradeTypes: DEFAULT_GRADE_TYPES.map((name) => ({ id: uid(), name, weight: null }))
     }
   };
 }
@@ -124,6 +126,25 @@ function normalizeSettingsShape(inputState) {
     .map((q) => ({ id: q.id, schoolYearId: q.schoolYearId, name: q.name, startDate: q.startDate, endDate: q.endDate }));
 
   if (!Array.isArray(s.settings.holidays)) s.settings.holidays = [];
+
+  if (!Array.isArray(s.settings.gradeTypes)) {
+    s.settings.gradeTypes = DEFAULT_GRADE_TYPES.map((name) => ({ id: uid(), name, weight: null }));
+  } else {
+    const byName = new Map();
+    s.settings.gradeTypes
+      .filter((gt) => gt && String(gt.name || "").trim())
+      .forEach((gt) => {
+        const parsedWeight = gt.weight === "" || gt.weight == null ? null : Number(gt.weight);
+        const normalized = {
+          id: gt.id || uid(),
+          name: String(gt.name).trim(),
+          weight: Number.isFinite(parsedWeight) && parsedWeight >= 0 ? parsedWeight : null
+        };
+        const key = normalized.name.toLowerCase();
+        if (!byName.has(key)) byName.set(key, normalized);
+      });
+    s.settings.gradeTypes = Array.from(byName.values());
+  }
 }
 
 function loadState() {
@@ -155,6 +176,18 @@ let editingHolidayId = "";
 let editingPlanId = "";
 let editingSchoolYearId = "";
 let editingQuarterSchoolYearId = "";
+let editingGradeTypeId = "";
+let gradeTypeDraftDirty = false;
+let showConfiguredSubjects = false;
+let showConfiguredCourses = false;
+let showConfiguredGradeTypes = false;
+function cloneGradeTypes(items) {
+  return (items || []).map((gt) => ({ id: gt.id || uid(), name: String(gt.name || "").trim(), weight: gt.weight == null ? null : Number(gt.weight) }));
+}
+let gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+function draftGradeTypes() {
+  return Array.isArray(gradeTypesDraft) ? gradeTypesDraft : [];
+}
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
 function getStudentName(id) { const s = state.students.find((x) => x.id === id); return s ? `${s.firstName} ${s.lastName}` : "Unknown Student"; }
@@ -179,26 +212,110 @@ function setCurrentSchoolYear(schoolYearId) {
 function inRange(date, startDate, endDate) { return date >= startDate && date <= endDate; }
 function avg(vals){ return vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : 0; }
 function pct(score, max) { const s = Number(score), m = Number(max); return m > 0 ? (s / m) * 100 : 0; }
+function configuredGradeTypes() {
+  return Array.isArray(state.settings.gradeTypes) ? state.settings.gradeTypes : [];
+}
+function canonicalGradeTypes() {
+  const seen = new Set();
+  const out = [];
+  configuredGradeTypes().forEach((gt) => {
+    const name = String(gt.name || "").trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(name);
+  });
+  return out;
+}
+function gradeTypeName(test) {
+  const direct = String(test.gradeType || "").trim();
+  if (direct) return direct;
+  const resolved = resolveGradeType(test);
+  if (resolved) return resolved;
+  const legacy = String(test.testName || "").trim();
+  return legacy || "Test";
+}
+function weightedAverageForTests(tests, options = {}) {
+  const quarterScoped = !!options.quarterScoped;
+  if (!tests.length) return 0;
+  const byType = new Map();
+  tests.forEach((test) => {
+    const type = gradeTypeName(test);
+    const score = pct(test.score, test.maxScore);
+    if (!byType.has(type)) byType.set(type, []);
+    byType.get(type).push(score);
+  });
+  const typeAverages = Array.from(byType.entries()).map(([type, vals]) => ({ type, avg: avg(vals) }));
+  const weightedConfigured = configuredGradeTypes()
+    .filter((gt) => gt.weight != null && Number(gt.weight) > 0)
+    .map((gt) => ({ name: gt.name, weight: Number(gt.weight) }));
+  if (!weightedConfigured.length) return avg(typeAverages.map((entry) => entry.avg));
+
+  const weightByType = new Map(weightedConfigured.map((entry) => [entry.name.toLowerCase(), entry.weight]));
+  const presentTypes = new Set(typeAverages.map((entry) => entry.type.toLowerCase()));
+  const effectiveWeightByType = new Map();
+  typeAverages.forEach((entry) => {
+    const key = entry.type.toLowerCase();
+    if (weightByType.has(key)) effectiveWeightByType.set(key, weightByType.get(key) || 0);
+  });
+
+  if (quarterScoped && presentTypes.has("assignment")) {
+    const rolloverTypes = ["quiz", "test", "quarterly final"];
+    let rolloverWeight = 0;
+    rolloverTypes.forEach((typeKey) => {
+      if (presentTypes.has(typeKey)) return;
+      rolloverWeight += weightByType.get(typeKey) || 0;
+    });
+    effectiveWeightByType.set("assignment", (effectiveWeightByType.get("assignment") || 0) + rolloverWeight);
+  }
+
+  const withWeights = typeAverages.filter((entry) => effectiveWeightByType.has(entry.type.toLowerCase()));
+  const withoutWeights = typeAverages.filter((entry) => !effectiveWeightByType.has(entry.type.toLowerCase()));
+
+  let assignedTotalWeight = 0;
+  withWeights.forEach((entry) => {
+    assignedTotalWeight += effectiveWeightByType.get(entry.type.toLowerCase()) || 0;
+  });
+
+  let remainingShare = 0;
+  if (withoutWeights.length) {
+    const remaining = Math.max(0, 100 - assignedTotalWeight);
+    remainingShare = remaining / withoutWeights.length;
+    assignedTotalWeight += remaining;
+  }
+
+  if (assignedTotalWeight <= 0) return avg(typeAverages.map((entry) => entry.avg));
+
+  let weightedSum = 0;
+  withWeights.forEach((entry) => {
+    weightedSum += entry.avg * (effectiveWeightByType.get(entry.type.toLowerCase()) || 0);
+  });
+  withoutWeights.forEach((entry) => {
+    weightedSum += entry.avg * remainingShare;
+  });
+  return weightedSum / assignedTotalWeight;
+}
+
+function averageOfQuarterAverages(quarterRows) {
+  const vals = quarterRows.filter((row) => row.count > 0).map((row) => row.avg);
+  return vals.length ? avg(vals) : 0;
+}
 function studentOverallAverage(studentId) {
-  const vals = state.tests
-    .filter((t) => t.studentId === studentId)
-    .map((t) => pct(t.score, t.maxScore));
-  return avg(vals);
+  const tests = state.tests.filter((t) => t.studentId === studentId);
+  return weightedAverageForTests(tests);
 }
 function studentCourseAverage(studentId, courseId) {
-  const vals = state.tests
-    .filter((t) => t.studentId === studentId && t.courseId === courseId)
-    .map((t) => pct(t.score, t.maxScore));
-  return avg(vals);
+  const tests = state.tests.filter((t) => t.studentId === studentId && t.courseId === courseId);
+  return weightedAverageForTests(tests);
 }
 function studentCourseAverageByRange(studentId, courseId, startDate, endDate) {
-  const vals = state.tests
+  const tests = state.tests
     .filter((t) =>
       t.studentId === studentId
       && t.courseId === courseId
-      && inRange(t.date, startDate, endDate))
-    .map((t) => pct(t.score, t.maxScore));
-  return avg(vals);
+      && inRange(t.date, startDate, endDate));
+  return weightedAverageForTests(tests);
 }
 function studentAbsenceCount(studentId) {
   const startDate = state.settings.schoolYear.startDate;
@@ -409,6 +526,19 @@ function renderSelects() {
     if (current && Array.from(schoolYearSelect.options).some((o) => o.value === current)) schoolYearSelect.value = current;
   }
 
+  const gradesGradeTypeSelect = document.getElementById("grades-filter-grade-type");
+  if (gradesGradeTypeSelect) {
+    const current = gradesGradeTypeSelect.value || "all";
+    gradesGradeTypeSelect.innerHTML = "<option value='all'>All Grade Types</option>";
+    availableGradeTypes().forEach((type) => {
+      const option = document.createElement("option");
+      option.value = type;
+      option.textContent = type;
+      gradesGradeTypeSelect.appendChild(option);
+    });
+    if (Array.from(gradesGradeTypeSelect.options).some((o) => o.value === current)) gradesGradeTypeSelect.value = current;
+  }
+
   const trendQuarterSelect = document.getElementById("trend-filter-quarter");
   if (trendQuarterSelect) {
     const current = trendQuarterSelect.value || "all";
@@ -438,13 +568,8 @@ function renderSelects() {
   const trendGradeTypeSelect = document.getElementById("trend-filter-grade-type");
   if (trendGradeTypeSelect) {
     const current = trendGradeTypeSelect.value || "all";
-    const allTypes = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
-    state.tests.forEach((test) => {
-      const type = test.gradeType || test.testName || "";
-      if (type && !allTypes.includes(type)) allTypes.push(type);
-    });
     trendGradeTypeSelect.innerHTML = "<option value='all'>All Grade Types</option>";
-    allTypes.forEach((type) => {
+    availableGradeTypes().forEach((type) => {
       const option = document.createElement("option");
       option.value = type;
       option.textContent = type;
@@ -482,13 +607,8 @@ function renderSelects() {
   const volumeGradeTypeSelect = document.getElementById("volume-filter-grade-type");
   if (volumeGradeTypeSelect) {
     const current = volumeGradeTypeSelect.value || "all";
-    const allTypes = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
-    state.tests.forEach((test) => {
-      const type = test.gradeType || test.testName || "";
-      if (type && !allTypes.includes(type)) allTypes.push(type);
-    });
     volumeGradeTypeSelect.innerHTML = "<option value='all'>All Grade Types</option>";
-    allTypes.forEach((type) => {
+    availableGradeTypes().forEach((type) => {
       const option = document.createElement("option");
       option.value = type;
       option.textContent = type;
@@ -589,10 +709,6 @@ function getVolumeSelectedStudentIds() {
   return Array.from(document.querySelectorAll(".volume-student-checkbox:checked")).map((el) => el.value);
 }
 
-function canonicalGradeTypes() {
-  return ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
-}
-
 function resolveGradeType(test) {
   const allowed = canonicalGradeTypes();
   const type = (test.gradeType || "").trim();
@@ -607,7 +723,22 @@ function resolveGradeType(test) {
 }
 
 function availableGradeTypes() {
-  return canonicalGradeTypes();
+  const seen = new Set();
+  const out = [];
+  canonicalGradeTypes().forEach((type) => {
+    const key = type.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(type);
+  });
+  state.tests.forEach((test) => {
+    const type = gradeTypeName(test);
+    const key = type.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(type);
+  });
+  return out;
 }
 
 function renderWorkDistributionGradeTypeFilter() {
@@ -765,6 +896,36 @@ function renderSubjects() {
   list.innerHTML = state.subjects.map((s) => `<li><span>${s.name}</span><button data-remove-subject='${s.id}' type='button'>Remove</button></li>`).join("");
 }
 
+function renderConfiguredSubjectsVisibility() {
+  const wrap = document.getElementById("configured-subjects-wrap");
+  const btn = document.getElementById("configured-subjects-toggle-btn");
+  if (!wrap || !btn) return;
+  wrap.classList.toggle("hidden", !showConfiguredSubjects);
+  btn.textContent = showConfiguredSubjects ? "-" : "+";
+  btn.setAttribute("aria-expanded", showConfiguredSubjects ? "true" : "false");
+  btn.setAttribute("aria-label", showConfiguredSubjects ? "Collapse configured subjects" : "Expand configured subjects");
+}
+
+function renderConfiguredCoursesVisibility() {
+  const wrap = document.getElementById("configured-courses-wrap");
+  const btn = document.getElementById("configured-courses-toggle-btn");
+  if (!wrap || !btn) return;
+  wrap.classList.toggle("hidden", !showConfiguredCourses);
+  btn.textContent = showConfiguredCourses ? "-" : "+";
+  btn.setAttribute("aria-expanded", showConfiguredCourses ? "true" : "false");
+  btn.setAttribute("aria-label", showConfiguredCourses ? "Collapse configured courses" : "Expand configured courses");
+}
+
+function renderConfiguredGradeTypesVisibility() {
+  const wrap = document.getElementById("configured-grade-types-wrap");
+  const btn = document.getElementById("configured-grade-types-toggle-btn");
+  if (!wrap || !btn) return;
+  wrap.classList.toggle("hidden", !showConfiguredGradeTypes);
+  btn.textContent = showConfiguredGradeTypes ? "-" : "+";
+  btn.setAttribute("aria-expanded", showConfiguredGradeTypes ? "true" : "false");
+  btn.setAttribute("aria-label", showConfiguredGradeTypes ? "Collapse configured grade types" : "Expand configured grade types");
+}
+
 function renderCourses() {
   const list = document.getElementById("course-list");
   const submitBtn = document.getElementById("course-submit-btn");
@@ -774,6 +935,55 @@ function renderCourses() {
   list.innerHTML = "";
   if (!state.courses.length) { list.innerHTML = "<li><span>No courses added yet.</span></li>"; return; }
   list.innerHTML = state.courses.map((c) => `<li><span>${c.name} | ${getSubjectName(c.subjectId)} | ${Number(c.hoursPerDay).toFixed(2)} hrs/day</span><span><button data-edit-course='${c.id}' type='button'>Edit</button> <button data-remove-course='${c.id}' type='button'>Remove</button></span></li>`).join("");
+}
+
+function renderGradeTypes() {
+  const tableBody = document.getElementById("grade-type-table");
+  const totalEl = document.getElementById("grade-type-total");
+  const submitBtn = document.getElementById("grade-type-submit-btn");
+  const cancelBtn = document.getElementById("grade-type-cancel-edit-btn");
+  const applyBtn = document.getElementById("grade-type-apply-btn");
+  const cancelChangesBtn = document.getElementById("grade-type-cancel-changes-btn");
+  if (!tableBody || !totalEl) return;
+  if (!gradeTypeDraftDirty) gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+
+  const rows = draftGradeTypes().map((gt) => {
+    const weightText = gt.weight == null ? "Not set" : `${Number(gt.weight).toFixed(1)}%`;
+    return `<tr><td>${gt.name}</td><td>${weightText}</td><td><button data-edit-grade-type="${gt.id}" type="button">Edit</button> <button data-remove-grade-type="${gt.id}" type="button">Remove</button></td></tr>`;
+  });
+  const totalWeight = draftGradeTypes().reduce((sum, gt) => sum + (gt.weight == null ? 0 : Number(gt.weight) || 0), 0);
+  if (rows.length) rows.push(`<tr><td><strong>Total Weight</strong></td><td><strong>${totalWeight.toFixed(1)}%</strong></td><td></td></tr>`);
+  rowOrEmpty(tableBody, rows, "No grade types configured.", 3);
+
+  totalEl.textContent = totalWeight > 0 && Math.abs(totalWeight - 100) > 0.05
+    ? `Configured Weight Total: ${totalWeight.toFixed(1)}% (remaining weight is distributed equally across unweighted grade types)`
+    : `Configured Weight Total: ${totalWeight.toFixed(1)}%`;
+  if (gradeTypeDraftDirty) totalEl.textContent = `${totalEl.textContent} - Pending changes not applied`;
+  if (submitBtn) submitBtn.textContent = editingGradeTypeId ? "Update Grade Type" : "Add Grade Type";
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingGradeTypeId);
+  if (applyBtn) applyBtn.disabled = !gradeTypeDraftDirty;
+  if (cancelChangesBtn) {
+    cancelChangesBtn.classList.toggle("hidden", !gradeTypeDraftDirty);
+    cancelChangesBtn.disabled = !gradeTypeDraftDirty;
+  }
+}
+
+function beginGradeTypeEdit(gradeTypeId) {
+  const gradeType = draftGradeTypes().find((gt) => gt.id === gradeTypeId);
+  if (!gradeType) return;
+  editingGradeTypeId = gradeType.id;
+  const nameInput = document.getElementById("grade-type-name");
+  const weightInput = document.getElementById("grade-type-weight");
+  if (nameInput) nameInput.value = gradeType.name;
+  if (weightInput) weightInput.value = gradeType.weight == null ? "" : String(gradeType.weight);
+  renderGradeTypes();
+}
+
+function cancelGradeTypeEdit() {
+  editingGradeTypeId = "";
+  const form = document.getElementById("grade-type-form");
+  if (form) form.reset();
+  renderGradeTypes();
 }
 
 function renderStudentDetail() {
@@ -888,11 +1098,14 @@ function renderPlans() {
 function renderAttendance() {
   const studentFilter = document.getElementById("attendance-filter-student")?.value || "all";
   const quarterFilter = document.getElementById("attendance-filter-quarter")?.value || "all";
+  const statusFilter = document.getElementById("attendance-filter-status")?.value || "all";
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
 
   const filtered = state.attendance.filter((a) => {
     if (studentFilter !== "all" && a.studentId !== studentFilter) return false;
     if (quarterFilter !== "all" && quarterRange && !inRange(a.date, quarterRange.startDate, quarterRange.endDate)) return false;
+    if (statusFilter === "present" && !a.present) return false;
+    if (statusFilter === "absent" && a.present) return false;
     return true;
   });
 
@@ -930,7 +1143,7 @@ function renderTests() {
     if (studentFilter !== "all" && t.studentId !== studentFilter) return false;
     if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
     if (courseFilter !== "all" && t.courseId !== courseFilter) return false;
-    const thisGradeType = t.gradeType || t.testName || "Test";
+    const thisGradeType = gradeTypeName(t);
     if (gradeTypeFilter !== "all" && thisGradeType !== gradeTypeFilter) return false;
     if (quarterFilter !== "all" && quarterRange && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if (schoolYearFilter === "current" && !inRange(t.date, schoolYearStart, schoolYearEnd)) return false;
@@ -942,10 +1155,10 @@ function renderTests() {
     .sort((a,b)=>b.date.localeCompare(a.date))
     .slice(0,150)
     .map((t) => {
-      const gradeType = t.gradeType || t.testName || "Test";
+      const gradeType = gradeTypeName(t);
       return `<tr><td>${t.date}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${gradeType}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td><td><button type='button' data-edit-grade='${t.id}'>Edit</button></td></tr>`;
     });
-  const avgGrade = avg(filtered.map((t) => pct(t.score, t.maxScore)));
+  const avgGrade = weightedAverageForTests(filtered, { quarterScoped: quarterFilter !== "all" });
   if (rows.length) {
     rows.push(`<tr><td colspan="5"><strong>Average Grade</strong></td><td><strong>${avgGrade.toFixed(1)}%</strong></td><td></td></tr>`);
   }
@@ -1053,7 +1266,10 @@ function buildGradeEntryRow(existingGrade) {
   const selectedGradeStudentId = existingGrade ? existingGrade.studentId : (state.students[0] ? state.students[0].id : "");
   const selectedSubjectId = existingGrade ? existingGrade.subjectId : (state.subjects[0] ? state.subjects[0].id : "");
   const selectedCourseId = existingGrade ? existingGrade.courseId : "";
-  const selectedGradeType = existingGrade ? (existingGrade.gradeType || existingGrade.testName || "Test") : "Quiz";
+  const allGradeTypes = availableGradeTypes();
+  const selectedGradeType = existingGrade
+    ? gradeTypeName(existingGrade)
+    : (allGradeTypes.includes("Quiz") ? "Quiz" : (allGradeTypes[0] || "Test"));
 
   const studentOptions = state.students
     .map((s) => `<option value="${s.id}"${s.id === selectedGradeStudentId ? " selected" : ""}>${s.firstName} ${s.lastName}</option>`)
@@ -1070,6 +1286,9 @@ function buildGradeEntryRow(existingGrade) {
   const courseOptions = getEligibleCoursesForStudentSubject(selectedGradeStudentId, defaultSubjectId, selectedCourseId)
     .map((c) => `<option value="${c.id}"${c.id === selectedCourseId ? " selected" : ""}>${c.name}</option>`)
     .join("") || "<option value=''>No enrolled courses</option>";
+  const gradeTypeOptions = allGradeTypes
+    .map((type) => `<option value="${type}"${selectedGradeType === type ? " selected" : ""}>${type}</option>`)
+    .join("");
 
   if (existingGrade) {
     tr.setAttribute("data-edit-grade-id", existingGrade.id);
@@ -1082,11 +1301,7 @@ function buildGradeEntryRow(existingGrade) {
     <td><select class="grade-row-course">${courseOptions}</select></td>
     <td>
       <select class="grade-row-type">
-        <option value="Assignment"${selectedGradeType === "Assignment" ? " selected" : ""}>Assignment</option>
-        <option value="Quiz"${selectedGradeType === "Quiz" ? " selected" : ""}>Quiz</option>
-        <option value="Test"${selectedGradeType === "Test" ? " selected" : ""}>Test</option>
-        <option value="Quarterly Final"${selectedGradeType === "Quarterly Final" ? " selected" : ""}>Quarterly Final</option>
-        <option value="Final"${selectedGradeType === "Final" ? " selected" : ""}>Final</option>
+        ${gradeTypeOptions}
       </select>
     </td>
     <td><input class="grade-row-value" type="number" min="0" max="100" step="0.1" placeholder="0-100" value="${gradeValue}"></td>
@@ -1127,30 +1342,42 @@ function gradeAnalytics() {
   const byStudent = new Map(); const bySubject = new Map();
   tests.forEach((t) => {
     if (!byStudent.has(t.studentId)) byStudent.set(t.studentId, []);
-    byStudent.get(t.studentId).push(t.grade);
+    byStudent.get(t.studentId).push(t);
     if (!bySubject.has(t.subjectId)) bySubject.set(t.subjectId, []);
-    bySubject.get(t.subjectId).push(t.grade);
+    bySubject.get(t.subjectId).push(t);
   });
-  const student = Array.from(byStudent.entries()).map(([studentId,vals]) => ({ studentId, avg: avg(vals), count: vals.length }));
-  const subject = Array.from(bySubject.entries()).map(([subjectId,vals]) => ({ subjectId, avg: avg(vals), count: vals.length }));
-  const running = avg(tests.map((t) => t.grade));
+  const student = Array.from(byStudent.entries()).map(([studentId, testsForStudent]) => {
+    const quarterRowsForStudent = state.settings.quarters.map((q) => {
+      const quarterTests = testsForStudent.filter((t) => inRange(t.date, q.startDate, q.endDate));
+      return { avg: weightedAverageForTests(quarterTests, { quarterScoped: true }), count: quarterTests.length };
+    });
+    return { studentId, avg: averageOfQuarterAverages(quarterRowsForStudent), count: testsForStudent.length };
+  });
+  const subject = Array.from(bySubject.entries()).map(([subjectId, testsForSubject]) => {
+    const quarterRowsForSubject = state.settings.quarters.map((q) => {
+      const quarterTests = testsForSubject.filter((t) => inRange(t.date, q.startDate, q.endDate));
+      return { avg: weightedAverageForTests(quarterTests, { quarterScoped: true }), count: quarterTests.length };
+    });
+    return { subjectId, avg: averageOfQuarterAverages(quarterRowsForSubject), count: testsForSubject.length };
+  });
 
   const quarterRows = state.settings.quarters.map((q) => {
-    const vals = tests.filter((t) => inRange(t.date, q.startDate, q.endDate)).map((t) => t.grade);
-    return { label: q.name, avg: avg(vals), count: vals.length };
+    const quarterTests = tests.filter((t) => inRange(t.date, q.startDate, q.endDate));
+    return { label: q.name, avg: weightedAverageForTests(quarterTests, { quarterScoped: true }), count: quarterTests.length };
   });
+  const running = averageOfQuarterAverages(quarterRows);
 
   const sy = state.settings.schoolYear;
-  const annualVals = tests.filter((t) => inRange(t.date, sy.startDate, sy.endDate)).map((t) => t.grade);
+  const annualTests = tests.filter((t) => inRange(t.date, sy.startDate, sy.endDate));
   const cq = currentQuarter(new Date());
-  const cqVals = cq ? tests.filter((t) => inRange(t.date, cq.startDate, cq.endDate)).map((t) => t.grade) : [];
+  const cqTests = cq ? tests.filter((t) => inRange(t.date, cq.startDate, cq.endDate)) : [];
 
   return {
     student, subject, running,
     quarterRows,
-    annualAvg: avg(annualVals),
-    annualCount: annualVals.length,
-    currentQuarterAvg: avg(cqVals)
+    annualAvg: averageOfQuarterAverages(quarterRows),
+    annualCount: annualTests.length,
+    currentQuarterAvg: weightedAverageForTests(cqTests, { quarterScoped: true })
   };
 }
 
@@ -1205,7 +1432,7 @@ function renderGradeTrending() {
     if (!inRange(t.date, sy.startDate, sy.endDate)) return false;
     if (quarterRange && quarterFilter !== "all" && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
-    const gradeType = t.gradeType || t.testName || "Test";
+    const gradeType = gradeTypeName(t);
     if (gradeTypeFilter !== "all" && gradeType !== gradeTypeFilter) return false;
     return true;
   });
@@ -1221,13 +1448,11 @@ function renderGradeTrending() {
       const monthEnd = new Date(monthEntry.year, monthEntry.month + 1, 0, 12, 0, 0);
       const monthStartIso = toISO(monthStart);
       const monthEndIso = toISO(monthEnd);
-      const vals = entry.tests
-        .filter((t) => inRange(t.date, monthStartIso, monthEndIso))
-        .map((t) => pct(t.score, t.maxScore));
+      const monthTests = entry.tests.filter((t) => inRange(t.date, monthStartIso, monthEndIso));
       return {
         label: monthStart.toLocaleDateString(undefined, { month: "short" }),
-        avg: vals.length ? avg(vals) : 0,
-        count: vals.length
+        avg: weightedAverageForTests(monthTests),
+        count: monthTests.length
       };
     });
     return { ...entry, color: palette[idx % palette.length], monthly };
@@ -1391,19 +1616,19 @@ function renderGradeTypeVolumeChart() {
   const selectedStudentIds = getVolumeSelectedStudentIds();
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
 
-  const knownTypes = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+  const knownTypes = availableGradeTypes().length ? [...availableGradeTypes()] : [...DEFAULT_GRADE_TYPES];
   const inYearTests = state.tests.filter((t) => inRange(t.date, sy.startDate, sy.endDate));
   const filteredTests = inYearTests.filter((t) => {
     if (quarterRange && quarterFilter !== "all" && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
-    const thisType = t.gradeType || t.testName || "Test";
+    const thisType = gradeTypeName(t);
     if (gradeTypeFilter !== "all" && thisType !== gradeTypeFilter) return false;
     if (selectedStudentIds.length && !selectedStudentIds.includes(t.studentId)) return false;
     return true;
   });
 
   filteredTests.forEach((test) => {
-    const gradeType = test.gradeType || test.testName || "Test";
+    const gradeType = gradeTypeName(test);
     if (!knownTypes.includes(gradeType)) knownTypes.push(gradeType);
   });
 
@@ -1415,7 +1640,7 @@ function renderGradeTypeVolumeChart() {
     const tests = filteredTests.filter((t) => inRange(t.date, monthStartIso, monthEndIso));
     const counts = new Map(knownTypes.map((type) => [type, 0]));
     tests.forEach((test) => {
-      const gradeType = test.gradeType || test.testName || "Test";
+      const gradeType = gradeTypeName(test);
       counts.set(gradeType, (counts.get(gradeType) || 0) + 1);
     });
     return {
@@ -1645,21 +1870,31 @@ function renderDashboard() {
   });
 
   const quarterByName = new Map(state.settings.quarters.map((entry) => [entry.name, entry]));
-  const formatAvgCell = (vals) => vals.length ? `${avg(vals).toFixed(1)}%` : "No grades";
+  const formatAvgCell = (avgValue, count) => count > 0 ? `${avgValue.toFixed(1)}%` : "No grades";
   const gradeTypeOrder = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
   const studentMetrics = state.students
     .map((student) => {
       const studentTests = state.tests.filter((t) => t.studentId === student.id);
-      const totalVals = studentTests.map((t) => pct(t.score, t.maxScore));
       const q1 = quarterByName.get("Q1");
       const q2 = quarterByName.get("Q2");
       const q3 = quarterByName.get("Q3");
       const q4 = quarterByName.get("Q4");
 
-      const q1Vals = q1 ? studentTests.filter((t) => inRange(t.date, q1.startDate, q1.endDate)).map((t) => pct(t.score, t.maxScore)) : [];
-      const q2Vals = q2 ? studentTests.filter((t) => inRange(t.date, q2.startDate, q2.endDate)).map((t) => pct(t.score, t.maxScore)) : [];
-      const q3Vals = q3 ? studentTests.filter((t) => inRange(t.date, q3.startDate, q3.endDate)).map((t) => pct(t.score, t.maxScore)) : [];
-      const q4Vals = q4 ? studentTests.filter((t) => inRange(t.date, q4.startDate, q4.endDate)).map((t) => pct(t.score, t.maxScore)) : [];
+      const q1Tests = q1 ? studentTests.filter((t) => inRange(t.date, q1.startDate, q1.endDate)) : [];
+      const q2Tests = q2 ? studentTests.filter((t) => inRange(t.date, q2.startDate, q2.endDate)) : [];
+      const q3Tests = q3 ? studentTests.filter((t) => inRange(t.date, q3.startDate, q3.endDate)) : [];
+      const q4Tests = q4 ? studentTests.filter((t) => inRange(t.date, q4.startDate, q4.endDate)) : [];
+      const q1Avg = weightedAverageForTests(q1Tests, { quarterScoped: true });
+      const q2Avg = weightedAverageForTests(q2Tests, { quarterScoped: true });
+      const q3Avg = weightedAverageForTests(q3Tests, { quarterScoped: true });
+      const q4Avg = weightedAverageForTests(q4Tests, { quarterScoped: true });
+      const totalQuarterRows = [
+        { avg: q1Avg, count: q1Tests.length },
+        { avg: q2Avg, count: q2Tests.length },
+        { avg: q3Avg, count: q3Tests.length },
+        { avg: q4Avg, count: q4Tests.length }
+      ];
+      const totalAvg = averageOfQuarterAverages(totalQuarterRows);
       const subjectMap = new Map();
       studentTests.forEach((test) => {
         const subjectId = test.subjectId || "__unknown_subject__";
@@ -1670,21 +1905,30 @@ function renderDashboard() {
         .sort((a, b) => getSubjectName(a[0]).localeCompare(getSubjectName(b[0])))
         .flatMap(([subjectId, testsForSubject]) => {
           const subjectName = getSubjectName(subjectId);
-          const totalValsBySubject = testsForSubject.map((test) => pct(test.score, test.maxScore));
-          const q1ValsBySubject = q1 ? testsForSubject.filter((test) => inRange(test.date, q1.startDate, q1.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
-          const q2ValsBySubject = q2 ? testsForSubject.filter((test) => inRange(test.date, q2.startDate, q2.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
-          const q3ValsBySubject = q3 ? testsForSubject.filter((test) => inRange(test.date, q3.startDate, q3.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
-          const q4ValsBySubject = q4 ? testsForSubject.filter((test) => inRange(test.date, q4.startDate, q4.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
+          const q1TestsBySubject = q1 ? testsForSubject.filter((test) => inRange(test.date, q1.startDate, q1.endDate)) : [];
+          const q2TestsBySubject = q2 ? testsForSubject.filter((test) => inRange(test.date, q2.startDate, q2.endDate)) : [];
+          const q3TestsBySubject = q3 ? testsForSubject.filter((test) => inRange(test.date, q3.startDate, q3.endDate)) : [];
+          const q4TestsBySubject = q4 ? testsForSubject.filter((test) => inRange(test.date, q4.startDate, q4.endDate)) : [];
+          const q1AvgBySubject = weightedAverageForTests(q1TestsBySubject, { quarterScoped: true });
+          const q2AvgBySubject = weightedAverageForTests(q2TestsBySubject, { quarterScoped: true });
+          const q3AvgBySubject = weightedAverageForTests(q3TestsBySubject, { quarterScoped: true });
+          const q4AvgBySubject = weightedAverageForTests(q4TestsBySubject, { quarterScoped: true });
+          const totalAvgBySubject = averageOfQuarterAverages([
+            { avg: q1AvgBySubject, count: q1TestsBySubject.length },
+            { avg: q2AvgBySubject, count: q2TestsBySubject.length },
+            { avg: q3AvgBySubject, count: q3TestsBySubject.length },
+            { avg: q4AvgBySubject, count: q4TestsBySubject.length }
+          ]);
 
           const subjectKey = `${student.id}::${subjectId}`;
           const expandedSubject = expandedSubjectAverageRows.has(subjectKey);
-          const subjectRow = `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell"><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${expandedSubject ? "-" : "+"}</button>${subjectName}</td><td>${formatAvgCell(totalValsBySubject)}</td><td>${formatAvgCell(q1ValsBySubject)}</td><td>${formatAvgCell(q2ValsBySubject)}</td><td>${formatAvgCell(q3ValsBySubject)}</td><td>${formatAvgCell(q4ValsBySubject)}</td></tr>`;
+          const subjectRow = `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell"><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${expandedSubject ? "-" : "+"}</button>${subjectName}</td><td>${formatAvgCell(totalAvgBySubject, testsForSubject.length)}</td><td>${formatAvgCell(q1AvgBySubject, q1TestsBySubject.length)}</td><td>${formatAvgCell(q2AvgBySubject, q2TestsBySubject.length)}</td><td>${formatAvgCell(q3AvgBySubject, q3TestsBySubject.length)}</td><td>${formatAvgCell(q4AvgBySubject, q4TestsBySubject.length)}</td></tr>`;
 
           if (!expandedSubject) return [subjectRow];
 
           const typeMap = new Map();
           testsForSubject.forEach((test) => {
-            const gradeType = test.gradeType || test.testName || "Other";
+            const gradeType = gradeTypeName(test) || "Other";
             if (!typeMap.has(gradeType)) typeMap.set(gradeType, []);
             typeMap.get(gradeType).push(test);
           });
@@ -1697,12 +1941,21 @@ function renderDashboard() {
           });
           const typeRows = sortedTypes.map((gradeType) => {
             const typeTests = typeMap.get(gradeType) || [];
-            const totalValsByType = typeTests.map((test) => pct(test.score, test.maxScore));
-            const q1ValsByType = q1 ? typeTests.filter((test) => inRange(test.date, q1.startDate, q1.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
-            const q2ValsByType = q2 ? typeTests.filter((test) => inRange(test.date, q2.startDate, q2.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
-            const q3ValsByType = q3 ? typeTests.filter((test) => inRange(test.date, q3.startDate, q3.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
-            const q4ValsByType = q4 ? typeTests.filter((test) => inRange(test.date, q4.startDate, q4.endDate)).map((test) => pct(test.score, test.maxScore)) : [];
-            return `<tr class="student-avg-type-row"><td class="student-avg-type-cell">${gradeType}</td><td>${formatAvgCell(totalValsByType)}</td><td>${formatAvgCell(q1ValsByType)}</td><td>${formatAvgCell(q2ValsByType)}</td><td>${formatAvgCell(q3ValsByType)}</td><td>${formatAvgCell(q4ValsByType)}</td></tr>`;
+            const q1TypeTests = q1 ? typeTests.filter((test) => inRange(test.date, q1.startDate, q1.endDate)) : [];
+            const q2TypeTests = q2 ? typeTests.filter((test) => inRange(test.date, q2.startDate, q2.endDate)) : [];
+            const q3TypeTests = q3 ? typeTests.filter((test) => inRange(test.date, q3.startDate, q3.endDate)) : [];
+            const q4TypeTests = q4 ? typeTests.filter((test) => inRange(test.date, q4.startDate, q4.endDate)) : [];
+            const q1TypeAvg = weightedAverageForTests(q1TypeTests, { quarterScoped: true });
+            const q2TypeAvg = weightedAverageForTests(q2TypeTests, { quarterScoped: true });
+            const q3TypeAvg = weightedAverageForTests(q3TypeTests, { quarterScoped: true });
+            const q4TypeAvg = weightedAverageForTests(q4TypeTests, { quarterScoped: true });
+            const totalTypeAvg = averageOfQuarterAverages([
+              { avg: q1TypeAvg, count: q1TypeTests.length },
+              { avg: q2TypeAvg, count: q2TypeTests.length },
+              { avg: q3TypeAvg, count: q3TypeTests.length },
+              { avg: q4TypeAvg, count: q4TypeTests.length }
+            ]);
+            return `<tr class="student-avg-type-row"><td class="student-avg-type-cell">${gradeType}</td><td>${formatAvgCell(totalTypeAvg, typeTests.length)}</td><td>${formatAvgCell(q1TypeAvg, q1TypeTests.length)}</td><td>${formatAvgCell(q2TypeAvg, q2TypeTests.length)}</td><td>${formatAvgCell(q3TypeAvg, q3TypeTests.length)}</td><td>${formatAvgCell(q4TypeAvg, q4TypeTests.length)}</td></tr>`;
           });
           return [subjectRow, ...typeRows];
         })
@@ -1715,13 +1968,17 @@ function renderDashboard() {
       return {
         studentId: student.id,
         studentName: `${student.firstName} ${student.lastName}`,
-        totalVals,
-        q1Vals,
-        q2Vals,
-        q3Vals,
-        q4Vals,
-        totalValue: totalVals.length ? avg(totalVals) : -1,
-        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "-" : "+"}</button> ${student.firstName} ${student.lastName}</td><td>${formatAvgCell(totalVals)}</td><td>${formatAvgCell(q1Vals)}</td><td>${formatAvgCell(q2Vals)}</td><td>${formatAvgCell(q3Vals)}</td><td>${formatAvgCell(q4Vals)}</td></tr>`,
+        totalCount: studentTests.length,
+        q1Count: q1Tests.length,
+        q2Count: q2Tests.length,
+        q3Count: q3Tests.length,
+        q4Count: q4Tests.length,
+        totalValue: studentTests.length ? totalAvg : -1,
+        q1Value: q1Avg,
+        q2Value: q2Avg,
+        q3Value: q3Avg,
+        q4Value: q4Avg,
+        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "-" : "+"}</button> ${student.firstName} ${student.lastName}</td><td>${formatAvgCell(totalAvg, studentTests.length)}</td><td>${formatAvgCell(q1Avg, q1Tests.length)}</td><td>${formatAvgCell(q2Avg, q2Tests.length)}</td><td>${formatAvgCell(q3Avg, q3Tests.length)}</td><td>${formatAvgCell(q4Avg, q4Tests.length)}</td></tr>`,
         detailRow: expanded ? detailRows : ""
       };
     })
@@ -1730,13 +1987,13 @@ function renderDashboard() {
   const studentRows = studentMetrics.flatMap((entry) => entry.detailRow ? [entry.row, entry.detailRow] : [entry.row]);
   if (studentMetrics.length) {
     const totals = {
-      total: studentMetrics.filter((entry) => entry.totalVals.length).map((entry) => avg(entry.totalVals)),
-      q1: studentMetrics.filter((entry) => entry.q1Vals.length).map((entry) => avg(entry.q1Vals)),
-      q2: studentMetrics.filter((entry) => entry.q2Vals.length).map((entry) => avg(entry.q2Vals)),
-      q3: studentMetrics.filter((entry) => entry.q3Vals.length).map((entry) => avg(entry.q3Vals)),
-      q4: studentMetrics.filter((entry) => entry.q4Vals.length).map((entry) => avg(entry.q4Vals))
+      total: studentMetrics.filter((entry) => entry.totalCount > 0).map((entry) => entry.totalValue),
+      q1: studentMetrics.filter((entry) => entry.q1Count > 0).map((entry) => entry.q1Value),
+      q2: studentMetrics.filter((entry) => entry.q2Count > 0).map((entry) => entry.q2Value),
+      q3: studentMetrics.filter((entry) => entry.q3Count > 0).map((entry) => entry.q3Value),
+      q4: studentMetrics.filter((entry) => entry.q4Count > 0).map((entry) => entry.q4Value)
     };
-    studentRows.push(`<tr><td><strong>Average</strong></td><td><strong>${formatAvgCell(totals.total)}</strong></td><td><strong>${formatAvgCell(totals.q1)}</strong></td><td><strong>${formatAvgCell(totals.q2)}</strong></td><td><strong>${formatAvgCell(totals.q3)}</strong></td><td><strong>${formatAvgCell(totals.q4)}</strong></td></tr>`);
+    studentRows.push(`<tr><td><strong>Average</strong></td><td><strong>${formatAvgCell(avg(totals.total), totals.total.length)}</strong></td><td><strong>${formatAvgCell(avg(totals.q1), totals.q1.length)}</strong></td><td><strong>${formatAvgCell(avg(totals.q2), totals.q2.length)}</strong></td><td><strong>${formatAvgCell(avg(totals.q3), totals.q3.length)}</strong></td><td><strong>${formatAvgCell(avg(totals.q4), totals.q4.length)}</strong></td></tr>`);
   }
   rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
 
@@ -2346,6 +2603,77 @@ function bindEvents() {
     saveState();
     renderAll();
   });
+  document.getElementById("grade-type-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const nameInput = document.getElementById("grade-type-name");
+    const weightInput = document.getElementById("grade-type-weight");
+    const name = nameInput.value.trim();
+    const weightRaw = weightInput.value.trim();
+    if (!name) { alert("Grade Type is required."); return; }
+    if (draftGradeTypes().some((gt) => gt.id !== editingGradeTypeId && gt.name.toLowerCase() === name.toLowerCase())) {
+      alert("That grade type already exists.");
+      return;
+    }
+    let weight = null;
+    if (weightRaw !== "") {
+      const parsed = Number(weightRaw);
+      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+        alert("Grade Weight must be a percentage between 0 and 100.");
+        return;
+      }
+      const totalConfiguredExcludingEditing = draftGradeTypes()
+        .filter((gt) => gt.id !== editingGradeTypeId)
+        .reduce((sum, gt) => sum + (gt.weight == null ? 0 : Number(gt.weight) || 0), 0);
+      if ((totalConfiguredExcludingEditing + parsed) > 100.00001) {
+        alert("Grade weights cannot exceed 100% total.");
+        return;
+      }
+      weight = parsed;
+    }
+    if (editingGradeTypeId) {
+      const existing = draftGradeTypes().find((gt) => gt.id === editingGradeTypeId);
+      if (existing) {
+        existing.name = name;
+        existing.weight = weight;
+      }
+      editingGradeTypeId = "";
+    } else {
+      gradeTypesDraft.push({ id: uid(), name, weight });
+    }
+    gradeTypeDraftDirty = true;
+    e.target.reset();
+    renderGradeTypes();
+  });
+  const gradeTypeCancelEditBtn = document.getElementById("grade-type-cancel-edit-btn");
+  if (gradeTypeCancelEditBtn) {
+    gradeTypeCancelEditBtn.addEventListener("click", () => cancelGradeTypeEdit());
+  }
+  const gradeTypeApplyBtn = document.getElementById("grade-type-apply-btn");
+  if (gradeTypeApplyBtn) {
+    gradeTypeApplyBtn.addEventListener("click", () => {
+      const totalWeight = draftGradeTypes().reduce((sum, gt) => sum + (gt.weight == null ? 0 : Number(gt.weight) || 0), 0);
+      if (Math.abs(totalWeight - 100) > 0.05) {
+        alert("Grade Type weights must total exactly 100% before applying.");
+        return;
+      }
+      state.settings.gradeTypes = cloneGradeTypes(draftGradeTypes());
+      gradeTypeDraftDirty = false;
+      editingGradeTypeId = "";
+      saveState();
+      renderAll();
+    });
+  }
+  const gradeTypeCancelChangesBtn = document.getElementById("grade-type-cancel-changes-btn");
+  if (gradeTypeCancelChangesBtn) {
+    gradeTypeCancelChangesBtn.addEventListener("click", () => {
+      gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+      gradeTypeDraftDirty = false;
+      editingGradeTypeId = "";
+      const form = document.getElementById("grade-type-form");
+      if (form) form.reset();
+      renderGradeTypes();
+    });
+  }
   const courseCancelEditBtn = document.getElementById("course-cancel-edit-btn");
   if (courseCancelEditBtn) {
     courseCancelEditBtn.addEventListener("click", () => cancelCourseEdit());
@@ -2642,7 +2970,7 @@ function bindEvents() {
     resetAttendanceEditMode();
     renderAll();
   });
-  ["attendance-filter-student", "attendance-filter-quarter"].forEach((id) => {
+  ["attendance-filter-student", "attendance-filter-quarter", "attendance-filter-status"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderAttendance());
   });
@@ -2651,8 +2979,10 @@ function bindEvents() {
     attendanceClearFiltersBtn.addEventListener("click", () => {
       const studentFilter = document.getElementById("attendance-filter-student");
       const quarterFilter = document.getElementById("attendance-filter-quarter");
+      const statusFilter = document.getElementById("attendance-filter-status");
       if (studentFilter) studentFilter.value = "all";
       if (quarterFilter) quarterFilter.value = "all";
+      if (statusFilter) statusFilter.value = "all";
       renderAttendance();
     });
   }
@@ -2828,6 +3158,26 @@ function bindEvents() {
       beginCourseEdit(editCourseId);
       return;
     }
+    if (t.getAttribute("id") === "configured-subjects-toggle-btn") {
+      showConfiguredSubjects = !showConfiguredSubjects;
+      renderConfiguredSubjectsVisibility();
+      return;
+    }
+    if (t.getAttribute("id") === "configured-courses-toggle-btn") {
+      showConfiguredCourses = !showConfiguredCourses;
+      renderConfiguredCoursesVisibility();
+      return;
+    }
+    if (t.getAttribute("id") === "configured-grade-types-toggle-btn") {
+      showConfiguredGradeTypes = !showConfiguredGradeTypes;
+      renderConfiguredGradeTypesVisibility();
+      return;
+    }
+    const editGradeTypeId = t.getAttribute("data-edit-grade-type");
+    if (editGradeTypeId) {
+      beginGradeTypeEdit(editGradeTypeId);
+      return;
+    }
     const editHolidayId = t.getAttribute("data-edit-holiday");
     if (editHolidayId) {
       beginHolidayEdit(editHolidayId);
@@ -2951,6 +3301,14 @@ function bindEvents() {
     const studentId = t.getAttribute("data-remove-student"); if (studentId) { removeStudent(studentId); saveState(); renderAll(); return; }
     const subjectId = t.getAttribute("data-remove-subject"); if (subjectId) { removeSubject(subjectId); saveState(); renderAll(); return; }
     const courseId = t.getAttribute("data-remove-course"); if (courseId) { removeCourse(courseId); saveState(); renderAll(); return; }
+    const gradeTypeId = t.getAttribute("data-remove-grade-type");
+    if (gradeTypeId) {
+      gradeTypesDraft = draftGradeTypes().filter((gt) => gt.id !== gradeTypeId);
+      if (editingGradeTypeId === gradeTypeId) editingGradeTypeId = "";
+      gradeTypeDraftDirty = true;
+      renderGradeTypes();
+      return;
+    }
     const enrollmentId = t.getAttribute("data-remove-student-enrollment"); if (enrollmentId) { state.enrollments = state.enrollments.filter((x)=>x.id!==enrollmentId); saveState(); renderAll(); return; }
     const holidayId = t.getAttribute("data-remove-holiday"); if (holidayId) { state.settings.holidays = state.settings.holidays.filter((x)=>x.id!==holidayId); if (editingHolidayId === holidayId) editingHolidayId = ""; saveState(); renderAll(); return; }
     const planId = t.getAttribute("data-remove-plan"); if (planId) { state.plans = state.plans.filter((x)=>x.id!==planId); if (editingPlanId === planId) editingPlanId = ""; saveState(); renderAll(); }
@@ -2964,7 +3322,11 @@ function renderAll() {
   renderStudents();
   renderStudentDetail();
   renderSubjects();
+  renderConfiguredSubjectsVisibility();
   renderCourses();
+  renderConfiguredCoursesVisibility();
+  renderGradeTypes();
+  renderConfiguredGradeTypesVisibility();
   renderHolidays();
   renderPlanningSettings();
   renderPlans();

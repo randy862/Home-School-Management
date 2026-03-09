@@ -777,6 +777,84 @@ td {
   border-color: #d8cdbd;
 }
 
+.management-section {
+  border: 1px solid #d8cfbf;
+  border-radius: 10px;
+  padding: 0.65rem 0.7rem;
+}
+
+.management-section + .management-section {
+  margin-top: 0.6rem;
+}
+
+.management-section h3 {
+  margin: 0 0 0.35rem;
+}
+
+.management-section-subjects {
+  background: #f6f1e7;
+  border-color: #d2c3a8;
+}
+
+.management-section-courses {
+  background: #edf4f7;
+  border-color: #c2d3dd;
+}
+
+.management-section-grade-types {
+  background: #eff6ed;
+  border-color: #c7d8bf;
+}
+
+.subsection-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin: 0.15rem 0 0.35rem;
+}
+
+.subsection-toggle-row h4 {
+  margin: 0;
+}
+
+.subsection-toggle-btn {
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border-radius: 999px;
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  font-size: 0;
+  font-weight: 700;
+}
+
+.subsection-toggle-btn::before,
+.subsection-toggle-btn::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #ffffff;
+  border-radius: 999px;
+}
+
+.subsection-toggle-btn::before {
+  width: 0.62rem;
+  height: 2px;
+}
+
+.subsection-toggle-btn::after {
+  width: 2px;
+  height: 0.62rem;
+}
+
+.subsection-toggle-btn[aria-expanded="true"]::after {
+  display: none;
+}
+
 .dashboard-section {
   border: 1px solid #d8cfbf;
   border-radius: 10px;
@@ -857,6 +935,34 @@ td {
 
 #student-enrollment-form select {
   width: 100%;
+}
+
+#grade-type-form {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto auto;
+  align-items: end;
+  column-gap: 0.6rem;
+}
+
+#grade-type-submit-btn {
+  grid-column: 3;
+  width: auto;
+  justify-self: start;
+  align-self: end;
+}
+
+#grade-type-cancel-edit-btn {
+  grid-column: 4;
+  width: auto;
+  justify-self: start;
+  align-self: end;
+}
+
+.grade-types-apply-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.4rem;
 }
 
 #attendance-filter-form > button {

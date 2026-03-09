@@ -227,22 +227,65 @@
 
     <section id="tab-management" class="tab-panel panel">
       <h2>Cirriculum</h2>
-      <h3>Subjects</h3>
-      <form id="subject-form" class="inline-form">
-        <input id="subject-name" type="text" placeholder="Math" required>
-        <button type="submit">Add Subject</button>
-      </form>
-      <ul id="subject-list" class="item-list"></ul>
+      <div class="management-section management-section-subjects">
+        <h3>Subjects</h3>
+        <form id="subject-form" class="inline-form">
+          <input id="subject-name" type="text" placeholder="Math" required>
+          <button type="submit">Add Subject</button>
+        </form>
+        <div class="subsection-toggle-row">
+          <button id="configured-subjects-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h4>Configured Subjects</h4>
+        </div>
+        <div id="configured-subjects-wrap" class="hidden">
+          <ul id="subject-list" class="item-list"></ul>
+        </div>
+      </div>
 
-      <h3>Courses</h3>
-      <form id="course-form" class="grid-form">
-        <label>Course Name<input id="course-name" type="text" required></label>
-        <label>Subject<select id="course-subject" required></select></label>
-        <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
-        <button id="course-submit-btn" type="submit">Add Course</button>
-        <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
-      </form>
-      <ul id="course-list" class="item-list"></ul>
+      <div class="management-section management-section-courses">
+        <h3>Courses</h3>
+        <form id="course-form" class="grid-form">
+          <label>Course Name<input id="course-name" type="text" required></label>
+          <label>Subject<select id="course-subject" required></select></label>
+          <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
+          <button id="course-submit-btn" type="submit">Add Course</button>
+          <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+        </form>
+        <div class="subsection-toggle-row">
+          <button id="configured-courses-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h4>Configured Courses</h4>
+        </div>
+        <div id="configured-courses-wrap" class="hidden">
+          <ul id="course-list" class="item-list"></ul>
+        </div>
+      </div>
+
+      <div class="management-section management-section-grade-types">
+      <h3>Grade Types</h3>
+      <div class="grade-types-apply-row">
+        <button id="grade-type-apply-btn" type="button">Apply Changes</button>
+        <button id="grade-type-cancel-changes-btn" type="button" class="hidden">Cancel Changes</button>
+      </div>
+        <form id="grade-type-form" class="grid-form">
+          <label>Grade Type<input id="grade-type-name" type="text" placeholder="Quiz" required></label>
+          <label>Grade Weight (%)<input id="grade-type-weight" type="number" min="0" max="100" step="0.1" placeholder="Optional"></label>
+          <button id="grade-type-submit-btn" type="submit">Add Grade Type</button>
+          <button id="grade-type-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+        </form>
+        <div class="subsection-toggle-row">
+          <button id="configured-grade-types-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h4>Configured Grade Types</h4>
+        </div>
+        <div id="configured-grade-types-wrap" class="hidden">
+          <p id="grade-type-total" class="muted"></p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Grade Type</th><th>Weight</th><th>Actions</th></tr></thead>
+              <tbody id="grade-type-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section id="tab-planning" class="tab-panel panel">
@@ -446,6 +489,13 @@
           <label>Quarter
             <select id="attendance-filter-quarter">
               <option value="all">All Quarters</option>
+            </select>
+          </label>
+          <label>Status
+            <select id="attendance-filter-status">
+              <option value="all">All Statuses</option>
+              <option value="present">Present</option>
+              <option value="absent">Absent</option>
             </select>
           </label>
           <button id="attendance-clear-filters-btn" type="button">Clear Filters</button>
