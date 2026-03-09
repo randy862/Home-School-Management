@@ -25,121 +25,134 @@
 
     <section id="tab-dashboard" class="tab-panel active panel">
       <h2>Dashboard</h2>
-      <div class="kpi-grid">
-        <article class="kpi"><p class="kpi-label">Instruction Days</p><p class="kpi-value"><span id="kpi-days-complete">0</span> / <span id="kpi-days-total">0</span></p></article>
-        <article class="kpi"><p class="kpi-label">Super Star Student</p><p class="kpi-value"><span id="kpi-superstar">No grades yet</span></p></article>
-        <article class="kpi"><p class="kpi-label">Running Grade Average</p><p class="kpi-value"><span id="kpi-running-avg">0%</span></p></article>
-        <article class="kpi"><p class="kpi-label">Current Quarter Avg</p><p class="kpi-value"><span id="kpi-quarter-avg">0%</span></p></article>
-      </div>
 
-      <div class="progress-wrap">
-        <div>
-          <p class="progress-title">School Year Progress</p>
-          <div class="progress-bar"><div id="year-progress-fill" class="progress-fill"></div></div>
-          <p id="year-progress-text" class="muted">0%</p>
+      <div class="dashboard-section dashboard-section-overview">
+        <div class="kpi-grid">
+          <article class="kpi"><p class="kpi-label">Instruction Days</p><p class="kpi-value"><span id="kpi-days-complete">0</span> / <span id="kpi-days-total">0</span></p></article>
+          <article class="kpi"><p class="kpi-label">Super Star Student</p><p class="kpi-value"><span id="kpi-superstar">No grades yet</span></p></article>
+          <article class="kpi"><p class="kpi-label">Running Grade Average</p><p class="kpi-value"><span id="kpi-running-avg">0%</span></p></article>
+          <article class="kpi"><p class="kpi-label">Current Quarter Avg</p><p class="kpi-value"><span id="kpi-quarter-avg">0%</span></p></article>
         </div>
-        <div>
-          <p class="progress-title">Current Quarter Progress</p>
-          <div class="progress-bar"><div id="quarter-progress-fill" class="progress-fill"></div></div>
-          <p id="quarter-progress-text" class="muted">0%</p>
+
+        <div class="progress-wrap">
+          <div>
+            <p class="progress-title">School Year Progress</p>
+            <div class="progress-bar"><div id="year-progress-fill" class="progress-fill"></div></div>
+            <p id="year-progress-text" class="muted">0%</p>
+          </div>
+          <div>
+            <p class="progress-title">Current Quarter Progress</p>
+            <div class="progress-bar"><div id="quarter-progress-fill" class="progress-fill"></div></div>
+            <p id="quarter-progress-text" class="muted">0%</p>
+          </div>
         </div>
       </div>
 
-      <h3>Student Performance</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Student</th><th>Total Average</th><th>Q1 Average</th><th>Q2 Average</th><th>Q3 Average</th><th>Q4 Average</th></tr></thead>
-          <tbody id="student-avg-table"></tbody>
-        </table>
+      <div class="dashboard-section dashboard-section-student-performance">
+        <h3>Student Performance</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Total Average</th><th>Q1 Average</th><th>Q2 Average</th><th>Q3 Average</th><th>Q4 Average</th></tr></thead>
+            <tbody id="student-avg-table"></tbody>
+          </table>
+        </div>
       </div>
 
-      <h3>Student Attendance</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Student</th><th>Total Days</th><th>Days Present</th><th>Days Absence</th><th>Attendance Average</th></tr></thead>
-          <tbody id="dashboard-student-attendance-table"></tbody>
-        </table>
+      <div class="dashboard-section dashboard-section-student-attendance">
+        <h3>Student Attendance</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Total Days</th><th>Days Present</th><th>Days Absence</th><th>Attendance Average</th></tr></thead>
+            <tbody id="dashboard-student-attendance-table"></tbody>
+          </table>
+        </div>
       </div>
 
-      <h3>Grade Trending</h3>
-      <form id="trend-filter-form" class="grid-form">
-        <label class="trend-student-field">Student
-          <details id="trend-student-dropdown" class="multi-select-dropdown">
-            <summary id="trend-student-summary">Students (0 selected)</summary>
-            <div id="trend-student-options" class="checklist-vertical"></div>
-          </details>
-        </label>
-        <label>Quarter
-          <select id="trend-filter-quarter">
-            <option value="all">All Quarters</option>
-          </select>
-        </label>
-        <label>Subject
-          <select id="trend-filter-subject">
-            <option value="all">All Subjects</option>
-          </select>
-        </label>
-        <label>Grade Type
-          <select id="trend-filter-grade-type">
-            <option value="all">All Grade Types</option>
-            <option value="Assignment">Assignment</option>
-            <option value="Quiz">Quiz</option>
-            <option value="Test">Test</option>
-            <option value="Quarterly Final">Quarterly Final</option>
-            <option value="Final">Final</option>
-          </select>
-        </label>
-      </form>
-      <div id="grade-trending-chart" class="chart-wrap"></div>
-
-      <h3>Grade Type Volume</h3>
-      <form id="volume-filter-form" class="grid-form">
-        <label class="volume-student-field">Student
-          <details id="volume-student-dropdown" class="multi-select-dropdown">
-            <summary id="volume-student-summary">Students (0 selected)</summary>
-            <div id="volume-student-options" class="checklist-vertical"></div>
-          </details>
-        </label>
-        <label>Quarter
-          <select id="volume-filter-quarter">
-            <option value="all">All Quarters</option>
-          </select>
-        </label>
-        <label>Subject
-          <select id="volume-filter-subject">
-            <option value="all">All Subjects</option>
-          </select>
-        </label>
-        <label>Grade Type
-          <select id="volume-filter-grade-type">
-            <option value="all">All Grade Types</option>
-            <option value="Assignment">Assignment</option>
-            <option value="Quiz">Quiz</option>
-            <option value="Test">Test</option>
-            <option value="Quarterly Final">Quarterly Final</option>
-            <option value="Final">Final</option>
-          </select>
-        </label>
-      </form>
-      <div id="grade-type-volume-chart" class="chart-wrap"></div>
-
-      <h3>Work Distribution</h3>
-      <div class="chart-wrap">
-        <form id="work-filter-form" class="grid-form">
-          <label class="work-student-field">Student
-            <details id="work-student-dropdown" class="multi-select-dropdown">
-              <summary id="work-student-summary">Students (0 selected)</summary>
-              <div id="work-student-options" class="checklist-vertical"></div>
+      <div class="dashboard-section dashboard-section-trending">
+        <h3>Grade Trending</h3>
+        <form id="trend-filter-form" class="grid-form">
+          <label class="trend-student-field">Student
+            <details id="trend-student-dropdown" class="multi-select-dropdown">
+              <summary id="trend-student-summary">Students (0 selected)</summary>
+              <div id="trend-student-options" class="checklist-vertical"></div>
             </details>
           </label>
           <label>Quarter
-            <select id="work-filter-quarter">
+            <select id="trend-filter-quarter">
               <option value="all">All Quarters</option>
             </select>
           </label>
+          <label>Subject
+            <select id="trend-filter-subject">
+              <option value="all">All Subjects</option>
+            </select>
+          </label>
+          <label>Grade Type
+            <select id="trend-filter-grade-type">
+              <option value="all">All Grade Types</option>
+              <option value="Assignment">Assignment</option>
+              <option value="Quiz">Quiz</option>
+              <option value="Test">Test</option>
+              <option value="Quarterly Final">Quarterly Final</option>
+              <option value="Final">Final</option>
+            </select>
+          </label>
         </form>
-        <div id="work-distribution-grade-type-filter" class="work-dist-filter"></div>
-        <div id="work-distribution-chart"></div>
+        <div id="grade-trending-chart" class="chart-wrap"></div>
+      </div>
+
+      <div class="dashboard-section dashboard-section-volume">
+        <h3>Grade Type Volume</h3>
+        <form id="volume-filter-form" class="grid-form">
+          <label class="volume-student-field">Student
+            <details id="volume-student-dropdown" class="multi-select-dropdown">
+              <summary id="volume-student-summary">Students (0 selected)</summary>
+              <div id="volume-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label>Quarter
+            <select id="volume-filter-quarter">
+              <option value="all">All Quarters</option>
+            </select>
+          </label>
+          <label>Subject
+            <select id="volume-filter-subject">
+              <option value="all">All Subjects</option>
+            </select>
+          </label>
+          <label>Grade Type
+            <select id="volume-filter-grade-type">
+              <option value="all">All Grade Types</option>
+              <option value="Assignment">Assignment</option>
+              <option value="Quiz">Quiz</option>
+              <option value="Test">Test</option>
+              <option value="Quarterly Final">Quarterly Final</option>
+              <option value="Final">Final</option>
+            </select>
+          </label>
+        </form>
+        <div id="grade-type-volume-chart" class="chart-wrap"></div>
+      </div>
+
+      <div class="dashboard-section dashboard-section-work-distribution">
+        <h3>Work Distribution</h3>
+        <div class="chart-wrap">
+          <form id="work-filter-form" class="grid-form">
+            <label class="work-student-field">Student
+              <details id="work-student-dropdown" class="multi-select-dropdown">
+                <summary id="work-student-summary">Students (0 selected)</summary>
+                <div id="work-student-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label>Quarter
+              <select id="work-filter-quarter">
+                <option value="all">All Quarters</option>
+              </select>
+            </label>
+          </form>
+          <div id="work-distribution-grade-type-filter" class="work-dist-filter"></div>
+          <div id="work-distribution-chart"></div>
+        </div>
       </div>
 
     </section>
@@ -432,6 +445,7 @@
               <option value="all">All Quarters</option>
             </select>
           </label>
+          <button id="attendance-clear-filters-btn" type="button">Clear Filters</button>
         </form>
       </div>
       <div class="attendance-section attendance-section-records">
@@ -485,6 +499,7 @@
               <option value="Final">Final</option>
             </select>
           </label>
+          <button id="grades-clear-filters-btn" type="button">Clear Filters</button>
         </form>
       </div>
       <div class="grades-section grades-section-entry">

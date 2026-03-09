@@ -2045,7 +2045,7 @@ function renderDayCalendar(referenceISO, studentFilter) {
       if (idx < shuffledEvents.length - 1 && slot < 24 * 60) {
         const breakStart = slot;
         const breakEnd = Math.min(24 * 60, breakStart + 5);
-        addBlock(studentName, "Break", breakStart, breakEnd);
+        // Keep a 5-minute buffer in the schedule timing, but do not render it in daily view.
         slot = breakEnd;
       }
     });
@@ -2636,6 +2636,16 @@ function bindEvents() {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderAttendance());
   });
+  const attendanceClearFiltersBtn = document.getElementById("attendance-clear-filters-btn");
+  if (attendanceClearFiltersBtn) {
+    attendanceClearFiltersBtn.addEventListener("click", () => {
+      const studentFilter = document.getElementById("attendance-filter-student");
+      const quarterFilter = document.getElementById("attendance-filter-quarter");
+      if (studentFilter) studentFilter.value = "all";
+      if (quarterFilter) quarterFilter.value = "all";
+      renderAttendance();
+    });
+  }
   const studentDetailQuarterFilter = document.getElementById("student-detail-quarter-filter");
   if (studentDetailQuarterFilter) {
     studentDetailQuarterFilter.addEventListener("change", () => renderStudentDetail());
@@ -2658,6 +2668,25 @@ function bindEvents() {
         renderTests();
       });
     });
+  const gradesClearFiltersBtn = document.getElementById("grades-clear-filters-btn");
+  if (gradesClearFiltersBtn) {
+    gradesClearFiltersBtn.addEventListener("click", () => {
+      const filterIds = [
+        "grades-filter-student",
+        "grades-filter-quarter",
+        "grades-filter-school-year",
+        "grades-filter-subject",
+        "grades-filter-course",
+        "grades-filter-grade-type"
+      ];
+      filterIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "all";
+      });
+      syncGradesFilterSubjectCourseOptions();
+      renderTests();
+    });
+  }
   ["trend-filter-quarter", "trend-filter-subject", "trend-filter-grade-type"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGradeTrending());

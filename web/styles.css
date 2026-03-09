@@ -746,6 +746,50 @@ td {
   border-color: #d8cdbd;
 }
 
+.dashboard-section {
+  border: 1px solid #d8cfbf;
+  border-radius: 10px;
+  padding: 0.65rem 0.7rem;
+}
+
+.dashboard-section + .dashboard-section {
+  margin-top: 0.6rem;
+}
+
+.dashboard-section h3 {
+  margin: 0 0 0.35rem;
+}
+
+.dashboard-section-overview {
+  background: #f6f1e7;
+  border-color: #d2c3a8;
+}
+
+.dashboard-section-student-performance {
+  background: #edf4f7;
+  border-color: #c2d3dd;
+}
+
+.dashboard-section-student-attendance {
+  background: #eff6ed;
+  border-color: #c7d8bf;
+}
+
+.dashboard-section-trending {
+  background: #f3efe8;
+  border-color: #d8cdbd;
+}
+
+.dashboard-section-volume {
+  background: #f7f2e9;
+  border-color: #ddcfbb;
+}
+
+.dashboard-section-work-distribution {
+  background: #eef3f0;
+  border-color: #c7d5cc;
+}
+
 #student-detail-panel .table-wrap {
   margin-top: 0;
 }
@@ -782,6 +826,19 @@ td {
 
 #student-enrollment-form select {
   width: 100%;
+}
+
+#attendance-filter-form > button {
+  align-self: end;
+  justify-self: start;
+  width: auto;
+  height: calc(1em + 0.84rem + 2px);
+  padding: 0.42rem 0.8rem;
+}
+
+#grades-filter-form > button {
+  justify-self: start;
+  width: auto;
 }
 
 .calendar-month-view {
