@@ -624,6 +624,51 @@ td {
   font-weight: 700;
 }
 
+#student-detail-panel .detail-title {
+  margin: 0;
+}
+
+#student-detail-panel h4 {
+  margin: 0;
+}
+
+#student-detail-panel h4 + h4 {
+  margin-top: 0.45rem;
+}
+
+#student-detail-panel .table-wrap + h4 {
+  margin-top: 0.45rem;
+}
+
+.student-detail-section {
+  border: 1px solid #d8cfbf;
+  border-radius: 10px;
+  padding: 0.55rem 0.6rem;
+}
+
+.student-detail-section + .student-detail-section {
+  margin-top: 0.5rem;
+}
+
+.student-detail-section-profile {
+  background: #f6f1e7;
+  border-color: #d2c3a8;
+}
+
+.student-detail-section-schedule {
+  background: #eef5ec;
+  border-color: #c6d8bf;
+}
+
+.student-detail-section-attendance {
+  background: #f3efe8;
+  border-color: #d8cdbd;
+}
+
+#student-detail-panel .table-wrap {
+  margin-top: 0;
+}
+
 #student-form,
 #student-enrollment-form {
   align-items: end;

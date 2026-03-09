@@ -170,30 +170,39 @@
           <h3>Student Detail</h3>
           <div id="student-detail-empty" class="muted">Select a student to view enrollments and manage course enrollment.</div>
           <div id="student-detail-panel" class="detail-panel hidden">
-            <p id="student-detail-title" class="detail-title"></p>
-            <form id="student-detail-filter-form" class="inline-form">
-              <label>Quarter
-                <select id="student-detail-quarter-filter">
-                  <option value="all">All Quarters</option>
-                </select>
-              </label>
-            </form>
-            <form id="student-enrollment-form" class="grid-form">
-              <label>Course<select id="student-enroll-course" required></select></label>
-              <button type="submit">Enroll Student</button>
-            </form>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Course</th><th>Subject</th><th>Current Avg Grade</th><th>Actions</th></tr></thead>
-                <tbody id="student-enrollment-table"></tbody>
-              </table>
+            <div class="student-detail-section student-detail-section-profile">
+              <p id="student-detail-title" class="detail-title"></p>
+              <h4>Course Enrollment</h4>
+              <h4>Add a Course</h4>
+              <form id="student-detail-filter-form" class="inline-form">
+                <label>Quarter
+                  <select id="student-detail-quarter-filter">
+                    <option value="all">All Quarters</option>
+                  </select>
+                </label>
+              </form>
+              <form id="student-enrollment-form" class="grid-form">
+                <label>Course<select id="student-enroll-course" required></select></label>
+                <button type="submit">Enroll Student</button>
+              </form>
             </div>
-            <h4>Attendance Summary</h4>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Student</th><th>Days Attended</th><th>Days Absent</th></tr></thead>
-                <tbody id="student-attendance-summary-table"></tbody>
-              </table>
+            <div class="student-detail-section student-detail-section-schedule">
+              <h4>Current Course Schedule</h4>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Course</th><th>Subject</th><th>Current Avg Grade</th><th>Actions</th></tr></thead>
+                  <tbody id="student-enrollment-table"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="student-detail-section student-detail-section-attendance">
+              <h4>Attendance Summary</h4>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Student</th><th>Days Attended</th><th>Days Absent</th></tr></thead>
+                  <tbody id="student-attendance-summary-table"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
