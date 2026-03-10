@@ -1023,10 +1023,11 @@ function renderStudents() {
 }
 
 function renderSubjects() {
-  const list = document.getElementById("subject-list");
-  list.innerHTML = "";
-  if (!state.subjects.length) { list.innerHTML = "<li><span>No subjects added yet.</span></li>"; return; }
-  list.innerHTML = state.subjects.map((s) => `<li><span>${s.name}</span><button data-remove-subject='${s.id}' type='button'>Remove</button></li>`).join("");
+  const tableBody = document.getElementById("subject-table");
+  if (!tableBody) return;
+  const rows = state.subjects
+    .map((s) => `<tr><td>${s.name}</td><td><button data-remove-subject='${s.id}' type='button'>Remove</button></td></tr>`);
+  rowOrEmpty(tableBody, rows, "No subjects added yet.", 2);
 }
 
 function renderManagementSectionVisibility() {
@@ -1065,14 +1066,15 @@ function renderScheduleSectionVisibility() {
 }
 
 function renderCourses() {
-  const list = document.getElementById("course-list");
+  const tableBody = document.getElementById("course-table");
   const submitBtn = document.getElementById("course-submit-btn");
   const cancelBtn = document.getElementById("course-cancel-edit-btn");
   if (submitBtn) submitBtn.textContent = editingCourseId ? "Update Course" : "Add Course";
   if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingCourseId);
-  list.innerHTML = "";
-  if (!state.courses.length) { list.innerHTML = "<li><span>No courses added yet.</span></li>"; return; }
-  list.innerHTML = state.courses.map((c) => `<li><span>${c.name} | ${getSubjectName(c.subjectId)} | ${Number(c.hoursPerDay).toFixed(2)} hrs/day</span><span><button data-edit-course='${c.id}' type='button'>Edit</button> <button data-remove-course='${c.id}' type='button'>Remove</button></span></li>`).join("");
+  if (!tableBody) return;
+  const rows = state.courses
+    .map((c) => `<tr><td>${c.name}</td><td>${getSubjectName(c.subjectId)}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td><button data-edit-course='${c.id}' type='button'>Edit</button> <button data-remove-course='${c.id}' type='button'>Remove</button></td></tr>`);
+  rowOrEmpty(tableBody, rows, "No courses added yet.", 4);
 }
 
 function renderGradeTypes() {
@@ -1174,11 +1176,12 @@ function renderStudentDetail() {
 }
 
 function renderHolidays() {
-  const list = document.getElementById("holiday-list");
+  const tableBody = document.getElementById("holiday-table");
+  if (!tableBody) return;
   const rows = [...state.settings.holidays].sort((a,b)=>a.startDate.localeCompare(b.startDate));
-  list.innerHTML = rows.length
-    ? rows.map((h) => `<li><span>${h.name} (${h.type}) ${h.startDate} to ${h.endDate}</span><span><button data-edit-holiday='${h.id}' type='button'>Edit</button> <button data-remove-holiday='${h.id}' type='button'>Remove</button></span></li>`).join("")
-    : "<li><span>No holidays/breaks defined.</span></li>";
+  const htmlRows = rows
+    .map((h) => `<tr><td>${h.name}</td><td>${h.type}</td><td>${h.startDate}</td><td>${h.endDate}</td><td><button data-edit-holiday='${h.id}' type='button'>Edit</button> <button data-remove-holiday='${h.id}' type='button'>Remove</button></td></tr>`);
+  rowOrEmpty(tableBody, htmlRows, "No holidays/breaks defined.", 5);
   const submitBtn = document.getElementById("holiday-submit-btn");
   const cancelBtn = document.getElementById("holiday-cancel-edit-btn");
   if (submitBtn) submitBtn.textContent = editingHolidayId ? "Update" : "Add";
@@ -1219,7 +1222,8 @@ function renderPlanningSettings() {
 }
 
 function renderPlans() {
-  const list = document.getElementById("plan-list");
+  const tableBody = document.getElementById("plan-table");
+  if (!tableBody) return;
   const typeFilter = document.getElementById("plan-filter-type")?.value || "all";
   const studentFilter = document.getElementById("plan-filter-student")?.value || "all";
 
@@ -1230,12 +1234,12 @@ function renderPlans() {
       return true;
     })
     .sort((a,b)=>a.startDate.localeCompare(b.startDate));
-  list.innerHTML = rows.length
-    ? rows.map((p) => {
-      const periodLabel = p.planType === "quarterly" && p.quarterName ? ` (${p.quarterName})` : "";
-      return `<li><span>${p.planType.toUpperCase()}${periodLabel} | ${getStudentName(p.studentId)} | ${getCourseName(p.courseId)} | ${p.startDate} to ${p.endDate} | ${p.weekdays.map((w)=>DAY_NAMES[w]).join(", ")}</span><span><button data-edit-plan='${p.id}' type='button'>Edit</button> <button data-remove-plan='${p.id}' type='button'>Remove</button></span></li>`;
-    }).join("")
-    : "<li><span>No instruction plans defined.</span></li>";
+  const htmlRows = rows.map((p) => {
+    const periodLabel = p.planType === "quarterly" && p.quarterName ? ` (${p.quarterName})` : "";
+    const weekdays = (Array.isArray(p.weekdays) ? p.weekdays : []).map((w) => DAY_NAMES[w]).join(", ");
+    return `<tr><td>${p.planType.toUpperCase()}${periodLabel}</td><td>${getStudentName(p.studentId)}</td><td>${getCourseName(p.courseId)}</td><td>${p.startDate} to ${p.endDate}</td><td>${weekdays}</td><td><button data-edit-plan='${p.id}' type='button'>Edit</button> <button data-remove-plan='${p.id}' type='button'>Remove</button></td></tr>`;
+  });
+  rowOrEmpty(tableBody, htmlRows, "No instruction plans defined.", 6);
   const submitBtn = document.getElementById("plan-submit-btn");
   const cancelBtn = document.getElementById("plan-cancel-edit-btn");
   if (submitBtn) submitBtn.textContent = editingPlanId ? "Update Plan" : "Add Plan";

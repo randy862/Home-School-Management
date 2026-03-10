@@ -9,8 +9,10 @@ $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $runtimeDir = Join-Path $repoRoot ".runtime"
 $apiPidFile = Join-Path $runtimeDir "api.pid"
 $webPidFile = Join-Path $runtimeDir "web.pid"
-$apiLog = Join-Path $runtimeDir "api.log"
-$webLog = Join-Path $runtimeDir "web.log"
+$apiOutLog = Join-Path $runtimeDir "api.out.log"
+$apiErrLog = Join-Path $runtimeDir "api.err.log"
+$webOutLog = Join-Path $runtimeDir "web.out.log"
+$webErrLog = Join-Path $runtimeDir "web.err.log"
 
 New-Item -ItemType Directory -Force -Path $runtimeDir | Out-Null
 
@@ -35,9 +37,9 @@ function Resolve-CommandPath {
 function Is-Running {
   param([string]$PidFile)
   if (-not (Test-Path -LiteralPath $PidFile)) { return $false }
-  $pid = Get-Content -LiteralPath $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1
-  if (-not $pid) { return $false }
-  $proc = Get-Process -Id ([int]$pid) -ErrorAction SilentlyContinue
+  $procId = Get-Content -LiteralPath $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $procId) { return $false }
+  $proc = Get-Process -Id ([int]$procId) -ErrorAction SilentlyContinue
   return [bool]$proc
 }
 
@@ -48,7 +50,8 @@ function Start-IfNeeded {
     [string]$FilePath,
     [string[]]$Arguments,
     [string]$WorkingDirectory,
-    [string]$LogPath
+    [string]$OutLogPath,
+    [string]$ErrLogPath
   )
 
   if (Is-Running -PidFile $PidFile) {
@@ -57,13 +60,14 @@ function Start-IfNeeded {
     return
   }
 
-  if (Test-Path -LiteralPath $LogPath) { Remove-Item -LiteralPath $LogPath -Force }
+  if (Test-Path -LiteralPath $OutLogPath) { Remove-Item -LiteralPath $OutLogPath -Force }
+  if (Test-Path -LiteralPath $ErrLogPath) { Remove-Item -LiteralPath $ErrLogPath -Force }
 
   $proc = Start-Process -FilePath $FilePath `
     -ArgumentList $Arguments `
     -WorkingDirectory $WorkingDirectory `
-    -RedirectStandardOutput $LogPath `
-    -RedirectStandardError $LogPath `
+    -RedirectStandardOutput $OutLogPath `
+    -RedirectStandardError $ErrLogPath `
     -PassThru
 
   $proc.Id | Set-Content -LiteralPath $PidFile -Encoding ascii
@@ -71,40 +75,54 @@ function Start-IfNeeded {
 }
 
 $nodeExe = Resolve-CommandPath -CommandName "node" -FallbackPath "C:\Program Files\nodejs\node.exe"
-$npmCmd = Resolve-CommandPath -CommandName "npm.cmd" -FallbackPath "C:\Program Files\nodejs\npm.cmd"
-
 Start-IfNeeded `
   -Name "API listener" `
   -PidFile $apiPidFile `
-  -FilePath $npmCmd `
-  -Arguments @("start") `
+  -FilePath $nodeExe `
+  -Arguments @("`"$(Join-Path $repoRoot "server\src\app.js")`"") `
   -WorkingDirectory (Join-Path $repoRoot "server") `
-  -LogPath $apiLog
+  -OutLogPath $apiOutLog `
+  -ErrLogPath $apiErrLog
 
 Start-IfNeeded `
   -Name "Web server" `
   -PidFile $webPidFile `
   -FilePath $nodeExe `
-  -Arguments @((Join-Path $repoRoot "scripts\static-web-server.js"), $repoRoot, [string]$WebPort) `
+  -Arguments @("`"$(Join-Path $repoRoot "scripts\static-web-server.js")`"", "`"$repoRoot`"", [string]$WebPort) `
   -WorkingDirectory $repoRoot `
-  -LogPath $webLog
-
-Start-Sleep -Seconds 2
+  -OutLogPath $webOutLog `
+  -ErrLogPath $webErrLog
 
 try {
-  $health = Invoke-RestMethod -Uri ("http://127.0.0.1:{0}/health" -f $ApiPort) -Method Get -TimeoutSec 5
-  if ($health.ok -eq $true) {
+  $healthy = $false
+  for ($i = 0; $i -lt 10; $i++) {
+    Start-Sleep -Seconds 1
+    try {
+      $health = Invoke-RestMethod -Uri ("http://127.0.0.1:{0}/health" -f $ApiPort) -Method Get -TimeoutSec 3
+      if ($health.ok -eq $true) {
+        $healthy = $true
+        break
+      }
+    } catch {
+      # Keep retrying while API boots.
+    }
+  }
+  if ($healthy) {
     Write-Host "API health check passed on http://127.0.0.1:$ApiPort/health"
+  } else {
+    Write-Warning "API health check failed. See $apiOutLog and $apiErrLog"
   }
 } catch {
-  Write-Warning "API health check failed. See $apiLog"
+  Write-Warning "API health check failed. See $apiOutLog and $apiErrLog"
 }
 
 $appUrl = "http://127.0.0.1:$WebPort/web/"
 Write-Host "App URL: $appUrl"
 Write-Host "Logs:"
-Write-Host "  API: $apiLog"
-Write-Host "  Web: $webLog"
+Write-Host "  API out: $apiOutLog"
+Write-Host "  API err: $apiErrLog"
+Write-Host "  Web out: $webOutLog"
+Write-Host "  Web err: $webErrLog"
 
 if (-not $NoBrowser) {
   Start-Process $appUrl | Out-Null
