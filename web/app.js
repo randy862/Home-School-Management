@@ -1,4 +1,6 @@
 const STORAGE_KEY = "hsm_state_v2";
+const API_BASE_URL = window.HSM_API_BASE_URL || "http://localhost:3000";
+const API_STATE_ENDPOINT = `${API_BASE_URL}/api/state`;
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
@@ -160,9 +162,36 @@ function loadState() {
   }
 }
 
+async function fetchStateFromApi() {
+  const response = await fetch(API_STATE_ENDPOINT, { method: "GET", headers: { "Accept": "application/json" } });
+  if (!response.ok) throw new Error(`State fetch failed (${response.status})`);
+  return response.json();
+}
+
+async function pushStateToApi(snapshot) {
+  const response = await fetch(API_STATE_ENDPOINT, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(snapshot)
+  });
+  if (!response.ok) {
+    let message = `State save failed (${response.status})`;
+    try {
+      const payload = await response.json();
+      if (payload && payload.error) message = payload.error;
+    } catch {
+      // Keep generic message if payload is not JSON.
+    }
+    throw new Error(message);
+  }
+}
+
 let state = loadState();
 setCurrentSchoolYear(state.settings.currentSchoolYearId);
-if (backfillAttendanceToToday()) saveState();
+const startupBackfillChanged = backfillAttendanceToToday();
+let apiSaveInFlight = false;
+let apiSavePending = false;
+let apiSyncReady = false;
 let selectedStudentId = "";
 let editingAttendanceId = "";
 const expandedStudentAverageRows = new Set();
@@ -195,7 +224,49 @@ let gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
 function draftGradeTypes() {
   return Array.isArray(gradeTypesDraft) ? gradeTypesDraft : [];
 }
-function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function scheduleApiSave() {
+  if (!apiSyncReady) return;
+  if (apiSaveInFlight) {
+    apiSavePending = true;
+    return;
+  }
+
+  apiSaveInFlight = true;
+  const snapshot = JSON.parse(JSON.stringify(state));
+  pushStateToApi(snapshot)
+    .catch((error) => {
+      console.warn("API save skipped:", error.message);
+    })
+    .finally(() => {
+      apiSaveInFlight = false;
+      if (apiSavePending) {
+        apiSavePending = false;
+        scheduleApiSave();
+      }
+    });
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  scheduleApiSave();
+}
+
+async function bootstrapStateFromApi() {
+  try {
+    const remoteState = await fetchStateFromApi();
+    if (!validState(remoteState)) return;
+    normalizeSettingsShape(remoteState);
+    state = remoteState;
+    setCurrentSchoolYear(state.settings.currentSchoolYearId);
+    if (backfillAttendanceToToday()) saveState();
+    gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+    renderAll();
+  } catch (error) {
+    console.warn("API bootstrap skipped:", error.message);
+  } finally {
+    apiSyncReady = true;
+  }
+}
 
 function getStudentName(id) { const s = state.students.find((x) => x.id === id); return s ? `${s.firstName} ${s.lastName}` : "Unknown Student"; }
 function getSubjectName(id) { const s = state.subjects.find((x) => x.id === id); return s ? s.name : "Unknown Subject"; }
@@ -3602,3 +3673,5 @@ function renderAll() {
 
 bindEvents();
 renderAll();
+if (startupBackfillChanged) saveState();
+bootstrapStateFromApi();

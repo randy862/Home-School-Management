@@ -1,0 +1,17 @@
+{
+  "name": "home-school-management-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backend API and migration utilities for Home School Management",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "db:migrate": "node src/scripts/migrate.js",
+    "db:import-state": "node src/scripts/import-state.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "mssql": "^11.0.1"
+  }
+}

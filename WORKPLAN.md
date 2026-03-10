@@ -1,37 +1,48 @@
-﻿# Workplan
+# Workplan
 
 ## Milestone 1: Foundation (Complete)
 - Owner: CEO Orchestrator
-- Goal: Establish project operating system and minimal web scaffold
-- Dependencies: None
+- Goal: Establish project operating model and baseline app scaffold
 - Workstreams:
-  - [x] Create governance docs and folders
-  - [x] Define initial 5-agent roster
-  - [x] Seed reusable prompts and runbooks
-  - [x] Create minimal web app starter structure
+  - [x] Governance docs and folder structure
+  - [x] Initial multi-agent roster and prompts
+  - [x] Frontend MVP scaffold in `web/`
 
-## Milestone 2: Product Discovery (In Progress)
-- Owner: Product Architect
-- Goal: Define MVP features for home school workflows
-- Dependencies: Milestone 1
+## Milestone 2: MVP Local-First App (Complete)
+- Owner: Frontend Engineer
+- Goal: Deliver a working local-storage MVP
 - Workstreams:
-  - [ ] Draft personas and primary user journeys
-  - [x] Define MVP feature set and acceptance criteria
-  - [x] Draft data model v1 (students, subjects, courses, enrollments, plans, attendance, tests)
+  - [x] Student/subject/course/enrollment management
+  - [x] Planning/calendar, attendance, and grade features
+  - [x] Dashboard analytics and reporting views
 
-## Milestone 3: MVP Build (In Progress)
-- Owner: Frontend + Backend
-- Goal: Ship first usable version
+## Milestone 3: MSSQL Migration Prep (In Progress)
+- Owner: Backend/API Engineer
+- Goal: Prepare schema, migration tooling, and cutover plan for SQL Server Express
 - Dependencies: Milestone 2
 - Workstreams:
-  - [x] Build core UI screens (dashboard, management, planning/calendar, attendance/testing)
-  - [x] Implement local storage layer for MVP persistence
-  - [x] Implement grade analytics (running, student, subject, quarterly, annual)
-  - [x] Implement planning-based calendar generation (daily/weekly/monthly/quarterly/annual views)
-  - [ ] Connect UI to backend contracts
-  - [ ] Complete smoke and regression checks
+  - [x] Analyze current state model from `web/app.js`
+  - [x] Define SQL schema and relational constraints
+  - [x] Scaffold migration and import scripts in `server/`
+  - [x] Execute data migration into SQL Server Express and validate row parity
+  - [x] Implement API full-state sync endpoints (`GET/PUT /api/state`)
+  - [x] Wire frontend persistence to API state sync with local fallback cache
+  - [ ] Implement API endpoints used by frontend
+  - [ ] Validate row parity and regression checks
+
+## Parallel Workstreams (Current)
+
+1. Backend/API Engineer (owner: `server/`)
+   - Build `/api` endpoints and transaction-safe CRUD
+2. Data Migration Engineer (owner: `server/src/scripts/`, `NOTES/mssql-migration-plan.md`)
+   - Finalize mapping checks and dry-run import flow
+3. Frontend Engineer (owner: `web/`)
+   - Prepare data adapter layer for local-storage to API cutover
+4. QA & Release Agent (owner: `CHECKLISTS/mssql-cutover.md`)
+   - Define migration acceptance gates and rollback test
 
 ## Active Next Actions
-1. Add stronger validation (overlapping quarter/break detection and enrollment constraints).
-2. Add data import/export and backup/restore for local state.
-3. Define backend API contracts to replace local storage persistence.
+
+1. Receive SQL Server Express connection details and credentials from user.
+2. Run `npm install`, `npm run db:migrate`, then dry-run `db:import-state`.
+3. Implement and wire frontend API calls for students/subjects/courses first.
