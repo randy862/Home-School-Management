@@ -18,13 +18,30 @@ This repo now includes an MSSQL migration scaffold to move persistence from brow
 ## Quick Start (API + Frontend on Local PC)
 
 1. Copy `.env.example` to `.env` and set SQL connection values.
-2. Start API listener (Terminal 1):
-   - `cd server`
+2. One-click startup (recommended):
+   - Open PowerShell.
+   - Run:
+     - `cd "C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management"`
+     - `.\run-local.ps1`
+   - Example prompt:
+     - `C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management>`
+     - `.\run-local.ps1`
+   - What it does:
+     - Starts API listener (`server/`)
+     - Starts local web server on port `5500`
+     - Opens `http://127.0.0.1:5500/web/`
+3. Manual startup (if needed):
+   - Start API listener (Terminal 1):
+   - `cd "C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management\server"`
    - `npm install`
    - `npm start`
-3. Start web server (Terminal 2, repo root):
+   - Example prompt:
+     - `C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management\server>`
+     - `npm install`
+     - `npm start`
+4. Start web server (Terminal 2, repo root):
    - `python -m http.server 5500`
-4. Open `http://127.0.0.1:5500/web/`.
+5. Open `http://127.0.0.1:5500/web/`.
 
 If you run frontend only without API listener, the app can load but API-backed persistence will not be active.
 
