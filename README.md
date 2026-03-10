@@ -15,10 +15,18 @@ This repo now includes an MSSQL migration scaffold to move persistence from brow
 - `NOTES/` discovery, specs, and migration planning notes
 - Root governance files: `AGENTS.md`, `WORKPLAN.md`, `STATUS.md`, `DECISIONS.md`
 
-## Quick Start (Current Frontend)
+## Quick Start (API + Frontend on Local PC)
 
-1. Run `python -m http.server 5500`.
-2. Open `http://127.0.0.1:5500/web/`.
+1. Copy `.env.example` to `.env` and set SQL connection values.
+2. Start API listener (Terminal 1):
+   - `cd server`
+   - `npm install`
+   - `npm start`
+3. Start web server (Terminal 2, repo root):
+   - `python -m http.server 5500`
+4. Open `http://127.0.0.1:5500/web/`.
+
+If you run frontend only without API listener, the app can load but API-backed persistence will not be active.
 
 ## MSSQL Migration Prep (New)
 
