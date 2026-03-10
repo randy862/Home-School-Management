@@ -17,8 +17,7 @@ This repo now includes an MSSQL migration scaffold to move persistence from brow
 
 ## Quick Start (API + Frontend on Local PC)
 
-1. Copy `.env.example` to `.env` and set SQL connection values.
-2. One-click startup (recommended):
+1. One-click startup (recommended):
    - Open PowerShell.
    - Run:
      - `cd "C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management"`
@@ -30,6 +29,9 @@ This repo now includes an MSSQL migration scaffold to move persistence from brow
      - Starts API listener (`server/`)
      - Starts local web server on port `5500`
      - Opens `http://127.0.0.1:5500/web/`
+2. Optional configuration update:
+   - `run-local.ps1` auto-creates `.env` from `.env.example` if `.env` is missing.
+   - Edit `.env` only if you need to change SQL connection values.
 3. Manual startup (if needed):
    - Start API listener (Terminal 1):
    - `cd "C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management\server"`
