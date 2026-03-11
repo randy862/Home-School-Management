@@ -4,6 +4,16 @@ const { getPool } = require("./db");
 const { readState, writeState } = require("./state-store");
 
 const app = express();
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,PUT,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
 app.use(express.json({ limit: "5mb" }));
 
 app.get("/health", async (_req, res) => {
@@ -56,6 +66,7 @@ app.put("/api/state", async (req, res) => {
       || !Array.isArray(payload.plans)
       || !Array.isArray(payload.attendance)
       || !Array.isArray(payload.tests)
+      || !Array.isArray(payload.users)
       || !payload.settings) {
       return res.status(400).json({ error: "Invalid state payload." });
     }

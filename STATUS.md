@@ -3,6 +3,23 @@
 Date: 2026-03-10
 
 ## Done
+- Added login UX and system-user administration shell in `web/`:
+  - `web/index.html`
+  - `web/styles.css`
+  - `web/app.js`
+- Added persisted user-account model with default admin bootstrap:
+  - roles: `admin`, `student`
+  - linked student record for student accounts
+  - password reset/change support via Users page
+- Added role-based access behavior:
+  - admins retain full access
+  - students can access dashboard, schedule, attendance, and grades only
+  - student views are read-only and filtered to the linked student record
+- Extended SQL-backed state persistence for `users`:
+  - `server/src/app.js`
+  - `server/src/state-store.js`
+  - `server/migrations/001_initial_schema.sql`
+- Added legacy DB compatibility for API-backed state reads by tolerating missing `dbo.users` and creating it on write.
 - Scanned current app and confirmed persistence is browser `localStorage` (`web/app.js`).
 - Extracted live entity shapes and relationships from insert/update paths.
 - Added SQL Server Express environment placeholders to `.env.example`.
@@ -56,14 +73,13 @@ Date: 2026-03-10
   - `MSSQL_PORT=57959`
 
 ## In Progress
+- Frontend smoke validation on the new login/Users flow.
 - Endpoint expansion beyond full-state sync (`/api/subjects`, `/api/courses`, etc.).
-- Frontend smoke validation on API-backed persistence mode.
 
 ## Blocked
 - None.
 
 ## Next
-1. Enable SQL Server TCP/IP for `SQLEXPRESS` and restart SQL service.
-2. Verify Node API DB connectivity and start API server.
-3. Run frontend smoke checks using API-backed persistence path.
-4. Implement additional granular entity endpoints and regression checks.
+1. Run browser smoke checks for admin login, user creation, password change, and student restricted access.
+2. Re-run the SQL schema migration so `dbo.users` is present in the baseline database schema.
+3. Validate API-backed state roundtrip with user-account persistence enabled.

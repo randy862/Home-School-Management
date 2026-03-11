@@ -1,9 +1,138 @@
 const STORAGE_KEY = "hsm_state_v2";
 const API_BASE_URL = window.HSM_API_BASE_URL || "http://localhost:3000";
 const API_STATE_ENDPOINT = `${API_BASE_URL}/api/state`;
+const SESSION_KEY = "hsm_session_v1";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+const DEFAULT_ADMIN_USERNAME = "admin";
+const DEFAULT_ADMIN_PASSWORD = "ChangeMe123!";
+const STUDENT_ALLOWED_TABS = new Set(["dashboard", "calendar", "attendance", "grades"]);
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function randomToken() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function sha256Hex(input) {
+  const source = String(input ?? "");
+  if (window.crypto?.subtle && typeof TextEncoder !== "undefined") {
+    return window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(source))
+      .then((buffer) => Array.from(new Uint8Array(buffer)).map((item) => item.toString(16).padStart(2, "0")).join(""));
+  }
+  let hash = 0;
+  for (let i = 0; i < source.length; i += 1) {
+    hash = ((hash << 5) - hash) + source.charCodeAt(i);
+    hash |= 0;
+  }
+  return Promise.resolve(`fallback-${Math.abs(hash)}`);
+}
+
+async function buildPasswordCredentials(password, salt = randomToken()) {
+  return {
+    passwordSalt: salt,
+    passwordHash: await sha256Hex(`${salt}::${password}`)
+  };
+}
+
+function createLegacyPasswordHash(password) {
+  let hash = 0;
+  const source = String(password || "");
+  for (let i = 0; i < source.length; i += 1) {
+    hash = ((hash << 5) - hash) + source.charCodeAt(i);
+    hash |= 0;
+  }
+  return `legacy-${Math.abs(hash)}`;
+}
+
+async function verifyPasswordForUser(user, password) {
+  if (!user) return false;
+  const legacyMatch = user.passwordHash === createLegacyPasswordHash(password);
+  if (legacyMatch) return true;
+  if (!user.passwordSalt) {
+    return false;
+  }
+  return user.passwordHash === await sha256Hex(`${user.passwordSalt}::${password}`);
+}
+
+async function createUserRecord({ username, role, password, studentId = "", mustChangePassword = false, id = uid(), createdAt = todayISO() }) {
+  const credentials = await buildPasswordCredentials(password);
+  return {
+    id,
+    username: String(username || "").trim(),
+    role: role === "student" ? "student" : "admin",
+    studentId: studentId || "",
+    mustChangePassword: !!mustChangePassword,
+    createdAt,
+    updatedAt: todayISO(),
+    ...credentials
+  };
+}
+
+function createBootstrapAdmin() {
+  return {
+    id: "default-admin-user",
+    username: DEFAULT_ADMIN_USERNAME,
+    role: "admin",
+    studentId: "",
+    mustChangePassword: true,
+    createdAt: todayISO(),
+    updatedAt: todayISO(),
+    passwordSalt: "",
+    passwordHash: createLegacyPasswordHash(DEFAULT_ADMIN_PASSWORD)
+  };
+}
+
+function normalizeUsersShape(inputState) {
+  const s = inputState;
+  const studentIds = new Set((s.students || []).map((student) => student.id));
+  let repairedDefaultAdmin = false;
+  if (!Array.isArray(s.users) || !s.users.length) {
+    s.users = [createBootstrapAdmin()];
+  } else {
+    const seen = new Set();
+    s.users = s.users
+      .filter((user) => user && String(user.username || "").trim())
+      .map((user) => {
+        const normalized = {
+          id: user.id || uid(),
+          username: String(user.username).trim(),
+          role: user.role === "student" ? "student" : "admin",
+          studentId: user.role === "student" && studentIds.has(user.studentId) ? user.studentId : "",
+          mustChangePassword: !!user.mustChangePassword,
+          createdAt: user.createdAt || todayISO(),
+          updatedAt: user.updatedAt || user.createdAt || todayISO(),
+          passwordSalt: user.passwordSalt || "",
+          passwordHash: user.passwordHash || createLegacyPasswordHash("")
+        };
+        if (normalized.id === "default-admin-user"
+          && normalized.username.toLowerCase() === DEFAULT_ADMIN_USERNAME
+          && normalized.passwordHash === createLegacyPasswordHash(DEFAULT_ADMIN_PASSWORD)
+          && normalized.passwordSalt) {
+          normalized.passwordSalt = "";
+          repairedDefaultAdmin = true;
+        }
+        const key = normalized.username.toLowerCase();
+        if (seen.has(key)) return null;
+        seen.add(key);
+        return normalized;
+      })
+      .filter(Boolean);
+    if (!s.users.length) s.users = [createBootstrapAdmin()];
+  }
+  if (!s.users.some((user) => user.role === "admin")) {
+    s.users.unshift(createBootstrapAdmin());
+  }
+  return repairedDefaultAdmin;
+}
 
 function uid() { return `${Date.now()}-${Math.random().toString(16).slice(2)}`; }
 function toDate(s) {
@@ -59,7 +188,7 @@ function defaultState() {
     { id: uid(), schoolYearId, name: "Q4", startDate: `${y}-10-01`, endDate: `${y}-12-31` }
   ];
   return {
-    students: [], subjects: [], courses: [], enrollments: [], plans: [], attendance: [], tests: [],
+    students: [], subjects: [], courses: [], enrollments: [], plans: [], attendance: [], tests: [], users: [createBootstrapAdmin()],
     settings: {
       schoolYear: { ...schoolYear },
       schoolYears: [schoolYear],
@@ -75,7 +204,7 @@ function defaultState() {
 function validState(s) {
   return s && Array.isArray(s.students) && Array.isArray(s.subjects) && Array.isArray(s.courses)
     && Array.isArray(s.enrollments) && Array.isArray(s.plans) && Array.isArray(s.attendance)
-    && Array.isArray(s.tests) && s.settings && s.settings.schoolYear
+    && Array.isArray(s.tests) && Array.isArray(s.users) && s.settings && s.settings.schoolYear
     && Array.isArray(s.settings.quarters) && Array.isArray(s.settings.holidays);
 }
 
@@ -147,6 +276,8 @@ function normalizeSettingsShape(inputState) {
       });
     s.settings.gradeTypes = Array.from(byName.values());
   }
+
+  normalizeUsersShape(s);
 }
 
 function loadState() {
@@ -155,7 +286,12 @@ function loadState() {
     if (!raw) return defaultState();
     const parsed = JSON.parse(raw);
     if (!validState(parsed)) return defaultState();
+    const before = JSON.stringify(parsed.users || []);
     normalizeSettingsShape(parsed);
+    const after = JSON.stringify(parsed.users || []);
+    if (before !== after) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    }
     return parsed;
   } catch {
     return defaultState();
@@ -186,7 +322,11 @@ async function pushStateToApi(snapshot) {
   }
 }
 
+let currentUserId = "";
+let currentTab = "dashboard";
 let state = loadState();
+loadSession();
+if (!state.users.some((user) => user.id === currentUserId)) currentUserId = "";
 setCurrentSchoolYear(state.settings.currentSchoolYearId);
 const startupBackfillChanged = backfillAttendanceToToday();
 let apiSaveInFlight = false;
@@ -194,6 +334,7 @@ let apiSavePending = false;
 let apiSyncReady = false;
 let selectedStudentId = "";
 let editingAttendanceId = "";
+let editingUserId = "";
 const expandedStudentAverageRows = new Set();
 const expandedSubjectAverageRows = new Set();
 const expandedStudentAttendanceRows = new Set();
@@ -217,12 +358,167 @@ let showScheduleHolidays = false;
 let showSchedulePlans = false;
 let calendarBackToWeekContext = null;
 let calendarBackToMonthContext = null;
+let loginMessageKind = "";
+let userFormMessageKind = "";
 function cloneGradeTypes(items) {
   return (items || []).map((gt) => ({ id: gt.id || uid(), name: String(gt.name || "").trim(), weight: gt.weight == null ? null : Number(gt.weight) }));
 }
 let gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
 function draftGradeTypes() {
   return Array.isArray(gradeTypesDraft) ? gradeTypesDraft : [];
+}
+
+function saveSession() {
+  if (!currentUserId) {
+    sessionStorage.removeItem(SESSION_KEY);
+    return;
+  }
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify({ currentUserId }));
+}
+
+function loadSession() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.currentUserId) currentUserId = parsed.currentUserId;
+  } catch {
+    currentUserId = "";
+  }
+}
+
+function currentUser() {
+  return state.users.find((user) => user.id === currentUserId) || null;
+}
+
+function isAdminUser(user = currentUser()) {
+  return !!user && user.role === "admin";
+}
+
+function isStudentUser(user = currentUser()) {
+  return !!user && user.role === "student";
+}
+
+function currentStudentId() {
+  const user = currentUser();
+  return isStudentUser(user) ? (user.studentId || "") : "";
+}
+
+function visibleStudents() {
+  const studentId = currentStudentId();
+  if (!studentId) return state.students.slice();
+  return state.students.filter((student) => student.id === studentId);
+}
+
+function visibleStudentIds() {
+  return new Set(visibleStudents().map((student) => student.id));
+}
+
+function studentCanAccessTab(tabName) {
+  return STUDENT_ALLOWED_TABS.has(tabName);
+}
+
+function canAccessTab(tabName) {
+  const user = currentUser();
+  if (!user) return false;
+  if (isAdminUser(user)) return true;
+  return studentCanAccessTab(tabName);
+}
+
+function ensureAdminAction() {
+  if (isAdminUser()) return true;
+  alert("Administrator access is required for that action.");
+  return false;
+}
+
+function ensureStudentSelection() {
+  const roleSelect = document.getElementById("user-role");
+  const studentSelect = document.getElementById("user-student-id");
+  const wrap = document.getElementById("user-student-wrap");
+  if (!roleSelect || !studentSelect || !wrap) return;
+  const needsStudent = roleSelect.value === "student";
+  wrap.classList.toggle("student-link-disabled", !needsStudent);
+  studentSelect.disabled = !needsStudent;
+  if (!needsStudent) studentSelect.value = "";
+}
+
+function setStatusMessage(elementId, kind, message) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  el.textContent = message || "";
+  el.classList.toggle("hidden", !message);
+  el.classList.remove("error", "success");
+  if (message && kind) el.classList.add(kind);
+}
+
+function resetLoginMessage() {
+  loginMessageKind = "";
+  setStatusMessage("login-message", "", "");
+}
+
+function setLoginMessage(kind, message) {
+  loginMessageKind = kind;
+  setStatusMessage("login-message", kind, message);
+}
+
+function resetUserFormMessage() {
+  userFormMessageKind = "";
+  setStatusMessage("user-form-message", "", "");
+}
+
+function setUserFormMessage(kind, message) {
+  userFormMessageKind = kind;
+  setStatusMessage("user-form-message", kind, message);
+}
+
+function setActiveTab(tabName) {
+  const fallback = isAdminUser() ? "dashboard" : "dashboard";
+  currentTab = canAccessTab(tabName) ? tabName : fallback;
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.tab === currentTab);
+  });
+  document.querySelectorAll(".tab-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `tab-${currentTab}`);
+  });
+}
+
+function renderSessionChrome() {
+  const loginShell = document.getElementById("login-shell");
+  const appShell = document.getElementById("app-shell");
+  const sessionSummary = document.getElementById("session-summary");
+  const defaultAdminNote = document.getElementById("login-default-admin-note");
+  const userBanner = document.getElementById("users-default-admin-banner");
+  const user = currentUser();
+  const signedIn = !!user;
+
+  if (loginShell) loginShell.classList.toggle("hidden", signedIn);
+  if (appShell) appShell.classList.toggle("hidden", !signedIn);
+  if (defaultAdminNote) defaultAdminNote.classList.toggle("hidden", signedIn || !state.users.some((entry) => entry.id === "default-admin-user"));
+  if (userBanner) userBanner.classList.toggle("hidden", !signedIn || !isAdminUser(user) || !state.users.some((entry) => entry.id === "default-admin-user"));
+
+  if (sessionSummary) {
+    if (!user) sessionSummary.textContent = "Not signed in";
+    else if (isAdminUser(user)) sessionSummary.textContent = `Signed in as ${user.username} | Administrator`;
+    else sessionSummary.textContent = `Signed in as ${user.username} | Student`;
+  }
+
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    const tabName = btn.dataset.tab || "";
+    btn.classList.toggle("hidden", !signedIn || !canAccessTab(tabName));
+  });
+
+  const studentView = isStudentUser(user);
+  const studentInfo = studentView ? state.students.find((student) => student.id === currentStudentId()) : null;
+  if (studentView && studentInfo) selectedStudentId = studentInfo.id;
+  if (!canAccessTab(currentTab)) setActiveTab("dashboard");
+  else setActiveTab(currentTab);
+}
+
+function logout() {
+  currentUserId = "";
+  saveSession();
+  resetLoginMessage();
+  renderSessionChrome();
 }
 function scheduleApiSave() {
   if (!apiSyncReady) return;
@@ -255,10 +551,16 @@ async function bootstrapStateFromApi() {
   try {
     const remoteState = await fetchStateFromApi();
     if (!validState(remoteState)) return;
+    const before = JSON.stringify(remoteState.users || []);
     normalizeSettingsShape(remoteState);
     state = remoteState;
+    if (!state.users.some((user) => user.id === currentUserId)) {
+      currentUserId = "";
+      saveSession();
+    }
     setCurrentSchoolYear(state.settings.currentSchoolYearId);
-    if (backfillAttendanceToToday()) saveState();
+    const usersChanged = before !== JSON.stringify(state.users || []);
+    if (backfillAttendanceToToday() || usersChanged) saveState();
     gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
     renderAll();
   } catch (error) {
@@ -537,13 +839,15 @@ function options(selectId, items, textFn, placeholder) {
 
 function renderSelects() {
   const selectedPlanCourseIds = getSelectedPlanCourseIds();
+  const viewerStudents = visibleStudents();
   options("course-subject", state.subjects, (s) => s.name, state.subjects.length ? null : "Add a subject first");
   options("test-subject", state.subjects, (s) => s.name, state.subjects.length ? null : "Add a subject first");
   options("student-enroll-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
   options("test-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
-  options("plan-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
-  options("calendar-student", state.students, (s) => `${s.firstName} ${s.lastName}`, "All Students");
-  options("test-student", state.students, (s) => `${s.firstName} ${s.lastName}`, state.students.length ? null : "Add a student first");
+  options("plan-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, viewerStudents.length ? null : "Add a student first");
+  options("calendar-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, "All Students");
+  options("test-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, viewerStudents.length ? null : "Add a student first");
+  options("user-student-id", state.students, (s) => `${s.firstName} ${s.lastName}`, "Select student");
   renderAttendanceStudentChecklist();
   renderTrendStudentChecklist(Array.from(trendSelectedStudentIds));
   renderVolumeStudentChecklist(Array.from(volumeSelectedStudentIds));
@@ -553,7 +857,7 @@ function renderSelects() {
   if (attendanceFilterStudent) {
     const current = attendanceFilterStudent.value || "all";
     attendanceFilterStudent.innerHTML = "<option value='all'>All Students</option>";
-    state.students.forEach((s) => {
+    viewerStudents.forEach((s) => {
       const option = document.createElement("option");
       option.value = s.id;
       option.textContent = `${s.firstName} ${s.lastName}`;
@@ -606,7 +910,7 @@ function renderSelects() {
   if (planFilterStudent) {
     const current = planFilterStudent.value || "all";
     planFilterStudent.innerHTML = "<option value='all'>All Students</option>";
-    state.students.forEach((student) => {
+    viewerStudents.forEach((student) => {
       const option = document.createElement("option");
       option.value = student.id;
       option.textContent = `${student.firstName} ${student.lastName}`;
@@ -615,11 +919,23 @@ function renderSelects() {
     if (Array.from(planFilterStudent.options).some((o) => o.value === current)) planFilterStudent.value = current;
   }
 
+  if (isStudentUser()) {
+    const calendarStudent = document.getElementById("calendar-student");
+    const studentId = currentStudentId();
+    if (calendarStudent && Array.from(calendarStudent.options).some((o) => o.value === studentId)) {
+      calendarStudent.value = studentId;
+      calendarStudent.disabled = true;
+    }
+  } else {
+    const calendarStudent = document.getElementById("calendar-student");
+    if (calendarStudent) calendarStudent.disabled = false;
+  }
+
   const gradeStudentSelect = document.getElementById("grades-filter-student");
   if (gradeStudentSelect) {
     const current = gradeStudentSelect.value || "all";
     gradeStudentSelect.innerHTML = "<option value='all'>All Students</option>";
-    state.students.forEach((s) => {
+    viewerStudents.forEach((s) => {
       const option = document.createElement("option");
       option.value = s.id;
       option.textContent = `${s.firstName} ${s.lastName}`;
@@ -776,7 +1092,7 @@ function renderAttendanceStudentChecklist(preselectedStudentIds = []) {
   const optionsWrap = document.getElementById("attendance-student-options");
   if (!container || !optionsWrap) return;
   const selected = new Set(preselectedStudentIds);
-  const checkboxes = state.students.map((s, idx) => {
+  const checkboxes = visibleStudents().map((s, idx) => {
     const checked = selected.has(s.id) ? " checked" : "";
     const inputId = `attendance-student-${idx}-${s.id}`;
     return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="attendance-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
@@ -797,7 +1113,7 @@ function renderTrendStudentChecklist(preselectedStudentIds = []) {
   const optionsWrap = document.getElementById("trend-student-options");
   if (!container || !optionsWrap) return;
   const selected = new Set(preselectedStudentIds);
-  const checkboxes = state.students.map((s, idx) => {
+  const checkboxes = visibleStudents().map((s, idx) => {
     const checked = selected.has(s.id) ? " checked" : "";
     const inputId = `trend-student-${idx}-${s.id}`;
     return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="trend-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
@@ -822,7 +1138,7 @@ function renderVolumeStudentChecklist(preselectedStudentIds = []) {
   const optionsWrap = document.getElementById("volume-student-options");
   if (!container || !optionsWrap) return;
   const selected = new Set(preselectedStudentIds);
-  const checkboxes = state.students.map((s, idx) => {
+  const checkboxes = visibleStudents().map((s, idx) => {
     const checked = selected.has(s.id) ? " checked" : "";
     const inputId = `volume-student-${idx}-${s.id}`;
     return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="volume-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
@@ -895,7 +1211,7 @@ function renderWorkStudentChecklist(preselectedStudentIds = []) {
   const optionsWrap = document.getElementById("work-student-options");
   if (!container || !optionsWrap) return;
   const selected = new Set(preselectedStudentIds);
-  const checkboxes = state.students.map((s, idx) => {
+  const checkboxes = visibleStudents().map((s, idx) => {
     const checked = selected.has(s.id) ? " checked" : "";
     const inputId = `work-student-${idx}-${s.id}`;
     return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="work-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
@@ -1012,7 +1328,63 @@ function rowOrEmpty(tbody, html, emptyMsg, cols) {
   if (!html.length) { tbody.innerHTML = `<tr><td colspan='${cols}'>${emptyMsg}</td></tr>`; return; }
   tbody.innerHTML = html.join("");
 }
+
+function resetUserForm() {
+  editingUserId = "";
+  const form = document.getElementById("user-form");
+  if (form) form.reset();
+  ensureStudentSelection();
+  const submitBtn = document.getElementById("user-submit-btn");
+  const cancelBtn = document.getElementById("user-cancel-edit-btn");
+  const passwordInput = document.getElementById("user-password");
+  const confirmInput = document.getElementById("user-password-confirm");
+  if (submitBtn) submitBtn.textContent = "Create User";
+  if (cancelBtn) cancelBtn.classList.add("hidden");
+  if (passwordInput) passwordInput.required = true;
+  if (confirmInput) confirmInput.required = true;
+}
+
+function beginUserEdit(userId) {
+  const user = state.users.find((entry) => entry.id === userId);
+  if (!user) return;
+  editingUserId = user.id;
+  document.getElementById("user-username").value = user.username;
+  document.getElementById("user-role").value = user.role;
+  document.getElementById("user-student-id").value = user.studentId || "";
+  document.getElementById("user-password").value = "";
+  document.getElementById("user-password-confirm").value = "";
+  const passwordInput = document.getElementById("user-password");
+  const confirmInput = document.getElementById("user-password-confirm");
+  const submitBtn = document.getElementById("user-submit-btn");
+  const cancelBtn = document.getElementById("user-cancel-edit-btn");
+  if (passwordInput) passwordInput.required = false;
+  if (confirmInput) confirmInput.required = false;
+  if (submitBtn) submitBtn.textContent = "Update User";
+  if (cancelBtn) cancelBtn.classList.remove("hidden");
+  ensureStudentSelection();
+}
+
+function renderUsers() {
+  const tableBody = document.getElementById("user-table");
+  if (!tableBody) return;
+  const rows = state.users
+    .slice()
+    .sort((a, b) => a.username.localeCompare(b.username))
+    .map((user) => {
+      const linkedStudent = user.studentId ? escapeHtml(getStudentName(user.studentId)) : "Not linked";
+      const roleLabel = user.role === "admin" ? "Administrator" : "Student";
+      const passwordStatus = user.mustChangePassword ? "Reset required" : "Managed";
+      const disableDelete = state.users.filter((entry) => entry.role === "admin").length <= 1 && user.role === "admin";
+      const deleteBtn = disableDelete
+        ? "<button type='button' disabled>Remove</button>"
+        : `<button data-remove-user='${user.id}' type='button'>Remove</button>`;
+      return `<tr><td>${escapeHtml(user.username)}</td><td>${roleLabel}</td><td>${linkedStudent}</td><td>${passwordStatus}</td><td><button data-edit-user='${user.id}' type='button'>Edit</button> ${deleteBtn}</td></tr>`;
+    });
+  rowOrEmpty(tableBody, rows, "No users configured.", 5);
+}
+
 function renderStudents() {
+  if (!isAdminUser()) return;
   const rows = state.students.map((s) => {
     const ageNow = calculateAge(s.birthdate);
     const overallAvg = studentOverallAverage(s.id);
@@ -1224,8 +1596,9 @@ function renderPlanningSettings() {
 function renderPlans() {
   const tableBody = document.getElementById("plan-table");
   if (!tableBody) return;
+  const viewerStudentId = currentStudentId();
   const typeFilter = document.getElementById("plan-filter-type")?.value || "all";
-  const studentFilter = document.getElementById("plan-filter-student")?.value || "all";
+  const studentFilter = viewerStudentId || document.getElementById("plan-filter-student")?.value || "all";
 
   const rows = [...state.plans]
     .filter((plan) => {
@@ -1237,7 +1610,8 @@ function renderPlans() {
   const htmlRows = rows.map((p) => {
     const periodLabel = p.planType === "quarterly" && p.quarterName ? ` (${p.quarterName})` : "";
     const weekdays = (Array.isArray(p.weekdays) ? p.weekdays : []).map((w) => DAY_NAMES[w]).join(", ");
-    return `<tr><td>${p.planType.toUpperCase()}${periodLabel}</td><td>${getStudentName(p.studentId)}</td><td>${getCourseName(p.courseId)}</td><td>${p.startDate} to ${p.endDate}</td><td>${weekdays}</td><td><button data-edit-plan='${p.id}' type='button'>Edit</button> <button data-remove-plan='${p.id}' type='button'>Remove</button></td></tr>`;
+    const actions = isAdminUser() ? `<button data-edit-plan='${p.id}' type='button'>Edit</button> <button data-remove-plan='${p.id}' type='button'>Remove</button>` : "View only";
+    return `<tr><td>${p.planType.toUpperCase()}${periodLabel}</td><td>${getStudentName(p.studentId)}</td><td>${getCourseName(p.courseId)}</td><td>${p.startDate} to ${p.endDate}</td><td>${weekdays}</td><td>${actions}</td></tr>`;
   });
   rowOrEmpty(tableBody, htmlRows, "No instruction plans defined.", 6);
   const submitBtn = document.getElementById("plan-submit-btn");
@@ -1247,7 +1621,8 @@ function renderPlans() {
 }
 
 function renderAttendance() {
-  const studentFilter = document.getElementById("attendance-filter-student")?.value || "all";
+  const viewerStudentId = currentStudentId();
+  const studentFilter = viewerStudentId || document.getElementById("attendance-filter-student")?.value || "all";
   const quarterFilter = document.getElementById("attendance-filter-quarter")?.value || "all";
   const statusFilter = document.getElementById("attendance-filter-status")?.value || "all";
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
@@ -1263,7 +1638,7 @@ function renderAttendance() {
   const rows = [...filtered]
     .sort((a,b)=>b.date.localeCompare(a.date))
     .slice(0,100)
-    .map((a) => `<tr><td>${a.date}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td><button type='button' data-edit-attendance='${a.id}'>Edit</button></td></tr>`);
+    .map((a) => `<tr><td>${a.date}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td>${isAdminUser() ? `<button type='button' data-edit-attendance='${a.id}'>Edit</button>` : "View only"}</td></tr>`);
   rowOrEmpty(document.getElementById("attendance-table"), rows, "No attendance recorded yet.", 4);
 }
 
@@ -1279,7 +1654,8 @@ function resetAttendanceEditMode() {
 }
 
 function renderTests() {
-  const studentFilter = document.getElementById("grades-filter-student")?.value || "all";
+  const viewerStudentId = currentStudentId();
+  const studentFilter = viewerStudentId || document.getElementById("grades-filter-student")?.value || "all";
   const quarterFilter = document.getElementById("grades-filter-quarter")?.value || "all";
   const schoolYearFilter = document.getElementById("grades-filter-school-year")?.value || "all";
   const subjectFilter = document.getElementById("grades-filter-subject")?.value || "all";
@@ -1307,7 +1683,8 @@ function renderTests() {
     .slice(0,150)
     .map((t) => {
       const gradeType = gradeTypeName(t);
-      return `<tr><td>${t.date}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${gradeType}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td><td><button type='button' data-edit-grade='${t.id}'>Edit</button></td></tr>`;
+      const actions = isAdminUser() ? `<button type='button' data-edit-grade='${t.id}'>Edit</button>` : "View only";
+      return `<tr><td>${t.date}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${gradeType}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td><td>${actions}</td></tr>`;
     });
   const avgGrade = weightedAverageForTests(filtered, { quarterScoped: quarterFilter !== "all" });
   if (rows.length) {
@@ -1556,6 +1933,7 @@ function schoolYearMonths(startDate, endDate) {
 function renderGradeTrending() {
   const chartHost = document.getElementById("grade-trending-chart");
   if (!chartHost) return;
+  const allowedStudentIds = visibleStudentIds();
 
   const sy = state.settings.schoolYear;
   const syStart = toDate(sy.startDate);
@@ -1587,6 +1965,7 @@ function renderGradeTrending() {
   }
 
   const filteredTests = state.tests.filter((t) => {
+    if (!allowedStudentIds.has(t.studentId)) return false;
     if (!inRange(t.date, sy.startDate, sy.endDate)) return false;
     if (quarterRange && quarterFilter !== "all" && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
@@ -1597,7 +1976,9 @@ function renderGradeTrending() {
 
   const seriesBase = selectedStudentIds.length
     ? selectedStudentIds.map((studentId) => ({ id: studentId, label: getStudentName(studentId), tests: filteredTests.filter((t) => t.studentId === studentId) }))
-    : [{ id: "all", label: "All Students", tests: filteredTests }];
+    : (isStudentUser()
+      ? visibleStudents().map((student) => ({ id: student.id, label: getStudentName(student.id), tests: filteredTests.filter((t) => t.studentId === student.id) }))
+      : [{ id: "all", label: "All Students", tests: filteredTests }]);
   const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
 
   const series = seriesBase.map((entry, idx) => {
@@ -1754,6 +2135,7 @@ function renderGradeTrending() {
 function renderGradeTypeVolumeChart() {
   const chartHost = document.getElementById("grade-type-volume-chart");
   if (!chartHost) return;
+  const allowedStudentIds = visibleStudentIds();
 
   const sy = state.settings.schoolYear;
   const syStart = toDate(sy.startDate);
@@ -1777,6 +2159,7 @@ function renderGradeTypeVolumeChart() {
   const knownTypes = availableGradeTypes().length ? [...availableGradeTypes()] : [...DEFAULT_GRADE_TYPES];
   const inYearTests = state.tests.filter((t) => inRange(t.date, sy.startDate, sy.endDate));
   const filteredTests = inYearTests.filter((t) => {
+    if (!allowedStudentIds.has(t.studentId)) return false;
     if (quarterRange && quarterFilter !== "all" && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
     const thisType = gradeTypeName(t);
@@ -1884,6 +2267,7 @@ function renderGradeTypeVolumeChart() {
 function renderWorkDistributionChart() {
   const chartHost = document.getElementById("work-distribution-chart");
   if (!chartHost) return;
+  const allowedStudentIds = visibleStudentIds();
 
   const sy = state.settings.schoolYear;
   const quarterFilter = document.getElementById("work-filter-quarter")?.value || "all";
@@ -1891,6 +2275,7 @@ function renderWorkDistributionChart() {
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
 
   const filteredTests = state.tests.filter((t) => {
+    if (!allowedStudentIds.has(t.studentId)) return false;
     if (!inRange(t.date, sy.startDate, sy.endDate)) return false;
     if (quarterRange && quarterFilter !== "all" && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if (selectedStudentIds.length && !selectedStudentIds.includes(t.studentId)) return false;
@@ -1978,9 +2363,13 @@ function renderWorkDistributionChart() {
 }
 
 function renderDashboard() {
+  const allowedStudentIds = visibleStudentIds();
+  const dashboardStudents = visibleStudents();
   const dates = instructionalDates();
   const dateSet = new Set(dates);
-  const presentSet = new Set(state.attendance.filter((a) => a.present && a.date <= todayISO()).map((a) => a.date));
+  const presentSet = new Set(state.attendance
+    .filter((a) => allowedStudentIds.has(a.studentId) && a.present && a.date <= todayISO())
+    .map((a) => a.date));
   const completeDays = Array.from(presentSet).filter((d) => dateSet.has(d)).length;
   const totalDays = dates.length;
 
@@ -1990,16 +2379,20 @@ function renderDashboard() {
   const g = gradeAnalytics();
   const topStudent = g.student
     .slice()
+    .filter((entry) => allowedStudentIds.has(entry.studentId))
     .sort((a,b)=>b.avg-a.avg || getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)))[0];
   document.getElementById("kpi-superstar").textContent = topStudent
     ? `${getStudentName(topStudent.studentId)} (${topStudent.avg.toFixed(1)}%)`
     : "No grades yet";
-  document.getElementById("kpi-running-avg").textContent = `${g.running.toFixed(1)}%`;
+  const runningAverage = isStudentUser() && dashboardStudents.length === 1
+    ? studentOverallAverage(dashboardStudents[0].id)
+    : g.running;
+  document.getElementById("kpi-running-avg").textContent = `${runningAverage.toFixed(1)}%`;
 
   const attendanceDatesThroughToday = dates.filter((d) => d <= todayISO());
   const attendanceDateSet = new Set(attendanceDatesThroughToday);
   const totalAttendanceDays = attendanceDatesThroughToday.length;
-  const attendanceLeaders = state.students
+  const attendanceLeaders = dashboardStudents
     .map((student) => {
       const records = state.attendance.filter((a) => a.studentId === student.id && a.date <= todayISO() && attendanceDateSet.has(a.date));
       const presentCount = records.filter((a) => a.present).length;
@@ -2027,7 +2420,7 @@ function renderDashboard() {
   document.getElementById("quarter-progress-fill").style.width = `${qP.toFixed(1)}%`;
   document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
 
-  const validStudentIds = new Set(state.students.map((student) => student.id));
+  const validStudentIds = new Set(dashboardStudents.map((student) => student.id));
   Array.from(expandedStudentAverageRows).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) expandedStudentAverageRows.delete(studentId);
   });
@@ -2051,7 +2444,7 @@ function renderDashboard() {
   const quarterByName = new Map(state.settings.quarters.map((entry) => [entry.name, entry]));
   const formatAvgCell = (avgValue, count) => count > 0 ? `${avgValue.toFixed(1)}%` : "No grades";
   const gradeTypeOrder = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
-  const studentMetrics = state.students
+  const studentMetrics = dashboardStudents
     .map((student) => {
       const studentTests = state.tests.filter((t) => t.studentId === student.id);
       const q1 = quarterByName.get("Q1");
@@ -2176,7 +2569,7 @@ function renderDashboard() {
   }
   rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
 
-  const studentAttendanceRows = state.students.flatMap((student) => {
+  const studentAttendanceRows = dashboardStudents.flatMap((student) => {
     const records = state.attendance.filter((a) => a.studentId === student.id && a.date <= todayISO() && attendanceDateSet.has(a.date));
     const presentCount = records.filter((a) => a.present).length;
     const absentCount = records.filter((a) => !a.present).length;
@@ -2562,7 +2955,7 @@ function renderDayCalendar(referenceISO, studentFilter) {
 function renderCalendar() {
   const view = document.getElementById("calendar-view").value;
   const ref = document.getElementById("calendar-date").value || todayISO();
-  const studentFilter = document.getElementById("calendar-student").value;
+  const studentFilter = currentStudentId() || document.getElementById("calendar-student").value;
   const monthView = document.getElementById("calendar-month-view");
   const detailView = document.getElementById("calendar-detail-view");
   const weekView = document.getElementById("calendar-week-view");
@@ -2701,6 +3094,7 @@ function removeStudent(id) {
   state.plans = state.plans.filter((p)=>p.studentId!==id);
   state.attendance = state.attendance.filter((a)=>a.studentId!==id);
   state.tests = state.tests.filter((t)=>t.studentId!==id);
+  state.users = state.users.map((user) => user.studentId === id ? { ...user, studentId: "" } : user);
   if (selectedStudentId === id) selectedStudentId = "";
 }
 function removeSubject(id) {
@@ -2792,14 +3186,103 @@ function cancelPlanEdit() {
 
 function bindEvents() {
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+    setActiveTab(btn.dataset.tab || "dashboard");
   }));
+
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = document.getElementById("login-username").value.trim().toLowerCase();
+    const password = document.getElementById("login-password").value;
+    const user = state.users.find((entry) => entry.username.toLowerCase() === username);
+    if (!user || !(await verifyPasswordForUser(user, password))) {
+      setLoginMessage("error", "Invalid username or password.");
+      return;
+    }
+    if (user.role === "student" && !user.studentId) {
+      setLoginMessage("error", "This student account is not linked to a student record yet.");
+      return;
+    }
+    currentUserId = user.id;
+    saveSession();
+    resetLoginMessage();
+    document.getElementById("login-form").reset();
+    renderAll();
+  });
+
+  const logoutBtn = document.getElementById("logout-btn");
+  if (logoutBtn) logoutBtn.addEventListener("click", () => logout());
+
+  const userRoleSelect = document.getElementById("user-role");
+  if (userRoleSelect) userRoleSelect.addEventListener("change", () => ensureStudentSelection());
+
+  document.getElementById("user-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!ensureAdminAction()) return;
+    const username = document.getElementById("user-username").value.trim();
+    const role = document.getElementById("user-role").value;
+    const studentId = document.getElementById("user-student-id").value;
+    const password = document.getElementById("user-password").value;
+    const confirmPassword = document.getElementById("user-password-confirm").value;
+    const existing = editingUserId ? state.users.find((entry) => entry.id === editingUserId) : null;
+    if (!username) {
+      setUserFormMessage("error", "Username is required.");
+      return;
+    }
+    if (state.users.some((entry) => entry.id !== editingUserId && entry.username.toLowerCase() === username.toLowerCase())) {
+      setUserFormMessage("error", "Username already exists.");
+      return;
+    }
+    if (role === "student" && !studentId) {
+      setUserFormMessage("error", "Student users must be linked to a student record.");
+      return;
+    }
+    if ((password || confirmPassword) && password !== confirmPassword) {
+      setUserFormMessage("error", "Passwords do not match.");
+      return;
+    }
+    if (!existing && !password) {
+      setUserFormMessage("error", "Password is required for new users.");
+      return;
+    }
+    if (existing) {
+      existing.username = username;
+      existing.role = role === "student" ? "student" : "admin";
+      existing.studentId = role === "student" ? studentId : "";
+      existing.mustChangePassword = existing.id === "default-admin-user" ? !password : existing.mustChangePassword;
+      existing.updatedAt = todayISO();
+      if (password) {
+        const credentials = await buildPasswordCredentials(password);
+        existing.passwordSalt = credentials.passwordSalt;
+        existing.passwordHash = credentials.passwordHash;
+        existing.mustChangePassword = false;
+      }
+    } else {
+      state.users.push(await createUserRecord({
+        username,
+        role,
+        password,
+        studentId,
+        mustChangePassword: false
+      }));
+    }
+    resetUserForm();
+    setUserFormMessage("success", existing ? "User account updated." : "User account created.");
+    saveState();
+    renderAll();
+  });
+
+  const userCancelEditBtn = document.getElementById("user-cancel-edit-btn");
+  if (userCancelEditBtn) {
+    userCancelEditBtn.addEventListener("click", () => {
+      resetUserForm();
+      resetUserFormMessage();
+      renderUsers();
+    });
+  }
 
   document.getElementById("student-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!ensureAdminAction()) return;
     const firstName = document.getElementById("student-first").value.trim();
     const lastName = document.getElementById("student-last").value.trim();
     const birthdate = document.getElementById("student-birthdate").value;
@@ -2811,6 +3294,7 @@ function bindEvents() {
 
   document.getElementById("subject-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!ensureAdminAction()) return;
     const name = document.getElementById("subject-name").value.trim();
     if (!name) return;
     if (state.subjects.some((s)=>s.name.toLowerCase()===name.toLowerCase())) { alert("Subject already exists."); return; }
@@ -2819,6 +3303,7 @@ function bindEvents() {
 
   document.getElementById("course-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!ensureAdminAction()) return;
     const name = document.getElementById("course-name").value.trim();
     const subjectId = document.getElementById("course-subject").value;
     const hoursPerDay = Number(document.getElementById("course-hours").value);
@@ -2840,6 +3325,7 @@ function bindEvents() {
   });
   document.getElementById("grade-type-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!ensureAdminAction()) return;
     const nameInput = document.getElementById("grade-type-name");
     const weightInput = document.getElementById("grade-type-weight");
     const name = nameInput.value.trim();
@@ -2886,6 +3372,7 @@ function bindEvents() {
   const gradeTypeApplyBtn = document.getElementById("grade-type-apply-btn");
   if (gradeTypeApplyBtn) {
     gradeTypeApplyBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
       const totalWeight = draftGradeTypes().reduce((sum, gt) => sum + (gt.weight == null ? 0 : Number(gt.weight) || 0), 0);
       if (Math.abs(totalWeight - 100) > 0.05) {
         alert("Grade Type weights must total exactly 100% before applying.");
@@ -2901,6 +3388,7 @@ function bindEvents() {
   const gradeTypeCancelChangesBtn = document.getElementById("grade-type-cancel-changes-btn");
   if (gradeTypeCancelChangesBtn) {
     gradeTypeCancelChangesBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
       gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
       gradeTypeDraftDirty = false;
       editingGradeTypeId = "";
@@ -2916,6 +3404,7 @@ function bindEvents() {
 
   document.getElementById("student-enrollment-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!ensureAdminAction()) return;
     const studentId = selectedStudentId;
     const courseId = document.getElementById("student-enroll-course").value;
     if (!studentId || !courseId) return;
@@ -2925,6 +3414,7 @@ function bindEvents() {
 
   document.getElementById("school-year-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!ensureAdminAction()) return;
     const label = document.getElementById("school-year-label").value.trim();
     const startDate = document.getElementById("school-year-start").value;
     const endDate = document.getElementById("school-year-end").value;
@@ -2956,6 +3446,7 @@ function bindEvents() {
 
   document.getElementById("quarters-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!ensureAdminAction()) return;
     const schoolYearId = document.getElementById("quarter-school-year").value;
     if (!schoolYearId) { alert("Select a school year for these quarters."); return; }
     const q = [
@@ -2987,6 +3478,7 @@ function bindEvents() {
 
   document.getElementById("holiday-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!ensureAdminAction()) return;
     const name = document.getElementById("holiday-name").value.trim();
     const type = document.getElementById("holiday-type").value;
     const startDate = document.getElementById("holiday-start").value;
@@ -3015,6 +3507,7 @@ function bindEvents() {
 
   document.getElementById("plan-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!ensureAdminAction()) return;
     const planType = document.getElementById("plan-type").value;
     const studentId = document.getElementById("plan-student").value;
     const courseIds = getSelectedPlanCourseIds();
@@ -3202,6 +3695,7 @@ function bindEvents() {
 
   document.getElementById("attendance-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!ensureAdminAction()) return;
     const studentIds = Array.from(document.querySelectorAll(".attendance-student-checkbox:checked")).map((el) => el.value);
     const date = document.getElementById("attendance-date").value;
     const status = document.getElementById("attendance-status").value;
@@ -3256,6 +3750,7 @@ function bindEvents() {
   }
 
   document.getElementById("add-grade-row-btn").addEventListener("click", () => {
+    if (!ensureAdminAction()) return;
     if (!state.students.length || !state.subjects.length || !state.courses.length) {
       alert("Add at least one student, subject, and course before entering grades.");
       return;
@@ -3454,6 +3949,7 @@ function bindEvents() {
 
     const setCurrentSchoolYearId = t.getAttribute("data-set-current-school-year");
     if (setCurrentSchoolYearId) {
+      if (!ensureAdminAction()) return;
       setCurrentSchoolYear(setCurrentSchoolYearId);
       saveState();
       renderAll();
@@ -3461,16 +3957,19 @@ function bindEvents() {
     }
     const editSchoolYearId = t.getAttribute("data-edit-school-year");
     if (editSchoolYearId) {
+      if (!ensureAdminAction()) return;
       beginSchoolYearEdit(editSchoolYearId);
       return;
     }
     const editQuartersYearId = t.getAttribute("data-edit-quarters-year");
     if (editQuartersYearId) {
+      if (!ensureAdminAction()) return;
       beginQuarterEdit(editQuartersYearId);
       return;
     }
     const editCourseId = t.getAttribute("data-edit-course");
     if (editCourseId) {
+      if (!ensureAdminAction()) return;
       beginCourseEdit(editCourseId);
       return;
     }
@@ -3511,16 +4010,19 @@ function bindEvents() {
     }
     const editGradeTypeId = t.getAttribute("data-edit-grade-type");
     if (editGradeTypeId) {
+      if (!ensureAdminAction()) return;
       beginGradeTypeEdit(editGradeTypeId);
       return;
     }
     const editHolidayId = t.getAttribute("data-edit-holiday");
     if (editHolidayId) {
+      if (!ensureAdminAction()) return;
       beginHolidayEdit(editHolidayId);
       return;
     }
     const editPlanId = t.getAttribute("data-edit-plan");
     if (editPlanId) {
+      if (!ensureAdminAction()) return;
       beginPlanEdit(editPlanId);
       return;
     }
@@ -3549,6 +4051,7 @@ function bindEvents() {
 
     const editAttendanceId = t.getAttribute("data-edit-attendance");
     if (editAttendanceId) {
+      if (!ensureAdminAction()) return;
       const target = state.attendance.find((a) => a.id === editAttendanceId);
       if (!target) return;
       editingAttendanceId = target.id;
@@ -3562,6 +4065,7 @@ function bindEvents() {
 
     const saveGrade = t.getAttribute("data-grade-save");
     if (saveGrade) {
+      if (!ensureAdminAction()) return;
       const row = t.closest("tr");
       if (!row) return;
       const editGradeId = row.getAttribute("data-edit-grade-id");
@@ -3616,6 +4120,7 @@ function bindEvents() {
 
     const cancelGrade = t.getAttribute("data-grade-cancel");
     if (cancelGrade) {
+      if (!ensureAdminAction()) return;
       const row = t.closest("tr");
       if (row) row.remove();
       updateGradeEntryVisibility();
@@ -3625,6 +4130,7 @@ function bindEvents() {
     const openStudentId = t.getAttribute("data-open-student"); if (openStudentId) { selectedStudentId = openStudentId; renderAll(); return; }
     const editGradeId = t.getAttribute("data-edit-grade");
     if (editGradeId) {
+      if (!ensureAdminAction()) return;
       const existing = state.tests.find((x) => x.id === editGradeId);
       if (!existing) return;
       const entryBody = document.getElementById("grade-entry-body");
@@ -3637,24 +4143,48 @@ function bindEvents() {
       updateGradeEntryVisibility();
       return;
     }
-    const studentId = t.getAttribute("data-remove-student"); if (studentId) { removeStudent(studentId); saveState(); renderAll(); return; }
-    const subjectId = t.getAttribute("data-remove-subject"); if (subjectId) { removeSubject(subjectId); saveState(); renderAll(); return; }
-    const courseId = t.getAttribute("data-remove-course"); if (courseId) { removeCourse(courseId); saveState(); renderAll(); return; }
+    const editUserId = t.getAttribute("data-edit-user");
+    if (editUserId) {
+      if (!ensureAdminAction()) return;
+      beginUserEdit(editUserId);
+      resetUserFormMessage();
+      return;
+    }
+    const removeUserId = t.getAttribute("data-remove-user");
+    if (removeUserId) {
+      if (!ensureAdminAction()) return;
+      const targetUser = state.users.find((entry) => entry.id === removeUserId);
+      if (targetUser && targetUser.role === "admin" && state.users.filter((entry) => entry.role === "admin").length <= 1) {
+        setUserFormMessage("error", "At least one administrator account is required.");
+        return;
+      }
+      state.users = state.users.filter((entry) => entry.id !== removeUserId);
+      if (editingUserId === removeUserId) resetUserForm();
+      if (currentUserId === removeUserId) logout();
+      saveState();
+      renderAll();
+      return;
+    }
+    const studentId = t.getAttribute("data-remove-student"); if (studentId) { if (!ensureAdminAction()) return; removeStudent(studentId); saveState(); renderAll(); return; }
+    const subjectId = t.getAttribute("data-remove-subject"); if (subjectId) { if (!ensureAdminAction()) return; removeSubject(subjectId); saveState(); renderAll(); return; }
+    const courseId = t.getAttribute("data-remove-course"); if (courseId) { if (!ensureAdminAction()) return; removeCourse(courseId); saveState(); renderAll(); return; }
     const gradeTypeId = t.getAttribute("data-remove-grade-type");
     if (gradeTypeId) {
+      if (!ensureAdminAction()) return;
       gradeTypesDraft = draftGradeTypes().filter((gt) => gt.id !== gradeTypeId);
       if (editingGradeTypeId === gradeTypeId) editingGradeTypeId = "";
       gradeTypeDraftDirty = true;
       renderGradeTypes();
       return;
     }
-    const enrollmentId = t.getAttribute("data-remove-student-enrollment"); if (enrollmentId) { state.enrollments = state.enrollments.filter((x)=>x.id!==enrollmentId); saveState(); renderAll(); return; }
-    const holidayId = t.getAttribute("data-remove-holiday"); if (holidayId) { state.settings.holidays = state.settings.holidays.filter((x)=>x.id!==holidayId); if (editingHolidayId === holidayId) editingHolidayId = ""; saveState(); renderAll(); return; }
-    const planId = t.getAttribute("data-remove-plan"); if (planId) { state.plans = state.plans.filter((x)=>x.id!==planId); if (editingPlanId === planId) editingPlanId = ""; saveState(); renderAll(); }
+    const enrollmentId = t.getAttribute("data-remove-student-enrollment"); if (enrollmentId) { if (!ensureAdminAction()) return; state.enrollments = state.enrollments.filter((x)=>x.id!==enrollmentId); saveState(); renderAll(); return; }
+    const holidayId = t.getAttribute("data-remove-holiday"); if (holidayId) { if (!ensureAdminAction()) return; state.settings.holidays = state.settings.holidays.filter((x)=>x.id!==holidayId); if (editingHolidayId === holidayId) editingHolidayId = ""; saveState(); renderAll(); return; }
+    const planId = t.getAttribute("data-remove-plan"); if (planId) { if (!ensureAdminAction()) return; state.plans = state.plans.filter((x)=>x.id!==planId); if (editingPlanId === planId) editingPlanId = ""; saveState(); renderAll(); }
   });
 }
 
 function renderAll() {
+  renderSessionChrome();
   renderSelects();
   fillSettingsForms();
   updatePlanFormMode();
@@ -3670,9 +4200,28 @@ function renderAll() {
   renderScheduleSectionVisibility();
   renderAttendance();
   renderTests();
+  renderUsers();
+  ensureStudentSelection();
   updateGradeEntryVisibility();
   renderDashboard();
   renderCalendar();
+
+  const studentMode = isStudentUser();
+  const planForm = document.getElementById("plan-form");
+  const planFilterForm = document.getElementById("plan-filter-form");
+  const attendanceForm = document.getElementById("attendance-form");
+  const addGradeBtn = document.getElementById("add-grade-row-btn");
+  const gradeEntryWrap = document.getElementById("grade-entry-wrap");
+  const calendarForm = document.getElementById("calendar-form");
+  if (planForm) planForm.classList.toggle("hidden", studentMode);
+  if (planFilterForm) planFilterForm.classList.toggle("hidden", studentMode);
+  if (attendanceForm) attendanceForm.classList.toggle("hidden", studentMode);
+  if (addGradeBtn) addGradeBtn.classList.toggle("hidden", studentMode);
+  if (gradeEntryWrap && studentMode) gradeEntryWrap.classList.add("hidden");
+  if (calendarForm) {
+    const studentSelect = document.getElementById("calendar-student");
+    if (studentSelect) studentSelect.disabled = studentMode;
+  }
 }
 
 bindEvents();

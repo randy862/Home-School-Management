@@ -7,11 +7,38 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main class="shell">
+  <main id="login-shell" class="shell auth-shell">
+    <header class="top auth-top">
+      <img class="brand-photo" src="assets/MitchellFamily.png" alt="The Mitchell Family crest">
+      <img class="title-logo" src="assets/Logo2.png" alt="The Mitchell Family Home School Management System">
+      <p class="subtitle">Homeschool made smarter! Fast, easy, organized!</p>
+    </header>
+
+    <section class="panel auth-panel">
+      <div class="auth-card">
+        <div>
+          <h2>Login</h2>
+          <p class="muted">Sign in with your system user account to continue.</p>
+        </div>
+        <form id="login-form" class="grid-form auth-form">
+          <label>Username<input id="login-username" type="text" autocomplete="username" required></label>
+          <label>Password<input id="login-password" type="password" autocomplete="current-password" required></label>
+          <button type="submit">Sign In</button>
+        </form>
+        <p id="login-message" class="status-text hidden"></p>
+      </div>
+    </section>
+  </main>
+
+  <main id="app-shell" class="shell hidden">
     <header class="top">
       <img class="brand-photo" src="assets/MitchellFamily.png" alt="The Mitchell Family crest">
       <img class="title-logo" src="assets/Logo2.png" alt="The Mitchell Family Home School Management System">
       <p class="subtitle">Homeschool made smarter! Fast, easy, organized!</p>
+      <div class="session-bar">
+        <p id="session-summary" class="muted">Not signed in</p>
+        <button id="logout-btn" type="button">Logout</button>
+      </div>
       <nav class="tabs" aria-label="Primary">
         <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
         <button class="tab-btn" data-tab="students" type="button">Students</button>
@@ -20,6 +47,7 @@
         <button class="tab-btn" data-tab="calendar" type="button">Calendar</button>
         <button class="tab-btn" data-tab="attendance" type="button">Attendance</button>
         <button class="tab-btn" data-tab="grades" type="button">Grades</button>
+        <button class="tab-btn" data-tab="users" type="button">Users</button>
       </nav>
     </header>
 
@@ -630,6 +658,45 @@
             <thead><tr><th>Date</th><th>Student</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead>
             <tbody id="test-table"></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-users" class="tab-panel panel">
+      <h2>Users</h2>
+      <p class="muted">Create administrator and student accounts, assign linked students, and manage passwords.</p>
+      <div class="split">
+        <div class="users-section users-section-form">
+          <h3>User Account</h3>
+          <form id="user-form" class="grid-form">
+            <label>Username<input id="user-username" type="text" autocomplete="off" required></label>
+            <label>User Type
+              <select id="user-role" required>
+                <option value="admin">Administrator</option>
+                <option value="student">Student</option>
+              </select>
+            </label>
+            <label id="user-student-wrap">Linked Student
+              <select id="user-student-id">
+                <option value="">Select student</option>
+              </select>
+            </label>
+            <label>Password<input id="user-password" type="password" autocomplete="new-password" required></label>
+            <label>Confirm Password<input id="user-password-confirm" type="password" autocomplete="new-password" required></label>
+            <button id="user-submit-btn" type="submit">Create User</button>
+            <button id="user-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+          </form>
+          <p id="user-form-message" class="status-text hidden"></p>
+        </div>
+
+        <div class="users-section users-section-list">
+          <h3>System Users</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Username</th><th>Role</th><th>Linked Student</th><th>Password</th><th>Actions</th></tr></thead>
+              <tbody id="user-table"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>

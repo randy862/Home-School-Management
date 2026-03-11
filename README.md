@@ -1,8 +1,17 @@
 # Home School Management
 
-Home School Management is a single-page web app for managing students, courses, plans, attendance, and grades.
+Home School Management is a single-page web app for managing students, courses, plans, attendance, grades, and system users.
 
 This repo now includes an MSSQL migration scaffold to move persistence from browser `localStorage` to SQL Server Express.
+
+## Authentication
+
+- Administrators can access every page and manage user accounts from the new `Users` page.
+- Student accounts are linked to a student record and are limited to read-only access on Dashboard, Schedule, Attendance, and Grades.
+- Existing installs bootstrap a default admin login:
+  - Username: `admin`
+  - Password: `ChangeMe123!`
+  - Change this password after the first sign-in.
 
 ## Project Layout
 

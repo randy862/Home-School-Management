@@ -35,6 +35,20 @@ function fallbackSettings() {
   };
 }
 
+function fallbackUsers() {
+  return [{
+    id: "default-admin-user",
+    username: "admin",
+    role: "admin",
+    studentId: "",
+    passwordHash: "legacy-115582537",
+    passwordSalt: "",
+    mustChangePassword: true,
+    createdAt: toIsoDate(new Date()),
+    updatedAt: toIsoDate(new Date())
+  }];
+}
+
 async function readState() {
   const pool = await getPool();
   const queries = [
@@ -48,7 +62,29 @@ async function readState() {
     "SELECT id, name, weight FROM dbo.grade_types ORDER BY name",
     "SELECT id, plan_type, student_id, course_id, start_date, end_date, weekdays_json, quarter_name FROM dbo.plans ORDER BY start_date",
     "SELECT id, student_id, attendance_date, present FROM dbo.attendance ORDER BY attendance_date",
-    "SELECT id, test_date, student_id, subject_id, course_id, grade_type, test_name, score, max_score FROM dbo.tests ORDER BY test_date"
+    "SELECT id, test_date, student_id, subject_id, course_id, grade_type, test_name, score, max_score FROM dbo.tests ORDER BY test_date",
+    `
+      IF OBJECT_ID('dbo.users', 'U') IS NULL
+      BEGIN
+        SELECT
+          CAST(NULL AS NVARCHAR(64)) AS id,
+          CAST(NULL AS NVARCHAR(120)) AS username,
+          CAST(NULL AS NVARCHAR(20)) AS user_role,
+          CAST(NULL AS NVARCHAR(64)) AS student_id,
+          CAST(NULL AS NVARCHAR(255)) AS password_hash,
+          CAST(NULL AS NVARCHAR(255)) AS password_salt,
+          CAST(NULL AS BIT) AS must_change_password,
+          CAST(NULL AS DATE) AS created_at,
+          CAST(NULL AS DATE) AS updated_at
+        WHERE 1 = 0
+      END
+      ELSE
+      BEGIN
+        SELECT id, username, user_role, student_id, password_hash, password_salt, must_change_password, created_at, updated_at
+        FROM dbo.users
+        ORDER BY username
+      END
+    `
   ];
 
   const [
@@ -62,7 +98,8 @@ async function readState() {
     gradeTypesR,
     plansR,
     attendanceR,
-    testsR
+    testsR,
+    usersR
   ] = await Promise.all(queries.map((text) => pool.request().query(text)));
 
   const students = studentsR.recordset.map((r) => ({
@@ -149,9 +186,20 @@ async function readState() {
     score: Number(r.score),
     maxScore: Number(r.max_score)
   }));
+  const users = usersR.recordset.map((r) => ({
+    id: r.id,
+    username: r.username,
+    role: r.user_role,
+    studentId: r.student_id || "",
+    passwordHash: r.password_hash,
+    passwordSalt: r.password_salt || "",
+    mustChangePassword: !!r.must_change_password,
+    createdAt: toIsoDate(r.created_at),
+    updatedAt: toIsoDate(r.updated_at)
+  }));
 
   if (!schoolYears.length) {
-    return { students, subjects, courses, enrollments, plans, attendance, tests, settings: fallbackSettings() };
+    return { students, subjects, courses, enrollments, plans, attendance, tests, users: users.length ? users : fallbackUsers(), settings: fallbackSettings() };
   }
 
   const current = schoolYears.find((year) => year.isCurrent) || schoolYears[0];
@@ -167,7 +215,7 @@ async function readState() {
       : DEFAULT_GRADE_TYPES.map((name, idx) => ({ id: `default-grade-type-${idx + 1}`, name, weight: null }))
   };
 
-  return { students, subjects, courses, enrollments, plans, attendance, tests, settings };
+  return { students, subjects, courses, enrollments, plans, attendance, tests, users: users.length ? users : fallbackUsers(), settings };
 }
 
 function uniqueById(items) {
@@ -185,7 +233,25 @@ async function writeState(state) {
   await tx.begin();
   try {
     const request = () => new sql.Request(tx);
+    await request().query(`
+      IF OBJECT_ID('dbo.users', 'U') IS NULL
+      BEGIN
+        CREATE TABLE dbo.users (
+          id NVARCHAR(64) NOT NULL PRIMARY KEY,
+          username NVARCHAR(120) NOT NULL UNIQUE,
+          user_role NVARCHAR(20) NOT NULL,
+          student_id NVARCHAR(64) NULL,
+          password_hash NVARCHAR(255) NOT NULL,
+          password_salt NVARCHAR(255) NULL,
+          must_change_password BIT NOT NULL DEFAULT 0,
+          created_at DATE NULL,
+          updated_at DATE NULL,
+          CONSTRAINT FK_users_students FOREIGN KEY (student_id) REFERENCES dbo.students(id)
+        )
+      END
+    `);
     await request().query("DELETE FROM dbo.tests");
+    await request().query("DELETE FROM dbo.users");
     await request().query("DELETE FROM dbo.attendance");
     await request().query("DELETE FROM dbo.plans");
     await request().query("DELETE FROM dbo.enrollments");
@@ -325,6 +391,24 @@ async function writeState(state) {
         .query(`
           INSERT INTO dbo.tests (id, test_date, student_id, subject_id, course_id, grade_type, test_name, score, max_score)
           VALUES (@id, @test_date, @student_id, @subject_id, @course_id, @grade_type, @test_name, @score, @max_score)
+        `);
+    }
+
+    const users = uniqueById(state.users);
+    for (const row of users) {
+      await request()
+        .input("id", sql.NVarChar(64), row.id)
+        .input("username", sql.NVarChar(120), row.username || "")
+        .input("user_role", sql.NVarChar(20), row.role === "student" ? "student" : "admin")
+        .input("student_id", sql.NVarChar(64), row.studentId || null)
+        .input("password_hash", sql.NVarChar(255), row.passwordHash || "")
+        .input("password_salt", sql.NVarChar(255), row.passwordSalt || null)
+        .input("must_change_password", sql.Bit, row.mustChangePassword ? 1 : 0)
+        .input("created_at", sql.Date, row.createdAt || null)
+        .input("updated_at", sql.Date, row.updatedAt || null)
+        .query(`
+          INSERT INTO dbo.users (id, username, user_role, student_id, password_hash, password_salt, must_change_password, created_at, updated_at)
+          VALUES (@id, @username, @user_role, @student_id, @password_hash, @password_salt, @must_change_password, @created_at, @updated_at)
         `);
     }
 

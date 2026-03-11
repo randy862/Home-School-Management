@@ -1,4 +1,5 @@
 IF OBJECT_ID('dbo.tests', 'U') IS NOT NULL DROP TABLE dbo.tests;
+IF OBJECT_ID('dbo.users', 'U') IS NOT NULL DROP TABLE dbo.users;
 IF OBJECT_ID('dbo.attendance', 'U') IS NOT NULL DROP TABLE dbo.attendance;
 IF OBJECT_ID('dbo.plans', 'U') IS NOT NULL DROP TABLE dbo.plans;
 IF OBJECT_ID('dbo.enrollments', 'U') IS NOT NULL DROP TABLE dbo.enrollments;
@@ -109,6 +110,19 @@ CREATE TABLE dbo.tests (
   CONSTRAINT FK_tests_students FOREIGN KEY (student_id) REFERENCES dbo.students(id),
   CONSTRAINT FK_tests_subjects FOREIGN KEY (subject_id) REFERENCES dbo.subjects(id),
   CONSTRAINT FK_tests_courses FOREIGN KEY (course_id) REFERENCES dbo.courses(id)
+);
+
+CREATE TABLE dbo.users (
+  id NVARCHAR(64) NOT NULL PRIMARY KEY,
+  username NVARCHAR(120) NOT NULL UNIQUE,
+  user_role NVARCHAR(20) NOT NULL,
+  student_id NVARCHAR(64) NULL,
+  password_hash NVARCHAR(255) NOT NULL,
+  password_salt NVARCHAR(255) NULL,
+  must_change_password BIT NOT NULL DEFAULT 0,
+  created_at DATE NULL,
+  updated_at DATE NULL,
+  CONSTRAINT FK_users_students FOREIGN KEY (student_id) REFERENCES dbo.students(id)
 );
 
 CREATE INDEX IX_tests_student_date ON dbo.tests(student_id, test_date);

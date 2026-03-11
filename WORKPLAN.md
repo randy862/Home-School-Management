@@ -32,17 +32,17 @@
 
 ## Parallel Workstreams (Current)
 
-1. Backend/API Engineer (owner: `server/`)
-   - Build `/api` endpoints and transaction-safe CRUD
-2. Data Migration Engineer (owner: `server/src/scripts/`, `NOTES/mssql-migration-plan.md`)
-   - Finalize mapping checks and dry-run import flow
-3. Frontend Engineer (owner: `web/`)
-   - Prepare data adapter layer for local-storage to API cutover
-4. QA & Release Agent (owner: `CHECKLISTS/mssql-cutover.md`)
-   - Define migration acceptance gates and rollback test
+1. Frontend Engineer (owner: `web/`)
+   - Add login screen, Users page, role-based navigation, and student view restrictions
+2. Backend/API Engineer (owner: `server/`)
+   - Persist user accounts in SQL-backed state sync and keep legacy DBs compatible
+3. QA & Release Agent (owner: `CHECKLISTS/`, `STATUS.md`)
+   - Smoke-test admin create/edit flows and student read-only restrictions
+4. CEO Orchestrator (owner: root governance docs)
+   - Record auth model, rollout assumptions, and feature status
 
 ## Active Next Actions
 
-1. Receive SQL Server Express connection details and credentials from user.
-2. Run `npm install`, `npm run db:migrate`, then dry-run `db:import-state`.
-3. Implement and wire frontend API calls for students/subjects/courses first.
+1. Verify the new Users/login flow in the browser against the local API path.
+2. Re-run SQL migration so `dbo.users` exists as a first-class table.
+3. Confirm default admin bootstrap and student-linked login behavior end to end.
