@@ -447,6 +447,11 @@ button.secondary-btn {
   align-items: end;
 }
 
+#gpa-trend-filter-form {
+  grid-template-columns: minmax(260px, 2.2fr) minmax(90px, 0.6fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
+  align-items: end;
+}
+
 #volume-filter-form {
   grid-template-columns: minmax(260px, 2.2fr) minmax(90px, 0.6fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
   align-items: end;
@@ -462,6 +467,10 @@ button.secondary-btn {
   min-width: 0;
 }
 
+#gpa-trend-filter-form label {
+  min-width: 0;
+}
+
 #volume-filter-form label {
   min-width: 0;
 }
@@ -471,6 +480,10 @@ button.secondary-btn {
 }
 
 #trend-filter-quarter {
+  max-width: 110px;
+}
+
+#gpa-trend-filter-quarter {
   max-width: 110px;
 }
 
@@ -487,12 +500,18 @@ button.secondary-btn {
   max-width: 220px;
 }
 
+#gpa-trend-filter-subject,
+#gpa-trend-filter-grade-type {
+  max-width: 220px;
+}
+
 #volume-filter-subject,
 #volume-filter-grade-type {
   max-width: 220px;
 }
 
 #trend-filter-form > button,
+#gpa-trend-filter-form > button,
 #volume-filter-form > button,
 #work-filter-form > button {
   align-self: end;
@@ -507,6 +526,10 @@ button.secondary-btn {
     grid-template-columns: 1fr 1fr;
   }
 
+  #gpa-trend-filter-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
   #volume-filter-form {
     grid-template-columns: 1fr 1fr;
   }
@@ -518,6 +541,12 @@ button.secondary-btn {
   #trend-filter-quarter,
   #trend-filter-subject,
   #trend-filter-grade-type {
+    max-width: none;
+  }
+
+  #gpa-trend-filter-quarter,
+  #gpa-trend-filter-subject,
+  #gpa-trend-filter-grade-type {
     max-width: none;
   }
 
@@ -1064,6 +1093,11 @@ td {
 .dashboard-section-volume {
   background: #f7f2e9;
   border-color: #ddcfbb;
+}
+
+.dashboard-section-gpa-trending {
+  background: #eef3f0;
+  border-color: #c7d5cc;
 }
 
 .dashboard-section-work-distribution {

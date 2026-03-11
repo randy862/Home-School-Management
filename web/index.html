@@ -130,6 +130,40 @@
         <div id="grade-trending-chart" class="chart-wrap"></div>
       </div>
 
+      <div class="dashboard-section dashboard-section-gpa-trending">
+        <h3>GPA Trending</h3>
+        <form id="gpa-trend-filter-form" class="grid-form">
+          <label class="trend-student-field">Student
+            <details id="gpa-trend-student-dropdown" class="multi-select-dropdown">
+              <summary id="gpa-trend-student-summary">Students (0 selected)</summary>
+              <div id="gpa-trend-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label>Quarter
+            <select id="gpa-trend-filter-quarter">
+              <option value="all">All Quarters</option>
+            </select>
+          </label>
+          <label>Subject
+            <select id="gpa-trend-filter-subject">
+              <option value="all">All Subjects</option>
+            </select>
+          </label>
+          <label>Grade Type
+            <select id="gpa-trend-filter-grade-type">
+              <option value="all">All Grade Types</option>
+              <option value="Assignment">Assignment</option>
+              <option value="Quiz">Quiz</option>
+              <option value="Test">Test</option>
+              <option value="Quarterly Final">Quarterly Final</option>
+              <option value="Final">Final</option>
+            </select>
+          </label>
+          <button id="gpa-trend-clear-filters-btn" type="button">Clear Filters</button>
+        </form>
+        <div id="gpa-trending-chart" class="chart-wrap"></div>
+      </div>
+
       <div class="dashboard-section dashboard-section-volume">
         <h3>Grade Type Volume</h3>
         <form id="volume-filter-form" class="grid-form">

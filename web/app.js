@@ -339,6 +339,7 @@ const expandedStudentAverageRows = new Set();
 const expandedSubjectAverageRows = new Set();
 const expandedStudentAttendanceRows = new Set();
 const trendSelectedStudentIds = new Set();
+const gpaTrendSelectedStudentIds = new Set();
 const volumeSelectedStudentIds = new Set();
 const workSelectedStudentIds = new Set();
 let workDistributionGradeType = "Assignment";
@@ -723,6 +724,11 @@ function averageOfQuarterAverages(quarterRows) {
   const vals = quarterRows.filter((row) => row.count > 0).map((row) => row.avg);
   return vals.length ? avg(vals) : 0;
 }
+function averageToGpa(averageValue) {
+  const numeric = Number(averageValue);
+  if (!Number.isFinite(numeric)) return 0;
+  return clamp(numeric / 25, 0, 4);
+}
 function studentOverallAverage(studentId) {
   const tests = state.tests.filter((t) => t.studentId === studentId);
   return weightedAverageForTests(tests);
@@ -850,6 +856,7 @@ function renderSelects() {
   options("user-student-id", state.students, (s) => `${s.firstName} ${s.lastName}`, "Select student");
   renderAttendanceStudentChecklist();
   renderTrendStudentChecklist(Array.from(trendSelectedStudentIds));
+  renderGpaTrendStudentChecklist(Array.from(gpaTrendSelectedStudentIds));
   renderVolumeStudentChecklist(Array.from(volumeSelectedStudentIds));
   renderWorkStudentChecklist(Array.from(workSelectedStudentIds));
 
@@ -1027,6 +1034,45 @@ function renderSelects() {
     if (Array.from(trendGradeTypeSelect.options).some((o) => o.value === current)) trendGradeTypeSelect.value = current;
   }
 
+  const gpaTrendQuarterSelect = document.getElementById("gpa-trend-filter-quarter");
+  if (gpaTrendQuarterSelect) {
+    const current = gpaTrendQuarterSelect.value || "all";
+    gpaTrendQuarterSelect.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      gpaTrendQuarterSelect.appendChild(option);
+    });
+    if (Array.from(gpaTrendQuarterSelect.options).some((o) => o.value === current)) gpaTrendQuarterSelect.value = current;
+  }
+
+  const gpaTrendSubjectSelect = document.getElementById("gpa-trend-filter-subject");
+  if (gpaTrendSubjectSelect) {
+    const current = gpaTrendSubjectSelect.value || "all";
+    gpaTrendSubjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+    state.subjects.forEach((subject) => {
+      const option = document.createElement("option");
+      option.value = subject.id;
+      option.textContent = subject.name;
+      gpaTrendSubjectSelect.appendChild(option);
+    });
+    if (Array.from(gpaTrendSubjectSelect.options).some((o) => o.value === current)) gpaTrendSubjectSelect.value = current;
+  }
+
+  const gpaTrendGradeTypeSelect = document.getElementById("gpa-trend-filter-grade-type");
+  if (gpaTrendGradeTypeSelect) {
+    const current = gpaTrendGradeTypeSelect.value || "all";
+    gpaTrendGradeTypeSelect.innerHTML = "<option value='all'>All Grade Types</option>";
+    availableGradeTypes().forEach((type) => {
+      const option = document.createElement("option");
+      option.value = type;
+      option.textContent = type;
+      gpaTrendGradeTypeSelect.appendChild(option);
+    });
+    if (Array.from(gpaTrendGradeTypeSelect.options).some((o) => o.value === current)) gpaTrendGradeTypeSelect.value = current;
+  }
+
   const volumeQuarterSelect = document.getElementById("volume-filter-quarter");
   if (volumeQuarterSelect) {
     const current = volumeQuarterSelect.value || "all";
@@ -1131,6 +1177,31 @@ function updateTrendStudentSummary() {
 
 function getTrendSelectedStudentIds() {
   return Array.from(document.querySelectorAll(".trend-student-checkbox:checked")).map((el) => el.value);
+}
+
+function renderGpaTrendStudentChecklist(preselectedStudentIds = []) {
+  const container = document.getElementById("gpa-trend-student-dropdown");
+  const optionsWrap = document.getElementById("gpa-trend-student-options");
+  if (!container || !optionsWrap) return;
+  const selected = new Set(preselectedStudentIds);
+  const checkboxes = visibleStudents().map((s, idx) => {
+    const checked = selected.has(s.id) ? " checked" : "";
+    const inputId = `gpa-trend-student-${idx}-${s.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="gpa-trend-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
+  updateGpaTrendStudentSummary();
+}
+
+function updateGpaTrendStudentSummary() {
+  const summary = document.getElementById("gpa-trend-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".gpa-trend-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getGpaTrendSelectedStudentIds() {
+  return Array.from(document.querySelectorAll(".gpa-trend-student-checkbox:checked")).map((el) => el.value);
 }
 
 function renderVolumeStudentChecklist(preselectedStudentIds = []) {
@@ -2132,6 +2203,190 @@ function renderGradeTrending() {
     ${legendHtml}`;
 }
 
+function renderGpaTrending() {
+  const chartHost = document.getElementById("gpa-trending-chart");
+  if (!chartHost) return;
+  const allowedStudentIds = visibleStudentIds();
+
+  const sy = state.settings.schoolYear;
+  const syStart = toDate(sy.startDate);
+  const syEnd = toDate(sy.endDate);
+  const today = toDate(todayISO());
+  const effectiveEnd = syEnd < today ? syEnd : today;
+
+  const quarterFilter = document.getElementById("gpa-trend-filter-quarter")?.value || "all";
+  const subjectFilter = document.getElementById("gpa-trend-filter-subject")?.value || "all";
+  const gradeTypeFilter = document.getElementById("gpa-trend-filter-grade-type")?.value || "all";
+  const selectedStudentIds = getGpaTrendSelectedStudentIds();
+  const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
+  const effectiveEndIso = toISO(effectiveEnd);
+  let monthStartIso = sy.startDate;
+  let monthEndIso = effectiveEndIso;
+  if (quarterRange && quarterFilter !== "all") {
+    if (toDate(quarterRange.startDate) > toDate(monthStartIso)) monthStartIso = quarterRange.startDate;
+    if (toDate(quarterRange.endDate) < toDate(monthEndIso)) monthEndIso = quarterRange.endDate;
+  }
+
+  const months = schoolYearMonths(monthStartIso, monthEndIso);
+  if (!months.length) {
+    chartHost.innerHTML = syStart > today
+      ? "<p class='muted'>School year has not started yet.</p>"
+      : (quarterFilter !== "all"
+        ? "<p class='muted'>No elapsed months in the selected quarter yet.</p>"
+        : "<p class='muted'>No school year range set.</p>");
+    return;
+  }
+
+  const filteredTests = state.tests.filter((t) => {
+    if (!allowedStudentIds.has(t.studentId)) return false;
+    if (!inRange(t.date, sy.startDate, sy.endDate)) return false;
+    if (quarterRange && quarterFilter !== "all" && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
+    if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
+    const gradeType = gradeTypeName(t);
+    if (gradeTypeFilter !== "all" && gradeType !== gradeTypeFilter) return false;
+    return true;
+  });
+
+  const seriesBase = selectedStudentIds.length
+    ? selectedStudentIds.map((studentId) => ({ id: studentId, label: getStudentName(studentId), tests: filteredTests.filter((t) => t.studentId === studentId) }))
+    : (isStudentUser()
+      ? visibleStudents().map((student) => ({ id: student.id, label: getStudentName(student.id), tests: filteredTests.filter((t) => t.studentId === student.id) }))
+      : [{ id: "all", label: "All Students", tests: filteredTests }]);
+  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
+
+  const series = seriesBase.map((entry, idx) => {
+    const monthly = months.map((monthEntry) => {
+      const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
+      const monthEnd = new Date(monthEntry.year, monthEntry.month + 1, 0, 12, 0, 0);
+      const monthStartIso = toISO(monthStart);
+      const monthEndIso = toISO(monthEnd);
+      const monthTests = entry.tests.filter((t) => inRange(t.date, monthStartIso, monthEndIso));
+      const averageGrade = weightedAverageForTests(monthTests);
+      return {
+        label: monthStart.toLocaleDateString(undefined, { month: "short" }),
+        gpa: averageToGpa(averageGrade),
+        count: monthTests.length
+      };
+    });
+    return { ...entry, color: palette[idx % palette.length], monthly };
+  });
+
+  const width = 960;
+  const height = 260;
+  const margin = { top: 62, right: 20, bottom: 48, left: 52 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const xPad = 16;
+  const xSpan = Math.max(1, plotW - (xPad * 2));
+  const xStep = months.length > 1 ? xSpan / (months.length - 1) : 0;
+  const xFor = (idx) => margin.left + xPad + (xStep * idx);
+  const yMin = 0;
+  const yMax = 4;
+  const yTicks = [0, 1, 2, 3, 4];
+  const yFor = (value) => {
+    const clamped = clamp(value, yMin, yMax);
+    return margin.top + ((yMax - clamped) / (yMax - yMin)) * plotH;
+  };
+
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${tick.toFixed(1)}</text></g>`;
+  }).join("");
+
+  const xTickSvg = months.map((row, idx) => {
+    const monthStart = new Date(row.year, row.month, 1, 12, 0, 0);
+    const x = xFor(idx);
+    return `<text x="${x.toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${monthStart.toLocaleDateString(undefined, { month: "short" })}</text>`;
+  }).join("");
+
+  const lineSvg = series.map((lineSeries) => {
+    let path = "";
+    lineSeries.monthly.forEach((row, idx) => {
+      const x = xFor(idx);
+      const y = yFor(row.gpa || 0);
+      if (!path) path += `M ${x.toFixed(2)} ${y.toFixed(2)} `;
+      else path += `L ${x.toFixed(2)} ${y.toFixed(2)} `;
+    });
+    return `<path d="${path.trim()}" class="trend-line" style="stroke:${lineSeries.color}" fill="none"></path>`;
+  }).join("");
+
+  const pointSvg = series.flatMap((lineSeries) => lineSeries.monthly.map((row, idx) => {
+    const x = xFor(idx);
+    const y = yFor(row.gpa || 0);
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${lineSeries.color};stroke:${lineSeries.color}"><title>${lineSeries.label} ${row.label}: ${row.gpa.toFixed(2)} GPA</title></circle>`;
+  })).join("");
+
+  const labelTop = margin.top + 10;
+  const labelBottom = height - margin.bottom - 6;
+  const minLabelGap = 12;
+  const valueLabelParts = [];
+  months.forEach((_, monthIdx) => {
+    const monthLabels = series.map((lineSeries, lineIdx) => {
+      const row = lineSeries.monthly[monthIdx];
+      const x = xFor(monthIdx);
+      const y = yFor(row.gpa || 0);
+      const nearTop = y <= margin.top + 16;
+      const nearBottom = y >= (height - margin.bottom - 10);
+      const offsetBase = ((monthIdx + lineIdx) % 2 === 0) ? -10 : 14;
+      const offset = nearTop ? 22 : (nearBottom ? -10 : offsetBase);
+      const preferredY = clamp(y + offset, labelTop, labelBottom);
+      return {
+        color: lineSeries.color,
+        text: `${(row.gpa || 0).toFixed(2)}`,
+        x,
+        preferredY
+      };
+    }).sort((a, b) => a.preferredY - b.preferredY);
+
+    for (let i = 1; i < monthLabels.length; i += 1) {
+      if (monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+        monthLabels[i].preferredY = monthLabels[i - 1].preferredY + minLabelGap;
+      }
+    }
+    const overflow = monthLabels.length ? monthLabels[monthLabels.length - 1].preferredY - labelBottom : 0;
+    if (overflow > 0) {
+      for (let i = monthLabels.length - 1; i >= 0; i -= 1) {
+        monthLabels[i].preferredY -= overflow;
+        if (i > 0 && monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+          monthLabels[i - 1].preferredY = monthLabels[i].preferredY - minLabelGap;
+        }
+      }
+    }
+    monthLabels.forEach((label) => {
+      label.preferredY = clamp(label.preferredY, labelTop, labelBottom);
+      valueLabelParts.push(`<text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text>`);
+    });
+  });
+  const valueLabelSvg = valueLabelParts.join("");
+
+  const legendHtml = `
+    <div class="trend-legend">
+      ${series.map((lineSeries) => `
+        <span class="trend-legend-item">
+          <span class="trend-legend-line" style="background:${lineSeries.color}"></span>
+          <span>${lineSeries.label}</span>
+        </span>`).join("")}
+    </div>`;
+
+  const hasData = series.some((lineSeries) => lineSeries.monthly.some((row) => row.count > 0));
+  const noData = hasData ? "" : `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No grade data for selected filters</text>`;
+
+  chartHost.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly GPA trend line chart">
+      <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      ${yTickSvg}
+      ${xTickSvg}
+      ${lineSvg}
+      ${pointSvg}
+      ${valueLabelSvg}
+      ${noData}
+      <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
+      <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">GPA (4.0 scale)</text>
+    </svg>
+    ${legendHtml}`;
+}
+
 function renderGradeTypeVolumeChart() {
   const chartHost = document.getElementById("grade-type-volume-chart");
   if (!chartHost) return;
@@ -2434,6 +2689,9 @@ function renderDashboard() {
   Array.from(trendSelectedStudentIds).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) trendSelectedStudentIds.delete(studentId);
   });
+  Array.from(gpaTrendSelectedStudentIds).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) gpaTrendSelectedStudentIds.delete(studentId);
+  });
   Array.from(volumeSelectedStudentIds).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) volumeSelectedStudentIds.delete(studentId);
   });
@@ -2593,6 +2851,7 @@ function renderDashboard() {
   });
   rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
   renderGradeTrending();
+  renderGpaTrending();
   renderGradeTypeVolumeChart();
   renderWorkDistributionGradeTypeFilter();
   renderWorkDistributionChart();
@@ -3823,6 +4082,25 @@ function bindEvents() {
       renderGradeTrending();
     });
   }
+  ["gpa-trend-filter-quarter", "gpa-trend-filter-subject", "gpa-trend-filter-grade-type"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderGpaTrending());
+  });
+  const gpaTrendClearFiltersBtn = document.getElementById("gpa-trend-clear-filters-btn");
+  if (gpaTrendClearFiltersBtn) {
+    gpaTrendClearFiltersBtn.addEventListener("click", () => {
+      const quarterFilter = document.getElementById("gpa-trend-filter-quarter");
+      const subjectFilter = document.getElementById("gpa-trend-filter-subject");
+      const gradeTypeFilter = document.getElementById("gpa-trend-filter-grade-type");
+      if (quarterFilter) quarterFilter.value = "all";
+      if (subjectFilter) subjectFilter.value = "all";
+      if (gradeTypeFilter) gradeTypeFilter.value = "all";
+      gpaTrendSelectedStudentIds.clear();
+      document.querySelectorAll(".gpa-trend-student-checkbox").forEach((el) => { el.checked = false; });
+      updateGpaTrendStudentSummary();
+      renderGpaTrending();
+    });
+  }
   ["volume-filter-quarter", "volume-filter-subject", "volume-filter-grade-type"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGradeTypeVolumeChart());
@@ -3872,6 +4150,13 @@ function bindEvents() {
       getTrendSelectedStudentIds().forEach((id) => trendSelectedStudentIds.add(id));
       updateTrendStudentSummary();
       renderGradeTrending();
+      return;
+    }
+    if (t.classList.contains("gpa-trend-student-checkbox")) {
+      gpaTrendSelectedStudentIds.clear();
+      getGpaTrendSelectedStudentIds().forEach((id) => gpaTrendSelectedStudentIds.add(id));
+      updateGpaTrendStudentSummary();
+      renderGpaTrending();
       return;
     }
     if (t.classList.contains("volume-student-checkbox")) {
