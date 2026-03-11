@@ -363,7 +363,7 @@ button {
   font: inherit;
 }
 
-input,
+input:not([type="checkbox"]):not([type="radio"]),
 select {
   border: 1px solid #ccb48d;
   border-radius: 8px;
@@ -1279,26 +1279,28 @@ td {
   align-items: end;
 }
 
-#calendar-form input,
-#calendar-form select,
-#calendar-form .multi-select-dropdown summary,
-#calendar-form .multi-select-dropdown {
+#calendar-form > label > input,
+#calendar-form > label > select,
+#calendar-form .multi-select-dropdown summary {
   height: 42px;
 }
 
-#calendar-form input,
-#calendar-form select,
+#calendar-form > label > input,
+#calendar-form > label > select,
 #calendar-form .multi-select-dropdown summary {
   line-height: 1.2;
 }
 
-#calendar-form .multi-select-dropdown {
-  display: flex;
-  align-items: stretch;
+#calendar-form .calendar-filter-field {
+  align-self: start;
 }
 
 #calendar-form .multi-select-dropdown summary {
   width: 100%;
+}
+
+#calendar-form .multi-select-dropdown[open] {
+  height: auto;
 }
 
 .calendar-month-view {
