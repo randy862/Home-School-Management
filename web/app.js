@@ -208,6 +208,41 @@ function validState(s) {
     && Array.isArray(s.settings.quarters) && Array.isArray(s.settings.holidays);
 }
 
+function normalizeCoursesShape(inputState) {
+  const s = inputState;
+  if (!Array.isArray(s.courses)) {
+    s.courses = [];
+    return;
+  }
+  s.courses = s.courses.map((course) => ({
+    ...course,
+    exclusiveResource: !!course.exclusiveResource
+  }));
+}
+
+function mergeCoursesWithLocalState(remoteState, localState) {
+  if (!remoteState || !Array.isArray(remoteState.courses) || !localState || !Array.isArray(localState.courses)) return false;
+  let changed = false;
+  const localCoursesById = new Map(
+    localState.courses
+      .filter((course) => course && course.id)
+      .map((course) => [course.id, course])
+  );
+  remoteState.courses = remoteState.courses.map((course) => {
+    const localCourse = localCoursesById.get(course.id);
+    if (!localCourse) return course;
+    const mergedCourse = { ...course, ...localCourse, exclusiveResource: !!localCourse.exclusiveResource };
+    if (JSON.stringify(mergedCourse) !== JSON.stringify(course)) changed = true;
+    return mergedCourse;
+  });
+  localState.courses.forEach((course) => {
+    if (!course || !course.id || remoteState.courses.some((existing) => existing.id === course.id)) return;
+    changed = true;
+    remoteState.courses.push({ ...course, exclusiveResource: !!course.exclusiveResource });
+  });
+  return changed;
+}
+
 function normalizeSettingsShape(inputState) {
   const s = inputState;
   if (!s.settings) s.settings = {};
@@ -278,6 +313,7 @@ function normalizeSettingsShape(inputState) {
   }
 
   normalizeUsersShape(s);
+  normalizeCoursesShape(s);
 }
 
 function loadState() {
@@ -359,6 +395,9 @@ let showScheduleHolidays = false;
 let showSchedulePlans = false;
 let calendarBackToWeekContext = null;
 let calendarBackToMonthContext = null;
+let calendarSelectedStudentIds = new Set();
+let calendarSelectedSubjectIds = new Set();
+let calendarSelectedCourseIds = new Set();
 let loginMessageKind = "";
 let userFormMessageKind = "";
 function cloneGradeTypes(items) {
@@ -550,10 +589,12 @@ function saveState() {
 
 async function bootstrapStateFromApi() {
   try {
+    const localState = state;
     const remoteState = await fetchStateFromApi();
     if (!validState(remoteState)) return;
     const before = JSON.stringify(remoteState.users || []);
     normalizeSettingsShape(remoteState);
+    const coursesChanged = mergeCoursesWithLocalState(remoteState, localState);
     state = remoteState;
     if (!state.users.some((user) => user.id === currentUserId)) {
       currentUserId = "";
@@ -561,7 +602,7 @@ async function bootstrapStateFromApi() {
     }
     setCurrentSchoolYear(state.settings.currentSchoolYearId);
     const usersChanged = before !== JSON.stringify(state.users || []);
-    if (backfillAttendanceToToday() || usersChanged) saveState();
+    if (backfillAttendanceToToday() || usersChanged || coursesChanged) saveState();
     gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
     renderAll();
   } catch (error) {
@@ -851,7 +892,6 @@ function renderSelects() {
   options("student-enroll-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
   options("test-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
   options("plan-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, viewerStudents.length ? null : "Add a student first");
-  options("calendar-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, "All Students");
   options("test-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, viewerStudents.length ? null : "Add a student first");
   options("user-student-id", state.students, (s) => `${s.firstName} ${s.lastName}`, "Select student");
   renderAttendanceStudentChecklist();
@@ -926,17 +966,7 @@ function renderSelects() {
     if (Array.from(planFilterStudent.options).some((o) => o.value === current)) planFilterStudent.value = current;
   }
 
-  if (isStudentUser()) {
-    const calendarStudent = document.getElementById("calendar-student");
-    const studentId = currentStudentId();
-    if (calendarStudent && Array.from(calendarStudent.options).some((o) => o.value === studentId)) {
-      calendarStudent.value = studentId;
-      calendarStudent.disabled = true;
-    }
-  } else {
-    const calendarStudent = document.getElementById("calendar-student");
-    if (calendarStudent) calendarStudent.disabled = false;
-  }
+  syncCalendarFilterSubjectCourseOptions();
 
   const gradeStudentSelect = document.getElementById("grades-filter-student");
   if (gradeStudentSelect) {
@@ -1516,8 +1546,8 @@ function renderCourses() {
   if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingCourseId);
   if (!tableBody) return;
   const rows = state.courses
-    .map((c) => `<tr><td>${c.name}</td><td>${getSubjectName(c.subjectId)}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td><button data-edit-course='${c.id}' type='button'>Edit</button> <button data-remove-course='${c.id}' type='button'>Remove</button></td></tr>`);
-  rowOrEmpty(tableBody, rows, "No courses added yet.", 4);
+    .map((c) => `<tr><td>${c.name}</td><td>${getSubjectName(c.subjectId)}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td>${c.exclusiveResource ? "Yes" : "No"}</td><td><button data-edit-course='${c.id}' type='button'>Edit</button> <button data-remove-course='${c.id}' type='button'>Remove</button></td></tr>`);
+  rowOrEmpty(tableBody, rows, "No courses added yet.", 5);
 }
 
 function renderGradeTypes() {
@@ -1793,6 +1823,166 @@ function getEnrolledCoursesForStudent(studentId) {
       .map((e) => e.courseId)
   );
   return state.courses.filter((c) => enrolledCourseIds.has(c.id));
+}
+
+function getCalendarSelectedStudentIds() {
+  if (currentStudentId()) return [currentStudentId()];
+  return Array.from(document.querySelectorAll(".calendar-student-checkbox:checked")).map((el) => el.value);
+}
+
+function getCalendarSelectedSubjectIds() {
+  return Array.from(document.querySelectorAll(".calendar-subject-checkbox:checked")).map((el) => el.value);
+}
+
+function getCalendarSelectedCourseIds() {
+  return Array.from(document.querySelectorAll(".calendar-course-checkbox:checked")).map((el) => el.value);
+}
+
+function updateCalendarStudentSummary() {
+  const summary = document.getElementById("calendar-student-summary");
+  if (!summary) return;
+  const selectedCount = getCalendarSelectedStudentIds().length;
+  const totalCount = visibleStudents().length;
+  summary.textContent = selectedCount && selectedCount === totalCount
+    ? "Students (All)"
+    : `Students (${selectedCount} selected)`;
+}
+
+function updateCalendarSubjectSummary() {
+  const summary = document.getElementById("calendar-subject-summary");
+  if (!summary) return;
+  const selectedCount = getCalendarSelectedSubjectIds().length;
+  const totalCount = document.querySelectorAll(".calendar-subject-checkbox").length;
+  summary.textContent = selectedCount && selectedCount === totalCount
+    ? "Subjects (All)"
+    : `Subjects (${selectedCount} selected)`;
+}
+
+function updateCalendarCourseSummary() {
+  const summary = document.getElementById("calendar-course-summary");
+  if (!summary) return;
+  const selectedCount = getCalendarSelectedCourseIds().length;
+  const totalCount = document.querySelectorAll(".calendar-course-checkbox").length;
+  summary.textContent = selectedCount && selectedCount === totalCount
+    ? "Courses (All)"
+    : `Courses (${selectedCount} selected)`;
+}
+
+function syncCalendarAllCheckbox(itemClassName, allClassName) {
+  const allCheckbox = document.querySelector(`.${allClassName}`);
+  if (!(allCheckbox instanceof HTMLInputElement)) return;
+  const items = Array.from(document.querySelectorAll(`.${itemClassName}`)).filter((el) => el instanceof HTMLInputElement);
+  allCheckbox.checked = !!items.length && items.every((el) => el.checked);
+}
+
+function setCalendarChecklistSelection(className, ids) {
+  const selected = new Set(ids || []);
+  document.querySelectorAll(`.${className}`).forEach((el) => {
+    if (!(el instanceof HTMLInputElement)) return;
+    el.checked = selected.has(el.value);
+  });
+}
+
+function applyCalendarFilterSelection({ studentIds = null, subjectIds = null, courseIds = null } = {}) {
+  if (studentIds) {
+    calendarSelectedStudentIds = new Set(studentIds);
+    setCalendarChecklistSelection("calendar-student-checkbox", studentIds);
+  }
+  if (subjectIds) {
+    calendarSelectedSubjectIds = new Set(subjectIds);
+    setCalendarChecklistSelection("calendar-subject-checkbox", subjectIds);
+  }
+  if (courseIds) {
+    calendarSelectedCourseIds = new Set(courseIds);
+    setCalendarChecklistSelection("calendar-course-checkbox", courseIds);
+  }
+  updateCalendarStudentSummary();
+  updateCalendarSubjectSummary();
+  updateCalendarCourseSummary();
+}
+
+function renderCalendarStudentChecklist(preselectedStudentIds = []) {
+  const optionsWrap = document.getElementById("calendar-student-options");
+  if (!optionsWrap) return;
+  const selected = new Set(currentStudentId() ? [currentStudentId()] : preselectedStudentIds);
+  const forceSingleStudent = !!currentStudentId();
+  const students = visibleStudents();
+  const allChecked = students.length > 0 && students.every((student) => selected.has(student.id));
+  const allRow = forceSingleStudent ? "" : `<div class="checklist-row"><input id="calendar-student-all" type="checkbox" class="calendar-student-all-checkbox"${allChecked ? " checked" : ""}><label for="calendar-student-all">All</label></div>`;
+  const checkboxes = students.map((student, idx) => {
+    const checked = selected.has(student.id) ? " checked" : "";
+    const disabled = forceSingleStudent ? " disabled" : "";
+    const inputId = `calendar-student-${idx}-${student.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="calendar-student-checkbox" value="${student.id}"${checked}${disabled}><label for="${inputId}">${student.firstName} ${student.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = students.length ? `${allRow}${checkboxes}` : "<span>No students available.</span>";
+  syncCalendarAllCheckbox("calendar-student-checkbox", "calendar-student-all-checkbox");
+  updateCalendarStudentSummary();
+}
+
+function renderCalendarSubjectChecklist(subjects, preselectedSubjectIds = []) {
+  const optionsWrap = document.getElementById("calendar-subject-options");
+  if (!optionsWrap) return;
+  const selected = new Set(preselectedSubjectIds);
+  const allChecked = subjects.length > 0 && subjects.every((subject) => selected.has(subject.id));
+  const allRow = subjects.length ? `<div class="checklist-row"><input id="calendar-subject-all" type="checkbox" class="calendar-subject-all-checkbox"${allChecked ? " checked" : ""}><label for="calendar-subject-all">All</label></div>` : "";
+  const checkboxes = subjects.map((subject, idx) => {
+    const checked = selected.has(subject.id) ? " checked" : "";
+    const inputId = `calendar-subject-${idx}-${subject.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="calendar-subject-checkbox" value="${subject.id}"${checked}><label for="${inputId}">${subject.name}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = subjects.length ? `${allRow}${checkboxes}` : "<span>No subjects available.</span>";
+  syncCalendarAllCheckbox("calendar-subject-checkbox", "calendar-subject-all-checkbox");
+  updateCalendarSubjectSummary();
+}
+
+function renderCalendarCourseChecklist(courses, preselectedCourseIds = []) {
+  const optionsWrap = document.getElementById("calendar-course-options");
+  if (!optionsWrap) return;
+  const selected = new Set(preselectedCourseIds);
+  const allChecked = courses.length > 0 && courses.every((course) => selected.has(course.id));
+  const allRow = courses.length ? `<div class="checklist-row"><input id="calendar-course-all" type="checkbox" class="calendar-course-all-checkbox"${allChecked ? " checked" : ""}><label for="calendar-course-all">All</label></div>` : "";
+  const checkboxes = courses.map((course, idx) => {
+    const checked = selected.has(course.id) ? " checked" : "";
+    const inputId = `calendar-course-${idx}-${course.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="calendar-course-checkbox" value="${course.id}"${checked}><label for="${inputId}">${course.name} (${getSubjectName(course.subjectId)})</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = courses.length ? `${allRow}${checkboxes}` : "<span>No courses available.</span>";
+  syncCalendarAllCheckbox("calendar-course-checkbox", "calendar-course-all-checkbox");
+  updateCalendarCourseSummary();
+}
+
+function syncCalendarFilterSubjectCourseOptions() {
+  const previousStudentIds = Array.from(calendarSelectedStudentIds);
+  const previousSubjectIds = Array.from(calendarSelectedSubjectIds);
+  const previousCourseIds = Array.from(calendarSelectedCourseIds);
+  renderCalendarStudentChecklist(previousStudentIds);
+  const selectedStudentIds = getCalendarSelectedStudentIds();
+  let subjectPool = state.subjects;
+  let coursePool = state.courses;
+
+  if (selectedStudentIds.length) {
+    const enrolledCourses = Array.from(new Map(
+      selectedStudentIds
+        .flatMap((studentId) => getEnrolledCoursesForStudent(studentId))
+        .map((course) => [course.id, course])
+    ).values());
+    const subjectIds = new Set(enrolledCourses.map((course) => course.subjectId));
+    subjectPool = state.subjects.filter((subject) => subjectIds.has(subject.id));
+    coursePool = enrolledCourses;
+  }
+  const allowedSubjectIds = new Set(subjectPool.map((subject) => subject.id));
+  calendarSelectedStudentIds = new Set(selectedStudentIds);
+  calendarSelectedSubjectIds = new Set(previousSubjectIds.filter((id) => allowedSubjectIds.has(id)));
+  renderCalendarSubjectChecklist(subjectPool, Array.from(calendarSelectedSubjectIds));
+
+  const activeSubjectIds = getCalendarSelectedSubjectIds();
+  const filteredCourses = activeSubjectIds.length
+    ? coursePool.filter((course) => activeSubjectIds.includes(course.subjectId))
+    : coursePool;
+  const allowedCourseIds = new Set(filteredCourses.map((course) => course.id));
+  calendarSelectedCourseIds = new Set(previousCourseIds.filter((id) => allowedCourseIds.has(id)));
+  renderCalendarCourseChecklist(filteredCourses, Array.from(calendarSelectedCourseIds));
 }
 
 function syncGradesFilterSubjectCourseOptions() {
@@ -2898,11 +3088,15 @@ function viewRange(view, refISO) {
   };
 }
 
-function calendarEvents(rangeStart, rangeEnd, studentFilter) {
+function calendarEvents(rangeStart, rangeEnd, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const excluded = holidaySet();
   const events = [];
   state.plans.forEach((p) => {
-    if (studentFilter && p.studentId !== studentFilter) return;
+    if (studentFilterIds.length && !studentFilterIds.includes(p.studentId)) return;
+    if (courseFilterIds.length && !courseFilterIds.includes(p.courseId)) return;
+    const course = getCourse(p.courseId);
+    if (!course) return;
+    if (subjectFilterIds.length && !subjectFilterIds.includes(course.subjectId)) return;
     const s = toDate(p.startDate), e = toDate(p.endDate);
     if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e < s) return;
     const start = s > rangeStart ? new Date(s) : new Date(rangeStart);
@@ -2921,9 +3115,9 @@ function calendarEvents(rangeStart, rangeEnd, studentFilter) {
   return events.sort((a,b)=>a.date.localeCompare(b.date));
 }
 
-function calendarDateStudentRows(rangeStart, rangeEnd, studentFilter) {
-  const students = studentFilter
-    ? state.students.filter((s) => s.id === studentFilter)
+function calendarDateStudentRows(rangeStart, rangeEnd, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
+  const students = studentFilterIds.length
+    ? state.students.filter((s) => studentFilterIds.includes(s.id))
     : [...state.students];
   if (!students.length) return [];
 
@@ -2945,7 +3139,7 @@ function calendarDateStudentRows(rangeStart, rangeEnd, studentFilter) {
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  calendarEvents(rangeStart, rangeEnd, studentFilter).forEach((event) => {
+  calendarEvents(rangeStart, rangeEnd, studentFilterIds, subjectFilterIds, courseFilterIds).forEach((event) => {
     const course = getCourse(event.courseId);
     if (!course) return;
     const key = `${event.date}||${event.studentId}`;
@@ -2962,9 +3156,9 @@ function calendarDateStudentRows(rangeStart, rangeEnd, studentFilter) {
   return rows;
 }
 
-function buildDailyStudentScheduleMap(rangeStart, rangeEnd, studentFilter) {
+function buildDailyStudentScheduleMap(rangeStart, rangeEnd, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const map = new Map();
-  calendarDateStudentRows(rangeStart, rangeEnd, studentFilter).forEach((entry) => {
+  calendarDateStudentRows(rangeStart, rangeEnd, studentFilterIds, subjectFilterIds, courseFilterIds).forEach((entry) => {
     const dateKey = entry.date;
     if (!map.has(dateKey)) map.set(dateKey, []);
     map.get(dateKey).push(entry);
@@ -2972,7 +3166,7 @@ function buildDailyStudentScheduleMap(rangeStart, rangeEnd, studentFilter) {
   return map;
 }
 
-function renderMonthCalendar(referenceISO, studentFilter) {
+function renderMonthCalendar(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const ref = toDate(referenceISO || todayISO());
   const monthStart = new Date(ref.getFullYear(), ref.getMonth(), 1, 12, 0, 0);
   const monthEnd = new Date(ref.getFullYear(), ref.getMonth() + 1, 0, 12, 0, 0);
@@ -2982,7 +3176,7 @@ function renderMonthCalendar(referenceISO, studentFilter) {
   const gridEnd = new Date(gridStart);
   gridEnd.setDate(gridStart.getDate() + 41);
 
-  const dailyMap = buildDailyStudentScheduleMap(gridStart, gridEnd, studentFilter);
+  const dailyMap = buildDailyStudentScheduleMap(gridStart, gridEnd, studentFilterIds, subjectFilterIds, courseFilterIds);
   document.getElementById("calendar-month-title").textContent = monthStart.toLocaleDateString(undefined, {
     month: "long",
     year: "numeric"
@@ -3023,7 +3217,7 @@ function renderMonthCalendar(referenceISO, studentFilter) {
   };
 }
 
-function renderWeekCalendar(referenceISO, studentFilter) {
+function renderWeekCalendar(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const ref = toDate(referenceISO || todayISO());
   const start = new Date(ref);
   const idx = (start.getDay() + 6) % 7;
@@ -3031,7 +3225,7 @@ function renderWeekCalendar(referenceISO, studentFilter) {
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
 
-  const dayRows = calendarDateStudentRows(start, end, studentFilter);
+  const dayRows = calendarDateStudentRows(start, end, studentFilterIds, subjectFilterIds, courseFilterIds);
   const grouped = new Map();
   dayRows.forEach((row) => {
     if (!grouped.has(row.date)) grouped.set(row.date, []);
@@ -3065,18 +3259,18 @@ function renderWeekCalendar(referenceISO, studentFilter) {
   return { start, end };
 }
 
-function renderDayCalendar(referenceISO, studentFilter) {
+function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const ref = toDate(referenceISO || todayISO());
   const dateKey = toISO(ref);
-  const events = calendarEvents(ref, ref, studentFilter);
+  const events = calendarEvents(ref, ref, studentFilterIds, subjectFilterIds, courseFilterIds);
   const excludedDates = holidaySet();
   const isInstructionalWeekday = ref.getDay() >= 1 && ref.getDay() <= 5;
 
   // Fallback: if a student is enrolled in a course that has never had an instruction plan,
   // still show it in daily view so the schedule reflects full enrollment.
   if (isInstructionalWeekday && !excludedDates.has(dateKey)) {
-    const studentsToFill = studentFilter
-      ? [studentFilter]
+    const studentsToFill = studentFilterIds.length
+      ? [...studentFilterIds]
       : state.students.map((student) => student.id);
     const plannedPairSet = new Set(events.map((event) => `${event.studentId}||${event.courseId}`));
 
@@ -3088,6 +3282,10 @@ function renderDayCalendar(referenceISO, studentFilter) {
       ));
 
       enrolledCourseIds.forEach((courseId) => {
+        if (courseFilterIds.length && !courseFilterIds.includes(courseId)) return;
+        const course = getCourse(courseId);
+        if (!course) return;
+        if (subjectFilterIds.length && !subjectFilterIds.includes(course.subjectId)) return;
         const pairKey = `${studentId}||${courseId}`;
         if (plannedPairSet.has(pairKey)) return;
 
@@ -3122,6 +3320,9 @@ function renderDayCalendar(referenceISO, studentFilter) {
   });
 
   const scheduledByHour = new Map();
+  const exclusiveCourseAvailability = new Map();
+  const studentIdsInOrder = Array.from(byStudent.keys())
+    .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
   const addBlock = (student, label, startMin, endMin) => {
     if (endMin <= startMin) return;
     const hour = Math.floor(startMin / 60);
@@ -3135,7 +3336,23 @@ function renderDayCalendar(referenceISO, studentFilter) {
     });
   };
 
-  byStudent.forEach((studentEvents, studentId) => {
+  const applyLunchWindow = (studentName, slot, durationMinutes, lunchAdded) => {
+    let nextSlot = slot;
+    let nextLunchAdded = lunchAdded;
+    if (!nextLunchAdded && nextSlot < 12 * 60 && nextSlot + durationMinutes > 12 * 60) {
+      addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
+      nextSlot = 13 * 60;
+      nextLunchAdded = true;
+    } else if (!nextLunchAdded && nextSlot >= 12 * 60 && nextSlot < 13 * 60) {
+      addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
+      nextSlot = 13 * 60;
+      nextLunchAdded = true;
+    }
+    return { slot: nextSlot, lunchAdded: nextLunchAdded };
+  };
+
+  studentIdsInOrder.forEach((studentId) => {
+    const studentEvents = byStudent.get(studentId) || [];
     const shuffledEvents = [...studentEvents];
     // Randomized course sequence per student (placeholder behavior requested by user).
     for (let i = shuffledEvents.length - 1; i > 0; i -= 1) {
@@ -3153,21 +3370,27 @@ function renderDayCalendar(referenceISO, studentFilter) {
       if (!course) return;
 
       const durationMinutes = Math.max(15, Math.round(Number(course.hoursPerDay || 1) * 60));
-
-      // Enforce fixed lunch window from 12:00 PM to 1:00 PM.
-      if (!lunchAdded && slot < 12 * 60 && slot + durationMinutes > 12 * 60) {
-        addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
-        lunchAdded = true;
-        slot = 13 * 60;
-      } else if (!lunchAdded && slot >= 12 * 60 && slot < 13 * 60) {
-        addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
-        lunchAdded = true;
-        slot = 13 * 60;
+      let proposedSlot = slot;
+      if (course.exclusiveResource) {
+        proposedSlot = Math.max(proposedSlot, exclusiveCourseAvailability.get(course.id) || proposedSlot);
       }
+
+      if (proposedSlot > slot) {
+        if (!lunchAdded && proposedSlot >= 13 * 60) {
+          addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
+          lunchAdded = true;
+        }
+        slot = proposedSlot;
+      }
+
+      const lunchResult = applyLunchWindow(studentName, slot, durationMinutes, lunchAdded);
+      slot = lunchResult.slot;
+      lunchAdded = lunchResult.lunchAdded;
 
       const startMin = slot;
       const endMin = Math.min(24 * 60, startMin + durationMinutes);
       addBlock(studentName, `${course.name} (${getSubjectName(course.subjectId)})`, startMin, endMin);
+      if (course.exclusiveResource) exclusiveCourseAvailability.set(course.id, endMin);
       slot = endMin;
 
       // Insert 5-minute break between courses.
@@ -3217,7 +3440,9 @@ function renderCalendar() {
   const view = ["day", "week", "month"].includes(requestedView) ? requestedView : "month";
   if (viewInput && viewInput.value !== view) viewInput.value = view;
   const ref = document.getElementById("calendar-date").value || todayISO();
-  const studentFilter = currentStudentId() || document.getElementById("calendar-student").value;
+  const studentFilterIds = getCalendarSelectedStudentIds();
+  const subjectFilterIds = getCalendarSelectedSubjectIds();
+  const courseFilterIds = getCalendarSelectedCourseIds();
   const monthView = document.getElementById("calendar-month-view");
   const detailView = document.getElementById("calendar-detail-view");
   const weekView = document.getElementById("calendar-week-view");
@@ -3235,7 +3460,7 @@ function renderCalendar() {
     if (backWeekBtn) backWeekBtn.classList.add("hidden");
     calendarBackToMonthContext = null;
     calendarBackToWeekContext = null;
-    const monthRange = renderMonthCalendar(ref, studentFilter);
+    const monthRange = renderMonthCalendar(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
     const monthStartIso = toISO(monthRange.start);
     const monthEndIso = toISO(monthRange.end);
     document.getElementById("calendar-range").textContent = `Monthly calendar: ${monthStartIso} to ${monthEndIso}`;
@@ -3251,7 +3476,7 @@ function renderCalendar() {
     if (backMonthBtn) backMonthBtn.classList.toggle("hidden", !calendarBackToMonthContext);
     if (backWeekBtn) backWeekBtn.classList.add("hidden");
     calendarBackToWeekContext = null;
-    const weekRange = renderWeekCalendar(ref, studentFilter);
+    const weekRange = renderWeekCalendar(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
     const weekStartIso = toISO(weekRange.start);
     const weekEndIso = toISO(weekRange.end);
     if (detailTitle) detailTitle.textContent = `Week of ${weekStartIso}`;
@@ -3267,7 +3492,7 @@ function renderCalendar() {
     listView.classList.add("hidden");
     if (backMonthBtn) backMonthBtn.classList.add("hidden");
     if (backWeekBtn) backWeekBtn.classList.toggle("hidden", !calendarBackToWeekContext);
-    const dayRange = renderDayCalendar(ref, studentFilter);
+    const dayRange = renderDayCalendar(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
     if (detailTitle) detailTitle.textContent = dayRange.dateKey;
     document.getElementById("calendar-range").textContent = `Daily view: ${dayRange.dateKey}`;
     return;
@@ -3283,7 +3508,7 @@ function renderCalendar() {
 
   const range = viewRange(view, ref);
   document.getElementById("calendar-range").textContent = range.label;
-  const rows = calendarDateStudentRows(range.start, range.end, studentFilter).slice(0, 5000).map((entry) => {
+  const rows = calendarDateStudentRows(range.start, range.end, studentFilterIds, subjectFilterIds, courseFilterIds).slice(0, 5000).map((entry) => {
     const subjectLines = Array.from(entry.subjects.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([subjectName, data]) => `${subjectName}: ${data.hours.toFixed(2)} hrs (${Array.from(data.courses).join(", ")})`);
@@ -3382,12 +3607,15 @@ function beginCourseEdit(courseId) {
   document.getElementById("course-name").value = course.name;
   document.getElementById("course-subject").value = course.subjectId;
   document.getElementById("course-hours").value = String(Number(course.hoursPerDay));
+  document.getElementById("course-exclusive-resource").checked = !!course.exclusiveResource;
   renderCourses();
 }
 
 function cancelCourseEdit() {
   editingCourseId = "";
   document.getElementById("course-form").reset();
+  const exclusiveInput = document.getElementById("course-exclusive-resource");
+  if (exclusiveInput) exclusiveInput.checked = false;
   renderSelects();
   renderCourses();
 }
@@ -3569,6 +3797,7 @@ function bindEvents() {
     const name = document.getElementById("course-name").value.trim();
     const subjectId = document.getElementById("course-subject").value;
     const hoursPerDay = Number(document.getElementById("course-hours").value);
+    const exclusiveResource = !!document.getElementById("course-exclusive-resource").checked;
     if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) { alert("Provide course name, subject, and hours/day."); return; }
     if (editingCourseId) {
       const existing = state.courses.find((c) => c.id === editingCourseId);
@@ -3576,12 +3805,14 @@ function bindEvents() {
         existing.name = name;
         existing.subjectId = subjectId;
         existing.hoursPerDay = hoursPerDay;
+        existing.exclusiveResource = exclusiveResource;
       }
       editingCourseId = "";
     } else {
-      state.courses.push({ id: uid(), name, subjectId, hoursPerDay });
+      state.courses.push({ id: uid(), name, subjectId, hoursPerDay, exclusiveResource });
     }
     e.target.reset();
+    document.getElementById("course-exclusive-resource").checked = false;
     saveState();
     renderAll();
   });
@@ -3889,6 +4120,14 @@ function bindEvents() {
   }
 
   document.getElementById("calendar-form").addEventListener("submit", (e) => { e.preventDefault(); renderCalendar(); });
+  const calendarViewSelect = document.getElementById("calendar-view");
+  if (calendarViewSelect) {
+    calendarViewSelect.addEventListener("change", () => renderCalendar());
+  }
+  const calendarDateInput = document.getElementById("calendar-date");
+  if (calendarDateInput) {
+    calendarDateInput.addEventListener("change", () => renderCalendar());
+  }
   document.getElementById("calendar-prev-month").addEventListener("click", () => {
     const input = document.getElementById("calendar-date");
     const base = toDate(input.value || todayISO());
@@ -3931,10 +4170,10 @@ function bindEvents() {
       if (!calendarBackToWeekContext) return;
       const viewInput = document.getElementById("calendar-view");
       const dateInput = document.getElementById("calendar-date");
-      const studentInput = document.getElementById("calendar-student");
       if (viewInput) viewInput.value = "week";
       if (dateInput) dateInput.value = calendarBackToWeekContext.date;
-      if (studentInput) studentInput.value = calendarBackToWeekContext.studentFilter;
+      applyCalendarFilterSelection(calendarBackToWeekContext);
+      syncCalendarFilterSubjectCourseOptions();
       calendarBackToWeekContext = null;
       renderCalendar();
     });
@@ -3945,10 +4184,10 @@ function bindEvents() {
       if (!calendarBackToMonthContext) return;
       const viewInput = document.getElementById("calendar-view");
       const dateInput = document.getElementById("calendar-date");
-      const studentInput = document.getElementById("calendar-student");
       if (viewInput) viewInput.value = "month";
       if (dateInput) dateInput.value = calendarBackToMonthContext.date;
-      if (studentInput) studentInput.value = calendarBackToMonthContext.studentFilter;
+      applyCalendarFilterSelection(calendarBackToMonthContext);
+      syncCalendarFilterSubjectCourseOptions();
       calendarBackToMonthContext = null;
       calendarBackToWeekContext = null;
       renderCalendar();
@@ -4188,6 +4427,55 @@ function bindEvents() {
       updatePlanCourseSummary();
       return;
     }
+    if (t.classList.contains("calendar-student-checkbox")) {
+      calendarSelectedStudentIds = new Set(getCalendarSelectedStudentIds());
+      syncCalendarAllCheckbox("calendar-student-checkbox", "calendar-student-all-checkbox");
+      syncCalendarFilterSubjectCourseOptions();
+      renderCalendar();
+      return;
+    }
+    if (t.classList.contains("calendar-student-all-checkbox")) {
+      const checked = t instanceof HTMLInputElement ? t.checked : false;
+      const studentIds = checked ? visibleStudents().map((student) => student.id) : [];
+      applyCalendarFilterSelection({ studentIds });
+      syncCalendarFilterSubjectCourseOptions();
+      renderCalendar();
+      return;
+    }
+    if (t.classList.contains("calendar-subject-checkbox")) {
+      calendarSelectedSubjectIds = new Set(getCalendarSelectedSubjectIds());
+      syncCalendarAllCheckbox("calendar-subject-checkbox", "calendar-subject-all-checkbox");
+      syncCalendarFilterSubjectCourseOptions();
+      renderCalendar();
+      return;
+    }
+    if (t.classList.contains("calendar-subject-all-checkbox")) {
+      const checked = t instanceof HTMLInputElement ? t.checked : false;
+      const subjectIds = checked
+        ? Array.from(document.querySelectorAll(".calendar-subject-checkbox")).map((el) => el.value)
+        : [];
+      applyCalendarFilterSelection({ subjectIds });
+      syncCalendarFilterSubjectCourseOptions();
+      renderCalendar();
+      return;
+    }
+    if (t.classList.contains("calendar-course-checkbox")) {
+      calendarSelectedCourseIds = new Set(getCalendarSelectedCourseIds());
+      syncCalendarAllCheckbox("calendar-course-checkbox", "calendar-course-all-checkbox");
+      updateCalendarCourseSummary();
+      renderCalendar();
+      return;
+    }
+    if (t.classList.contains("calendar-course-all-checkbox")) {
+      const checked = t instanceof HTMLInputElement ? t.checked : false;
+      const courseIds = checked
+        ? Array.from(document.querySelectorAll(".calendar-course-checkbox")).map((el) => el.value)
+        : [];
+      applyCalendarFilterSelection({ courseIds });
+      updateCalendarCourseSummary();
+      renderCalendar();
+      return;
+    }
     if (t.classList.contains("grade-row-subject") || t.classList.contains("grade-row-student")) {
       const row = t.closest("tr");
       if (row) updateGradeRowCourses(row);
@@ -4204,14 +4492,16 @@ function bindEvents() {
       if (!date || !studentId) return;
       calendarBackToWeekContext = {
         date: document.getElementById("calendar-date")?.value || todayISO(),
-        studentFilter: document.getElementById("calendar-student")?.value || ""
+        studentIds: getCalendarSelectedStudentIds(),
+        subjectIds: getCalendarSelectedSubjectIds(),
+        courseIds: getCalendarSelectedCourseIds()
       };
       const viewInput = document.getElementById("calendar-view");
       const dateInput = document.getElementById("calendar-date");
-      const studentInput = document.getElementById("calendar-student");
       if (viewInput) viewInput.value = "day";
       if (dateInput) dateInput.value = date;
-      if (studentInput) studentInput.value = studentId;
+      applyCalendarFilterSelection({ studentIds: [studentId] });
+      syncCalendarFilterSubjectCourseOptions();
       renderCalendar();
       return;
     }
@@ -4222,15 +4512,17 @@ function bindEvents() {
       if (!date || !studentId) return;
       calendarBackToMonthContext = {
         date: document.getElementById("calendar-date")?.value || todayISO(),
-        studentFilter: document.getElementById("calendar-student")?.value || ""
+        studentIds: getCalendarSelectedStudentIds(),
+        subjectIds: getCalendarSelectedSubjectIds(),
+        courseIds: getCalendarSelectedCourseIds()
       };
       calendarBackToWeekContext = null;
       const viewInput = document.getElementById("calendar-view");
       const dateInput = document.getElementById("calendar-date");
-      const studentInput = document.getElementById("calendar-student");
       if (viewInput) viewInput.value = "week";
       if (dateInput) dateInput.value = date;
-      if (studentInput) studentInput.value = studentId;
+      applyCalendarFilterSelection({ studentIds: [studentId] });
+      syncCalendarFilterSubjectCourseOptions();
       renderCalendar();
       return;
     }
@@ -4506,10 +4798,7 @@ function renderAll() {
   if (attendanceForm) attendanceForm.classList.toggle("hidden", studentMode);
   if (addGradeBtn) addGradeBtn.classList.toggle("hidden", studentMode);
   if (gradeEntryWrap && studentMode) gradeEntryWrap.classList.add("hidden");
-  if (calendarForm) {
-    const studentSelect = document.getElementById("calendar-student");
-    if (studentSelect) studentSelect.disabled = studentMode;
-  }
+  if (calendarForm) calendarForm.classList.remove("hidden");
 }
 
 bindEvents();

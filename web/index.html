@@ -319,13 +319,16 @@
             <label>Course Name<input id="course-name" type="text" required></label>
             <label>Subject<select id="course-subject" required></select></label>
             <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
-            <button id="course-submit-btn" type="submit">Add Course</button>
-            <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+            <label class="checkbox-field checkbox-field-stacked">Exclusive<input id="course-exclusive-resource" type="checkbox"></label>
+            <div class="course-form-actions">
+              <button id="course-submit-btn" type="submit">Add Course</button>
+              <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+            </div>
           </form>
           <h4>Configured Courses</h4>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Course</th><th>Subject</th><th>Hours / Day</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Course</th><th>Subject</th><th>Hours / Day</th><th>Exclusive Resource</th><th>Actions</th></tr></thead>
               <tbody id="course-table"></tbody>
             </table>
           </div>
@@ -503,20 +506,38 @@
 
     <section id="tab-calendar" class="tab-panel panel">
       <h2>Calendar</h2>
-      <form id="calendar-form" class="grid-form">
-        <label>View
-          <select id="calendar-view">
-            <option value="day">Daily</option>
-            <option value="week">Weekly</option>
-            <option value="month" selected>Monthly</option>
-          </select>
-        </label>
-        <label>Reference Date<input id="calendar-date" type="date" required></label>
-        <label>Student Filter<select id="calendar-student"><option value="">All Students</option></select></label>
-        <button type="submit">Refresh Calendar</button>
-      </form>
+      <div class="calendar-filter-panel">
+        <form id="calendar-form" class="grid-form">
+          <label>View
+            <select id="calendar-view">
+              <option value="day">Daily</option>
+              <option value="week">Weekly</option>
+              <option value="month" selected>Monthly</option>
+            </select>
+          </label>
+          <label>Reference Date<input id="calendar-date" type="date" required></label>
+          <label class="calendar-filter-field">Student Filter
+            <details id="calendar-student-dropdown" class="multi-select-dropdown">
+              <summary id="calendar-student-summary">Students (0 selected)</summary>
+              <div id="calendar-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label class="calendar-filter-field">Subject Filter
+            <details id="calendar-subject-dropdown" class="multi-select-dropdown">
+              <summary id="calendar-subject-summary">Subjects (0 selected)</summary>
+              <div id="calendar-subject-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label class="calendar-filter-field">Course Filter
+            <details id="calendar-course-dropdown" class="multi-select-dropdown">
+              <summary id="calendar-course-summary">Courses (0 selected)</summary>
+              <div id="calendar-course-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+        </form>
+      </div>
       <p id="calendar-range" class="muted"></p>
-      <div id="calendar-month-view" class="calendar-month-view">
+      <div id="calendar-month-view" class="calendar-month-view calendar-surface">
         <div class="calendar-toolbar">
           <button id="calendar-prev-month" type="button">Prev Month</button>
           <p id="calendar-month-title" class="calendar-month-title"></p>
@@ -534,7 +555,7 @@
         <div id="calendar-month-grid" class="calendar-month-grid"></div>
       </div>
 
-      <div id="calendar-detail-view" class="hidden">
+      <div id="calendar-detail-view" class="hidden calendar-surface">
         <div class="calendar-toolbar">
           <button id="calendar-back-month" type="button" class="hidden">Back to Month</button>
           <button id="calendar-back-week" type="button" class="hidden">Back to Week</button>
@@ -557,7 +578,7 @@
         </div>
 
         <div id="calendar-day-view" class="hidden">
-          <div class="table-wrap">
+          <div class="table-wrap calendar-table-wrap">
             <table>
               <thead><tr><th>Hour</th><th>Student</th><th>Planned Instruction</th></tr></thead>
               <tbody id="calendar-day-table"></tbody>
@@ -566,7 +587,7 @@
         </div>
       </div>
 
-      <div id="calendar-list-wrap" class="table-wrap hidden">
+      <div id="calendar-list-wrap" class="table-wrap calendar-table-wrap calendar-surface hidden">
         <table>
           <thead><tr><th>Date</th><th>Student</th><th>Subjects and Time</th><th>Total Hours</th></tr></thead>
           <tbody id="calendar-table"></tbody>

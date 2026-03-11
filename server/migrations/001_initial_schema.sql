@@ -31,6 +31,7 @@ CREATE TABLE dbo.courses (
   name NVARCHAR(150) NOT NULL,
   subject_id NVARCHAR(64) NOT NULL,
   hours_per_day DECIMAL(6,2) NOT NULL,
+  exclusive_resource BIT NOT NULL DEFAULT 0,
   CONSTRAINT FK_courses_subjects FOREIGN KEY (subject_id) REFERENCES dbo.subjects(id)
 );
 

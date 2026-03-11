@@ -54,7 +54,19 @@ async function readState() {
   const queries = [
     "SELECT id, first_name, last_name, birthdate, grade, age_recorded, created_at FROM dbo.students ORDER BY last_name, first_name",
     "SELECT id, name FROM dbo.subjects ORDER BY name",
-    "SELECT id, name, subject_id, hours_per_day FROM dbo.courses ORDER BY name",
+    `
+      SELECT
+        id,
+        name,
+        subject_id,
+        hours_per_day,
+        CASE
+          WHEN COL_LENGTH('dbo.courses', 'exclusive_resource') IS NULL THEN CAST(0 AS bit)
+          ELSE exclusive_resource
+        END AS exclusive_resource
+      FROM dbo.courses
+      ORDER BY name
+    `,
     "SELECT id, student_id, course_id FROM dbo.enrollments ORDER BY id",
     "SELECT id, label, start_date, end_date, is_current FROM dbo.school_years ORDER BY start_date",
     "SELECT id, school_year_id, name, start_date, end_date FROM dbo.quarters ORDER BY start_date",
@@ -117,7 +129,8 @@ async function readState() {
     id: r.id,
     name: r.name,
     subjectId: r.subject_id,
-    hoursPerDay: Number(r.hours_per_day)
+    hoursPerDay: Number(r.hours_per_day),
+    exclusiveResource: !!r.exclusive_resource
   }));
   const enrollments = enrollmentsR.recordset.map((r) => ({ id: r.id, studentId: r.student_id, courseId: r.course_id }));
 
@@ -288,13 +301,21 @@ async function writeState(state) {
     }
 
     const courses = uniqueById(state.courses);
+    await request().query(`
+      IF COL_LENGTH('dbo.courses', 'exclusive_resource') IS NULL
+      BEGIN
+        ALTER TABLE dbo.courses
+        ADD exclusive_resource BIT NOT NULL CONSTRAINT DF_courses_exclusive_resource DEFAULT 0
+      END
+    `);
     for (const row of courses) {
       await request()
         .input("id", sql.NVarChar(64), row.id)
         .input("name", sql.NVarChar(150), row.name || "")
         .input("subject_id", sql.NVarChar(64), row.subjectId || "")
         .input("hours_per_day", sql.Decimal(6, 2), Number(row.hoursPerDay || 0))
-        .query("INSERT INTO dbo.courses (id, name, subject_id, hours_per_day) VALUES (@id, @name, @subject_id, @hours_per_day)");
+        .input("exclusive_resource", sql.Bit, row.exclusiveResource ? 1 : 0)
+        .query("INSERT INTO dbo.courses (id, name, subject_id, hours_per_day, exclusive_resource) VALUES (@id, @name, @subject_id, @hours_per_day, @exclusive_resource)");
     }
 
     const enrollments = uniqueById(state.enrollments);
