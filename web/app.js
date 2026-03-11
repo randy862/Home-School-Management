@@ -2953,7 +2953,10 @@ function renderDayCalendar(referenceISO, studentFilter) {
 }
 
 function renderCalendar() {
-  const view = document.getElementById("calendar-view").value;
+  const viewInput = document.getElementById("calendar-view");
+  const requestedView = viewInput ? viewInput.value : "month";
+  const view = ["day", "week", "month"].includes(requestedView) ? requestedView : "month";
+  if (viewInput && viewInput.value !== view) viewInput.value = view;
   const ref = document.getElementById("calendar-date").value || todayISO();
   const studentFilter = currentStudentId() || document.getElementById("calendar-student").value;
   const monthView = document.getElementById("calendar-month-view");
