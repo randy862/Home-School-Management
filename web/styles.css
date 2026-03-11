@@ -801,6 +801,21 @@ td {
   border-color: #d8cdbd;
 }
 
+.students-section {
+  border: 1px solid #d8cfbf;
+  border-radius: 10px;
+  padding: 0.65rem 0.7rem;
+}
+
+.students-section-manage {
+  background: #f6f1e7;
+  border-color: #d2c3a8;
+}
+
+#tab-students .split {
+  grid-template-columns: minmax(560px, 1.2fr) minmax(320px, 0.8fr);
+}
+
 .schedule-section {
   border: 1px solid #d8cfbf;
   border-radius: 10px;
