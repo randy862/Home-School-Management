@@ -662,6 +662,50 @@ function getSchoolYear(id) { return state.settings.schoolYears.find((x) => x.id 
 function currentSchoolYear() {
   return getSchoolYear(state.settings.currentSchoolYearId) || state.settings.schoolYears[0] || state.settings.schoolYear;
 }
+function resolvedPlanRange(plan) {
+  if (!plan) return { startDate: "", endDate: "" };
+  if (plan.planType === "annual") {
+    const schoolYear = currentSchoolYear();
+    return {
+      startDate: schoolYear?.startDate || plan.startDate,
+      endDate: schoolYear?.endDate || plan.endDate
+    };
+  }
+  if (plan.planType === "quarterly" && plan.quarterName) {
+    const quarter = state.settings.quarters.find((entry) => entry.name === plan.quarterName);
+    if (quarter) {
+      return {
+        startDate: quarter.startDate,
+        endDate: quarter.endDate
+      };
+    }
+  }
+  return {
+    startDate: plan.startDate,
+    endDate: plan.endDate
+  };
+}
+function syncAnnualPlansForSchoolYear(previousStartDate, previousEndDate, nextStartDate, nextEndDate) {
+  state.plans.forEach((plan) => {
+    if (plan.planType !== "annual") return;
+    if (plan.startDate !== previousStartDate || plan.endDate !== previousEndDate) return;
+    plan.startDate = nextStartDate;
+    plan.endDate = nextEndDate;
+  });
+}
+function syncQuarterlyPlansForSchoolYear(schoolYearId, previousQuarterByName, nextQuarters) {
+  if (schoolYearId !== state.settings.currentSchoolYearId) return;
+  const nextQuarterByName = new Map(nextQuarters.map((quarter) => [quarter.name, quarter]));
+  state.plans.forEach((plan) => {
+    if (plan.planType !== "quarterly" || !plan.quarterName) return;
+    const previousQuarter = previousQuarterByName.get(plan.quarterName);
+    const nextQuarter = nextQuarterByName.get(plan.quarterName);
+    if (!previousQuarter || !nextQuarter) return;
+    if (plan.startDate !== previousQuarter.startDate || plan.endDate !== previousQuarter.endDate) return;
+    plan.startDate = nextQuarter.startDate;
+    plan.endDate = nextQuarter.endDate;
+  });
+}
 function setCurrentSchoolYear(schoolYearId) {
   const schoolYear = getSchoolYear(schoolYearId);
   if (!schoolYear) return;
@@ -1849,8 +1893,9 @@ function renderPlans() {
   const htmlRows = rows.map((p) => {
     const periodLabel = p.planType === "quarterly" && p.quarterName ? ` (${p.quarterName})` : "";
     const weekdays = (Array.isArray(p.weekdays) ? p.weekdays : []).map((w) => DAY_NAMES[w]).join(", ");
+    const range = resolvedPlanRange(p);
     const actions = isAdminUser() ? `<button data-edit-plan='${p.id}' type='button'>Edit</button> <button data-remove-plan='${p.id}' type='button'>Remove</button>` : "View only";
-    return `<tr><td>${p.planType.toUpperCase()}${periodLabel}</td><td>${getStudentName(p.studentId)}</td><td>${getCourseName(p.courseId)}</td><td>${p.startDate} to ${p.endDate}</td><td>${weekdays}</td><td>${actions}</td></tr>`;
+    return `<tr><td>${p.planType.toUpperCase()}${periodLabel}</td><td>${getStudentName(p.studentId)}</td><td>${getCourseName(p.courseId)}</td><td>${range.startDate} to ${range.endDate}</td><td>${weekdays}</td><td>${actions}</td></tr>`;
   });
   rowOrEmpty(tableBody, htmlRows, "No instruction plans defined.", 6);
   const submitBtn = document.getElementById("plan-submit-btn");
@@ -3234,7 +3279,8 @@ function calendarEvents(rangeStart, rangeEnd, studentFilterIds = [], subjectFilt
     const course = getCourse(p.courseId);
     if (!course) return;
     if (subjectFilterIds.length && !subjectFilterIds.includes(course.subjectId)) return;
-    const s = toDate(p.startDate), e = toDate(p.endDate);
+    const planRange = resolvedPlanRange(p);
+    const s = toDate(planRange.startDate), e = toDate(planRange.endDate);
     if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e < s) return;
     const start = s > rangeStart ? new Date(s) : new Date(rangeStart);
     const end = e < rangeEnd ? new Date(e) : new Date(rangeEnd);
@@ -4102,10 +4148,13 @@ function bindEvents() {
     if (!label) { alert("School year label is required."); return; }
     if (!validRange(startDate, endDate)) { alert("School year range is invalid."); return; }
     const existing = state.settings.schoolYears.find((year) => year.id === editingSchoolYearId);
+    const previousStartDate = existing?.startDate || "";
+    const previousEndDate = existing?.endDate || "";
     if (existing) {
       existing.label = label;
       existing.startDate = startDate;
       existing.endDate = endDate;
+      syncAnnualPlansForSchoolYear(previousStartDate, previousEndDate, startDate, endDate);
     } else {
       const duplicate = state.settings.schoolYears.find((year) =>
         year.label.toLowerCase() === label.toLowerCase()
@@ -4130,6 +4179,11 @@ function bindEvents() {
     if (!ensureAdminAction()) return;
     const schoolYearId = document.getElementById("quarter-school-year").value;
     if (!schoolYearId) { alert("Select a school year for these quarters."); return; }
+    const previousQuarterByName = new Map(
+      state.settings.allQuarters
+        .filter((quarter) => quarter.schoolYearId === schoolYearId)
+        .map((quarter) => [quarter.name, { ...quarter }])
+    );
     const q = [
       { id: uid(), schoolYearId, name: "Q1", startDate: document.getElementById("q1-start").value, endDate: document.getElementById("q1-end").value },
       { id: uid(), schoolYearId, name: "Q2", startDate: document.getElementById("q2-start").value, endDate: document.getElementById("q2-end").value },
@@ -4139,6 +4193,7 @@ function bindEvents() {
     if (!q.every((x)=>validRange(x.startDate, x.endDate))) { alert("Each quarter needs a valid date range."); return; }
     state.settings.allQuarters = state.settings.allQuarters.filter((quarter) => quarter.schoolYearId !== schoolYearId);
     state.settings.allQuarters.push(...q);
+    syncQuarterlyPlansForSchoolYear(schoolYearId, previousQuarterByName, q);
     if (schoolYearId === state.settings.currentSchoolYearId) setCurrentSchoolYear(schoolYearId);
     editingQuarterSchoolYearId = "";
     saveState();
