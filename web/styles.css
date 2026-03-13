@@ -379,6 +379,11 @@ button {
   background: var(--accent);
   color: #fff;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.2;
 }
 
 button:hover {
@@ -925,6 +930,14 @@ td {
 .schedule-section-plans {
   background: #f3efe8;
   border-color: #d8cdbd;
+}
+
+#plan-form > button {
+  align-self: end;
+  justify-self: start;
+  width: auto;
+  height: calc(1em + 0.84rem + 2px);
+  padding: 0.42rem 0.8rem;
 }
 
 .attendance-section,

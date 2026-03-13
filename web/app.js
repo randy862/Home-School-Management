@@ -3104,6 +3104,196 @@ function calendarEvents(rangeStart, rangeEnd, studentFilterIds = [], subjectFilt
   return events.sort((a,b)=>a.date.localeCompare(b.date));
 }
 
+function calendarEventsForDate(dateKey, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
+  const ref = toDate(dateKey);
+  if (Number.isNaN(ref.getTime())) return [];
+
+  const events = calendarEvents(ref, ref, studentFilterIds, subjectFilterIds, courseFilterIds);
+  const excludedDates = holidaySet();
+  const isInstructionalWeekday = ref.getDay() >= 1 && ref.getDay() <= 5;
+
+  if (isInstructionalWeekday && !excludedDates.has(dateKey)) {
+    const studentsToFill = studentFilterIds.length
+      ? [...studentFilterIds]
+      : state.students.map((student) => student.id);
+    const plannedPairSet = new Set(events.map((event) => `${event.studentId}||${event.courseId}`));
+
+    studentsToFill.forEach((studentId) => {
+      const enrolledCourseIds = Array.from(new Set(
+        state.enrollments
+          .filter((enrollment) => enrollment.studentId === studentId)
+          .map((enrollment) => enrollment.courseId)
+      ));
+
+      enrolledCourseIds.forEach((courseId) => {
+        if (courseFilterIds.length && !courseFilterIds.includes(courseId)) return;
+        const course = getCourse(courseId);
+        if (!course) return;
+        if (subjectFilterIds.length && !subjectFilterIds.includes(course.subjectId)) return;
+        const pairKey = `${studentId}||${courseId}`;
+        if (plannedPairSet.has(pairKey)) return;
+
+        const hasAnyPlanForCourse = state.plans.some((plan) =>
+          plan.studentId === studentId && plan.courseId === courseId
+        );
+        if (hasAnyPlanForCourse) return;
+
+        events.push({
+          date: dateKey,
+          studentId,
+          courseId,
+          planType: "enrollment-fallback"
+        });
+        plannedPairSet.add(pairKey);
+      });
+    });
+  }
+
+  const deduped = [];
+  const seen = new Set();
+  events
+    .sort((a, b) =>
+      a.studentId.localeCompare(b.studentId)
+      || a.courseId.localeCompare(b.courseId)
+      || a.planType.localeCompare(b.planType))
+    .forEach((event) => {
+      const key = `${event.studentId}||${event.courseId}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(event);
+    });
+  return deduped;
+}
+
+function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
+  const events = calendarEventsForDate(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
+  const byStudent = new Map();
+  events.forEach((event) => {
+    if (!byStudent.has(event.studentId)) byStudent.set(event.studentId, []);
+    byStudent.get(event.studentId).push(event);
+  });
+
+  const enrollmentOrderByStudent = new Map();
+  state.students.forEach((student) => {
+    const order = new Map();
+    state.enrollments
+      .filter((enrollment) => enrollment.studentId === student.id)
+      .forEach((enrollment, index) => {
+        if (!order.has(enrollment.courseId)) order.set(enrollment.courseId, index);
+      });
+    enrollmentOrderByStudent.set(student.id, order);
+  });
+
+  const exclusiveCourseAvailability = new Map();
+  const blocksByStudent = new Map();
+  const studentIdsInOrder = Array.from(byStudent.keys())
+    .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
+
+  const eventSortValue = (event) => {
+    const order = enrollmentOrderByStudent.get(event.studentId);
+    return order && order.has(event.courseId) ? order.get(event.courseId) : Number.MAX_SAFE_INTEGER;
+  };
+
+  studentIdsInOrder.forEach((studentId) => {
+    const studentName = getStudentName(studentId);
+    const blocks = [];
+    const remaining = [...(byStudent.get(studentId) || [])]
+      .sort((a, b) => {
+        const orderDiff = eventSortValue(a) - eventSortValue(b);
+        if (orderDiff !== 0) return orderDiff;
+        const courseA = getCourse(a.courseId);
+        const courseB = getCourse(b.courseId);
+        const subjectDiff = getSubjectName(courseA?.subjectId || "").localeCompare(getSubjectName(courseB?.subjectId || ""));
+        if (subjectDiff !== 0) return subjectDiff;
+        return getCourseName(a.courseId).localeCompare(getCourseName(b.courseId));
+      });
+
+    let slot = 8 * 60;
+    let lunchAdded = false;
+
+    while (remaining.length) {
+      if (!lunchAdded && slot >= 12 * 60 && slot < 13 * 60) {
+        blocks.push({ student: studentName, label: "Lunch Break", start: 12 * 60, end: 13 * 60, type: "lunch" });
+        slot = 13 * 60;
+        lunchAdded = true;
+        continue;
+      }
+
+      const candidates = remaining.map((event) => {
+        const course = getCourse(event.courseId);
+        const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
+        const availableAt = course?.exclusiveResource
+          ? Math.max(8 * 60, exclusiveCourseAvailability.get(course.id) || 8 * 60)
+          : 8 * 60;
+        return {
+          event,
+          course,
+          durationMinutes,
+          availableAt
+        };
+      });
+
+      let chosen = null;
+      const startNow = candidates.filter((candidate) => candidate.availableAt <= slot);
+
+      if (!lunchAdded && slot < 12 * 60) {
+        const fitsBeforeLunch = startNow.filter((candidate) => slot + candidate.durationMinutes <= 12 * 60);
+        if (fitsBeforeLunch.length) {
+          [chosen] = fitsBeforeLunch;
+        } else if (startNow.length) {
+          blocks.push({ student: studentName, label: "Lunch Break", start: 12 * 60, end: 13 * 60, type: "lunch" });
+          slot = 13 * 60;
+          lunchAdded = true;
+          continue;
+        }
+      } else if (startNow.length) {
+        [chosen] = startNow;
+      }
+
+      if (!chosen) {
+        const nextAvailable = Math.min(...candidates.map((candidate) => candidate.availableAt));
+        if (!Number.isFinite(nextAvailable)) break;
+
+        if (!lunchAdded && slot < 12 * 60 && nextAvailable >= 12 * 60) {
+          blocks.push({ student: studentName, label: "Lunch Break", start: 12 * 60, end: 13 * 60, type: "lunch" });
+          slot = 13 * 60;
+          lunchAdded = true;
+          continue;
+        }
+
+        slot = Math.max(slot, nextAvailable);
+        continue;
+      }
+
+      const startMin = slot;
+      const endMin = Math.min(24 * 60, startMin + chosen.durationMinutes);
+      blocks.push({
+        student: studentName,
+        studentId,
+        courseId: chosen.event.courseId,
+        label: `${chosen.course.name} (${getSubjectName(chosen.course.subjectId)})`,
+        start: startMin,
+        end: endMin,
+        type: "instruction"
+      });
+      if (chosen.course.exclusiveResource) {
+        exclusiveCourseAvailability.set(chosen.course.id, endMin);
+      }
+
+      const removeIndex = remaining.findIndex((event) =>
+        event.studentId === chosen.event.studentId && event.courseId === chosen.event.courseId);
+      if (removeIndex >= 0) remaining.splice(removeIndex, 1);
+
+      slot = endMin;
+      if (remaining.length && slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
+    }
+
+    blocksByStudent.set(studentId, blocks);
+  });
+
+  return blocksByStudent;
+}
+
 function calendarDateStudentRows(rangeStart, rangeEnd, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const students = studentFilterIds.length
     ? state.students.filter((s) => studentFilterIds.includes(s.id))
@@ -3111,36 +3301,34 @@ function calendarDateStudentRows(rangeStart, rangeEnd, studentFilterIds = [], su
   if (!students.length) return [];
 
   const rows = [];
-  const rowByKey = new Map();
   const cursor = new Date(rangeStart);
   while (cursor <= rangeEnd) {
     const dateKey = toISO(cursor);
+    const blocksByStudent = dailyScheduledBlocks(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
     students.forEach((student) => {
-      const key = `${dateKey}||${student.id}`;
       const entry = {
         date: dateKey,
         studentId: student.id,
-        subjects: new Map()
+        subjects: new Map(),
+        subjectOrder: []
       };
       rows.push(entry);
-      rowByKey.set(key, entry);
+      const blocks = blocksByStudent.get(student.id) || [];
+      blocks
+        .filter((block) => block.type === "instruction")
+        .forEach((block) => {
+          const course = getCourse(block.courseId);
+          if (!course) return;
+          const subjectName = getSubjectName(course.subjectId);
+          const current = entry.subjects.get(subjectName) || { hours: 0, courses: new Set() };
+          if (!entry.subjects.has(subjectName)) entry.subjectOrder.push(subjectName);
+          current.hours += Number(course.hoursPerDay || 0);
+          current.courses.add(course.name);
+          entry.subjects.set(subjectName, current);
+        });
     });
     cursor.setDate(cursor.getDate() + 1);
   }
-
-  calendarEvents(rangeStart, rangeEnd, studentFilterIds, subjectFilterIds, courseFilterIds).forEach((event) => {
-    const course = getCourse(event.courseId);
-    if (!course) return;
-    const key = `${event.date}||${event.studentId}`;
-    const row = rowByKey.get(key);
-    if (!row) return;
-
-    const subjectName = getSubjectName(course.subjectId);
-    const current = row.subjects.get(subjectName) || { hours: 0, courses: new Set() };
-    current.hours += Number(course.hoursPerDay || 0);
-    current.courses.add(course.name);
-    row.subjects.set(subjectName, current);
-  });
 
   return rows;
 }
@@ -3181,8 +3369,9 @@ function renderMonthCalendar(referenceISO, studentFilterIds = [], subjectFilterI
       .sort((a, b) => getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)));
 
     const items = dayRows.map((row) => {
-      const subjectParts = Array.from(row.subjects.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
+      const subjectParts = row.subjectOrder
+        .map((subjectName) => [subjectName, row.subjects.get(subjectName)])
+        .filter(([, data]) => !!data)
         .map(([subjectName, data]) => `${subjectName} ${data.hours.toFixed(1)}h`);
       const body = subjectParts.length ? subjectParts.join(", ") : "-";
       return `<div class="calendar-day-item"><button type="button" class="calendar-student-link" data-open-calendar-week="1" data-date="${dateKey}" data-student-id="${row.studentId}">${getStudentName(row.studentId)}</button><br>${body}</div>`;
@@ -3231,8 +3420,9 @@ function renderWeekCalendar(referenceISO, studentFilterIds = [], subjectFilterId
     const rows = (grouped.get(dateKey) || [])
       .sort((a, b) => getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)));
     const items = rows.map((row) => {
-      const subjectParts = Array.from(row.subjects.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
+      const subjectParts = row.subjectOrder
+        .map((subjectName) => [subjectName, row.subjects.get(subjectName)])
+        .filter(([, data]) => !!data)
         .map(([subjectName, data]) => `${subjectName} ${data.hours.toFixed(1)}h`);
       const body = subjectParts.length ? subjectParts.join(", ") : "-";
       return `<div class="calendar-day-item"><button type="button" class="calendar-student-link" data-open-calendar-day="1" data-date="${dateKey}" data-student-id="${row.studentId}">${getStudentName(row.studentId)}</button><br>${body}</div>`;
@@ -3251,49 +3441,6 @@ function renderWeekCalendar(referenceISO, studentFilterIds = [], subjectFilterId
 function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const ref = toDate(referenceISO || todayISO());
   const dateKey = toISO(ref);
-  const events = calendarEvents(ref, ref, studentFilterIds, subjectFilterIds, courseFilterIds);
-  const excludedDates = holidaySet();
-  const isInstructionalWeekday = ref.getDay() >= 1 && ref.getDay() <= 5;
-
-  // Fallback: if a student is enrolled in a course that has never had an instruction plan,
-  // still show it in daily view so the schedule reflects full enrollment.
-  if (isInstructionalWeekday && !excludedDates.has(dateKey)) {
-    const studentsToFill = studentFilterIds.length
-      ? [...studentFilterIds]
-      : state.students.map((student) => student.id);
-    const plannedPairSet = new Set(events.map((event) => `${event.studentId}||${event.courseId}`));
-
-    studentsToFill.forEach((studentId) => {
-      const enrolledCourseIds = Array.from(new Set(
-        state.enrollments
-          .filter((enrollment) => enrollment.studentId === studentId)
-          .map((enrollment) => enrollment.courseId)
-      ));
-
-      enrolledCourseIds.forEach((courseId) => {
-        if (courseFilterIds.length && !courseFilterIds.includes(courseId)) return;
-        const course = getCourse(courseId);
-        if (!course) return;
-        if (subjectFilterIds.length && !subjectFilterIds.includes(course.subjectId)) return;
-        const pairKey = `${studentId}||${courseId}`;
-        if (plannedPairSet.has(pairKey)) return;
-
-        const hasAnyPlanForCourse = state.plans.some((plan) =>
-          plan.studentId === studentId && plan.courseId === courseId
-        );
-        if (hasAnyPlanForCourse) return;
-
-        events.push({
-          date: dateKey,
-          studentId,
-          courseId,
-          planType: "enrollment-fallback"
-        });
-        plannedPairSet.add(pairKey);
-      });
-    });
-  }
-
   const formatTime = (minutes) => {
     const h24 = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -3302,15 +3449,9 @@ function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds
     return `${h12}:${String(mins).padStart(2, "0")} ${ampm}`;
   };
 
-  const byStudent = new Map();
-  events.forEach((event) => {
-    if (!byStudent.has(event.studentId)) byStudent.set(event.studentId, []);
-    byStudent.get(event.studentId).push(event);
-  });
-
+  const blocksByStudent = dailyScheduledBlocks(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
   const scheduledByHour = new Map();
-  const exclusiveCourseAvailability = new Map();
-  const studentIdsInOrder = Array.from(byStudent.keys())
+  const studentIdsInOrder = Array.from(blocksByStudent.keys())
     .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
   const addBlock = (student, label, startMin, endMin) => {
     if (endMin <= startMin) return;
@@ -3325,80 +3466,15 @@ function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds
     });
   };
 
-  const applyLunchWindow = (studentName, slot, durationMinutes, lunchAdded) => {
-    let nextSlot = slot;
-    let nextLunchAdded = lunchAdded;
-    if (!nextLunchAdded && nextSlot < 12 * 60 && nextSlot + durationMinutes > 12 * 60) {
-      addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
-      nextSlot = 13 * 60;
-      nextLunchAdded = true;
-    } else if (!nextLunchAdded && nextSlot >= 12 * 60 && nextSlot < 13 * 60) {
-      addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
-      nextSlot = 13 * 60;
-      nextLunchAdded = true;
-    }
-    return { slot: nextSlot, lunchAdded: nextLunchAdded };
-  };
-
   studentIdsInOrder.forEach((studentId) => {
-    const studentEvents = byStudent.get(studentId) || [];
-    const shuffledEvents = [...studentEvents];
-    // Randomized course sequence per student (placeholder behavior requested by user).
-    for (let i = shuffledEvents.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const tmp = shuffledEvents[i];
-      shuffledEvents[i] = shuffledEvents[j];
-      shuffledEvents[j] = tmp;
-    }
-
-    const studentName = getStudentName(studentId);
-    let slot = 8 * 60;
-    let lunchAdded = false;
-    shuffledEvents.forEach((event, idx) => {
-      const course = getCourse(event.courseId);
-      if (!course) return;
-
-      const durationMinutes = Math.max(15, Math.round(Number(course.hoursPerDay || 1) * 60));
-      let proposedSlot = slot;
-      if (course.exclusiveResource) {
-        proposedSlot = Math.max(proposedSlot, exclusiveCourseAvailability.get(course.id) || proposedSlot);
-      }
-
-      if (proposedSlot > slot) {
-        if (!lunchAdded && proposedSlot >= 13 * 60) {
-          addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
-          lunchAdded = true;
-        }
-        slot = proposedSlot;
-      }
-
-      const lunchResult = applyLunchWindow(studentName, slot, durationMinutes, lunchAdded);
-      slot = lunchResult.slot;
-      lunchAdded = lunchResult.lunchAdded;
-
-      const startMin = slot;
-      const endMin = Math.min(24 * 60, startMin + durationMinutes);
-      addBlock(studentName, `${course.name} (${getSubjectName(course.subjectId)})`, startMin, endMin);
-      if (course.exclusiveResource) exclusiveCourseAvailability.set(course.id, endMin);
-      slot = endMin;
-
-      // Insert 5-minute break between courses.
-      if (idx < shuffledEvents.length - 1 && slot < 24 * 60) {
-        const breakStart = slot;
-        const breakEnd = Math.min(24 * 60, breakStart + 5);
-        // Keep a 5-minute buffer in the schedule timing, but do not render it in daily view.
-        slot = breakEnd;
-      }
+    (blocksByStudent.get(studentId) || []).forEach((block) => {
+      addBlock(block.student, block.label, block.start, block.end);
     });
-
-    if (!lunchAdded) {
-      addBlock(studentName, "Lunch Break", 12 * 60, 13 * 60);
-    }
   });
 
   const instructionalBlocks = Array.from(scheduledByHour.values())
     .flat()
-    .filter((item) => !item.label.includes("Break"));
+    .filter((item) => item.label !== "Lunch Break");
   const minHour = instructionalBlocks.length
     ? Math.max(0, Math.floor(Math.min(...instructionalBlocks.map((item) => item.start)) / 60))
     : 0;
