@@ -887,41 +887,49 @@ function studentCourseAverageByRange(studentId, courseId, startDate, endDate, op
       && inRange(t.date, startDate, endDate));
   return weightedAverageForTests(tests, options);
 }
+function instructionalDatesByRange(startDate, endDate) {
+  const today = todayISO();
+  return instructionalDates().filter((date) =>
+    date >= startDate
+    && date <= endDate
+    && date <= today);
+}
 function studentAbsenceCount(studentId) {
   const startDate = state.settings.schoolYear.startDate;
   const endDate = state.settings.schoolYear.endDate;
-  const today = todayISO();
-  return state.attendance.filter((a) =>
-    a.studentId === studentId
-    && !a.present
-    && a.date >= startDate
-    && a.date <= endDate
-    && a.date <= today).length;
+  return studentAttendanceSummaryByRange(studentId, startDate, endDate).absent;
 }
 function studentAttendanceSummary(studentId) {
   const startDate = state.settings.schoolYear.startDate;
   const endDate = state.settings.schoolYear.endDate;
-  const today = todayISO();
-  const records = state.attendance.filter((a) =>
-    a.studentId === studentId
-    && a.date >= startDate
-    && a.date <= endDate
-    && a.date <= today);
-  return {
-    attended: records.filter((a) => a.present).length,
-    absent: records.filter((a) => !a.present).length
-  };
+  return studentAttendanceSummaryByRange(studentId, startDate, endDate);
 }
 function studentAttendanceSummaryByRange(studentId, startDate, endDate) {
-  const today = todayISO();
-  const records = state.attendance.filter((a) =>
-    a.studentId === studentId
-    && a.date >= startDate
-    && a.date <= endDate
-    && a.date <= today);
+  const validDates = instructionalDatesByRange(startDate, endDate);
+  const dateSet = new Set(validDates);
+  const recordsByDate = new Map();
+  state.attendance.forEach((record) => {
+    if (record.studentId !== studentId || !dateSet.has(record.date)) return;
+    if (!recordsByDate.has(record.date)) {
+      recordsByDate.set(record.date, !!record.present);
+      return;
+    }
+    const existingPresent = recordsByDate.get(record.date);
+    if (existingPresent && !record.present) {
+      recordsByDate.set(record.date, false);
+    }
+  });
+  let attended = 0;
+  let absent = 0;
+  validDates.forEach((date) => {
+    if (!recordsByDate.has(date)) return;
+    if (recordsByDate.get(date)) attended += 1;
+    else absent += 1;
+  });
   return {
-    attended: records.filter((a) => a.present).length,
-    absent: records.filter((a) => !a.present).length
+    totalDays: validDates.length,
+    attended,
+    absent
   };
 }
 
@@ -1833,12 +1841,14 @@ function renderPlans() {
 function renderAttendance() {
   const viewerStudentId = currentStudentId();
   const studentFilter = viewerStudentId || document.getElementById("attendance-filter-student")?.value || "all";
+  const dateFilter = document.getElementById("attendance-filter-date")?.value || "";
   const quarterFilter = document.getElementById("attendance-filter-quarter")?.value || "all";
   const statusFilter = document.getElementById("attendance-filter-status")?.value || "all";
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
 
   const filtered = state.attendance.filter((a) => {
     if (studentFilter !== "all" && a.studentId !== studentFilter) return false;
+    if (dateFilter && a.date !== dateFilter) return false;
     if (quarterFilter !== "all" && quarterRange && !inRange(a.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if (statusFilter === "present" && !a.present) return false;
     if (statusFilter === "absent" && a.present) return false;
@@ -1848,7 +1858,12 @@ function renderAttendance() {
   const rows = [...filtered]
     .sort((a,b)=>b.date.localeCompare(a.date))
     .slice(0,100)
-    .map((a) => `<tr><td>${a.date}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td>${isAdminUser() ? `<button type='button' data-edit-attendance='${a.id}'>Edit</button>` : "View only"}</td></tr>`);
+    .map((a) => {
+      const actions = isAdminUser()
+        ? `<button type='button' data-edit-attendance='${a.id}'>Edit</button> <button type='button' data-remove-attendance='${a.id}'>Remove</button>`
+        : "View only";
+      return `<tr><td>${a.date}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td>${actions}</td></tr>`;
+    });
   rowOrEmpty(document.getElementById("attendance-table"), rows, "No attendance recorded yet.", 4);
 }
 
@@ -1861,6 +1876,16 @@ function resetAttendanceEditMode() {
   const dateInput = document.getElementById("attendance-date");
   if (dateInput) dateInput.value = todayISO();
   renderAttendanceStudentChecklist([]);
+}
+
+function beginAttendanceEdit(target) {
+  if (!target) return;
+  editingAttendanceId = target.id;
+  renderAttendanceStudentChecklist([target.studentId]);
+  document.getElementById("attendance-date").value = target.date;
+  document.getElementById("attendance-status").value = target.present ? "present" : "absent";
+  document.getElementById("attendance-submit-btn").textContent = "Update Attendance";
+  document.getElementById("attendance-cancel-edit-btn").classList.remove("hidden");
 }
 
 function renderTests() {
@@ -2944,12 +2969,11 @@ function renderDashboard() {
   document.getElementById("kpi-running-avg").textContent = `${runningAverage.toFixed(1)}%`;
 
   const attendanceDatesThroughToday = dates.filter((d) => d <= todayISO());
-  const attendanceDateSet = new Set(attendanceDatesThroughToday);
   const totalAttendanceDays = attendanceDatesThroughToday.length;
   const attendanceLeaders = dashboardStudents
     .map((student) => {
-      const records = state.attendance.filter((a) => a.studentId === student.id && a.date <= todayISO() && attendanceDateSet.has(a.date));
-      const presentCount = records.filter((a) => a.present).length;
+      const summary = studentAttendanceSummary(student.id);
+      const presentCount = summary.attended;
       const attendanceAverage = totalAttendanceDays > 0 ? (presentCount / totalAttendanceDays) * 100 : 0;
       return {
         studentId: student.id,
@@ -3111,9 +3135,9 @@ function renderDashboard() {
   rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
 
   const studentAttendanceRows = dashboardStudents.flatMap((student) => {
-    const records = state.attendance.filter((a) => a.studentId === student.id && a.date <= todayISO() && attendanceDateSet.has(a.date));
-    const presentCount = records.filter((a) => a.present).length;
-    const absentCount = records.filter((a) => !a.present).length;
+    const summary = studentAttendanceSummary(student.id);
+    const presentCount = summary.attended;
+    const absentCount = summary.absent;
     const attendanceAverage = totalAttendanceDays > 0 ? (presentCount / totalAttendanceDays) * 100 : 0;
     const expandedAttendance = expandedStudentAttendanceRows.has(student.id);
     const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${student.id}" aria-expanded="${expandedAttendance ? "true" : "false"}">${expandedAttendance ? "-" : "+"}</button> ${student.firstName} ${student.lastName}</td><td>${totalAttendanceDays}</td><td>${presentCount}</td><td>${absentCount}</td><td>${totalAttendanceDays > 0 ? `${attendanceAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
@@ -3122,11 +3146,10 @@ function renderDashboard() {
     const quarterRows = state.settings.quarters
       .map((quarter) => {
         const quarterDates = attendanceDatesThroughToday.filter((d) => inRange(d, quarter.startDate, quarter.endDate));
-        const quarterDateSet = new Set(quarterDates);
         const quarterTotalDays = quarterDates.length;
-        const quarterRecords = records.filter((a) => quarterDateSet.has(a.date));
-        const quarterPresent = quarterRecords.filter((a) => a.present).length;
-        const quarterAbsent = quarterRecords.filter((a) => !a.present).length;
+        const quarterSummary = studentAttendanceSummaryByRange(student.id, quarter.startDate, quarter.endDate);
+        const quarterPresent = quarterSummary.attended;
+        const quarterAbsent = quarterSummary.absent;
         const quarterAverage = quarterTotalDays > 0 ? (quarterPresent / quarterTotalDays) * 100 : 0;
         return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarterTotalDays}</td><td>${quarterPresent}</td><td>${quarterAbsent}</td><td>${quarterTotalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
       });
@@ -4360,6 +4383,27 @@ function bindEvents() {
         state.attendance = state.attendance.filter((a) => a.id !== editingAttendanceId);
       }
     } else {
+      const duplicates = studentIds
+        .map((studentId) => state.attendance.find((a) => a.studentId === studentId && a.date === date))
+        .filter(Boolean);
+      if (duplicates.length) {
+        if (duplicates.length === 1 && studentIds.length === 1) {
+          const existing = duplicates[0];
+          const shouldEdit = confirm(`An attendance record already exists for ${getStudentName(existing.studentId)} on ${date}. Select OK to edit the existing record instead.`);
+          if (shouldEdit) {
+            editingAttendanceId = existing.id;
+            renderAttendanceStudentChecklist([existing.studentId]);
+            document.getElementById("attendance-date").value = existing.date;
+            document.getElementById("attendance-status").value = existing.present ? "present" : "absent";
+            document.getElementById("attendance-submit-btn").textContent = "Update Attendance";
+            document.getElementById("attendance-cancel-edit-btn").classList.remove("hidden");
+          }
+          return;
+        }
+        const duplicateNames = duplicates.map((record) => getStudentName(record.studentId)).join(", ");
+        alert(`Attendance record(s) already exist for ${duplicateNames} on ${date}. Edit the existing record instead of creating a duplicate.`);
+        return;
+      }
       studentIds.forEach((studentId) => {
         const existing = state.attendance.find((a)=>a.studentId===studentId && a.date===date);
         if (existing) existing.present = status === "present";
@@ -4373,7 +4417,7 @@ function bindEvents() {
     resetAttendanceEditMode();
     renderAll();
   });
-  ["attendance-filter-student", "attendance-filter-quarter", "attendance-filter-status"].forEach((id) => {
+  ["attendance-filter-student", "attendance-filter-date", "attendance-filter-quarter", "attendance-filter-status"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderAttendance());
   });
@@ -4381,9 +4425,11 @@ function bindEvents() {
   if (attendanceClearFiltersBtn) {
     attendanceClearFiltersBtn.addEventListener("click", () => {
       const studentFilter = document.getElementById("attendance-filter-student");
+      const dateFilter = document.getElementById("attendance-filter-date");
       const quarterFilter = document.getElementById("attendance-filter-quarter");
       const statusFilter = document.getElementById("attendance-filter-status");
       if (studentFilter) studentFilter.value = "all";
+      if (dateFilter) dateFilter.value = "";
       if (quarterFilter) quarterFilter.value = "all";
       if (statusFilter) statusFilter.value = "all";
       renderAttendance();
@@ -4787,12 +4833,30 @@ function bindEvents() {
       if (!ensureAdminAction()) return;
       const target = state.attendance.find((a) => a.id === editAttendanceId);
       if (!target) return;
-      editingAttendanceId = target.id;
-      renderAttendanceStudentChecklist([target.studentId]);
-      document.getElementById("attendance-date").value = target.date;
-      document.getElementById("attendance-status").value = target.present ? "present" : "absent";
-      document.getElementById("attendance-submit-btn").textContent = "Update Attendance";
-      document.getElementById("attendance-cancel-edit-btn").classList.remove("hidden");
+      beginAttendanceEdit(target);
+      return;
+    }
+    const removeAttendanceId = t.getAttribute("data-remove-attendance");
+    if (removeAttendanceId) {
+      if (!ensureAdminAction()) return;
+      const target = state.attendance.find((a) => a.id === removeAttendanceId);
+      if (!target) return;
+      const isInstructionalRecord = instructionalDates().includes(target.date);
+      let confirmed = false;
+      if (isInstructionalRecord) {
+        confirmed = confirm(`This is an attendance record for a valid instructional day. Select OK to delete it, or Cancel to edit the existing record for ${getStudentName(target.studentId)} on ${target.date}.`);
+        if (!confirmed) {
+          beginAttendanceEdit(target);
+          return;
+        }
+      } else {
+        confirmed = confirm(`Remove the attendance record for ${getStudentName(target.studentId)} on ${target.date}?`);
+      }
+      if (!confirmed) return;
+      state.attendance = state.attendance.filter((a) => a.id !== removeAttendanceId);
+      if (editingAttendanceId === removeAttendanceId) resetAttendanceEditMode();
+      saveState();
+      renderAll();
       return;
     }
 

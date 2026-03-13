@@ -1301,6 +1301,11 @@ td {
   padding: 0.42rem 0.8rem;
 }
 
+#attendance-filter-form {
+  grid-template-columns: minmax(180px, 1.35fr) minmax(155px, 0.95fr) minmax(145px, 0.95fr) minmax(145px, 0.95fr) auto;
+  align-items: end;
+}
+
 #grades-filter-form > button {
   justify-self: start;
   width: auto;
