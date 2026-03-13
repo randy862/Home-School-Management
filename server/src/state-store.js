@@ -67,7 +67,18 @@ async function readState() {
       FROM dbo.courses
       ORDER BY name
     `,
-    "SELECT id, student_id, course_id FROM dbo.enrollments ORDER BY id",
+    `
+      SELECT
+        id,
+        student_id,
+        course_id,
+        CASE
+          WHEN COL_LENGTH('dbo.enrollments', 'schedule_order') IS NULL THEN NULL
+          ELSE schedule_order
+        END AS schedule_order
+      FROM dbo.enrollments
+      ORDER BY id
+    `,
     "SELECT id, label, start_date, end_date, is_current FROM dbo.school_years ORDER BY start_date",
     "SELECT id, school_year_id, name, start_date, end_date FROM dbo.quarters ORDER BY start_date",
     "SELECT id, name, holiday_type, start_date, end_date FROM dbo.holidays ORDER BY start_date",
@@ -132,7 +143,12 @@ async function readState() {
     hoursPerDay: Number(r.hours_per_day),
     exclusiveResource: !!r.exclusive_resource
   }));
-  const enrollments = enrollmentsR.recordset.map((r) => ({ id: r.id, studentId: r.student_id, courseId: r.course_id }));
+  const enrollments = enrollmentsR.recordset.map((r) => ({
+    id: r.id,
+    studentId: r.student_id,
+    courseId: r.course_id,
+    scheduleOrder: r.schedule_order == null ? null : Number(r.schedule_order)
+  }));
 
   const schoolYears = schoolYearsR.recordset.map((r) => ({
     id: r.id,
@@ -318,13 +334,22 @@ async function writeState(state) {
         .query("INSERT INTO dbo.courses (id, name, subject_id, hours_per_day, exclusive_resource) VALUES (@id, @name, @subject_id, @hours_per_day, @exclusive_resource)");
     }
 
+    await request().query(`
+      IF COL_LENGTH('dbo.enrollments', 'schedule_order') IS NULL
+      BEGIN
+        ALTER TABLE dbo.enrollments
+        ADD schedule_order INT NULL
+      END
+    `);
+
     const enrollments = uniqueById(state.enrollments);
     for (const row of enrollments) {
       await request()
         .input("id", sql.NVarChar(64), row.id)
         .input("student_id", sql.NVarChar(64), row.studentId || "")
         .input("course_id", sql.NVarChar(64), row.courseId || "")
-        .query("INSERT INTO dbo.enrollments (id, student_id, course_id) VALUES (@id, @student_id, @course_id)");
+        .input("schedule_order", sql.Int, row.scheduleOrder == null ? null : Number(row.scheduleOrder))
+        .query("INSERT INTO dbo.enrollments (id, student_id, course_id, schedule_order) VALUES (@id, @student_id, @course_id, @schedule_order)");
     }
 
     const settings = state.settings || {};

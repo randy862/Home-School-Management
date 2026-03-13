@@ -39,6 +39,7 @@ CREATE TABLE dbo.enrollments (
   id NVARCHAR(64) NOT NULL PRIMARY KEY,
   student_id NVARCHAR(64) NOT NULL,
   course_id NVARCHAR(64) NOT NULL,
+  schedule_order INT NULL,
   CONSTRAINT FK_enrollments_students FOREIGN KEY (student_id) REFERENCES dbo.students(id),
   CONSTRAINT FK_enrollments_courses FOREIGN KEY (course_id) REFERENCES dbo.courses(id),
   CONSTRAINT UQ_enrollments_student_course UNIQUE (student_id, course_id)

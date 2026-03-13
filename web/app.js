@@ -263,6 +263,26 @@ function mergeCoursesWithLocalState(remoteState, localState) {
   return changed;
 }
 
+function mergeEnrollmentsWithLocalState(remoteState, localState) {
+  if (!remoteState || !Array.isArray(remoteState.enrollments) || !localState || !Array.isArray(localState.enrollments)) return false;
+  let changed = false;
+  const localEnrollmentsById = new Map(
+    localState.enrollments
+      .filter((enrollment) => enrollment && enrollment.id)
+      .map((enrollment) => [enrollment.id, enrollment])
+  );
+  remoteState.enrollments = remoteState.enrollments.map((enrollment) => {
+    const localEnrollment = localEnrollmentsById.get(enrollment.id);
+    if (!localEnrollment) return enrollment;
+    const remoteScheduleOrder = enrollment.scheduleOrder == null ? null : Number(enrollment.scheduleOrder);
+    const localScheduleOrder = localEnrollment.scheduleOrder == null ? null : Number(localEnrollment.scheduleOrder);
+    if (remoteScheduleOrder != null || localScheduleOrder == null) return enrollment;
+    changed = true;
+    return { ...enrollment, scheduleOrder: localScheduleOrder };
+  });
+  return changed;
+}
+
 function normalizeSettingsShape(inputState) {
   const s = inputState;
   if (!s.settings) s.settings = {};
@@ -616,6 +636,7 @@ async function bootstrapStateFromApi() {
     const before = JSON.stringify(remoteState.users || []);
     normalizeSettingsShape(remoteState);
     const coursesChanged = mergeCoursesWithLocalState(remoteState, localState);
+    const enrollmentsChanged = mergeEnrollmentsWithLocalState(remoteState, localState);
     state = remoteState;
     if (!state.users.some((user) => user.id === currentUserId)) {
       currentUserId = "";
@@ -623,7 +644,7 @@ async function bootstrapStateFromApi() {
     }
     setCurrentSchoolYear(state.settings.currentSchoolYearId);
     const usersChanged = before !== JSON.stringify(state.users || []);
-    if (backfillAttendanceToToday() || usersChanged || coursesChanged) saveState();
+    if (backfillAttendanceToToday() || usersChanged || coursesChanged || enrollmentsChanged) saveState();
     gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
     renderAll();
   } catch (error) {
