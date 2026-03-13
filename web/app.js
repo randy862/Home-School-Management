@@ -774,17 +774,24 @@ function studentOverallAverage(studentId) {
   const tests = state.tests.filter((t) => t.studentId === studentId);
   return weightedAverageForTests(tests);
 }
+function studentOverallAverageByRange(studentId, startDate, endDate, options = {}) {
+  const tests = state.tests
+    .filter((t) =>
+      t.studentId === studentId
+      && inRange(t.date, startDate, endDate));
+  return weightedAverageForTests(tests, options);
+}
 function studentCourseAverage(studentId, courseId) {
   const tests = state.tests.filter((t) => t.studentId === studentId && t.courseId === courseId);
   return weightedAverageForTests(tests);
 }
-function studentCourseAverageByRange(studentId, courseId, startDate, endDate) {
+function studentCourseAverageByRange(studentId, courseId, startDate, endDate, options = {}) {
   const tests = state.tests
     .filter((t) =>
       t.studentId === studentId
       && t.courseId === courseId
       && inRange(t.date, startDate, endDate));
-  return weightedAverageForTests(tests);
+  return weightedAverageForTests(tests, options);
 }
 function studentAbsenceCount(studentId) {
   const startDate = state.settings.schoolYear.startDate;
@@ -1621,23 +1628,21 @@ function renderStudentDetail() {
   const quarterRange = state.settings.quarters.find((q) => q.name === selectedQuarter);
   const rangeStart = quarterRange ? quarterRange.startDate : state.settings.schoolYear.startDate;
   const rangeEnd = quarterRange ? quarterRange.endDate : state.settings.schoolYear.endDate;
+  const isQuarterScoped = selectedQuarter !== "all";
 
   const enrollmentRows = state.enrollments
     .filter((e) => e.studentId === student.id)
     .map((e) => {
       const course = getCourse(e.courseId);
       const subject = course ? getSubjectName(course.subjectId) : "Unknown Subject";
-      const courseAvg = studentCourseAverageByRange(student.id, e.courseId, rangeStart, rangeEnd);
+      const courseAvg = studentCourseAverageByRange(student.id, e.courseId, rangeStart, rangeEnd, { quarterScoped: isQuarterScoped });
       const avgDisplay = courseAvg === 0 ? "No grades" : `${courseAvg.toFixed(1)}%`;
       return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${avgDisplay}</td><td><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></td></tr>`;
     });
-  const courseAverages = state.enrollments
-    .filter((e) => e.studentId === student.id)
-    .map((e) => studentCourseAverageByRange(student.id, e.courseId, rangeStart, rangeEnd))
-    .filter((value) => value > 0);
   if (enrollmentRows.length) {
-    const avgOfCourses = courseAverages.length ? `${avg(courseAverages).toFixed(1)}%` : "No grades";
-    enrollmentRows.push(`<tr><td colspan="2"><strong>Average</strong></td><td><strong>${avgOfCourses}</strong></td><td></td></tr>`);
+    const overallAverage = studentOverallAverageByRange(student.id, rangeStart, rangeEnd, { quarterScoped: isQuarterScoped });
+    const averageDisplay = overallAverage > 0 ? `${overallAverage.toFixed(1)}%` : "No grades";
+    enrollmentRows.push(`<tr><td colspan="2"><strong>Average</strong></td><td><strong>${averageDisplay}</strong></td><td></td></tr>`);
   }
   rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 4);
 
@@ -2908,13 +2913,7 @@ function renderDashboard() {
       const q2Avg = weightedAverageForTests(q2Tests, { quarterScoped: true });
       const q3Avg = weightedAverageForTests(q3Tests, { quarterScoped: true });
       const q4Avg = weightedAverageForTests(q4Tests, { quarterScoped: true });
-      const totalQuarterRows = [
-        { avg: q1Avg, count: q1Tests.length },
-        { avg: q2Avg, count: q2Tests.length },
-        { avg: q3Avg, count: q3Tests.length },
-        { avg: q4Avg, count: q4Tests.length }
-      ];
-      const totalAvg = averageOfQuarterAverages(totalQuarterRows);
+      const totalAvg = weightedAverageForTests(studentTests);
       const subjectMap = new Map();
       studentTests.forEach((test) => {
         const subjectId = test.subjectId || "__unknown_subject__";
@@ -2933,12 +2932,7 @@ function renderDashboard() {
           const q2AvgBySubject = weightedAverageForTests(q2TestsBySubject, { quarterScoped: true });
           const q3AvgBySubject = weightedAverageForTests(q3TestsBySubject, { quarterScoped: true });
           const q4AvgBySubject = weightedAverageForTests(q4TestsBySubject, { quarterScoped: true });
-          const totalAvgBySubject = averageOfQuarterAverages([
-            { avg: q1AvgBySubject, count: q1TestsBySubject.length },
-            { avg: q2AvgBySubject, count: q2TestsBySubject.length },
-            { avg: q3AvgBySubject, count: q3TestsBySubject.length },
-            { avg: q4AvgBySubject, count: q4TestsBySubject.length }
-          ]);
+          const totalAvgBySubject = weightedAverageForTests(testsForSubject);
 
           const subjectKey = `${student.id}::${subjectId}`;
           const expandedSubject = expandedSubjectAverageRows.has(subjectKey);
@@ -2969,12 +2963,7 @@ function renderDashboard() {
             const q2TypeAvg = weightedAverageForTests(q2TypeTests, { quarterScoped: true });
             const q3TypeAvg = weightedAverageForTests(q3TypeTests, { quarterScoped: true });
             const q4TypeAvg = weightedAverageForTests(q4TypeTests, { quarterScoped: true });
-            const totalTypeAvg = averageOfQuarterAverages([
-              { avg: q1TypeAvg, count: q1TypeTests.length },
-              { avg: q2TypeAvg, count: q2TypeTests.length },
-              { avg: q3TypeAvg, count: q3TypeTests.length },
-              { avg: q4TypeAvg, count: q4TypeTests.length }
-            ]);
+            const totalTypeAvg = weightedAverageForTests(typeTests);
             return `<tr class="student-avg-type-row"><td class="student-avg-type-cell">${gradeType}</td><td>${formatAvgCell(totalTypeAvg, typeTests.length)}</td><td>${formatAvgCell(q1TypeAvg, q1TypeTests.length)}</td><td>${formatAvgCell(q2TypeAvg, q2TypeTests.length)}</td><td>${formatAvgCell(q3TypeAvg, q3TypeTests.length)}</td><td>${formatAvgCell(q4TypeAvg, q4TypeTests.length)}</td></tr>`;
           });
           return [subjectRow, ...typeRows];

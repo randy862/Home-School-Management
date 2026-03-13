@@ -3,6 +3,10 @@
 Date: 2026-03-10
 
 ## Done
+- Standardized "overall average" calculations across Dashboard, Student detail, and Grades views:
+  - overall averages now use the weighted average of the same filtered test set
+  - Student detail quarter filtering now uses quarter-scoped weighting for per-course rows
+  - removed average-of-quarters / average-of-courses drift that caused cross-page mismatches
 - Added login UX and system-user administration shell in `web/`:
   - `web/index.html`
   - `web/styles.css`
