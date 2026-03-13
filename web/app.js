@@ -220,6 +220,26 @@ function normalizeCoursesShape(inputState) {
   }));
 }
 
+function normalizeEnrollmentsShape(inputState) {
+  const s = inputState;
+  if (!Array.isArray(s.enrollments)) {
+    s.enrollments = [];
+    return;
+  }
+  s.enrollments = s.enrollments
+    .filter((enrollment) => enrollment && enrollment.studentId && enrollment.courseId)
+    .map((enrollment) => {
+      const parsedOrder = enrollment.scheduleOrder === "" || enrollment.scheduleOrder == null
+        ? null
+        : Number(enrollment.scheduleOrder);
+      return {
+        ...enrollment,
+        id: enrollment.id || uid(),
+        scheduleOrder: Number.isInteger(parsedOrder) && parsedOrder > 0 ? parsedOrder : null
+      };
+    });
+}
+
 function mergeCoursesWithLocalState(remoteState, localState) {
   if (!remoteState || !Array.isArray(remoteState.courses) || !localState || !Array.isArray(localState.courses)) return false;
   let changed = false;
@@ -314,6 +334,7 @@ function normalizeSettingsShape(inputState) {
 
   normalizeUsersShape(s);
   normalizeCoursesShape(s);
+  normalizeEnrollmentsShape(s);
 }
 
 function loadState() {
@@ -769,6 +790,79 @@ function averageToGpa(averageValue) {
   const numeric = Number(averageValue);
   if (!Number.isFinite(numeric)) return 0;
   return clamp(numeric / 25, 0, 4);
+}
+function parseScheduleOrderValue(value) {
+  if (value === "" || value == null) return null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+}
+function sortedStudentEnrollments(studentId) {
+  const studentEnrollments = state.enrollments
+    .filter((enrollment) => enrollment.studentId === studentId)
+    .map((enrollment, index) => ({ ...enrollment, _sourceIndex: index }));
+  const autoSorted = [...studentEnrollments].sort((a, b) => {
+    const courseA = getCourse(a.courseId);
+    const courseB = getCourse(b.courseId);
+    const subjectDiff = getSubjectName(courseA?.subjectId || "").localeCompare(getSubjectName(courseB?.subjectId || ""));
+    if (subjectDiff !== 0) return subjectDiff;
+    const courseDiff = getCourseName(a.courseId).localeCompare(getCourseName(b.courseId));
+    if (courseDiff !== 0) return courseDiff;
+    return a._sourceIndex - b._sourceIndex;
+  });
+  const ordered = new Array(autoSorted.length).fill(null);
+  const overflow = [];
+  autoSorted.forEach((enrollment) => {
+    const preferredOrder = parseScheduleOrderValue(enrollment.scheduleOrder);
+    if (preferredOrder == null) {
+      overflow.push(enrollment);
+      return;
+    }
+    const slotIndex = preferredOrder - 1;
+    if (slotIndex < 0 || slotIndex >= ordered.length || ordered[slotIndex]) {
+      overflow.push(enrollment);
+      return;
+    }
+    ordered[slotIndex] = enrollment;
+  });
+  let overflowIndex = 0;
+  for (let i = 0; i < ordered.length; i += 1) {
+    if (ordered[i]) continue;
+    ordered[i] = overflow[overflowIndex] || null;
+    overflowIndex += 1;
+  }
+  return ordered.filter(Boolean);
+}
+function orderedEventsForStudent(studentId, events) {
+  const orderedEnrollments = sortedStudentEnrollments(studentId);
+  const enrollmentByCourseId = new Map(orderedEnrollments.map((enrollment) => [enrollment.courseId, enrollment]));
+  const orderIndexByCourseId = new Map(orderedEnrollments.map((enrollment, index) => [enrollment.courseId, index]));
+  return [...events].sort((a, b) => {
+    const indexA = orderIndexByCourseId.get(a.courseId) ?? Number.MAX_SAFE_INTEGER;
+    const indexB = orderIndexByCourseId.get(b.courseId) ?? Number.MAX_SAFE_INTEGER;
+    if (indexA !== indexB) return indexA - indexB;
+    const enrollmentA = enrollmentByCourseId.get(a.courseId);
+    const enrollmentB = enrollmentByCourseId.get(b.courseId);
+    const sourceA = enrollmentA?._sourceIndex ?? Number.MAX_SAFE_INTEGER;
+    const sourceB = enrollmentB?._sourceIndex ?? Number.MAX_SAFE_INTEGER;
+    return sourceA - sourceB;
+  });
+}
+function updateEnrollmentScheduleOrder(enrollmentId, rawValue) {
+  const enrollment = state.enrollments.find((entry) => entry.id === enrollmentId);
+  if (!enrollment) return;
+  const nextOrder = parseScheduleOrderValue(rawValue);
+  const conflict = nextOrder != null && state.enrollments.some((entry) =>
+    entry.id !== enrollmentId
+    && entry.studentId === enrollment.studentId
+    && parseScheduleOrderValue(entry.scheduleOrder) === nextOrder);
+  if (conflict) {
+    alert("That schedule order is already assigned to another course for this student.");
+    renderStudentDetail();
+    return;
+  }
+  enrollment.scheduleOrder = nextOrder;
+  saveState();
+  renderAll();
 }
 function studentOverallAverage(studentId) {
   const tests = state.tests.filter((t) => t.studentId === studentId);
@@ -1497,7 +1591,7 @@ function renderStudents() {
     const ageNow = calculateAge(s.birthdate);
     const overallAvg = studentOverallAverage(s.id);
     const absences = studentAbsenceCount(s.id);
-    return `<tr><td>${s.firstName} ${s.lastName}</td><td>${s.grade}</td><td>${ageNow}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td><button data-open-student='${s.id}' type='button'>Open</button> <button data-remove-student='${s.id}' type='button'>Remove</button></td></tr>`;
+    return `<tr><td>${s.firstName} ${s.lastName}</td><td>${s.grade}</td><td>${ageNow}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-open-student='${s.id}' type='button'>Open</button><button data-remove-student='${s.id}' type='button'>Remove</button></div></td></tr>`;
   });
   rowOrEmpty(document.getElementById("student-table"), rows, "No students added yet.", 6);
 }
@@ -1630,21 +1724,31 @@ function renderStudentDetail() {
   const rangeEnd = quarterRange ? quarterRange.endDate : state.settings.schoolYear.endDate;
   const isQuarterScoped = selectedQuarter !== "all";
 
-  const enrollmentRows = state.enrollments
-    .filter((e) => e.studentId === student.id)
+  const studentEnrollments = sortedStudentEnrollments(student.id);
+  const enrollmentRows = studentEnrollments
     .map((e) => {
       const course = getCourse(e.courseId);
       const subject = course ? getSubjectName(course.subjectId) : "Unknown Subject";
       const courseAvg = studentCourseAverageByRange(student.id, e.courseId, rangeStart, rangeEnd, { quarterScoped: isQuarterScoped });
       const avgDisplay = courseAvg === 0 ? "No grades" : `${courseAvg.toFixed(1)}%`;
-      return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${avgDisplay}</td><td><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></td></tr>`;
+      const orderOptions = [`<option value="">Auto</option>`]
+        .concat(studentEnrollments.map((_, index) => {
+          const value = index + 1;
+          const selected = parseScheduleOrderValue(e.scheduleOrder) === value ? " selected" : "";
+          return `<option value="${value}"${selected}>${value}</option>`;
+        }))
+        .join("");
+      const orderControl = isAdminUser()
+        ? `<select class="student-schedule-order-select" data-enrollment-order-id="${e.id}" aria-label="Schedule order for ${getCourseName(e.courseId)}">${orderOptions}</select>`
+        : (parseScheduleOrderValue(e.scheduleOrder) != null ? String(parseScheduleOrderValue(e.scheduleOrder)) : "Auto");
+      return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${orderControl}</td><td>${avgDisplay}</td><td><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></td></tr>`;
     });
   if (enrollmentRows.length) {
     const overallAverage = studentOverallAverageByRange(student.id, rangeStart, rangeEnd, { quarterScoped: isQuarterScoped });
     const averageDisplay = overallAverage > 0 ? `${overallAverage.toFixed(1)}%` : "No grades";
-    enrollmentRows.push(`<tr><td colspan="2"><strong>Average</strong></td><td><strong>${averageDisplay}</strong></td><td></td></tr>`);
+    enrollmentRows.push(`<tr><td colspan="3"><strong>Average</strong></td><td><strong>${averageDisplay}</strong></td><td></td></tr>`);
   }
-  rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 4);
+  rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 5);
 
   const summary = studentAttendanceSummaryByRange(student.id, rangeStart, rangeEnd);
   const attendanceRows = [
@@ -3173,40 +3277,15 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     byStudent.get(event.studentId).push(event);
   });
 
-  const enrollmentOrderByStudent = new Map();
-  state.students.forEach((student) => {
-    const order = new Map();
-    state.enrollments
-      .filter((enrollment) => enrollment.studentId === student.id)
-      .forEach((enrollment, index) => {
-        if (!order.has(enrollment.courseId)) order.set(enrollment.courseId, index);
-      });
-    enrollmentOrderByStudent.set(student.id, order);
-  });
-
   const exclusiveCourseAvailability = new Map();
   const blocksByStudent = new Map();
   const studentIdsInOrder = Array.from(byStudent.keys())
     .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
 
-  const eventSortValue = (event) => {
-    const order = enrollmentOrderByStudent.get(event.studentId);
-    return order && order.has(event.courseId) ? order.get(event.courseId) : Number.MAX_SAFE_INTEGER;
-  };
-
   studentIdsInOrder.forEach((studentId) => {
     const studentName = getStudentName(studentId);
     const blocks = [];
-    const remaining = [...(byStudent.get(studentId) || [])]
-      .sort((a, b) => {
-        const orderDiff = eventSortValue(a) - eventSortValue(b);
-        if (orderDiff !== 0) return orderDiff;
-        const courseA = getCourse(a.courseId);
-        const courseB = getCourse(b.courseId);
-        const subjectDiff = getSubjectName(courseA?.subjectId || "").localeCompare(getSubjectName(courseB?.subjectId || ""));
-        if (subjectDiff !== 0) return subjectDiff;
-        return getCourseName(a.courseId).localeCompare(getCourseName(b.courseId));
-      });
+    const remaining = orderedEventsForStudent(studentId, byStudent.get(studentId) || []);
 
     let slot = 8 * 60;
     let lunchAdded = false;
@@ -3967,7 +4046,7 @@ function bindEvents() {
     const courseId = document.getElementById("student-enroll-course").value;
     if (!studentId || !courseId) return;
     if (state.enrollments.some((x)=>x.studentId===studentId && x.courseId===courseId)) { alert("Student already enrolled in this course."); return; }
-    state.enrollments.push({ id: uid(), studentId, courseId }); saveState(); renderAll();
+    state.enrollments.push({ id: uid(), studentId, courseId, scheduleOrder: null }); saveState(); renderAll();
   });
 
   document.getElementById("school-year-form").addEventListener("submit", (e) => {
@@ -4490,6 +4569,15 @@ function bindEvents() {
     }
     if (t.classList.contains("plan-course-checkbox")) {
       updatePlanCourseSummary();
+      return;
+    }
+    if (t.classList.contains("student-schedule-order-select")) {
+      if (!ensureAdminAction()) {
+        renderStudentDetail();
+        return;
+      }
+      const enrollmentId = t.getAttribute("data-enrollment-order-id") || "";
+      updateEnrollmentScheduleOrder(enrollmentId, t instanceof HTMLSelectElement ? t.value : "");
       return;
     }
     if (t.classList.contains("calendar-student-checkbox")) {
