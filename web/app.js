@@ -952,6 +952,20 @@ function studentCourseAverageByRange(studentId, courseId, startDate, endDate, op
       && inRange(t.date, startDate, endDate));
   return weightedAverageForTests(tests, options);
 }
+function studentGradeSummary(studentId, options = {}) {
+  const quarterName = options.quarterName || "all";
+  const quarterRange = state.settings.quarters.find((q) => q.name === quarterName);
+  if (!quarterRange) {
+    return {
+      overallAverage: studentOverallAverage(studentId),
+      courseAverage: (courseId) => studentCourseAverage(studentId, courseId)
+    };
+  }
+  return {
+    overallAverage: studentOverallAverageByRange(studentId, quarterRange.startDate, quarterRange.endDate, { quarterScoped: true }),
+    courseAverage: (courseId) => studentCourseAverageByRange(studentId, courseId, quarterRange.startDate, quarterRange.endDate, { quarterScoped: true })
+  };
+}
 function instructionalDatesByRange(startDate, endDate) {
   const today = todayISO();
   return instructionalDates().filter((date) =>
@@ -1795,14 +1809,14 @@ function renderStudentDetail() {
   const quarterRange = state.settings.quarters.find((q) => q.name === selectedQuarter);
   const rangeStart = quarterRange ? quarterRange.startDate : state.settings.schoolYear.startDate;
   const rangeEnd = quarterRange ? quarterRange.endDate : state.settings.schoolYear.endDate;
-  const isQuarterScoped = selectedQuarter !== "all";
+  const gradeSummary = studentGradeSummary(student.id, { quarterName: selectedQuarter });
 
   const studentEnrollments = sortedStudentEnrollments(student.id);
   const enrollmentRows = studentEnrollments
     .map((e) => {
       const course = getCourse(e.courseId);
       const subject = course ? getSubjectName(course.subjectId) : "Unknown Subject";
-      const courseAvg = studentCourseAverageByRange(student.id, e.courseId, rangeStart, rangeEnd, { quarterScoped: isQuarterScoped });
+      const courseAvg = gradeSummary.courseAverage(e.courseId);
       const avgDisplay = courseAvg === 0 ? "No grades" : `${courseAvg.toFixed(1)}%`;
       const orderOptions = [`<option value="">Auto</option>`]
         .concat(studentEnrollments.map((_, index) => {
@@ -1817,7 +1831,7 @@ function renderStudentDetail() {
       return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${orderControl}</td><td>${avgDisplay}</td><td><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></td></tr>`;
     });
   if (enrollmentRows.length) {
-    const overallAverage = studentOverallAverageByRange(student.id, rangeStart, rangeEnd, { quarterScoped: isQuarterScoped });
+    const overallAverage = gradeSummary.overallAverage;
     const averageDisplay = overallAverage > 0 ? `${overallAverage.toFixed(1)}%` : "No grades";
     enrollmentRows.push(`<tr><td colspan="3"><strong>Average</strong></td><td><strong>${averageDisplay}</strong></td><td></td></tr>`);
   }
@@ -3022,9 +3036,13 @@ function renderDashboard() {
   document.getElementById("kpi-days-total").textContent = String(totalDays);
 
   const g = gradeAnalytics();
-  const topStudent = g.student
-    .slice()
-    .filter((entry) => allowedStudentIds.has(entry.studentId))
+  const topStudent = dashboardStudents
+    .map((student) => ({
+      studentId: student.id,
+      avg: studentOverallAverage(student.id),
+      count: state.tests.filter((t) => t.studentId === student.id).length
+    }))
+    .filter((entry) => entry.count > 0 && allowedStudentIds.has(entry.studentId))
     .sort((a,b)=>b.avg-a.avg || getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)))[0];
   document.getElementById("kpi-superstar").textContent = topStudent
     ? `${getStudentName(topStudent.studentId)} (${topStudent.avg.toFixed(1)}%)`
