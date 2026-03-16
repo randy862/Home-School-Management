@@ -13,6 +13,7 @@ $apiOutLog = Join-Path $runtimeDir "api.out.log"
 $apiErrLog = Join-Path $runtimeDir "api.err.log"
 $webOutLog = Join-Path $runtimeDir "web.out.log"
 $webErrLog = Join-Path $runtimeDir "web.err.log"
+$webUrl = "http://127.0.0.1:$WebPort/web/"
 
 New-Item -ItemType Directory -Force -Path $runtimeDir | Out-Null
 
@@ -35,18 +36,83 @@ function Resolve-CommandPath {
 }
 
 function Is-Running {
-  param([string]$PidFile)
+  param(
+    [string]$PidFile,
+    [string]$ExpectedProcessName = ""
+  )
   if (-not (Test-Path -LiteralPath $PidFile)) { return $false }
   $procId = Get-Content -LiteralPath $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $procId) { return $false }
   $proc = Get-Process -Id ([int]$procId) -ErrorAction SilentlyContinue
-  return [bool]$proc
+  if (-not $proc) { return $false }
+  if ($ExpectedProcessName -and $proc.ProcessName -ne $ExpectedProcessName) {
+    Remove-Item -LiteralPath $PidFile -Force -ErrorAction SilentlyContinue
+    return $false
+  }
+  return $true
+}
+
+function Format-Argument {
+  param([string]$Value)
+  if ($null -eq $Value) { return '""' }
+  if ($Value -notmatch '[\s"]') { return $Value }
+  return '"' + ($Value -replace '(\\*)"', '$1$1\"' -replace '(\\+)$', '$1$1') + '"'
+}
+
+function Get-ListeningPid {
+  param([int]$Port)
+  $lines = netstat -ano -p TCP 2>$null
+  foreach ($line in $lines) {
+    if ($line -match "^\s*TCP\s+\S+:$Port\s+\S+\s+LISTENING\s+(\d+)\s*$") {
+      return [int]$matches[1]
+    }
+  }
+  return $null
+}
+
+function Test-WebServer {
+  param([string]$Url)
+  try {
+    $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 3
+    return ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500)
+  } catch {
+    return $false
+  }
+}
+
+function Get-StartupHint {
+  param(
+    [string]$Name,
+    [string]$Url,
+    [string]$OutLogPath,
+    [string]$ErrLogPath
+  )
+
+  return "$Name did not respond on $Url. Check logs: OUT=$OutLogPath ERR=$ErrLogPath"
+}
+
+function Wait-ForUrl {
+  param(
+    [string]$Url,
+    [int]$Attempts = 10,
+    [int]$DelayMs = 500
+  )
+
+  for ($i = 0; $i -lt $Attempts; $i++) {
+    if (Test-WebServer -Url $Url) {
+      return $true
+    }
+    Start-Sleep -Milliseconds $DelayMs
+  }
+
+  return $false
 }
 
 function Start-IfNeeded {
   param(
     [string]$Name,
     [string]$PidFile,
+    [string]$ExpectedProcessName,
     [string]$FilePath,
     [string[]]$Arguments,
     [string]$WorkingDirectory,
@@ -54,7 +120,7 @@ function Start-IfNeeded {
     [string]$ErrLogPath
   )
 
-  if (Is-Running -PidFile $PidFile) {
+  if (Is-Running -PidFile $PidFile -ExpectedProcessName $ExpectedProcessName) {
     $runningPid = Get-Content -LiteralPath $PidFile | Select-Object -First 1
     Write-Host "$Name already running (PID $runningPid)"
     return
@@ -63,8 +129,9 @@ function Start-IfNeeded {
   if (Test-Path -LiteralPath $OutLogPath) { Remove-Item -LiteralPath $OutLogPath -Force }
   if (Test-Path -LiteralPath $ErrLogPath) { Remove-Item -LiteralPath $ErrLogPath -Force }
 
+  $argumentLine = ($Arguments | ForEach-Object { Format-Argument $_ }) -join " "
   $proc = Start-Process -FilePath $FilePath `
-    -ArgumentList $Arguments `
+    -ArgumentList $argumentLine `
     -WorkingDirectory $WorkingDirectory `
     -RedirectStandardOutput $OutLogPath `
     -RedirectStandardError $ErrLogPath `
@@ -78,20 +145,47 @@ $nodeExe = Resolve-CommandPath -CommandName "node" -FallbackPath "C:\Program Fil
 Start-IfNeeded `
   -Name "API listener" `
   -PidFile $apiPidFile `
+  -ExpectedProcessName "node" `
   -FilePath $nodeExe `
-  -Arguments @("`"$(Join-Path $repoRoot "server\src\app.js")`"") `
+  -Arguments @("src\app.js") `
   -WorkingDirectory (Join-Path $repoRoot "server") `
   -OutLogPath $apiOutLog `
   -ErrLogPath $apiErrLog
 
-Start-IfNeeded `
-  -Name "Web server" `
-  -PidFile $webPidFile `
-  -FilePath $nodeExe `
-  -Arguments @("`"$(Join-Path $repoRoot "scripts\static-web-server.js")`"", "`"$repoRoot`"", [string]$WebPort) `
-  -WorkingDirectory $repoRoot `
-  -OutLogPath $webOutLog `
-  -ErrLogPath $webErrLog
+if (Test-WebServer -Url $webUrl) {
+  $existingWebPid = Get-ListeningPid -Port $WebPort
+  if ($existingWebPid) {
+    $existingWebPid | Set-Content -LiteralPath $webPidFile -Encoding ascii
+    Write-Host "Web server already running (PID $existingWebPid)"
+  } else {
+    Write-Host "Web server already responding on $webUrl"
+  }
+} else {
+  if (Test-Path -LiteralPath $webOutLog) { Remove-Item -LiteralPath $webOutLog -Force }
+  if (Test-Path -LiteralPath $webErrLog) { Remove-Item -LiteralPath $webErrLog -Force }
+
+  $launchCommand = 'start "" /min "{0}" scripts\static-web-server.js . {1} 1>>"{2}" 2>>"{3}"' -f $nodeExe, $WebPort, $webOutLog, $webErrLog
+  Start-Process -FilePath "cmd.exe" `
+    -ArgumentList "/c $launchCommand" `
+    -WorkingDirectory $repoRoot `
+    -WindowStyle Hidden | Out-Null
+
+  $webHealthy = Wait-ForUrl -Url $webUrl
+  $listeningWebPid = if ($webHealthy) { Get-ListeningPid -Port $WebPort } else { $null }
+
+  if ($listeningWebPid) {
+    $listeningWebPid | Set-Content -LiteralPath $webPidFile -Encoding ascii
+    Write-Host "Started Web server (PID $listeningWebPid)"
+    Write-Host "Web health check passed on $webUrl"
+  } elseif ($webHealthy) {
+    Remove-Item -LiteralPath $webPidFile -Force -ErrorAction SilentlyContinue
+    Write-Host "Started Web server"
+    Write-Host "Web health check passed on $webUrl"
+  } else {
+    Remove-Item -LiteralPath $webPidFile -Force -ErrorAction SilentlyContinue
+    Write-Warning (Get-StartupHint -Name "Web server" -Url $webUrl -OutLogPath $webOutLog -ErrLogPath $webErrLog)
+  }
+}
 
 try {
   $healthy = $false
@@ -110,13 +204,13 @@ try {
   if ($healthy) {
     Write-Host "API health check passed on http://127.0.0.1:$ApiPort/health"
   } else {
-    Write-Warning "API health check failed. See $apiOutLog and $apiErrLog"
+    Write-Warning (Get-StartupHint -Name "API listener" -Url "http://127.0.0.1:$ApiPort/health" -OutLogPath $apiOutLog -ErrLogPath $apiErrLog)
   }
 } catch {
-  Write-Warning "API health check failed. See $apiOutLog and $apiErrLog"
+  Write-Warning (Get-StartupHint -Name "API listener" -Url "http://127.0.0.1:$ApiPort/health" -OutLogPath $apiOutLog -ErrLogPath $apiErrLog)
 }
 
-$appUrl = "http://127.0.0.1:$WebPort/web/"
+$appUrl = $webUrl
 Write-Host "App URL: $appUrl"
 Write-Host "Logs:"
 Write-Host "  API out: $apiOutLog"
