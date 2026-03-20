@@ -720,7 +720,7 @@ function setCurrentSchoolYear(schoolYearId) {
 function backfillAttendanceToToday() {
   const start = toDate(state.settings.schoolYear.startDate);
   const today = toDate(todayISO());
-  if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime()) || today < start) return false;
+  if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime()) || today <= start) return false;
 
   const excluded = holidaySet();
   const existingByStudentDate = new Map();
@@ -738,8 +738,12 @@ function backfillAttendanceToToday() {
   });
 
   let changed = false;
+  const lastCompletedDay = new Date(today);
+  lastCompletedDay.setDate(lastCompletedDay.getDate() - 1);
+  if (lastCompletedDay < start) return false;
+
   const cursor = new Date(start);
-  while (cursor <= today) {
+  while (cursor <= lastCompletedDay) {
     const weekday = cursor.getDay();
     const date = toISO(cursor);
     const isInstructionalDay = weekday >= 1 && weekday <= 5 && !excluded.has(date);
