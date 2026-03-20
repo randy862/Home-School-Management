@@ -933,6 +933,16 @@ function studentOverallAverage(studentId) {
   const tests = state.tests.filter((t) => t.studentId === studentId);
   return weightedAverageForTests(tests);
 }
+function averageOfStudentOverallAverages(studentIds) {
+  const averages = studentIds
+    .map((studentId) => {
+      const tests = state.tests.filter((t) => t.studentId === studentId);
+      if (!tests.length) return null;
+      return weightedAverageForTests(tests);
+    })
+    .filter((value) => value != null);
+  return averages.length ? avg(averages) : 0;
+}
 function studentOverallAverageByRange(studentId, startDate, endDate, options = {}) {
   const tests = state.tests
     .filter((t) =>
@@ -2375,7 +2385,7 @@ function gradeAnalytics() {
     const quarterTests = tests.filter((t) => inRange(t.date, q.startDate, q.endDate));
     return { label: q.name, avg: weightedAverageForTests(quarterTests, { quarterScoped: true }), count: quarterTests.length };
   });
-  const running = averageOfQuarterAverages(quarterRows);
+  const running = averageOfStudentOverallAverages(Array.from(byStudent.keys()));
 
   const sy = state.settings.schoolYear;
   const annualTests = tests.filter((t) => inRange(t.date, sy.startDate, sy.endDate));
@@ -2385,7 +2395,7 @@ function gradeAnalytics() {
   return {
     student, subject, running,
     quarterRows,
-    annualAvg: averageOfQuarterAverages(quarterRows),
+    annualAvg: running,
     annualCount: annualTests.length,
     currentQuarterAvg: weightedAverageForTests(cqTests, { quarterScoped: true })
   };
