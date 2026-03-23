@@ -453,7 +453,7 @@
                 <div id="daily-break-student-options" class="checklist-vertical"></div>
               </details>
             </label>
-            <label>Type
+            <label class="daily-break-type-field">Type
               <select id="daily-break-type" required>
                 <option value="lunch">Lunch</option>
                 <option value="recess">Recess</option>
@@ -461,18 +461,20 @@
               </select>
             </label>
             <label id="daily-break-description-wrap" class="hidden">Description<input id="daily-break-description" type="text"></label>
-            <label>Start Time<input id="daily-break-start-time" type="time" required value="12:00"></label>
-            <label>Duration (minutes)<input id="daily-break-duration" type="number" min="5" step="5" required value="60"></label>
-            <fieldset class="weekday-set">
-              <legend>Weekdays</legend>
-              <label><input type="checkbox" name="daily-break-weekday" value="1" checked>Mon</label>
-              <label><input type="checkbox" name="daily-break-weekday" value="2" checked>Tue</label>
-              <label><input type="checkbox" name="daily-break-weekday" value="3" checked>Wed</label>
-              <label><input type="checkbox" name="daily-break-weekday" value="4" checked>Thu</label>
-              <label><input type="checkbox" name="daily-break-weekday" value="5" checked>Fri</label>
-            </fieldset>
-            <button id="daily-break-submit-btn" type="submit">Add Break</button>
-            <button id="daily-break-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+            <label class="daily-break-start-field">Start Time<input id="daily-break-start-time" type="time" required value="12:00"></label>
+            <div class="daily-break-secondary-row">
+              <label class="daily-break-duration-field">Duration (minutes)<input id="daily-break-duration" type="number" min="5" step="5" required value="60"></label>
+              <fieldset class="weekday-set daily-break-weekdays-field">
+                <legend>Weekdays</legend>
+                <label><input type="checkbox" name="daily-break-weekday" value="1" checked>Mon</label>
+                <label><input type="checkbox" name="daily-break-weekday" value="2" checked>Tue</label>
+                <label><input type="checkbox" name="daily-break-weekday" value="3" checked>Wed</label>
+                <label><input type="checkbox" name="daily-break-weekday" value="4" checked>Thu</label>
+                <label><input type="checkbox" name="daily-break-weekday" value="5" checked>Fri</label>
+              </fieldset>
+              <button id="daily-break-submit-btn" type="submit" class="daily-break-submit-btn">Add Break</button>
+              <button id="daily-break-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+            </div>
           </form>
           <div class="table-wrap">
             <table>
