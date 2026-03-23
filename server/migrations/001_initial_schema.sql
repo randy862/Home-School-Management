@@ -6,6 +6,7 @@ IF OBJECT_ID('dbo.enrollments', 'U') IS NOT NULL DROP TABLE dbo.enrollments;
 IF OBJECT_ID('dbo.courses', 'U') IS NOT NULL DROP TABLE dbo.courses;
 IF OBJECT_ID('dbo.subjects', 'U') IS NOT NULL DROP TABLE dbo.subjects;
 IF OBJECT_ID('dbo.students', 'U') IS NOT NULL DROP TABLE dbo.students;
+IF OBJECT_ID('dbo.daily_breaks', 'U') IS NOT NULL DROP TABLE dbo.daily_breaks;
 IF OBJECT_ID('dbo.holidays', 'U') IS NOT NULL DROP TABLE dbo.holidays;
 IF OBJECT_ID('dbo.quarters', 'U') IS NOT NULL DROP TABLE dbo.quarters;
 IF OBJECT_ID('dbo.school_years', 'U') IS NOT NULL DROP TABLE dbo.school_years;
@@ -50,6 +51,8 @@ CREATE TABLE dbo.school_years (
   label NVARCHAR(100) NOT NULL,
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
+  required_instructional_days INT NULL,
+  required_instructional_hours DECIMAL(8,2) NULL,
   is_current BIT NOT NULL DEFAULT 0
 );
 
@@ -69,6 +72,18 @@ CREATE TABLE dbo.holidays (
   holiday_type NVARCHAR(30) NOT NULL,
   start_date DATE NOT NULL,
   end_date DATE NOT NULL
+);
+
+CREATE TABLE dbo.daily_breaks (
+  id NVARCHAR(64) NOT NULL PRIMARY KEY,
+  school_year_id NVARCHAR(64) NOT NULL,
+  student_ids_json NVARCHAR(MAX) NOT NULL,
+  break_type NVARCHAR(30) NOT NULL,
+  description NVARCHAR(150) NULL,
+  start_time NVARCHAR(5) NOT NULL,
+  duration_minutes INT NOT NULL,
+  weekdays_json NVARCHAR(100) NOT NULL,
+  CONSTRAINT FK_daily_breaks_school_years FOREIGN KEY (school_year_id) REFERENCES dbo.school_years(id)
 );
 
 CREATE TABLE dbo.grade_types (

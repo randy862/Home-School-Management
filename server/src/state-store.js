@@ -17,7 +17,7 @@ function toIsoDate(value) {
 function fallbackSettings() {
   const year = new Date().getFullYear();
   const schoolYearId = "default-school-year";
-  const schoolYear = { id: schoolYearId, label: `${year}-${year + 1}`, startDate: `${year}-01-01`, endDate: `${year}-12-31` };
+  const schoolYear = { id: schoolYearId, label: `${year}-${year + 1}`, startDate: `${year}-01-01`, endDate: `${year}-12-31`, requiredInstructionalDays: null, requiredInstructionalHours: null };
   const quarters = [
     { id: "default-q1", schoolYearId, name: "Q1", startDate: `${year}-01-01`, endDate: `${year}-03-31` },
     { id: "default-q2", schoolYearId, name: "Q2", startDate: `${year}-04-01`, endDate: `${year}-06-30` },
@@ -30,6 +30,7 @@ function fallbackSettings() {
     currentSchoolYearId: schoolYearId,
     quarters: quarters.map((q) => ({ ...q })),
     allQuarters: quarters,
+    dailyBreaks: [],
     holidays: [],
     gradeTypes: DEFAULT_GRADE_TYPES.map((name, idx) => ({ id: `default-grade-type-${idx + 1}`, name, weight: null }))
   };
@@ -51,6 +52,38 @@ function fallbackUsers() {
 
 async function readState() {
   const pool = await getPool();
+  const schoolYearColumns = await pool.request().query(`
+    SELECT
+      CAST(CASE WHEN COL_LENGTH('dbo.school_years', 'required_instructional_days') IS NULL THEN 0 ELSE 1 END AS INT) AS has_required_instructional_days,
+      CAST(CASE WHEN COL_LENGTH('dbo.school_years', 'required_instructional_hours') IS NULL THEN 0 ELSE 1 END AS INT) AS has_required_instructional_hours
+  `);
+  const hasRequiredInstructionalDays = !!schoolYearColumns.recordset[0]?.has_required_instructional_days;
+  const hasRequiredInstructionalHours = !!schoolYearColumns.recordset[0]?.has_required_instructional_hours;
+  const schoolYearsQuery = hasRequiredInstructionalDays && hasRequiredInstructionalHours
+    ? `
+      SELECT
+        id,
+        label,
+        start_date,
+        end_date,
+        required_instructional_days,
+        required_instructional_hours,
+        is_current
+      FROM dbo.school_years
+      ORDER BY start_date
+    `
+    : `
+      SELECT
+        id,
+        label,
+        start_date,
+        end_date,
+        CAST(NULL AS INT) AS required_instructional_days,
+        CAST(NULL AS DECIMAL(8,2)) AS required_instructional_hours,
+        is_current
+      FROM dbo.school_years
+      ORDER BY start_date
+    `;
   const queries = [
     "SELECT id, first_name, last_name, birthdate, grade, age_recorded, created_at FROM dbo.students ORDER BY last_name, first_name",
     "SELECT id, name FROM dbo.subjects ORDER BY name",
@@ -79,8 +112,29 @@ async function readState() {
       FROM dbo.enrollments
       ORDER BY id
     `,
-    "SELECT id, label, start_date, end_date, is_current FROM dbo.school_years ORDER BY start_date",
+    schoolYearsQuery,
     "SELECT id, school_year_id, name, start_date, end_date FROM dbo.quarters ORDER BY start_date",
+    `
+      IF OBJECT_ID('dbo.daily_breaks', 'U') IS NULL
+      BEGIN
+        SELECT
+          CAST(NULL AS NVARCHAR(64)) AS id,
+          CAST(NULL AS NVARCHAR(64)) AS school_year_id,
+          CAST(NULL AS NVARCHAR(MAX)) AS student_ids_json,
+          CAST(NULL AS NVARCHAR(30)) AS break_type,
+          CAST(NULL AS NVARCHAR(150)) AS description,
+          CAST(NULL AS NVARCHAR(5)) AS start_time,
+          CAST(NULL AS INT) AS duration_minutes,
+          CAST(NULL AS NVARCHAR(100)) AS weekdays_json
+        WHERE 1 = 0
+      END
+      ELSE
+      BEGIN
+        SELECT id, school_year_id, student_ids_json, break_type, description, start_time, duration_minutes, weekdays_json
+        FROM dbo.daily_breaks
+        ORDER BY start_time
+      END
+    `,
     "SELECT id, name, holiday_type, start_date, end_date FROM dbo.holidays ORDER BY start_date",
     "SELECT id, name, weight FROM dbo.grade_types ORDER BY name",
     "SELECT id, plan_type, student_id, course_id, start_date, end_date, weekdays_json, quarter_name FROM dbo.plans ORDER BY start_date",
@@ -117,6 +171,7 @@ async function readState() {
     enrollmentsR,
     schoolYearsR,
     quartersR,
+    dailyBreaksR,
     holidaysR,
     gradeTypesR,
     plansR,
@@ -155,6 +210,8 @@ async function readState() {
     label: r.label,
     startDate: toIsoDate(r.start_date),
     endDate: toIsoDate(r.end_date),
+    requiredInstructionalDays: r.required_instructional_days == null ? null : Number(r.required_instructional_days),
+    requiredInstructionalHours: r.required_instructional_hours == null ? null : Number(r.required_instructional_hours),
     isCurrent: !!r.is_current
   }));
   const allQuarters = quartersR.recordset.map((r) => ({
@@ -164,6 +221,32 @@ async function readState() {
     startDate: toIsoDate(r.start_date),
     endDate: toIsoDate(r.end_date)
   }));
+  const dailyBreaks = dailyBreaksR.recordset.map((r) => {
+    let studentIds = [];
+    let weekdays = [];
+    try {
+      studentIds = JSON.parse(r.student_ids_json || "[]");
+      if (!Array.isArray(studentIds)) studentIds = [];
+    } catch {
+      studentIds = [];
+    }
+    try {
+      weekdays = JSON.parse(r.weekdays_json || "[]");
+      if (!Array.isArray(weekdays)) weekdays = [];
+    } catch {
+      weekdays = [];
+    }
+    return {
+      id: r.id,
+      schoolYearId: r.school_year_id,
+      studentIds,
+      type: r.break_type,
+      description: r.description || "",
+      startTime: r.start_time || "12:00",
+      durationMinutes: r.duration_minutes == null ? 60 : Number(r.duration_minutes),
+      weekdays
+    };
+  });
   const holidays = holidaysR.recordset.map((r) => ({
     id: r.id,
     name: r.name,
@@ -233,11 +316,18 @@ async function readState() {
 
   const current = schoolYears.find((year) => year.isCurrent) || schoolYears[0];
   const settings = {
-    schoolYear: { label: current.label, startDate: current.startDate, endDate: current.endDate },
+    schoolYear: {
+      label: current.label,
+      startDate: current.startDate,
+      endDate: current.endDate,
+      requiredInstructionalDays: current.requiredInstructionalDays,
+      requiredInstructionalHours: current.requiredInstructionalHours
+    },
     schoolYears: schoolYears.map(({ isCurrent, ...rest }) => rest),
     currentSchoolYearId: current.id,
     quarters: allQuarters.filter((q) => q.schoolYearId === current.id),
     allQuarters,
+    dailyBreaks,
     holidays,
     gradeTypes: gradeTypes.length
       ? gradeTypes
@@ -287,6 +377,23 @@ async function writeState(state) {
     await request().query("DELETE FROM dbo.courses");
     await request().query("DELETE FROM dbo.subjects");
     await request().query("DELETE FROM dbo.students");
+    await request().query(`
+      IF OBJECT_ID('dbo.daily_breaks', 'U') IS NULL
+      BEGIN
+        CREATE TABLE dbo.daily_breaks (
+          id NVARCHAR(64) NOT NULL PRIMARY KEY,
+          school_year_id NVARCHAR(64) NOT NULL,
+          student_ids_json NVARCHAR(MAX) NOT NULL,
+          break_type NVARCHAR(30) NOT NULL,
+          description NVARCHAR(150) NULL,
+          start_time NVARCHAR(5) NOT NULL,
+          duration_minutes INT NOT NULL,
+          weekdays_json NVARCHAR(100) NOT NULL,
+          CONSTRAINT FK_daily_breaks_school_years FOREIGN KEY (school_year_id) REFERENCES dbo.school_years(id)
+        )
+      END
+    `);
+    await request().query("DELETE FROM dbo.daily_breaks");
     await request().query("DELETE FROM dbo.holidays");
     await request().query("DELETE FROM dbo.quarters");
     await request().query("DELETE FROM dbo.school_years");
@@ -360,8 +467,21 @@ async function writeState(state) {
         .input("label", sql.NVarChar(100), row.label || "")
         .input("start_date", sql.Date, row.startDate || null)
         .input("end_date", sql.Date, row.endDate || null)
+        .input("required_instructional_days", sql.Int, row.requiredInstructionalDays == null ? null : Number(row.requiredInstructionalDays))
+        .input("required_instructional_hours", sql.Decimal(8, 2), row.requiredInstructionalHours == null ? null : Number(row.requiredInstructionalHours))
         .input("is_current", sql.Bit, row.id === settings.currentSchoolYearId ? 1 : 0)
-        .query("INSERT INTO dbo.school_years (id, label, start_date, end_date, is_current) VALUES (@id, @label, @start_date, @end_date, @is_current)");
+        .query(`
+          IF COL_LENGTH('dbo.school_years', 'required_instructional_days') IS NULL
+          BEGIN
+            ALTER TABLE dbo.school_years ADD required_instructional_days INT NULL
+          END
+          IF COL_LENGTH('dbo.school_years', 'required_instructional_hours') IS NULL
+          BEGIN
+            ALTER TABLE dbo.school_years ADD required_instructional_hours DECIMAL(8,2) NULL
+          END
+          INSERT INTO dbo.school_years (id, label, start_date, end_date, required_instructional_days, required_instructional_hours, is_current)
+          VALUES (@id, @label, @start_date, @end_date, @required_instructional_days, @required_instructional_hours, @is_current)
+        `);
     }
 
     const quarters = uniqueById(settings.allQuarters || settings.quarters);
@@ -373,6 +493,23 @@ async function writeState(state) {
         .input("start_date", sql.Date, row.startDate || null)
         .input("end_date", sql.Date, row.endDate || null)
         .query("INSERT INTO dbo.quarters (id, school_year_id, name, start_date, end_date) VALUES (@id, @school_year_id, @name, @start_date, @end_date)");
+    }
+
+    const dailyBreaks = uniqueById(settings.dailyBreaks);
+    for (const row of dailyBreaks) {
+      await request()
+        .input("id", sql.NVarChar(64), row.id)
+        .input("school_year_id", sql.NVarChar(64), row.schoolYearId || settings.currentSchoolYearId || "")
+        .input("student_ids_json", sql.NVarChar(sql.MAX), JSON.stringify(Array.isArray(row.studentIds) ? row.studentIds : []))
+        .input("break_type", sql.NVarChar(30), row.type || "lunch")
+        .input("description", sql.NVarChar(150), row.description || null)
+        .input("start_time", sql.NVarChar(5), row.startTime || "12:00")
+        .input("duration_minutes", sql.Int, Number(row.durationMinutes || 60))
+        .input("weekdays_json", sql.NVarChar(100), JSON.stringify(Array.isArray(row.weekdays) ? row.weekdays : []))
+        .query(`
+          INSERT INTO dbo.daily_breaks (id, school_year_id, student_ids_json, break_type, description, start_time, duration_minutes, weekdays_json)
+          VALUES (@id, @school_year_id, @student_ids_json, @break_type, @description, @start_time, @duration_minutes, @weekdays_json)
+        `);
     }
 
     const holidays = uniqueById(settings.holidays);

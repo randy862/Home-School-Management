@@ -180,7 +180,7 @@ function calculateAge(birthdate, ref = new Date()) {
 function defaultState() {
   const y = new Date().getFullYear();
   const schoolYearId = uid();
-  const schoolYear = { id: schoolYearId, label: `${y}-${y+1}`, startDate: `${y}-01-01`, endDate: `${y}-12-31` };
+  const schoolYear = { id: schoolYearId, label: `${y}-${y+1}`, startDate: `${y}-01-01`, endDate: `${y}-12-31`, requiredInstructionalDays: null, requiredInstructionalHours: null };
   const quarters = [
     { id: uid(), schoolYearId, name: "Q1", startDate: `${y}-01-01`, endDate: `${y}-03-31` },
     { id: uid(), schoolYearId, name: "Q2", startDate: `${y}-04-01`, endDate: `${y}-06-30` },
@@ -195,6 +195,7 @@ function defaultState() {
       currentSchoolYearId: schoolYearId,
       quarters: quarters.map((q) => ({ ...q })),
       allQuarters: quarters,
+      dailyBreaks: [],
       holidays: [],
       gradeTypes: DEFAULT_GRADE_TYPES.map((name) => ({ id: uid(), name, weight: null }))
     }
@@ -283,16 +284,133 @@ function mergeEnrollmentsWithLocalState(remoteState, localState) {
   return changed;
 }
 
+function mergeDailyBreaksWithLocalState(remoteState, localState) {
+  if (!remoteState?.settings || !localState?.settings) return false;
+  const remoteDailyBreaks = Array.isArray(remoteState.settings.dailyBreaks) ? remoteState.settings.dailyBreaks : [];
+  const localDailyBreaks = Array.isArray(localState.settings.dailyBreaks) ? localState.settings.dailyBreaks : [];
+  let changed = false;
+  const localById = new Map(
+    localDailyBreaks
+      .filter((entry) => entry && entry.id)
+      .map((entry) => [entry.id, entry])
+  );
+
+  remoteState.settings.dailyBreaks = remoteDailyBreaks.map((entry) => {
+    const localEntry = localById.get(entry.id);
+    if (!localEntry) return entry;
+    const merged = {
+      ...entry,
+      ...localEntry,
+      studentIds: Array.isArray(localEntry.studentIds) ? [...localEntry.studentIds] : (Array.isArray(entry.studentIds) ? [...entry.studentIds] : []),
+      weekdays: Array.isArray(localEntry.weekdays) ? [...localEntry.weekdays] : (Array.isArray(entry.weekdays) ? [...entry.weekdays] : [])
+    };
+    if (JSON.stringify(merged) !== JSON.stringify(entry)) changed = true;
+    return merged;
+  });
+
+  localDailyBreaks.forEach((entry) => {
+    if (!entry || !entry.id || remoteState.settings.dailyBreaks.some((existing) => existing.id === entry.id)) return;
+    remoteState.settings.dailyBreaks.push({
+      ...entry,
+      studentIds: Array.isArray(entry.studentIds) ? [...entry.studentIds] : [],
+      weekdays: Array.isArray(entry.weekdays) ? [...entry.weekdays] : []
+    });
+    changed = true;
+  });
+
+  return changed;
+}
+
+function mergeSchoolYearsWithLocalState(remoteState, localState) {
+  if (!remoteState?.settings || !localState?.settings) return false;
+  const remoteSchoolYears = Array.isArray(remoteState.settings.schoolYears) ? remoteState.settings.schoolYears : [];
+  const localSchoolYears = Array.isArray(localState.settings.schoolYears) ? localState.settings.schoolYears : [];
+  let changed = false;
+  const localById = new Map(
+    localSchoolYears
+      .filter((entry) => entry && entry.id)
+      .map((entry) => [entry.id, entry])
+  );
+
+  remoteState.settings.schoolYears = remoteSchoolYears.map((entry) => {
+    const localEntry = localById.get(entry.id);
+    if (!localEntry) return entry;
+    const merged = { ...entry, ...localEntry };
+    if (JSON.stringify(merged) !== JSON.stringify(entry)) changed = true;
+    return merged;
+  });
+
+  localSchoolYears.forEach((entry) => {
+    if (!entry || !entry.id || remoteState.settings.schoolYears.some((existing) => existing.id === entry.id)) return;
+    remoteState.settings.schoolYears.push({ ...entry });
+    changed = true;
+  });
+
+  if (localState.settings.currentSchoolYearId
+    && remoteState.settings.currentSchoolYearId !== localState.settings.currentSchoolYearId
+    && remoteState.settings.schoolYears.some((entry) => entry.id === localState.settings.currentSchoolYearId)) {
+    remoteState.settings.currentSchoolYearId = localState.settings.currentSchoolYearId;
+    changed = true;
+  }
+
+  return changed;
+}
+
+function mergeQuartersWithLocalState(remoteState, localState) {
+  if (!remoteState?.settings || !localState?.settings) return false;
+  const remoteQuarters = Array.isArray(remoteState.settings.allQuarters)
+    ? remoteState.settings.allQuarters
+    : (Array.isArray(remoteState.settings.quarters) ? remoteState.settings.quarters : []);
+  const localQuarters = Array.isArray(localState.settings.allQuarters)
+    ? localState.settings.allQuarters
+    : (Array.isArray(localState.settings.quarters) ? localState.settings.quarters : []);
+  let changed = false;
+  const localById = new Map(
+    localQuarters
+      .filter((entry) => entry && entry.id)
+      .map((entry) => [entry.id, entry])
+  );
+
+  remoteState.settings.allQuarters = remoteQuarters.map((entry) => {
+    const localEntry = localById.get(entry.id);
+    if (!localEntry) return entry;
+    const merged = { ...entry, ...localEntry };
+    if (JSON.stringify(merged) !== JSON.stringify(entry)) changed = true;
+    return merged;
+  });
+
+  localQuarters.forEach((entry) => {
+    if (!entry || !entry.id || remoteState.settings.allQuarters.some((existing) => existing.id === entry.id)) return;
+    remoteState.settings.allQuarters.push({ ...entry });
+    changed = true;
+  });
+
+  return changed;
+}
+
 function normalizeSettingsShape(inputState) {
   const s = inputState;
   if (!s.settings) s.settings = {};
+  const normalizeRequiredValue = (value, allowDecimal = false) => {
+    if (value === "" || value == null) return null;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return allowDecimal ? parsed : Math.round(parsed);
+  };
 
   const legacySchoolYear = s.settings.schoolYear && s.settings.schoolYear.startDate && s.settings.schoolYear.endDate
     ? s.settings.schoolYear
     : null;
   if (!Array.isArray(s.settings.schoolYears) || !s.settings.schoolYears.length) {
     if (legacySchoolYear) {
-      s.settings.schoolYears = [{ id: uid(), label: legacySchoolYear.label || "School Year", startDate: legacySchoolYear.startDate, endDate: legacySchoolYear.endDate }];
+      s.settings.schoolYears = [{
+        id: uid(),
+        label: legacySchoolYear.label || "School Year",
+        startDate: legacySchoolYear.startDate,
+        endDate: legacySchoolYear.endDate,
+        requiredInstructionalDays: normalizeRequiredValue(legacySchoolYear.requiredInstructionalDays),
+        requiredInstructionalHours: normalizeRequiredValue(legacySchoolYear.requiredInstructionalHours, true)
+      }];
     } else {
       const fallback = defaultState().settings.schoolYears[0];
       s.settings.schoolYears = [{ ...fallback }];
@@ -300,7 +418,13 @@ function normalizeSettingsShape(inputState) {
   } else {
     s.settings.schoolYears = s.settings.schoolYears
       .filter((year) => year && year.startDate && year.endDate)
-      .map((year) => ({ ...year, id: year.id || uid(), label: year.label || `${year.startDate} to ${year.endDate}` }));
+      .map((year) => ({
+        ...year,
+        id: year.id || uid(),
+        label: year.label || `${year.startDate} to ${year.endDate}`,
+        requiredInstructionalDays: normalizeRequiredValue(year.requiredInstructionalDays),
+        requiredInstructionalHours: normalizeRequiredValue(year.requiredInstructionalHours, true)
+      }));
     if (!s.settings.schoolYears.length) s.settings.schoolYears = defaultState().settings.schoolYears;
   }
 
@@ -309,7 +433,13 @@ function normalizeSettingsShape(inputState) {
   }
 
   const currentSchoolYear = s.settings.schoolYears.find((year) => year.id === s.settings.currentSchoolYearId) || s.settings.schoolYears[0];
-  s.settings.schoolYear = { label: currentSchoolYear.label, startDate: currentSchoolYear.startDate, endDate: currentSchoolYear.endDate };
+  s.settings.schoolYear = {
+    label: currentSchoolYear.label,
+    startDate: currentSchoolYear.startDate,
+    endDate: currentSchoolYear.endDate,
+    requiredInstructionalDays: currentSchoolYear.requiredInstructionalDays,
+    requiredInstructionalHours: currentSchoolYear.requiredInstructionalHours
+  };
 
   const legacyQuarters = Array.isArray(s.settings.quarters) ? s.settings.quarters : [];
   if (!Array.isArray(s.settings.allQuarters) || !s.settings.allQuarters.length) {
@@ -330,6 +460,34 @@ function normalizeSettingsShape(inputState) {
     .filter((q) => q.schoolYearId === s.settings.currentSchoolYearId)
     .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
     .map((q) => ({ id: q.id, schoolYearId: q.schoolYearId, name: q.name, startDate: q.startDate, endDate: q.endDate }));
+
+  const validStudentIds = new Set((s.students || []).map((student) => student.id));
+  const validSchoolYearIds = new Set((s.settings.schoolYears || []).map((year) => year.id));
+  if (!Array.isArray(s.settings.dailyBreaks)) {
+    s.settings.dailyBreaks = [];
+  } else {
+    s.settings.dailyBreaks = s.settings.dailyBreaks
+      .filter((entry) => entry)
+      .map((entry) => {
+        const studentIds = Array.isArray(entry.studentIds)
+          ? entry.studentIds
+          : (entry.studentId ? [entry.studentId] : []);
+        const weekdays = Array.isArray(entry.weekdays)
+          ? entry.weekdays.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5)
+          : [];
+        return {
+          id: entry.id || uid(),
+          schoolYearId: validSchoolYearIds.has(entry.schoolYearId) ? entry.schoolYearId : s.settings.currentSchoolYearId,
+          studentIds: Array.from(new Set(studentIds.filter((studentId) => validStudentIds.has(studentId)))),
+          type: ["lunch", "recess", "other"].includes(entry.type) ? entry.type : "lunch",
+          description: String(entry.description || "").trim(),
+          startTime: /^\d{2}:\d{2}$/.test(String(entry.startTime || "")) ? String(entry.startTime) : "12:00",
+          durationMinutes: Math.max(5, Number(entry.durationMinutes) || 60),
+          weekdays: Array.from(new Set(weekdays)).sort((a, b) => a - b)
+        };
+      })
+      .filter((entry) => entry.studentIds.length && entry.weekdays.length);
+  }
 
   if (!Array.isArray(s.settings.holidays)) s.settings.holidays = [];
 
@@ -427,12 +585,14 @@ let editingPlanId = "";
 let editingSchoolYearId = "";
 let editingQuarterSchoolYearId = "";
 let editingGradeTypeId = "";
+let editingDailyBreakId = "";
 let gradeTypeDraftDirty = false;
 let showManagementSubjects = false;
 let showManagementCourses = false;
 let showManagementGradeTypes = false;
 let showScheduleSchoolYears = false;
 let showScheduleQuarters = false;
+let showScheduleDailyBreaks = false;
 let showScheduleHolidays = false;
 let showSchedulePlans = false;
 let calendarBackToWeekContext = null;
@@ -636,8 +796,12 @@ async function bootstrapStateFromApi() {
     if (!validState(remoteState)) return;
     const before = JSON.stringify(remoteState.users || []);
     normalizeSettingsShape(remoteState);
+    const schoolYearsChanged = mergeSchoolYearsWithLocalState(remoteState, localState);
+    const quartersChanged = mergeQuartersWithLocalState(remoteState, localState);
     const coursesChanged = mergeCoursesWithLocalState(remoteState, localState);
     const enrollmentsChanged = mergeEnrollmentsWithLocalState(remoteState, localState);
+    const dailyBreaksChanged = mergeDailyBreaksWithLocalState(remoteState, localState);
+    normalizeSettingsShape(remoteState);
     state = remoteState;
     if (!state.users.some((user) => user.id === currentUserId)) {
       currentUserId = "";
@@ -645,7 +809,7 @@ async function bootstrapStateFromApi() {
     }
     setCurrentSchoolYear(state.settings.currentSchoolYearId);
     const usersChanged = before !== JSON.stringify(state.users || []);
-    if (backfillAttendanceToToday() || usersChanged || coursesChanged || enrollmentsChanged) saveState();
+    if (backfillAttendanceToToday() || usersChanged || schoolYearsChanged || quartersChanged || coursesChanged || enrollmentsChanged || dailyBreaksChanged) saveState();
     gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
     renderAll();
   } catch (error) {
@@ -711,7 +875,13 @@ function setCurrentSchoolYear(schoolYearId) {
   const schoolYear = getSchoolYear(schoolYearId);
   if (!schoolYear) return;
   state.settings.currentSchoolYearId = schoolYear.id;
-  state.settings.schoolYear = { label: schoolYear.label, startDate: schoolYear.startDate, endDate: schoolYear.endDate };
+  state.settings.schoolYear = {
+    label: schoolYear.label,
+    startDate: schoolYear.startDate,
+    endDate: schoolYear.endDate,
+    requiredInstructionalDays: schoolYear.requiredInstructionalDays ?? null,
+    requiredInstructionalHours: schoolYear.requiredInstructionalHours ?? null
+  };
   state.settings.quarters = state.settings.allQuarters
     .filter((q) => q.schoolYearId === schoolYear.id)
     .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
@@ -1155,6 +1325,92 @@ function currentQuarter(ref = new Date()) {
   return q.length ? q[q.length - 1].quarter : null;
 }
 
+function parseTimeToMinutes(value) {
+  const match = String(value || "").match(/^(\d{2}):(\d{2})$/);
+  if (!match) return NaN;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return NaN;
+  return (hours * 60) + minutes;
+}
+
+function formatClockTime(value) {
+  const minutes = typeof value === "number" ? value : parseTimeToMinutes(value);
+  if (!Number.isFinite(minutes)) return "";
+  const h24 = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const ampm = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}:${String(mins).padStart(2, "0")} ${ampm}`;
+}
+
+function dailyBreakLabel(entry) {
+  if (!entry) return "Break";
+  if (entry.type === "lunch") return "Lunch Break";
+  if (entry.type === "recess") return "Recess";
+  return entry.description || "Other Break";
+}
+
+function getSelectedDailyBreakStudentIds() {
+  return Array.from(document.querySelectorAll(".daily-break-student-checkbox:checked")).map((el) => el.value);
+}
+
+function updateDailyBreakStudentSummary() {
+  const summary = document.getElementById("daily-break-student-summary");
+  if (!summary) return;
+  const selectedCount = getSelectedDailyBreakStudentIds().length;
+  const totalCount = document.querySelectorAll(".daily-break-student-checkbox").length;
+  summary.textContent = selectedCount && selectedCount === totalCount
+    ? "Students (All)"
+    : `Students (${selectedCount} selected)`;
+}
+
+function renderDailyBreakStudentChecklist(preselectedStudentIds = []) {
+  const optionsWrap = document.getElementById("daily-break-student-options");
+  if (!optionsWrap) return;
+  const students = state.students.slice().sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
+  const selected = new Set(preselectedStudentIds.filter((studentId) => students.some((student) => student.id === studentId)));
+  const allChecked = students.length > 0 && students.every((student) => selected.has(student.id));
+  const allRow = students.length ? `<div class="checklist-row"><input id="daily-break-student-all" type="checkbox" class="daily-break-student-all-checkbox"${allChecked ? " checked" : ""}><label for="daily-break-student-all">All</label></div>` : "";
+  const checkboxes = students.map((student, idx) => {
+    const checked = selected.has(student.id) ? " checked" : "";
+    const inputId = `daily-break-student-${idx}-${student.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="daily-break-student-checkbox" value="${student.id}"${checked}><label for="${inputId}">${student.firstName} ${student.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = students.length ? `${allRow}${checkboxes}` : "<span>No students available.</span>";
+  syncCalendarAllCheckbox("daily-break-student-checkbox", "daily-break-student-all-checkbox");
+  updateDailyBreakStudentSummary();
+}
+
+function updateDailyBreakFormMode() {
+  const typeSelect = document.getElementById("daily-break-type");
+  const descriptionWrap = document.getElementById("daily-break-description-wrap");
+  const descriptionInput = document.getElementById("daily-break-description");
+  if (!typeSelect || !descriptionWrap || !descriptionInput) return;
+  const requiresDescription = typeSelect.value === "other";
+  descriptionWrap.classList.toggle("hidden", !requiresDescription);
+  descriptionInput.required = requiresDescription;
+  if (!requiresDescription) descriptionInput.value = "";
+}
+
+function resetDailyBreakForm() {
+  const form = document.getElementById("daily-break-form");
+  if (!form) return;
+  form.reset();
+  const startTimeInput = document.getElementById("daily-break-start-time");
+  const durationInput = document.getElementById("daily-break-duration");
+  const typeSelect = document.getElementById("daily-break-type");
+  if (typeSelect) typeSelect.value = "lunch";
+  if (startTimeInput) startTimeInput.value = "12:00";
+  if (durationInput) durationInput.value = "60";
+  document.querySelectorAll("input[name='daily-break-weekday']").forEach((checkbox) => {
+    if (!(checkbox instanceof HTMLInputElement)) return;
+    checkbox.checked = Number(checkbox.value) >= 1 && Number(checkbox.value) <= 5;
+  });
+  renderDailyBreakStudentChecklist([]);
+  updateDailyBreakFormMode();
+}
+
 function holidaySet() {
   const set = new Set();
   state.settings.holidays.forEach((h) => {
@@ -1162,6 +1418,24 @@ function holidaySet() {
     if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e < s) return;
     const c = new Date(s);
     while (c <= e) { set.add(toISO(c)); c.setDate(c.getDate() + 1); }
+  });
+  return set;
+}
+
+function holidaySetByRange(startDate, endDate) {
+  const set = new Set();
+  (state.settings.holidays || []).forEach((holiday) => {
+    const start = toDate(holiday.startDate);
+    const end = toDate(holiday.endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return;
+    const effectiveStart = start > toDate(startDate) ? new Date(start) : toDate(startDate);
+    const effectiveEnd = end < toDate(endDate) ? new Date(end) : toDate(endDate);
+    if (Number.isNaN(effectiveStart.getTime()) || Number.isNaN(effectiveEnd.getTime()) || effectiveEnd < effectiveStart) return;
+    const cursor = new Date(effectiveStart);
+    while (cursor <= effectiveEnd) {
+      set.add(toISO(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
   });
   return set;
 }
@@ -1177,6 +1451,22 @@ function instructionalDates() {
     c.setDate(c.getDate() + 1);
   }
   return out;
+}
+
+function instructionalDaysCountForRange(startDate, endDate) {
+  const start = toDate(startDate);
+  const end = toDate(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return 0;
+  const excluded = holidaySetByRange(startDate, endDate);
+  let count = 0;
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    const weekday = cursor.getDay();
+    const key = toISO(cursor);
+    if (weekday >= 1 && weekday <= 5 && !excluded.has(key)) count += 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return count;
 }
 
 function options(selectId, items, textFn, placeholder) {
@@ -1201,6 +1491,7 @@ function renderSelects() {
   options("plan-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, viewerStudents.length ? null : "Add a student first");
   options("test-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, viewerStudents.length ? null : "Add a student first");
   options("user-student-id", state.students, (s) => `${s.firstName} ${s.lastName}`, "Select student");
+  renderDailyBreakStudentChecklist(getSelectedDailyBreakStudentIds());
   renderAttendanceStudentChecklist();
   renderTrendStudentChecklist(Array.from(trendSelectedStudentIds));
   renderGpaTrendStudentChecklist(Array.from(gpaTrendSelectedStudentIds));
@@ -1831,6 +2122,7 @@ function renderScheduleSectionVisibility() {
   const mappings = [
     { wrapId: "schedule-school-years-wrap", btnId: "schedule-school-years-toggle-btn", shown: showScheduleSchoolYears, expandLabel: "Expand school years", collapseLabel: "Collapse school years" },
     { wrapId: "schedule-quarters-wrap", btnId: "schedule-quarters-toggle-btn", shown: showScheduleQuarters, expandLabel: "Expand quarters", collapseLabel: "Collapse quarters" },
+    { wrapId: "schedule-daily-breaks-wrap", btnId: "schedule-daily-breaks-toggle-btn", shown: showScheduleDailyBreaks, expandLabel: "Expand daily lunch and breaks", collapseLabel: "Collapse daily lunch and breaks" },
     { wrapId: "schedule-holidays-wrap", btnId: "schedule-holidays-toggle-btn", shown: showScheduleHolidays, expandLabel: "Expand holidays and breaks", collapseLabel: "Collapse holidays and breaks" },
     { wrapId: "schedule-plans-wrap", btnId: "schedule-plans-toggle-btn", shown: showSchedulePlans, expandLabel: "Expand instruction plans", collapseLabel: "Collapse instruction plans" }
   ];
@@ -1926,6 +2218,7 @@ function renderStudentDetail() {
   const quarterSelect = document.getElementById("student-detail-quarter-filter");
   const selectedQuarter = quarterSelect ? quarterSelect.value || "all" : "all";
   const quarterRange = state.settings.quarters.find((q) => q.name === selectedQuarter);
+  const schoolYear = currentSchoolYear();
   const rangeStart = quarterRange ? quarterRange.startDate : state.settings.schoolYear.startDate;
   const rangeEnd = quarterRange ? quarterRange.endDate : state.settings.schoolYear.endDate;
   const gradeSummary = studentGradeSummary(student.id, { quarterName: selectedQuarter });
@@ -1961,6 +2254,40 @@ function renderStudentDetail() {
     `<tr><td>${student.firstName} ${student.lastName}</td><td>${summary.attended}</td><td>${summary.absent}</td></tr>`
   ];
   rowOrEmpty(document.getElementById("student-attendance-summary-table"), attendanceRows, "No students available.", 3);
+
+  const instructionalHoursSnapshot = buildInstructionalHoursSnapshot([student.id]);
+  const selectedBucketKey = selectedQuarter === "all" ? "total" : selectedQuarter.toLowerCase();
+  const bucketSummary = instructionalHoursSnapshot.summaryByStudent.get(student.id)?.buckets?.[selectedBucketKey] || { earned: 0, projected: 0 };
+  const completionPct = bucketSummary.projected > 0
+    ? ((bucketSummary.earned / bucketSummary.projected) * 100).toFixed(1)
+    : "0.0";
+  const instructionalHoursRows = [
+    `<tr${selectedQuarter === "all" && schoolYear.requiredInstructionalHours != null && bucketSummary.projected < schoolYear.requiredInstructionalHours ? " class='warning-row'" : ""}><td>${student.firstName} ${student.lastName}</td><td>${bucketSummary.earned.toFixed(1)}</td><td>${bucketSummary.projected.toFixed(1)}</td><td>${completionPct}%</td></tr>`
+  ];
+  rowOrEmpty(
+    document.getElementById("student-instructional-hours-summary-table"),
+    instructionalHoursRows,
+    "No instructional hours available.",
+    4
+  );
+  const hoursWarningId = "student-instructional-hours-warning";
+  const detailPanel = document.getElementById("student-detail-panel");
+  let warningEl = document.getElementById(hoursWarningId);
+  if (!warningEl && detailPanel) {
+    warningEl = document.createElement("p");
+    warningEl.id = hoursWarningId;
+    warningEl.className = "warning-text hidden";
+    const hoursTable = document.getElementById("student-instructional-hours-summary-table");
+    hoursTable?.closest(".table-wrap")?.insertAdjacentElement("afterend", warningEl);
+  }
+  if (warningEl) {
+    const requiredHours = schoolYear.requiredInstructionalHours;
+    const showWarning = selectedQuarter === "all" && requiredHours != null && bucketSummary.projected < requiredHours;
+    warningEl.textContent = showWarning
+      ? `Warning: Projected instructional hours (${bucketSummary.projected.toFixed(1)}) are below the required instructional hours (${Number(requiredHours).toFixed(1)}).`
+      : "";
+    warningEl.classList.toggle("hidden", !showWarning);
+  }
 }
 
 function renderHolidays() {
@@ -1976,18 +2303,51 @@ function renderHolidays() {
   if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingHolidayId);
 }
 
+function renderDailyBreaks() {
+  const tableBody = document.getElementById("daily-break-table");
+  if (!tableBody) return;
+  const allDailyBreaks = [...(state.settings.dailyBreaks || [])];
+  const visibleDailyBreaks = allDailyBreaks.filter((entry) =>
+    !entry.schoolYearId || entry.schoolYearId === state.settings.currentSchoolYearId);
+  const rows = (visibleDailyBreaks.length ? visibleDailyBreaks : allDailyBreaks)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime) || dailyBreakLabel(a).localeCompare(dailyBreakLabel(b)))
+    .map((entry) => {
+      const students = entry.studentIds.map((studentId) => getStudentName(studentId)).join(", ");
+      const weekdays = (entry.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
+      const description = entry.type === "other" ? escapeHtml(entry.description || "") : "";
+      return `<tr><td>${students}</td><td>${dailyBreakLabel(entry)}</td><td>${description || "-"}</td><td>${formatClockTime(entry.startTime)}</td><td>${Number(entry.durationMinutes || 0)} min</td><td>${weekdays}</td><td><button data-edit-daily-break='${entry.id}' type='button'>Edit</button> <button data-remove-daily-break='${entry.id}' type='button'>Remove</button></td></tr>`;
+    });
+  rowOrEmpty(tableBody, rows, "No daily lunch or break schedules defined.", 7);
+  const submitBtn = document.getElementById("daily-break-submit-btn");
+  const cancelBtn = document.getElementById("daily-break-cancel-edit-btn");
+  if (submitBtn) submitBtn.textContent = editingDailyBreakId ? "Update Break" : "Add Break";
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingDailyBreakId);
+  updateDailyBreakFormMode();
+}
+
 function renderPlanningSettings() {
   const schoolYear = currentSchoolYear();
   const schoolYearCurrent = document.getElementById("school-year-current");
   if (schoolYearCurrent) {
-    schoolYearCurrent.textContent = `Current School Year: ${schoolYear.label} (${schoolYear.startDate} to ${schoolYear.endDate})`;
+    const daysText = schoolYear.requiredInstructionalDays == null ? "not set" : String(schoolYear.requiredInstructionalDays);
+    const hoursText = schoolYear.requiredInstructionalHours == null ? "not set" : Number(schoolYear.requiredInstructionalHours).toFixed(1);
+    schoolYearCurrent.textContent = `Current School Year: ${schoolYear.label} (${schoolYear.startDate} to ${schoolYear.endDate}) | Required Days: ${daysText} | Required Hours: ${hoursText}`;
   }
 
   const schoolYearRows = state.settings.schoolYears
     .slice()
     .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
-    .map((year) => `<tr><td>${year.label}${year.id === state.settings.currentSchoolYearId ? " (Current)" : ""}</td><td>${year.startDate}</td><td>${year.endDate}</td><td><button type="button" data-set-current-school-year="${year.id}">Set Current</button> <button type="button" data-edit-school-year="${year.id}">Edit</button></td></tr>`);
-  rowOrEmpty(document.getElementById("school-year-summary-table"), schoolYearRows, "No school years saved yet.", 4);
+    .map((year) => {
+      const instructionalDays = instructionalDaysCountForRange(year.startDate, year.endDate);
+      const requiredDays = year.requiredInstructionalDays == null ? "-" : String(year.requiredInstructionalDays);
+      const requiredHours = year.requiredInstructionalHours == null ? "-" : Number(year.requiredInstructionalHours).toFixed(1);
+      const belowDaysRequirement = year.requiredInstructionalDays != null && instructionalDays < year.requiredInstructionalDays;
+      const status = belowDaysRequirement
+        ? `<span class="warning-text">Below required days by ${year.requiredInstructionalDays - instructionalDays}</span>`
+        : "OK";
+      return `<tr${belowDaysRequirement ? " class='warning-row'" : ""}><td>${year.label}${year.id === state.settings.currentSchoolYearId ? " (Current)" : ""}</td><td>${year.startDate}</td><td>${year.endDate}</td><td>${requiredDays}</td><td>${requiredHours}</td><td>${instructionalDays}</td><td>${status}</td><td><button type="button" data-set-current-school-year="${year.id}">Set Current</button> <button type="button" data-edit-school-year="${year.id}">Edit</button> <button type="button" data-remove-school-year="${year.id}">Delete</button></td></tr>`;
+    });
+  rowOrEmpty(document.getElementById("school-year-summary-table"), schoolYearRows, "No school years saved yet.", 8);
 
   const quarterRows = state.settings.allQuarters
     .slice()
@@ -3533,8 +3893,51 @@ function calendarEventsForDate(dateKey, studentFilterIds = [], subjectFilterIds 
       if (seen.has(key)) return;
       seen.add(key);
       deduped.push(event);
-    });
+  });
   return deduped;
+}
+
+function dailyBreaksForStudentDate(studentId, dateKey) {
+  const date = toDate(dateKey);
+  if (Number.isNaN(date.getTime())) return [];
+  const weekday = date.getDay();
+  const matchingBreaks = (state.settings.dailyBreaks || [])
+    .filter((entry) =>
+      entry.schoolYearId === state.settings.currentSchoolYearId
+      && (entry.studentIds || []).includes(studentId)
+      && (entry.weekdays || []).includes(weekday))
+    .map((entry) => {
+      const start = parseTimeToMinutes(entry.startTime);
+      const durationMinutes = Math.max(5, Number(entry.durationMinutes || 0));
+      return {
+        ...entry,
+        label: dailyBreakLabel(entry),
+        start,
+        end: Number.isFinite(start) ? start + durationMinutes : NaN,
+        durationMinutes
+      };
+    })
+    .filter((entry) => Number.isFinite(entry.start) && Number.isFinite(entry.end) && entry.end > entry.start)
+    .sort((a, b) => a.start - b.start || a.label.localeCompare(b.label));
+
+  if (!matchingBreaks.some((entry) => entry.type === "lunch")) {
+    matchingBreaks.push({
+      id: `default-lunch-${studentId}-${dateKey}`,
+      schoolYearId: state.settings.currentSchoolYearId,
+      studentIds: [studentId],
+      type: "lunch",
+      description: "",
+      startTime: "12:00",
+      durationMinutes: 60,
+      weekdays: [weekday],
+      label: "Lunch Break",
+      start: 12 * 60,
+      end: 13 * 60
+    });
+    matchingBreaks.sort((a, b) => a.start - b.start || a.label.localeCompare(b.label));
+  }
+
+  return matchingBreaks;
 }
 
 function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
@@ -3554,15 +3957,24 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     const studentName = getStudentName(studentId);
     const blocks = [];
     const remaining = orderedEventsForStudent(studentId, byStudent.get(studentId) || []);
+    const breakBlocks = dailyBreaksForStudentDate(studentId, dateKey);
 
     let slot = 8 * 60;
-    let lunchAdded = false;
+    let breakIndex = 0;
 
-    while (remaining.length) {
-      if (!lunchAdded && slot >= 12 * 60 && slot < 13 * 60) {
-        blocks.push({ student: studentName, label: "Lunch Break", start: 12 * 60, end: 13 * 60, type: "lunch" });
-        slot = 13 * 60;
-        lunchAdded = true;
+    while (remaining.length || breakIndex < breakBlocks.length) {
+      const nextBreak = breakBlocks[breakIndex] || null;
+      if (nextBreak && slot >= nextBreak.start) {
+        blocks.push({
+          student: studentName,
+          studentId,
+          label: nextBreak.label,
+          start: nextBreak.start,
+          end: nextBreak.end,
+          type: nextBreak.type
+        });
+        slot = Math.max(slot, nextBreak.end);
+        breakIndex += 1;
         continue;
       }
 
@@ -3583,14 +3995,12 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       let chosen = null;
       const startNow = candidates.filter((candidate) => candidate.availableAt <= slot);
 
-      if (!lunchAdded && slot < 12 * 60) {
-        const fitsBeforeLunch = startNow.filter((candidate) => slot + candidate.durationMinutes <= 12 * 60);
-        if (fitsBeforeLunch.length) {
-          [chosen] = fitsBeforeLunch;
+      if (nextBreak) {
+        const fitsBeforeBreak = startNow.filter((candidate) => slot + candidate.durationMinutes <= nextBreak.start);
+        if (fitsBeforeBreak.length) {
+          [chosen] = fitsBeforeBreak;
         } else if (startNow.length) {
-          blocks.push({ student: studentName, label: "Lunch Break", start: 12 * 60, end: 13 * 60, type: "lunch" });
-          slot = 13 * 60;
-          lunchAdded = true;
+          slot = nextBreak.start;
           continue;
         }
       } else if (startNow.length) {
@@ -3598,17 +4008,17 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       }
 
       if (!chosen) {
-        const nextAvailable = Math.min(...candidates.map((candidate) => candidate.availableAt));
-        if (!Number.isFinite(nextAvailable)) break;
-
-        if (!lunchAdded && slot < 12 * 60 && nextAvailable >= 12 * 60) {
-          blocks.push({ student: studentName, label: "Lunch Break", start: 12 * 60, end: 13 * 60, type: "lunch" });
-          slot = 13 * 60;
-          lunchAdded = true;
+        if (!remaining.length && nextBreak) {
+          slot = nextBreak.start;
           continue;
         }
-
-        slot = Math.max(slot, nextAvailable);
+        const nextAvailable = Math.min(...candidates.map((candidate) => candidate.availableAt));
+        if (!Number.isFinite(nextAvailable)) break;
+        if (nextBreak && nextAvailable >= nextBreak.start) {
+          slot = nextBreak.start;
+          continue;
+        }
+        slot = Math.max(slot, nextAvailable || slot);
         continue;
       }
 
@@ -3788,13 +4198,6 @@ function renderWeekCalendar(referenceISO, studentFilterIds = [], subjectFilterId
 function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const ref = toDate(referenceISO || todayISO());
   const dateKey = toISO(ref);
-  const formatTime = (minutes) => {
-    const h24 = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    const ampm = h24 >= 12 ? "PM" : "AM";
-    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-    return `${h12}:${String(mins).padStart(2, "0")} ${ampm}`;
-  };
 
   const blocksByStudent = dailyScheduledBlocks(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
   const scheduledByHour = new Map();
@@ -3819,9 +4222,7 @@ function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds
     });
   });
 
-  const instructionalBlocks = Array.from(scheduledByHour.values())
-    .flat()
-    .filter((item) => item.label !== "Lunch Break");
+  const instructionalBlocks = Array.from(scheduledByHour.values()).flat();
   const minHour = instructionalBlocks.length
     ? Math.max(0, Math.floor(Math.min(...instructionalBlocks.map((item) => item.start)) / 60))
     : 0;
@@ -3839,7 +4240,7 @@ function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds
       continue;
     }
     items.forEach((item, idx) => {
-      rows.push(`<tr><td>${idx === 0 ? label : ""}</td><td>${item.student}</td><td>${item.label} (${formatTime(item.start)} - ${formatTime(item.end)})</td></tr>`);
+      rows.push(`<tr><td>${idx === 0 ? label : ""}</td><td>${item.student}</td><td>${item.label} (${formatClockTime(item.start)} - ${formatClockTime(item.end)})</td></tr>`);
     });
   }
   rowOrEmpty(document.getElementById("calendar-day-table"), rows, "No scheduled instruction for this day.", 3);
@@ -3936,6 +4337,8 @@ function fillSettingsForms() {
   document.getElementById("school-year-label").value = schoolYear.label;
   document.getElementById("school-year-start").value = schoolYear.startDate;
   document.getElementById("school-year-end").value = schoolYear.endDate;
+  document.getElementById("school-year-required-days").value = schoolYear.requiredInstructionalDays == null ? "" : String(schoolYear.requiredInstructionalDays);
+  document.getElementById("school-year-required-hours").value = schoolYear.requiredInstructionalHours == null ? "" : String(schoolYear.requiredInstructionalHours);
   const quarterSchoolYearInput = document.getElementById("quarter-school-year");
   const selectedYearId = quarterSchoolYearInput && quarterSchoolYearInput.value
     ? quarterSchoolYearInput.value
@@ -3953,6 +4356,10 @@ function fillSettingsForms() {
   document.getElementById("q4-end").value = q[3] ? q[3].endDate : "";
   if (!document.getElementById("calendar-date").value) document.getElementById("calendar-date").value = todayISO();
   if (!document.getElementById("attendance-date").value) document.getElementById("attendance-date").value = todayISO();
+  const dailyBreakStartInput = document.getElementById("daily-break-start-time");
+  const dailyBreakDurationInput = document.getElementById("daily-break-duration");
+  if (dailyBreakStartInput && !dailyBreakStartInput.value) dailyBreakStartInput.value = "12:00";
+  if (dailyBreakDurationInput && !dailyBreakDurationInput.value) dailyBreakDurationInput.value = "60";
 }
 
 function beginSchoolYearEdit(schoolYearId) {
@@ -3962,6 +4369,8 @@ function beginSchoolYearEdit(schoolYearId) {
   document.getElementById("school-year-label").value = schoolYear.label;
   document.getElementById("school-year-start").value = schoolYear.startDate;
   document.getElementById("school-year-end").value = schoolYear.endDate;
+  document.getElementById("school-year-required-days").value = schoolYear.requiredInstructionalDays == null ? "" : String(schoolYear.requiredInstructionalDays);
+  document.getElementById("school-year-required-hours").value = schoolYear.requiredInstructionalHours == null ? "" : String(schoolYear.requiredInstructionalHours);
   renderPlanningSettings();
 }
 
@@ -3969,6 +4378,32 @@ function cancelSchoolYearEdit() {
   editingSchoolYearId = "";
   fillSettingsForms();
   renderPlanningSettings();
+}
+
+function removeSchoolYear(schoolYearId) {
+  if (!schoolYearId) return;
+  const target = getSchoolYear(schoolYearId);
+  if (!target) return;
+  if (state.settings.schoolYears.length <= 1) {
+    alert("At least one school year must remain.");
+    return;
+  }
+  state.settings.schoolYears = state.settings.schoolYears.filter((year) => year.id !== schoolYearId);
+  state.settings.allQuarters = state.settings.allQuarters.filter((quarter) => quarter.schoolYearId !== schoolYearId);
+  if (editingSchoolYearId === schoolYearId) editingSchoolYearId = "";
+  if (editingQuarterSchoolYearId === schoolYearId) editingQuarterSchoolYearId = "";
+  if (state.settings.currentSchoolYearId === schoolYearId) {
+    const nextSchoolYear = state.settings.schoolYears
+      .slice()
+      .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
+      .at(-1);
+    if (nextSchoolYear) {
+      setCurrentSchoolYear(nextSchoolYear.id);
+      return;
+    }
+  }
+  const current = currentSchoolYear();
+  if (current) setCurrentSchoolYear(current.id);
 }
 
 function beginQuarterEdit(schoolYearId) {
@@ -3993,6 +4428,9 @@ function removeStudent(id) {
   state.plans = state.plans.filter((p)=>p.studentId!==id);
   state.attendance = state.attendance.filter((a)=>a.studentId!==id);
   state.tests = state.tests.filter((t)=>t.studentId!==id);
+  state.settings.dailyBreaks = (state.settings.dailyBreaks || [])
+    .map((entry) => ({ ...entry, studentIds: (entry.studentIds || []).filter((studentId) => studentId !== id) }))
+    .filter((entry) => entry.studentIds.length);
   state.users = state.users.map((user) => user.studentId === id ? { ...user, studentId: "" } : user);
   if (selectedStudentId === id) selectedStudentId = "";
 }
@@ -4047,6 +4485,29 @@ function cancelHolidayEdit() {
   editingHolidayId = "";
   document.getElementById("holiday-form").reset();
   renderHolidays();
+}
+
+function beginDailyBreakEdit(dailyBreakId) {
+  const entry = (state.settings.dailyBreaks || []).find((dailyBreak) => dailyBreak.id === dailyBreakId);
+  if (!entry) return;
+  editingDailyBreakId = entry.id;
+  renderDailyBreakStudentChecklist(entry.studentIds || []);
+  document.getElementById("daily-break-type").value = entry.type || "lunch";
+  document.getElementById("daily-break-description").value = entry.description || "";
+  document.getElementById("daily-break-start-time").value = entry.startTime || "12:00";
+  document.getElementById("daily-break-duration").value = String(Number(entry.durationMinutes || 60));
+  const selectedDays = new Set((entry.weekdays || []).map(Number));
+  document.querySelectorAll("input[name='daily-break-weekday']").forEach((checkbox) => {
+    if (!(checkbox instanceof HTMLInputElement)) return;
+    checkbox.checked = selectedDays.has(Number(checkbox.value));
+  });
+  renderDailyBreaks();
+}
+
+function cancelDailyBreakEdit() {
+  editingDailyBreakId = "";
+  resetDailyBreakForm();
+  renderDailyBreaks();
 }
 
 function beginPlanEdit(planId) {
@@ -4323,8 +4784,14 @@ function bindEvents() {
     const label = document.getElementById("school-year-label").value.trim();
     const startDate = document.getElementById("school-year-start").value;
     const endDate = document.getElementById("school-year-end").value;
+    const requiredInstructionalDaysRaw = document.getElementById("school-year-required-days").value;
+    const requiredInstructionalHoursRaw = document.getElementById("school-year-required-hours").value;
+    const requiredInstructionalDays = requiredInstructionalDaysRaw === "" ? null : Number(requiredInstructionalDaysRaw);
+    const requiredInstructionalHours = requiredInstructionalHoursRaw === "" ? null : Number(requiredInstructionalHoursRaw);
     if (!label) { alert("School year label is required."); return; }
     if (!validRange(startDate, endDate)) { alert("School year range is invalid."); return; }
+    if (requiredInstructionalDays != null && (!Number.isInteger(requiredInstructionalDays) || requiredInstructionalDays < 0)) { alert("Required Instructional Days must be a whole number 0 or greater."); return; }
+    if (requiredInstructionalHours != null && (!Number.isFinite(requiredInstructionalHours) || requiredInstructionalHours < 0)) { alert("Required Instructional Hours must be 0 or greater."); return; }
     const existing = state.settings.schoolYears.find((year) => year.id === editingSchoolYearId);
     const previousStartDate = existing?.startDate || "";
     const previousEndDate = existing?.endDate || "";
@@ -4332,6 +4799,8 @@ function bindEvents() {
       existing.label = label;
       existing.startDate = startDate;
       existing.endDate = endDate;
+      existing.requiredInstructionalDays = requiredInstructionalDays;
+      existing.requiredInstructionalHours = requiredInstructionalHours;
       syncAnnualPlansForSchoolYear(previousStartDate, previousEndDate, startDate, endDate);
     } else {
       const duplicate = state.settings.schoolYears.find((year) =>
@@ -4339,7 +4808,7 @@ function bindEvents() {
         && year.startDate === startDate
         && year.endDate === endDate);
       if (duplicate) { alert("That school year already exists."); return; }
-      state.settings.schoolYears.push({ id: uid(), label, startDate, endDate });
+      state.settings.schoolYears.push({ id: uid(), label, startDate, endDate, requiredInstructionalDays, requiredInstructionalHours });
     }
     const schoolYearId = existing ? existing.id : state.settings.schoolYears[state.settings.schoolYears.length - 1].id;
     setCurrentSchoolYear(schoolYearId);
@@ -4388,6 +4857,52 @@ function bindEvents() {
       fillSettingsForms();
       renderPlanningSettings();
     });
+  }
+
+  document.getElementById("daily-break-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!ensureAdminAction()) return;
+    const studentIds = getSelectedDailyBreakStudentIds();
+    const type = document.getElementById("daily-break-type").value;
+    const description = document.getElementById("daily-break-description").value.trim();
+    const startTime = document.getElementById("daily-break-start-time").value;
+    const durationMinutes = Number(document.getElementById("daily-break-duration").value);
+    const weekdays = Array.from(document.querySelectorAll("input[name='daily-break-weekday']:checked")).map((input) => Number(input.value));
+    if (!studentIds.length || !weekdays.length || !/^\d{2}:\d{2}$/.test(startTime) || !Number.isFinite(durationMinutes) || durationMinutes < 5) {
+      alert("Provide students, a valid start time, a duration of at least 5 minutes, and at least one weekday.");
+      return;
+    }
+    if (type === "other" && !description) {
+      alert("Provide a description when the break type is Other.");
+      return;
+    }
+    const payload = {
+      schoolYearId: state.settings.currentSchoolYearId,
+      studentIds,
+      type,
+      description: type === "other" ? description : "",
+      startTime,
+      durationMinutes,
+      weekdays
+    };
+    if (editingDailyBreakId) {
+      const existing = state.settings.dailyBreaks.find((entry) => entry.id === editingDailyBreakId);
+      if (existing) Object.assign(existing, payload);
+      editingDailyBreakId = "";
+    } else {
+      state.settings.dailyBreaks.push({ id: uid(), ...payload });
+    }
+    resetDailyBreakForm();
+    saveState();
+    renderAll();
+  });
+  const dailyBreakCancelEditBtn = document.getElementById("daily-break-cancel-edit-btn");
+  if (dailyBreakCancelEditBtn) {
+    dailyBreakCancelEditBtn.addEventListener("click", () => cancelDailyBreakEdit());
+  }
+  const dailyBreakTypeSelect = document.getElementById("daily-break-type");
+  if (dailyBreakTypeSelect) {
+    dailyBreakTypeSelect.addEventListener("change", () => updateDailyBreakFormMode());
   }
 
   document.getElementById("holiday-form").addEventListener("submit", (e) => {
@@ -4871,6 +5386,20 @@ function bindEvents() {
       updatePlanCourseSummary();
       return;
     }
+    if (t.classList.contains("daily-break-student-checkbox")) {
+      syncCalendarAllCheckbox("daily-break-student-checkbox", "daily-break-student-all-checkbox");
+      updateDailyBreakStudentSummary();
+      return;
+    }
+    if (t.classList.contains("daily-break-student-all-checkbox")) {
+      const checked = t instanceof HTMLInputElement ? t.checked : false;
+      document.querySelectorAll(".daily-break-student-checkbox").forEach((el) => {
+        if (!(el instanceof HTMLInputElement)) return;
+        el.checked = checked;
+      });
+      updateDailyBreakStudentSummary();
+      return;
+    }
     if (t.classList.contains("student-schedule-order-select")) {
       if (!ensureAdminAction()) {
         renderStudentDetail();
@@ -4994,6 +5523,21 @@ function bindEvents() {
       beginSchoolYearEdit(editSchoolYearId);
       return;
     }
+    const removeSchoolYearId = t.getAttribute("data-remove-school-year");
+    if (removeSchoolYearId) {
+      if (!ensureAdminAction()) return;
+      const targetYear = getSchoolYear(removeSchoolYearId);
+      if (!targetYear) return;
+      const quarterCount = state.settings.allQuarters.filter((quarter) => quarter.schoolYearId === removeSchoolYearId).length;
+      const message = quarterCount
+        ? `Delete ${targetYear.label}? This will also remove ${quarterCount} quarter definition${quarterCount === 1 ? "" : "s"} for that school year.`
+        : `Delete ${targetYear.label}?`;
+      if (!confirm(message)) return;
+      removeSchoolYear(removeSchoolYearId);
+      saveState();
+      renderAll();
+      return;
+    }
     const editQuartersYearId = t.getAttribute("data-edit-quarters-year");
     if (editQuartersYearId) {
       if (!ensureAdminAction()) return;
@@ -5031,6 +5575,11 @@ function bindEvents() {
       renderScheduleSectionVisibility();
       return;
     }
+    if (t.getAttribute("id") === "schedule-daily-breaks-toggle-btn") {
+      showScheduleDailyBreaks = !showScheduleDailyBreaks;
+      renderScheduleSectionVisibility();
+      return;
+    }
     if (t.getAttribute("id") === "schedule-holidays-toggle-btn") {
       showScheduleHolidays = !showScheduleHolidays;
       renderScheduleSectionVisibility();
@@ -5051,6 +5600,12 @@ function bindEvents() {
     if (editHolidayId) {
       if (!ensureAdminAction()) return;
       beginHolidayEdit(editHolidayId);
+      return;
+    }
+    const editDailyBreakId = t.getAttribute("data-edit-daily-break");
+    if (editDailyBreakId) {
+      if (!ensureAdminAction()) return;
+      beginDailyBreakEdit(editDailyBreakId);
       return;
     }
     const editPlanId = t.getAttribute("data-edit-plan");
@@ -5236,6 +5791,7 @@ function bindEvents() {
       return;
     }
     const enrollmentId = t.getAttribute("data-remove-student-enrollment"); if (enrollmentId) { if (!ensureAdminAction()) return; state.enrollments = state.enrollments.filter((x)=>x.id!==enrollmentId); saveState(); renderAll(); return; }
+    const dailyBreakId = t.getAttribute("data-remove-daily-break"); if (dailyBreakId) { if (!ensureAdminAction()) return; state.settings.dailyBreaks = state.settings.dailyBreaks.filter((x)=>x.id!==dailyBreakId); if (editingDailyBreakId === dailyBreakId) editingDailyBreakId = ""; resetDailyBreakForm(); saveState(); renderAll(); return; }
     const holidayId = t.getAttribute("data-remove-holiday"); if (holidayId) { if (!ensureAdminAction()) return; state.settings.holidays = state.settings.holidays.filter((x)=>x.id!==holidayId); if (editingHolidayId === holidayId) editingHolidayId = ""; saveState(); renderAll(); return; }
     const planId = t.getAttribute("data-remove-plan"); if (planId) { if (!ensureAdminAction()) return; state.plans = state.plans.filter((x)=>x.id!==planId); if (editingPlanId === planId) editingPlanId = ""; saveState(); renderAll(); }
   });
@@ -5252,6 +5808,7 @@ function renderAll() {
   renderManagementSectionVisibility();
   renderCourses();
   renderGradeTypes();
+  renderDailyBreaks();
   renderHolidays();
   renderPlanningSettings();
   renderPlans();
