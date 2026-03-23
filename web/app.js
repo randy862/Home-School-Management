@@ -2898,14 +2898,50 @@ function renderPlanningSettings() {
     });
   rowOrEmpty(document.getElementById("school-year-summary-table"), schoolYearRows, "No school years saved yet.", 8);
 
-  const quarterRows = state.settings.allQuarters
+  const quarterRows = state.settings.schoolYears
     .slice()
     .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
-    .map((quarter) => {
-      const year = getSchoolYear(quarter.schoolYearId);
-      return `<tr><td>${year ? year.label : "Unknown Year"}</td><td>${quarter.name}</td><td>${quarter.startDate}</td><td>${quarter.endDate}</td><td><button type="button" data-edit-quarters-year="${quarter.schoolYearId}">Edit</button></td></tr>`;
+    .flatMap((year) => {
+      const yearQuarters = state.settings.allQuarters
+        .filter((quarter) => quarter.schoolYearId === year.id)
+        .sort((a, b) => toDate(a.startDate) - toDate(b.startDate));
+      const rows = yearQuarters.map((quarter) => {
+        const instructionalDays = instructionalDaysCountForRange(quarter.startDate, quarter.endDate);
+        return `<tr><td>${year.label}</td><td>${quarter.name}</td><td>${quarter.startDate}</td><td>${quarter.endDate}</td><td>${instructionalDays}</td><td><button type="button" data-edit-quarters-year="${quarter.schoolYearId}">Edit</button></td></tr>`;
+      });
+      if (rows.length) {
+        const totalInstructionalDays = yearQuarters.reduce((sum, quarter) =>
+          sum + instructionalDaysCountForRange(quarter.startDate, quarter.endDate), 0);
+        rows.push(`<tr><td colspan="3"></td><td class="quarter-summary-total-label"><strong>${year.label} Total</strong></td><td class="quarter-summary-total-value"><strong>${totalInstructionalDays}</strong></td><td></td></tr>`);
+      }
+      return rows;
     });
-  rowOrEmpty(document.getElementById("quarter-summary-table"), quarterRows, "No quarters saved yet.", 5);
+  rowOrEmpty(document.getElementById("quarter-summary-table"), quarterRows, "No quarters saved yet.", 6);
+  const quarterWarningEl = document.getElementById("quarter-summary-warning");
+  if (quarterWarningEl) {
+    const mismatches = state.settings.schoolYears
+      .filter((year) => year.requiredInstructionalDays != null)
+      .map((year) => {
+        const quarterInstructionalDays = state.settings.allQuarters
+          .filter((quarter) => quarter.schoolYearId === year.id)
+          .reduce((sum, quarter) => sum + instructionalDaysCountForRange(quarter.startDate, quarter.endDate), 0);
+        return {
+          year,
+          quarterInstructionalDays,
+          difference: quarterInstructionalDays - Number(year.requiredInstructionalDays)
+        };
+      })
+      .filter((entry) => entry.difference < 0);
+    if (mismatches.length) {
+      quarterWarningEl.className = "warning-text";
+      quarterWarningEl.textContent = mismatches
+        .map((entry) => `${entry.year.label}: defined quarters total ${entry.quarterInstructionalDays} instructional days, which is below Required Instructional Days of ${entry.year.requiredInstructionalDays}.`)
+        .join(" ");
+    } else {
+      quarterWarningEl.className = "muted hidden";
+      quarterWarningEl.textContent = "";
+    }
+  }
 
   const schoolYearSubmitBtn = document.getElementById("school-year-submit-btn");
   const schoolYearCancelBtn = document.getElementById("school-year-cancel-edit-btn");

@@ -1068,6 +1068,16 @@ td {
   border-color: #c2d3dd;
 }
 
+#schedule-quarters-wrap table th:nth-child(5),
+#schedule-quarters-wrap table td:nth-child(5) {
+  text-align: center;
+}
+
+.quarter-summary-total-label,
+.quarter-summary-total-value {
+  text-align: center;
+}
+
 .schedule-section-daily-breaks {
   background: #f5eee3;
   border-color: #d8c8b4;
@@ -1326,6 +1336,11 @@ td {
 .dashboard-section-student-attendance {
   background: #eff6ed;
   border-color: #c7d8bf;
+}
+
+.dashboard-section-student-instructional-hours {
+  background: #edf4f7;
+  border-color: #c2d3dd;
 }
 
 .dashboard-section-trending {
