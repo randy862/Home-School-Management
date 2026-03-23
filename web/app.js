@@ -2096,9 +2096,15 @@ function reportSummaryRows(studentIds, range) {
 }
 
 function reportGradeRows(studentIds, range) {
+  const studentOrder = new Map(studentIds.map((studentId, index) => [studentId, index]));
   return state.tests
     .filter((test) => studentIds.includes(test.studentId) && inRange(test.date, range.startDate, range.endDate))
-    .sort((a, b) => a.date.localeCompare(b.date) || getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)))
+    .sort((a, b) =>
+      (studentOrder.get(a.studentId) ?? Number.MAX_SAFE_INTEGER) - (studentOrder.get(b.studentId) ?? Number.MAX_SAFE_INTEGER)
+      || a.date.localeCompare(b.date)
+      || getSubjectName(a.subjectId).localeCompare(getSubjectName(b.subjectId))
+      || getCourseName(a.courseId).localeCompare(getCourseName(b.courseId))
+      || gradeTypeName(a).localeCompare(gradeTypeName(b)))
     .map((test) => ({
       student: getStudentName(test.studentId),
       subject: getSubjectName(test.subjectId),
@@ -2110,9 +2116,13 @@ function reportGradeRows(studentIds, range) {
 }
 
 function reportAttendanceRows(studentIds, range) {
+  const studentOrder = new Map(studentIds.map((studentId, index) => [studentId, index]));
   return state.attendance
     .filter((record) => studentIds.includes(record.studentId) && inRange(record.date, range.startDate, range.endDate))
-    .sort((a, b) => a.date.localeCompare(b.date) || getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)))
+    .sort((a, b) =>
+      (studentOrder.get(a.studentId) ?? Number.MAX_SAFE_INTEGER) - (studentOrder.get(b.studentId) ?? Number.MAX_SAFE_INTEGER)
+      || a.date.localeCompare(b.date)
+      || Number(a.present) - Number(b.present))
     .map((record) => ({
       student: getStudentName(record.studentId),
       date: record.date,
