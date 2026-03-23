@@ -5,6 +5,14 @@ const SESSION_KEY = "hsm_session_v1";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+const LETTER_GRADE_ORDER = ["A", "B", "C", "D", "F"];
+const DEFAULT_LETTER_GRADE_SCALE = [
+  { label: "A", start: 90, end: 100 },
+  { label: "B", start: 80, end: 89 },
+  { label: "C", start: 70, end: 79 },
+  { label: "D", start: 60, end: 69 },
+  { label: "F", start: 0, end: 59 }
+];
 const DEFAULT_ADMIN_USERNAME = "admin";
 const DEFAULT_ADMIN_PASSWORD = "ChangeMe123!";
 const STUDENT_ALLOWED_TABS = new Set(["dashboard", "calendar", "attendance", "grades"]);
@@ -197,7 +205,12 @@ function defaultState() {
       allQuarters: quarters,
       dailyBreaks: [],
       holidays: [],
-      gradeTypes: DEFAULT_GRADE_TYPES.map((name) => ({ id: uid(), name, weight: null }))
+      gradeTypes: DEFAULT_GRADE_TYPES.map((name) => ({ id: uid(), name, weight: null })),
+      gradingCriteria: {
+        letterScale: DEFAULT_LETTER_GRADE_SCALE.map(({ label }) => ({ label, start: null, end: null })),
+        gpaScaleOption: "4",
+        gpaMax: 4
+      }
     }
   };
 }
@@ -388,6 +401,22 @@ function mergeQuartersWithLocalState(remoteState, localState) {
   return changed;
 }
 
+function mergeGradingCriteriaWithLocalState(remoteState, localState) {
+  if (!remoteState?.settings || !localState?.settings?.gradingCriteria) return false;
+  const remoteCriteria = remoteState.settings.gradingCriteria || {};
+  const localCriteria = localState.settings.gradingCriteria;
+  const merged = {
+    ...remoteCriteria,
+    ...localCriteria,
+    letterScale: Array.isArray(localCriteria.letterScale)
+      ? localCriteria.letterScale.map((entry) => ({ ...entry }))
+      : (Array.isArray(remoteCriteria.letterScale) ? remoteCriteria.letterScale.map((entry) => ({ ...entry })) : [])
+  };
+  if (JSON.stringify(merged) === JSON.stringify(remoteCriteria)) return false;
+  remoteState.settings.gradingCriteria = merged;
+  return true;
+}
+
 function normalizeSettingsShape(inputState) {
   const s = inputState;
   if (!s.settings) s.settings = {};
@@ -506,9 +535,36 @@ function normalizeSettingsShape(inputState) {
         };
         const key = normalized.name.toLowerCase();
         if (!byName.has(key)) byName.set(key, normalized);
-      });
+    });
     s.settings.gradeTypes = Array.from(byName.values());
   }
+
+  const incomingCriteria = s.settings.gradingCriteria || {};
+  const incomingLetterScale = Array.isArray(incomingCriteria.letterScale) ? incomingCriteria.letterScale : [];
+  const incomingByLabel = new Map(
+    incomingLetterScale
+      .filter((entry) => entry && LETTER_GRADE_ORDER.includes(String(entry.label || "").toUpperCase()))
+      .map((entry) => {
+        const start = entry.start === "" || entry.start == null ? null : Number(entry.start);
+        const end = entry.end === "" || entry.end == null ? null : Number(entry.end);
+        return [String(entry.label).toUpperCase(), {
+          label: String(entry.label).toUpperCase(),
+          start: Number.isInteger(start) && start >= 0 && start <= 100 ? start : null,
+          end: Number.isInteger(end) && end >= 0 && end <= 100 ? end : null
+        }];
+      })
+  );
+  const rawGpaScaleOption = String(incomingCriteria.gpaScaleOption || "").trim();
+  const rawGpaMax = incomingCriteria.gpaMax === "" || incomingCriteria.gpaMax == null ? null : Number(incomingCriteria.gpaMax);
+  const normalizedGpaMax = Number.isInteger(rawGpaMax) && rawGpaMax > 0 ? rawGpaMax : 4;
+  const normalizedGpaScaleOption = ["4", "5", "10"].includes(rawGpaScaleOption)
+    ? rawGpaScaleOption
+    : (rawGpaScaleOption === "other" ? "other" : (["4", "5", "10"].includes(String(normalizedGpaMax)) ? String(normalizedGpaMax) : "4"));
+  s.settings.gradingCriteria = {
+    letterScale: DEFAULT_LETTER_GRADE_SCALE.map((entry) => incomingByLabel.get(entry.label) || { label: entry.label, start: null, end: null }),
+    gpaScaleOption: normalizedGpaScaleOption,
+    gpaMax: normalizedGpaScaleOption === "other" ? normalizedGpaMax : Number(normalizedGpaScaleOption)
+  };
 
   normalizeUsersShape(s);
   normalizeCoursesShape(s);
@@ -587,9 +643,11 @@ let editingQuarterSchoolYearId = "";
 let editingGradeTypeId = "";
 let editingDailyBreakId = "";
 let gradeTypeDraftDirty = false;
+let gradingCriteriaEditMode = false;
 let showManagementSubjects = false;
 let showManagementCourses = false;
 let showManagementGradeTypes = false;
+let showManagementGradingCriteria = false;
 let showScheduleSchoolYears = false;
 let showScheduleQuarters = false;
 let showScheduleDailyBreaks = false;
@@ -600,6 +658,7 @@ let calendarBackToMonthContext = null;
 let calendarSelectedStudentIds = new Set();
 let calendarSelectedSubjectIds = new Set();
 let calendarSelectedCourseIds = new Set();
+let reportSelectedStudentIds = new Set();
 let loginMessageKind = "";
 let userFormMessageKind = "";
 function cloneGradeTypes(items) {
@@ -801,6 +860,7 @@ async function bootstrapStateFromApi() {
     const coursesChanged = mergeCoursesWithLocalState(remoteState, localState);
     const enrollmentsChanged = mergeEnrollmentsWithLocalState(remoteState, localState);
     const dailyBreaksChanged = mergeDailyBreaksWithLocalState(remoteState, localState);
+    const gradingCriteriaChanged = mergeGradingCriteriaWithLocalState(remoteState, localState);
     normalizeSettingsShape(remoteState);
     state = remoteState;
     if (!state.users.some((user) => user.id === currentUserId)) {
@@ -809,7 +869,7 @@ async function bootstrapStateFromApi() {
     }
     setCurrentSchoolYear(state.settings.currentSchoolYearId);
     const usersChanged = before !== JSON.stringify(state.users || []);
-    if (backfillAttendanceToToday() || usersChanged || schoolYearsChanged || quartersChanged || coursesChanged || enrollmentsChanged || dailyBreaksChanged) saveState();
+    if (backfillAttendanceToToday() || usersChanged || schoolYearsChanged || quartersChanged || coursesChanged || enrollmentsChanged || dailyBreaksChanged || gradingCriteriaChanged) saveState();
     gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
     renderAll();
   } catch (error) {
@@ -940,6 +1000,37 @@ function pct(score, max) { const s = Number(score), m = Number(max); return m > 
 function configuredGradeTypes() {
   return Array.isArray(state.settings.gradeTypes) ? state.settings.gradeTypes : [];
 }
+function gradingCriteriaSettings() {
+  return state.settings?.gradingCriteria || defaultState().settings.gradingCriteria;
+}
+function effectiveLetterGradeScale() {
+  const configured = Array.isArray(gradingCriteriaSettings().letterScale) ? gradingCriteriaSettings().letterScale : [];
+  const byLabel = new Map(configured.map((entry) => [String(entry.label || "").toUpperCase(), entry]));
+  return DEFAULT_LETTER_GRADE_SCALE.map((entry) => {
+    const configuredEntry = byLabel.get(entry.label);
+    if (configuredEntry && Number.isInteger(configuredEntry.start) && Number.isInteger(configuredEntry.end)) {
+      return { label: entry.label, start: Number(configuredEntry.start), end: Number(configuredEntry.end) };
+    }
+    return { ...entry };
+  });
+}
+function currentGpaMax() {
+  const criteria = gradingCriteriaSettings();
+  if (criteria.gpaScaleOption === "other") {
+    const custom = Number(criteria.gpaMax);
+    return Number.isInteger(custom) && custom > 0 ? custom : 4;
+  }
+  if (["4", "5", "10"].includes(String(criteria.gpaScaleOption))) return Number(criteria.gpaScaleOption);
+  const fallback = Number(criteria.gpaMax);
+  return Number.isInteger(fallback) && fallback > 0 ? fallback : 4;
+}
+function scoreToLetterGrade(scorePct) {
+  const numeric = Number(scorePct);
+  if (!Number.isFinite(numeric)) return "";
+  const clampedScore = clamp(numeric, 0, 100);
+  const match = effectiveLetterGradeScale().find((entry) => clampedScore >= entry.start && clampedScore <= entry.end);
+  return match ? match.label : "";
+}
 function canonicalGradeTypes() {
   const seen = new Set();
   const out = [];
@@ -1029,7 +1120,8 @@ function averageOfQuarterAverages(quarterRows) {
 function averageToGpa(averageValue) {
   const numeric = Number(averageValue);
   if (!Number.isFinite(numeric)) return 0;
-  return clamp(numeric / 25, 0, 4);
+  const gpaMax = currentGpaMax();
+  return clamp((numeric / 100) * gpaMax, 0, gpaMax);
 }
 function parseScheduleOrderValue(value) {
   if (value === "" || value == null) return null;
@@ -1493,6 +1585,7 @@ function renderSelects() {
   options("user-student-id", state.students, (s) => `${s.firstName} ${s.lastName}`, "Select student");
   renderDailyBreakStudentChecklist(getSelectedDailyBreakStudentIds());
   renderAttendanceStudentChecklist();
+  renderReportStudentChecklist(Array.from(reportSelectedStudentIds));
   renderTrendStudentChecklist(Array.from(trendSelectedStudentIds));
   renderGpaTrendStudentChecklist(Array.from(gpaTrendSelectedStudentIds));
   renderVolumeStudentChecklist(Array.from(volumeSelectedStudentIds));
@@ -1550,6 +1643,23 @@ function renderSelects() {
     if (Array.from(quarterSchoolYear.options).some((o) => o.value === current)) quarterSchoolYear.value = current;
     else if (state.settings.currentSchoolYearId) quarterSchoolYear.value = state.settings.currentSchoolYearId;
   }
+
+  const reportsSchoolYear = document.getElementById("reports-school-year");
+  if (reportsSchoolYear) {
+    const current = reportsSchoolYear.value || state.settings.currentSchoolYearId;
+    reportsSchoolYear.innerHTML = "<option value=''>Select school year</option>";
+    state.settings.schoolYears
+      .slice()
+      .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
+      .forEach((year) => {
+        const option = document.createElement("option");
+        option.value = year.id;
+        option.textContent = year.label;
+        reportsSchoolYear.appendChild(option);
+      });
+    if (Array.from(reportsSchoolYear.options).some((o) => o.value === current)) reportsSchoolYear.value = current;
+  }
+  syncReportsQuarterOptions();
 
   const planFilterStudent = document.getElementById("plan-filter-student");
   if (planFilterStudent) {
@@ -1780,6 +1890,342 @@ function updateAttendanceStudentSummary() {
   if (!summary) return;
   const selectedCount = document.querySelectorAll(".attendance-student-checkbox:checked").length;
   summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function renderReportStudentChecklist(preselectedStudentIds = []) {
+  const optionsWrap = document.getElementById("reports-student-options");
+  if (!optionsWrap) return;
+  const selected = new Set(preselectedStudentIds.filter((studentId) => visibleStudents().some((student) => student.id === studentId)));
+  const checkboxes = visibleStudents().map((student, idx) => {
+    const checked = selected.has(student.id) ? " checked" : "";
+    const inputId = `reports-student-${idx}-${student.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="reports-student-checkbox" value="${student.id}"${checked}><label for="${inputId}">${student.firstName} ${student.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
+  updateReportStudentSummary();
+}
+
+function updateReportStudentSummary() {
+  const summary = document.getElementById("reports-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".reports-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getSelectedReportStudentIds() {
+  return Array.from(document.querySelectorAll(".reports-student-checkbox:checked")).map((el) => el.value);
+}
+
+function setReportsMessage(kind, message) {
+  const el = document.getElementById("reports-message");
+  if (!el) return;
+  el.className = kind ? `status-text ${kind}` : "muted";
+  el.textContent = message || "";
+}
+
+function syncReportsQuarterOptions() {
+  const schoolYearSelect = document.getElementById("reports-school-year");
+  const quarterSelect = document.getElementById("reports-quarter");
+  if (!schoolYearSelect || !quarterSelect) return;
+  const selectedSchoolYearId = schoolYearSelect.value || "";
+  const currentQuarter = quarterSelect.value || "all";
+  quarterSelect.innerHTML = "<option value=''>Select quarter</option>";
+  if (!selectedSchoolYearId) return;
+  const allOption = document.createElement("option");
+  allOption.value = "all";
+  allOption.textContent = "All Quarters";
+  quarterSelect.appendChild(allOption);
+  state.settings.allQuarters
+    .filter((quarter) => quarter.schoolYearId === selectedSchoolYearId)
+    .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
+    .forEach((quarter) => {
+      const option = document.createElement("option");
+      option.value = quarter.name;
+      option.textContent = quarter.name;
+      quarterSelect.appendChild(option);
+    });
+  if (Array.from(quarterSelect.options).some((option) => option.value === currentQuarter)) quarterSelect.value = currentQuarter;
+  else quarterSelect.value = "all";
+}
+
+function reportRangeForSelection(schoolYearId, quarterName) {
+  const schoolYear = getSchoolYear(schoolYearId);
+  if (!schoolYear) return null;
+  if (!quarterName || quarterName === "all") {
+    return {
+      schoolYear,
+      quarter: null,
+      startDate: schoolYear.startDate,
+      endDate: schoolYear.endDate,
+      quarterScoped: false
+    };
+  }
+  const quarter = (state.settings.allQuarters || []).find((entry) => entry.schoolYearId === schoolYearId && entry.name === quarterName);
+  if (!quarter) return null;
+  return {
+    schoolYear,
+    quarter,
+    startDate: quarter.startDate,
+    endDate: quarter.endDate,
+    quarterScoped: true
+  };
+}
+
+function resolvedPlanRangeForSchoolYear(plan, schoolYearId, schoolYear) {
+  if (!plan) return { startDate: "", endDate: "" };
+  if (plan.planType === "annual") {
+    return { startDate: schoolYear.startDate, endDate: schoolYear.endDate };
+  }
+  if (plan.planType === "quarterly" && plan.quarterName) {
+    const quarter = (state.settings.allQuarters || []).find((entry) => entry.schoolYearId === schoolYearId && entry.name === plan.quarterName);
+    if (quarter) return { startDate: quarter.startDate, endDate: quarter.endDate };
+  }
+  return { startDate: plan.startDate, endDate: plan.endDate };
+}
+
+function instructionalDatesByRangeForSchoolYear(schoolYear, startDate, endDate) {
+  if (!schoolYear) return [];
+  const effectiveStart = startDate > schoolYear.startDate ? startDate : schoolYear.startDate;
+  const effectiveEnd = endDate < schoolYear.endDate ? endDate : schoolYear.endDate;
+  if (!effectiveStart || !effectiveEnd || effectiveEnd < effectiveStart) return [];
+  const excluded = holidaySetByRange(effectiveStart, effectiveEnd);
+  const dates = [];
+  const cursor = toDate(effectiveStart);
+  const end = toDate(effectiveEnd);
+  if (Number.isNaN(cursor.getTime()) || Number.isNaN(end.getTime()) || end < cursor) return [];
+  while (cursor <= end) {
+    const weekday = cursor.getDay();
+    const key = toISO(cursor);
+    if (weekday >= 1 && weekday <= 5 && !excluded.has(key)) dates.push(key);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+function reportInstructionalHoursByStudent(studentIds, schoolYearId, range) {
+  const schoolYear = getSchoolYear(schoolYearId);
+  const results = new Map(studentIds.map((studentId) => [studentId, { earned: 0, projected: 0 }]));
+  if (!schoolYear) return results;
+  const reportDates = instructionalDatesByRangeForSchoolYear(schoolYear, range.startDate, range.endDate);
+  const reportDateSet = new Set(reportDates);
+  const today = todayISO();
+  const attendanceByStudentDate = new Map();
+  state.attendance.forEach((record) => {
+    if (!studentIds.includes(record.studentId) || !reportDateSet.has(record.date)) return;
+    const key = `${record.studentId}||${record.date}`;
+    if (!attendanceByStudentDate.has(key)) attendanceByStudentDate.set(key, !!record.present);
+    else if (attendanceByStudentDate.get(key) && !record.present) attendanceByStudentDate.set(key, false);
+  });
+
+  studentIds.forEach((studentId) => {
+    const enrollmentCourseIds = state.enrollments.filter((entry) => entry.studentId === studentId).map((entry) => entry.courseId);
+    const seenCourseDates = new Set();
+    enrollmentCourseIds.forEach((courseId) => {
+      const course = getCourse(courseId);
+      if (!course) return;
+      const hours = Number(course.hoursPerDay || 0);
+      if (!(hours > 0)) return;
+      const matchingPlans = state.plans.filter((plan) => plan.studentId === studentId && plan.courseId === courseId);
+      const applicablePlans = matchingPlans
+        .map((plan) => ({ plan, range: resolvedPlanRangeForSchoolYear(plan, schoolYearId, schoolYear) }))
+        .filter((entry) => entry.range.startDate && entry.range.endDate && entry.range.endDate >= range.startDate && entry.range.startDate <= range.endDate);
+      const dateKeys = new Set();
+
+      if (applicablePlans.length) {
+        applicablePlans.forEach(({ plan, range: planRange }) => {
+          const effectiveStart = planRange.startDate > range.startDate ? planRange.startDate : range.startDate;
+          const effectiveEnd = planRange.endDate < range.endDate ? planRange.endDate : range.endDate;
+          instructionalDatesByRangeForSchoolYear(schoolYear, effectiveStart, effectiveEnd).forEach((dateKey) => {
+            const weekday = toDate(dateKey).getDay();
+            const weekdays = Array.isArray(plan.weekdays) ? plan.weekdays.map(Number) : [];
+            if (!weekdays.includes(weekday)) return;
+            dateKeys.add(dateKey);
+          });
+        });
+      } else {
+        reportDates.forEach((dateKey) => dateKeys.add(dateKey));
+      }
+
+      dateKeys.forEach((dateKey) => {
+        const dedupeKey = `${studentId}||${courseId}||${dateKey}`;
+        if (seenCourseDates.has(dedupeKey)) return;
+        seenCourseDates.add(dedupeKey);
+        const metrics = results.get(studentId);
+        if (!metrics) return;
+        metrics.projected += hours;
+        if (dateKey <= today && attendanceByStudentDate.get(`${studentId}||${dateKey}`) === true) {
+          metrics.earned += hours;
+        }
+      });
+    });
+  });
+  return results;
+}
+
+function reportInstructionalDaysCompleted(startDate, endDate) {
+  const effectiveEnd = endDate < todayISO() ? endDate : todayISO();
+  if (!startDate || !endDate || effectiveEnd < startDate) return 0;
+  const schoolYear = state.settings.schoolYears.find((year) => startDate >= year.startDate && endDate <= year.endDate) || null;
+  return schoolYear
+    ? instructionalDatesByRangeForSchoolYear(schoolYear, startDate, effectiveEnd).length
+    : instructionalDatesByRange(startDate, effectiveEnd).length;
+}
+
+function reportSummaryRows(studentIds, range) {
+  const instructionalHoursByStudent = reportInstructionalHoursByStudent(studentIds, range.schoolYear.id, range);
+  return studentIds.map((studentId) => {
+    const student = state.students.find((entry) => entry.id === studentId);
+    const filteredTests = state.tests.filter((test) =>
+      test.studentId === studentId
+      && inRange(test.date, range.startDate, range.endDate));
+    const averageScore = weightedAverageForTests(filteredTests, { quarterScoped: range.quarterScoped });
+    const attendanceSummary = studentAttendanceSummaryByRange(studentId, range.startDate, range.endDate);
+    const instructionalHoursSummary = instructionalHoursByStudent.get(studentId) || { earned: 0, projected: 0 };
+    return {
+      studentName: student ? `${student.firstName} ${student.lastName}` : "Unknown Student",
+      gradeCount: filteredTests.length,
+      averageScore,
+      letterGrade: filteredTests.length ? scoreToLetterGrade(averageScore) : "",
+      gpa: filteredTests.length ? averageToGpa(averageScore) : 0,
+      attended: attendanceSummary.attended,
+      absent: attendanceSummary.absent,
+      instructionalDaysCompleted: reportInstructionalDaysCompleted(range.startDate, range.endDate),
+      instructionalHoursCompleted: instructionalHoursSummary.earned
+    };
+  });
+}
+
+function reportGradeRows(studentIds, range) {
+  return state.tests
+    .filter((test) => studentIds.includes(test.studentId) && inRange(test.date, range.startDate, range.endDate))
+    .sort((a, b) => a.date.localeCompare(b.date) || getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)))
+    .map((test) => ({
+      student: getStudentName(test.studentId),
+      subject: getSubjectName(test.subjectId),
+      course: getCourseName(test.courseId),
+      date: test.date,
+      gradeType: gradeTypeName(test),
+      grade: `${pct(test.score, test.maxScore).toFixed(1)}%`
+    }));
+}
+
+function reportAttendanceRows(studentIds, range) {
+  return state.attendance
+    .filter((record) => studentIds.includes(record.studentId) && inRange(record.date, range.startDate, range.endDate))
+    .sort((a, b) => a.date.localeCompare(b.date) || getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)))
+    .map((record) => ({
+      student: getStudentName(record.studentId),
+      date: record.date,
+      attendance: record.present ? "Present" : "Absent"
+    }));
+}
+
+function buildPrintableReportHtml({ studentIds, range }) {
+  const titlePeriod = range.quarter ? `${range.schoolYear.label} | ${range.quarter.name}` : `${range.schoolYear.label} | All Quarters`;
+  const selectedStudentsLabel = studentIds.map((studentId) => getStudentName(studentId)).join(", ");
+  const summaryRows = reportSummaryRows(studentIds, range);
+  const gradeRows = reportGradeRows(studentIds, range);
+  const attendanceRows = reportAttendanceRows(studentIds, range);
+  const summaryTableRows = summaryRows.length
+    ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${escapeHtml(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td><td>${row.attended}</td><td>${row.absent}</td><td>${row.instructionalDaysCompleted}</td><td>${row.instructionalHoursCompleted.toFixed(1)}</td></tr>`).join("")
+    : "<tr><td colspan='8'>No student summary data found for the selected filters.</td></tr>";
+  const gradeTableRows = gradeRows.length
+    ? gradeRows.map((row) => `<tr><td>${escapeHtml(row.student)}</td><td>${escapeHtml(row.subject)}</td><td>${escapeHtml(row.course)}</td><td>${row.date}</td><td>${escapeHtml(row.gradeType)}</td><td>${escapeHtml(row.grade)}</td></tr>`).join("")
+    : "<tr><td colspan='6'>No grade records found for the selected filters.</td></tr>";
+  const attendanceTableRows = attendanceRows.length
+    ? attendanceRows.map((row) => `<tr><td>${escapeHtml(row.student)}</td><td>${row.date}</td><td>${row.attendance}</td></tr>`).join("")
+    : "<tr><td colspan='3'>No attendance records found for the selected filters.</td></tr>";
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Student Report</title>
+  <style>
+    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #2f1f14; margin: 0; background: #f4efe7; }
+    .report-shell { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .report-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .report-toolbar button { border: 0; border-radius: 8px; padding: 10px 16px; background: #875422; color: #fff; font: inherit; cursor: pointer; }
+    .report-page { background: #fff; border: 1px solid #d7c8ad; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(24, 33, 20, 0.08); }
+    .report-page.report-page-break { page-break-after: always; }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .report-meta { margin: 0 0 18px; color: #6c5847; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #d9cdb7; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f6f1e7; }
+    @media print {
+      body { background: #fff; }
+      .report-shell { max-width: none; padding: 0; }
+      .report-toolbar { display: none; }
+      .report-page { box-shadow: none; border: 0; border-radius: 0; margin: 0; padding: 0; }
+      .report-page.report-page-break { page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-shell">
+    <div class="report-toolbar">
+      <div>
+        <strong>Student Report</strong><br>
+        <span>${escapeHtml(titlePeriod)}</span>
+      </div>
+      <button type="button" onclick="window.print()">Print</button>
+    </div>
+
+    <section class="report-page report-page-break">
+      <h1>Student Summary</h1>
+      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      <table>
+        <thead><tr><th>Student Name</th><th>Average Scores</th><th>Letter Grade</th><th>GPA</th><th>Days Attended</th><th>Days Absent</th><th>Instructional Days Completed</th><th>Instructional Hours Completed</th></tr></thead>
+        <tbody>${summaryTableRows}</tbody>
+      </table>
+    </section>
+
+    <section class="report-page report-page-break">
+      <h1>Grade Report</h1>
+      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      <table>
+        <thead><tr><th>Student</th><th>Subject</th><th>Course</th><th>Date</th><th>Grade Type</th><th>Grade</th></tr></thead>
+        <tbody>${gradeTableRows}</tbody>
+      </table>
+    </section>
+
+    <section class="report-page">
+      <h1>Attendance Report</h1>
+      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      <table>
+        <thead><tr><th>Student</th><th>Date</th><th>Attendance</th></tr></thead>
+        <tbody>${attendanceTableRows}</tbody>
+      </table>
+    </section>
+  </div>
+</body>
+</html>`;
+}
+
+function generatePrintableReport() {
+  const studentIds = Array.from(reportSelectedStudentIds);
+  const schoolYearId = document.getElementById("reports-school-year")?.value || "";
+  const quarterName = document.getElementById("reports-quarter")?.value || "";
+  if (!studentIds.length || !schoolYearId || !quarterName) {
+    setReportsMessage("error", "Student, School Year, and Quarter are all required.");
+    return;
+  }
+  const range = reportRangeForSelection(schoolYearId, quarterName);
+  if (!range) {
+    setReportsMessage("error", "The selected School Year or Quarter is not valid.");
+    return;
+  }
+  const reportWindow = window.open("", "_blank");
+  if (!reportWindow) {
+    setReportsMessage("error", "The report could not be opened. Please allow pop-ups and try again.");
+    return;
+  }
+  reportWindow.opener = null;
+  reportWindow.document.open();
+  reportWindow.document.write(buildPrintableReportHtml({ studentIds, range }));
+  reportWindow.document.close();
+  setReportsMessage("success", "Report opened in a new tab.");
 }
 
 function renderTrendStudentChecklist(preselectedStudentIds = []) {
@@ -2105,7 +2551,8 @@ function renderManagementSectionVisibility() {
   const mappings = [
     { wrapId: "management-subjects-wrap", btnId: "management-subjects-toggle-btn", shown: showManagementSubjects, expandLabel: "Expand subjects", collapseLabel: "Collapse subjects" },
     { wrapId: "management-courses-wrap", btnId: "management-courses-toggle-btn", shown: showManagementCourses, expandLabel: "Expand courses", collapseLabel: "Collapse courses" },
-    { wrapId: "management-grade-types-wrap", btnId: "management-grade-types-toggle-btn", shown: showManagementGradeTypes, expandLabel: "Expand grade types", collapseLabel: "Collapse grade types" }
+    { wrapId: "management-grade-types-wrap", btnId: "management-grade-types-toggle-btn", shown: showManagementGradeTypes, expandLabel: "Expand grade types", collapseLabel: "Collapse grade types" },
+    { wrapId: "management-grading-criteria-wrap", btnId: "management-grading-criteria-toggle-btn", shown: showManagementGradingCriteria, expandLabel: "Expand grading criteria", collapseLabel: "Collapse grading criteria" }
   ];
   mappings.forEach((entry) => {
     const wrap = document.getElementById(entry.wrapId);
@@ -2178,6 +2625,98 @@ function renderGradeTypes() {
     cancelChangesBtn.classList.toggle("hidden", !gradeTypeDraftDirty);
     cancelChangesBtn.disabled = !gradeTypeDraftDirty;
   }
+}
+
+function setGradingCriteriaMessage(kind, message) {
+  const el = document.getElementById("grading-criteria-message");
+  if (!el) return;
+  el.className = kind ? `status-text ${kind}` : "muted";
+  el.textContent = message || "";
+}
+
+function updateGradingCriteriaFormMode() {
+  const scaleSelect = document.getElementById("grading-gpa-scale");
+  const otherWrap = document.getElementById("grading-gpa-other-wrap");
+  const otherInput = document.getElementById("grading-gpa-other");
+  if (!scaleSelect || !otherWrap || !otherInput) return;
+  const isOther = scaleSelect.value === "other";
+  otherWrap.classList.toggle("hidden", !isOther);
+  otherInput.required = gradingCriteriaEditMode && isOther;
+  if (!isOther) otherInput.value = "";
+}
+
+function renderGradingCriteria() {
+  const criteria = gradingCriteriaSettings();
+  LETTER_GRADE_ORDER.forEach((label) => {
+    const entry = (criteria.letterScale || []).find((row) => row.label === label) || { start: null, end: null };
+    const startInput = document.getElementById(`grading-scale-${label.toLowerCase()}-start`);
+    const endInput = document.getElementById(`grading-scale-${label.toLowerCase()}-end`);
+    if (startInput) startInput.value = entry.start == null ? "" : String(entry.start);
+    if (endInput) endInput.value = entry.end == null ? "" : String(entry.end);
+  });
+  const gpaScaleSelect = document.getElementById("grading-gpa-scale");
+  const gpaOtherInput = document.getElementById("grading-gpa-other");
+  const editBtn = document.getElementById("grading-criteria-edit-btn");
+  const saveBtn = document.getElementById("grading-criteria-submit-btn");
+  const cancelBtn = document.getElementById("grading-criteria-cancel-btn");
+  if (gpaScaleSelect) gpaScaleSelect.value = criteria.gpaScaleOption || "4";
+  if (gpaOtherInput) gpaOtherInput.value = criteria.gpaScaleOption === "other" ? String(criteria.gpaMax || "") : "";
+  document.querySelectorAll("#grading-criteria-form input, #grading-criteria-form select").forEach((element) => {
+    if (!(element instanceof HTMLInputElement) && !(element instanceof HTMLSelectElement)) return;
+    element.disabled = !gradingCriteriaEditMode;
+  });
+  if (editBtn) editBtn.classList.toggle("hidden", gradingCriteriaEditMode);
+  if (saveBtn) saveBtn.classList.toggle("hidden", !gradingCriteriaEditMode);
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !gradingCriteriaEditMode);
+  updateGradingCriteriaFormMode();
+}
+
+function readLetterScaleForm() {
+  return LETTER_GRADE_ORDER.map((label) => {
+    const startRaw = document.getElementById(`grading-scale-${label.toLowerCase()}-start`)?.value ?? "";
+    const endRaw = document.getElementById(`grading-scale-${label.toLowerCase()}-end`)?.value ?? "";
+    return {
+      label,
+      start: startRaw === "" ? null : Number(startRaw),
+      end: endRaw === "" ? null : Number(endRaw)
+    };
+  });
+}
+
+function validateLetterScale(letterScale) {
+  const hasAnyValues = letterScale.some((entry) => entry.start != null || entry.end != null);
+  if (!hasAnyValues) {
+    return {
+      valid: true,
+      scale: DEFAULT_LETTER_GRADE_SCALE.map(({ label }) => ({ label, start: null, end: null }))
+    };
+  }
+  const hasMissingValues = letterScale.some((entry) => entry.start == null || entry.end == null);
+  if (hasMissingValues) {
+    return { valid: false, message: "If you customize the Letter Grading Scale, all A-F starting and ending scores must be filled in." };
+  }
+  for (const entry of letterScale) {
+    if (!Number.isInteger(entry.start) || !Number.isInteger(entry.end) || entry.start < 0 || entry.end < 0 || entry.start > 100 || entry.end > 100) {
+      return { valid: false, message: "Letter grade scores must be whole numbers between 0 and 100." };
+    }
+    if (entry.start > entry.end) {
+      return { valid: false, message: `${entry.label} must have a starting score that is less than or equal to its ending score.` };
+    }
+  }
+  if (letterScale[0].end !== 100 || letterScale[letterScale.length - 1].start !== 0) {
+    return { valid: false, message: "Custom letter grade ranges must cover the full 0-100 scale with no gaps." };
+  }
+  for (let index = 0; index < letterScale.length - 1; index += 1) {
+    const current = letterScale[index];
+    const next = letterScale[index + 1];
+    if (current.start !== (next.end + 1)) {
+      return { valid: false, message: "Custom letter grade ranges cannot overlap or leave gaps between A, B, C, D, and F." };
+    }
+  }
+  return {
+    valid: true,
+    scale: letterScale.map((entry) => ({ label: entry.label, start: entry.start, end: entry.end }))
+  };
 }
 
 function beginGradeTypeEdit(gradeTypeId) {
@@ -3164,8 +3703,9 @@ function renderGpaTrending() {
   const xStep = months.length > 1 ? xSpan / (months.length - 1) : 0;
   const xFor = (idx) => margin.left + xPad + (xStep * idx);
   const yMin = 0;
-  const yMax = 4;
-  const yTicks = [0, 1, 2, 3, 4];
+  const yMax = currentGpaMax();
+  const tickCount = 4;
+  const yTicks = Array.from({ length: tickCount + 1 }, (_, idx) => (yMax / tickCount) * idx);
   const yFor = (value) => {
     const clamped = clamp(value, yMin, yMax);
     return margin.top + ((yMax - clamped) / (yMax - yMin)) * plotH;
@@ -3265,7 +3805,7 @@ function renderGpaTrending() {
       ${valueLabelSvg}
       ${noData}
       <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
-      <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">GPA (4.0 scale)</text>
+      <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">GPA (${currentGpaMax().toFixed(1)} scale)</text>
     </svg>
     ${legendHtml}`;
 }
@@ -3586,6 +4126,9 @@ function renderDashboard() {
   });
   Array.from(workSelectedStudentIds).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) workSelectedStudentIds.delete(studentId);
+  });
+  Array.from(reportSelectedStudentIds).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) reportSelectedStudentIds.delete(studentId);
   });
 
   const quarterByName = new Map(state.settings.quarters.map((entry) => [entry.name, entry]));
@@ -4360,6 +4903,7 @@ function fillSettingsForms() {
   const dailyBreakDurationInput = document.getElementById("daily-break-duration");
   if (dailyBreakStartInput && !dailyBreakStartInput.value) dailyBreakStartInput.value = "12:00";
   if (dailyBreakDurationInput && !dailyBreakDurationInput.value) dailyBreakDurationInput.value = "60";
+  renderGradingCriteria();
 }
 
 function beginSchoolYearEdit(schoolYearId) {
@@ -4763,6 +5307,53 @@ function bindEvents() {
       renderGradeTypes();
     });
   }
+  document.getElementById("grading-criteria-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!ensureAdminAction()) return;
+    const letterScale = readLetterScaleForm();
+    const validation = validateLetterScale(letterScale);
+    if (!validation.valid) {
+      setGradingCriteriaMessage("error", validation.message);
+      return;
+    }
+    const gpaScaleOption = document.getElementById("grading-gpa-scale").value;
+    const gpaOtherRaw = document.getElementById("grading-gpa-other").value;
+    const gpaMax = gpaScaleOption === "other" ? Number(gpaOtherRaw) : Number(gpaScaleOption);
+    if (!Number.isInteger(gpaMax) || gpaMax <= 0) {
+      setGradingCriteriaMessage("error", "GPA Max must be a whole number greater than 0.");
+      return;
+    }
+    state.settings.gradingCriteria = {
+      letterScale: validation.scale.map((entry) => ({ ...entry })),
+      gpaScaleOption,
+      gpaMax
+    };
+    gradingCriteriaEditMode = false;
+    setGradingCriteriaMessage("success", "Grading Criteria saved.");
+    saveState();
+    renderAll();
+  });
+  const gradingCriteriaEditBtn = document.getElementById("grading-criteria-edit-btn");
+  if (gradingCriteriaEditBtn) {
+    gradingCriteriaEditBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      gradingCriteriaEditMode = true;
+      setGradingCriteriaMessage("", "");
+      renderGradingCriteria();
+    });
+  }
+  const gradingCriteriaCancelBtn = document.getElementById("grading-criteria-cancel-btn");
+  if (gradingCriteriaCancelBtn) {
+    gradingCriteriaCancelBtn.addEventListener("click", () => {
+      gradingCriteriaEditMode = false;
+      setGradingCriteriaMessage("", "");
+      renderGradingCriteria();
+    });
+  }
+  const gradingGpaScaleSelect = document.getElementById("grading-gpa-scale");
+  if (gradingGpaScaleSelect) {
+    gradingGpaScaleSelect.addEventListener("change", () => updateGradingCriteriaFormMode());
+  }
   const courseCancelEditBtn = document.getElementById("course-cancel-edit-btn");
   if (courseCancelEditBtn) {
     courseCancelEditBtn.addEventListener("click", () => cancelCourseEdit());
@@ -4777,6 +5368,18 @@ function bindEvents() {
     if (state.enrollments.some((x)=>x.studentId===studentId && x.courseId===courseId)) { alert("Student already enrolled in this course."); return; }
     state.enrollments.push({ id: uid(), studentId, courseId, scheduleOrder: null }); saveState(); renderAll();
   });
+
+  document.getElementById("reports-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    generatePrintableReport();
+  });
+  const reportsSchoolYearSelect = document.getElementById("reports-school-year");
+  if (reportsSchoolYearSelect) {
+    reportsSchoolYearSelect.addEventListener("change", () => {
+      syncReportsQuarterOptions();
+      setReportsMessage("", "Select students, school year, and quarter to generate a printable report.");
+    });
+  }
 
   document.getElementById("school-year-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -5416,6 +6019,11 @@ function bindEvents() {
       renderCalendar();
       return;
     }
+    if (t.classList.contains("reports-student-checkbox")) {
+      reportSelectedStudentIds = new Set(getSelectedReportStudentIds());
+      updateReportStudentSummary();
+      return;
+    }
     if (t.classList.contains("calendar-student-all-checkbox")) {
       const checked = t instanceof HTMLInputElement ? t.checked : false;
       const studentIds = checked ? visibleStudents().map((student) => student.id) : [];
@@ -5562,6 +6170,11 @@ function bindEvents() {
     }
     if (t.getAttribute("id") === "management-grade-types-toggle-btn") {
       showManagementGradeTypes = !showManagementGradeTypes;
+      renderManagementSectionVisibility();
+      return;
+    }
+    if (t.getAttribute("id") === "management-grading-criteria-toggle-btn") {
+      showManagementGradingCriteria = !showManagementGradingCriteria;
       renderManagementSectionVisibility();
       return;
     }
@@ -5808,6 +6421,7 @@ function renderAll() {
   renderManagementSectionVisibility();
   renderCourses();
   renderGradeTypes();
+  renderGradingCriteria();
   renderDailyBreaks();
   renderHolidays();
   renderPlanningSettings();

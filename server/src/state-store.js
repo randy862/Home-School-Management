@@ -1,6 +1,13 @@
 const { sql, getPool } = require("./db");
 
 const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+const DEFAULT_LETTER_GRADE_SCALE = [
+  { label: "A", start: 90, end: 100 },
+  { label: "B", start: 80, end: 89 },
+  { label: "C", start: 70, end: 79 },
+  { label: "D", start: 60, end: 69 },
+  { label: "F", start: 0, end: 59 }
+];
 
 function toIsoDate(value) {
   if (!value) return "";
@@ -32,7 +39,12 @@ function fallbackSettings() {
     allQuarters: quarters,
     dailyBreaks: [],
     holidays: [],
-    gradeTypes: DEFAULT_GRADE_TYPES.map((name, idx) => ({ id: `default-grade-type-${idx + 1}`, name, weight: null }))
+    gradeTypes: DEFAULT_GRADE_TYPES.map((name, idx) => ({ id: `default-grade-type-${idx + 1}`, name, weight: null })),
+    gradingCriteria: {
+      letterScale: DEFAULT_LETTER_GRADE_SCALE.map(({ label }) => ({ label, start: null, end: null })),
+      gpaScaleOption: "4",
+      gpaMax: 4
+    }
   };
 }
 
@@ -137,6 +149,21 @@ async function readState() {
     `,
     "SELECT id, name, holiday_type, start_date, end_date FROM dbo.holidays ORDER BY start_date",
     "SELECT id, name, weight FROM dbo.grade_types ORDER BY name",
+    `
+      IF OBJECT_ID('dbo.grading_criteria', 'U') IS NULL
+      BEGIN
+        SELECT
+          CAST(NULL AS NVARCHAR(MAX)) AS letter_scale_json,
+          CAST(NULL AS NVARCHAR(20)) AS gpa_scale_option,
+          CAST(NULL AS INT) AS gpa_max
+        WHERE 1 = 0
+      END
+      ELSE
+      BEGIN
+        SELECT TOP 1 letter_scale_json, gpa_scale_option, gpa_max
+        FROM dbo.grading_criteria
+      END
+    `,
     "SELECT id, plan_type, student_id, course_id, start_date, end_date, weekdays_json, quarter_name FROM dbo.plans ORDER BY start_date",
     "SELECT id, student_id, attendance_date, present FROM dbo.attendance ORDER BY attendance_date",
     "SELECT id, test_date, student_id, subject_id, course_id, grade_type, test_name, score, max_score FROM dbo.tests ORDER BY test_date",
@@ -174,6 +201,7 @@ async function readState() {
     dailyBreaksR,
     holidaysR,
     gradeTypesR,
+    gradingCriteriaR,
     plansR,
     attendanceR,
     testsR,
@@ -259,6 +287,16 @@ async function readState() {
     name: r.name,
     weight: r.weight == null ? null : Number(r.weight)
   }));
+  let gradingLetterScale = DEFAULT_LETTER_GRADE_SCALE.map(({ label }) => ({ label, start: null, end: null }));
+  const gradingCriteriaRow = gradingCriteriaR.recordset[0];
+  if (gradingCriteriaRow?.letter_scale_json) {
+    try {
+      const parsed = JSON.parse(gradingCriteriaRow.letter_scale_json);
+      if (Array.isArray(parsed)) gradingLetterScale = parsed;
+    } catch {
+      gradingLetterScale = DEFAULT_LETTER_GRADE_SCALE.map(({ label }) => ({ label, start: null, end: null }));
+    }
+  }
 
   const plans = plansR.recordset.map((r) => {
     let weekdays = [];
@@ -331,7 +369,12 @@ async function readState() {
     holidays,
     gradeTypes: gradeTypes.length
       ? gradeTypes
-      : DEFAULT_GRADE_TYPES.map((name, idx) => ({ id: `default-grade-type-${idx + 1}`, name, weight: null }))
+      : DEFAULT_GRADE_TYPES.map((name, idx) => ({ id: `default-grade-type-${idx + 1}`, name, weight: null })),
+    gradingCriteria: {
+      letterScale: gradingLetterScale,
+      gpaScaleOption: gradingCriteriaRow?.gpa_scale_option || "4",
+      gpaMax: gradingCriteriaRow?.gpa_max == null ? 4 : Number(gradingCriteriaRow.gpa_max)
+    }
   };
 
   return { students, subjects, courses, enrollments, plans, attendance, tests, users: users.length ? users : fallbackUsers(), settings };
@@ -398,6 +441,18 @@ async function writeState(state) {
     await request().query("DELETE FROM dbo.quarters");
     await request().query("DELETE FROM dbo.school_years");
     await request().query("DELETE FROM dbo.grade_types");
+    await request().query(`
+      IF OBJECT_ID('dbo.grading_criteria', 'U') IS NULL
+      BEGIN
+        CREATE TABLE dbo.grading_criteria (
+          id NVARCHAR(64) NOT NULL PRIMARY KEY,
+          letter_scale_json NVARCHAR(MAX) NOT NULL,
+          gpa_scale_option NVARCHAR(20) NOT NULL,
+          gpa_max INT NOT NULL
+        )
+      END
+    `);
+    await request().query("DELETE FROM dbo.grading_criteria");
 
     const students = uniqueById(state.students);
     for (const row of students) {
@@ -531,6 +586,17 @@ async function writeState(state) {
         .input("weight", sql.Decimal(6, 2), row.weight == null || row.weight === "" ? null : Number(row.weight))
         .query("INSERT INTO dbo.grade_types (id, name, weight) VALUES (@id, @name, @weight)");
     }
+
+    const gradingCriteria = settings.gradingCriteria || {};
+    await request()
+      .input("id", sql.NVarChar(64), "grading-criteria")
+      .input("letter_scale_json", sql.NVarChar(sql.MAX), JSON.stringify(Array.isArray(gradingCriteria.letterScale) ? gradingCriteria.letterScale : DEFAULT_LETTER_GRADE_SCALE.map(({ label }) => ({ label, start: null, end: null }))))
+      .input("gpa_scale_option", sql.NVarChar(20), gradingCriteria.gpaScaleOption || "4")
+      .input("gpa_max", sql.Int, Number(gradingCriteria.gpaMax || 4))
+      .query(`
+        INSERT INTO dbo.grading_criteria (id, letter_scale_json, gpa_scale_option, gpa_max)
+        VALUES (@id, @letter_scale_json, @gpa_scale_option, @gpa_max)
+      `);
 
     const plans = uniqueById(state.plans);
     for (const row of plans) {

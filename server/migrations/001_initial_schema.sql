@@ -10,6 +10,7 @@ IF OBJECT_ID('dbo.daily_breaks', 'U') IS NOT NULL DROP TABLE dbo.daily_breaks;
 IF OBJECT_ID('dbo.holidays', 'U') IS NOT NULL DROP TABLE dbo.holidays;
 IF OBJECT_ID('dbo.quarters', 'U') IS NOT NULL DROP TABLE dbo.quarters;
 IF OBJECT_ID('dbo.school_years', 'U') IS NOT NULL DROP TABLE dbo.school_years;
+IF OBJECT_ID('dbo.grading_criteria', 'U') IS NOT NULL DROP TABLE dbo.grading_criteria;
 IF OBJECT_ID('dbo.grade_types', 'U') IS NOT NULL DROP TABLE dbo.grade_types;
 
 CREATE TABLE dbo.students (
@@ -90,6 +91,13 @@ CREATE TABLE dbo.grade_types (
   id NVARCHAR(64) NOT NULL PRIMARY KEY,
   name NVARCHAR(80) NOT NULL UNIQUE,
   weight DECIMAL(6,2) NULL
+);
+
+CREATE TABLE dbo.grading_criteria (
+  id NVARCHAR(64) NOT NULL PRIMARY KEY,
+  letter_scale_json NVARCHAR(MAX) NOT NULL,
+  gpa_scale_option NVARCHAR(20) NOT NULL,
+  gpa_max INT NOT NULL
 );
 
 CREATE TABLE dbo.plans (

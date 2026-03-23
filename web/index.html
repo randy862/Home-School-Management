@@ -48,6 +48,7 @@
         <button class="tab-btn" data-tab="attendance" type="button">Attendance</button>
         <button class="tab-btn" data-tab="grades" type="button">Grades</button>
         <button class="tab-btn" data-tab="users" type="button">Users</button>
+        <button class="tab-btn" data-tab="reports" type="button">Reports</button>
       </nav>
     </header>
 
@@ -380,6 +381,53 @@
               <tbody id="grade-type-table"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <div class="management-section management-section-grading-criteria">
+        <div class="subsection-toggle-row">
+          <button id="management-grading-criteria-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
+          <h3>Grading Criteria</h3>
+        </div>
+        <div id="management-grading-criteria-wrap" class="hidden">
+          <form id="grading-criteria-form">
+            <div class="grading-criteria-grid">
+              <div class="grading-criteria-card">
+                <h4>Letter Grading Scale</h4>
+                <p class="muted">Leave blank to use defaults: A = 90-100, B = 80-89, C = 70-79, D = 60-69, F = 0-59.</p>
+                <div class="letter-grade-scale-grid">
+                  <label>A Starting Score<input id="grading-scale-a-start" type="number" min="0" max="100" step="1"></label>
+                  <label>A Ending Score<input id="grading-scale-a-end" type="number" min="0" max="100" step="1"></label>
+                  <label>B Starting Score<input id="grading-scale-b-start" type="number" min="0" max="100" step="1"></label>
+                  <label>B Ending Score<input id="grading-scale-b-end" type="number" min="0" max="100" step="1"></label>
+                  <label>C Starting Score<input id="grading-scale-c-start" type="number" min="0" max="100" step="1"></label>
+                  <label>C Ending Score<input id="grading-scale-c-end" type="number" min="0" max="100" step="1"></label>
+                  <label>D Starting Score<input id="grading-scale-d-start" type="number" min="0" max="100" step="1"></label>
+                  <label>D Ending Score<input id="grading-scale-d-end" type="number" min="0" max="100" step="1"></label>
+                  <label>F Starting Score<input id="grading-scale-f-start" type="number" min="0" max="100" step="1"></label>
+                  <label>F Ending Score<input id="grading-scale-f-end" type="number" min="0" max="100" step="1"></label>
+                </div>
+              </div>
+              <div class="grading-criteria-card">
+                <h4>GPA Scale</h4>
+                <label>GPA
+                  <select id="grading-gpa-scale" required>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <label id="grading-gpa-other-wrap" class="hidden">Custom GPA Max<input id="grading-gpa-other" type="number" min="1" step="1"></label>
+              </div>
+            </div>
+            <p id="grading-criteria-message" class="muted"></p>
+            <div class="grading-criteria-actions">
+              <button id="grading-criteria-edit-btn" type="button">Edit Grading Criteria</button>
+              <button id="grading-criteria-submit-btn" type="submit">Save Grading Criteria</button>
+              <button id="grading-criteria-cancel-btn" type="button" class="hidden">Cancel Edit</button>
+            </div>
+          </form>
         </div>
       </div>
     </section>
@@ -822,6 +870,28 @@
             </table>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section id="tab-reports" class="tab-panel panel">
+      <h2>Reports</h2>
+      <div class="reports-section">
+        <form id="reports-form" class="grid-form">
+          <label class="reports-student-field">Student
+            <details id="reports-student-dropdown" class="multi-select-dropdown">
+              <summary id="reports-student-summary">Students (0 selected)</summary>
+              <div id="reports-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label>School Year
+            <select id="reports-school-year" required></select>
+          </label>
+          <label>Quarter
+            <select id="reports-quarter" required></select>
+          </label>
+          <button id="reports-generate-btn" type="submit">Generate Report</button>
+        </form>
+        <p id="reports-message" class="muted">Select students, school year, and quarter to generate a printable report.</p>
       </div>
     </section>
   </main>

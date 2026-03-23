@@ -1196,6 +1196,32 @@ td {
   margin-top: 0.6rem;
 }
 
+.reports-section {
+  border: 1px solid #d8cfbf;
+  border-radius: 10px;
+  background: #f6f1e7;
+  padding: 0.75rem;
+}
+
+#reports-form {
+  grid-template-columns: minmax(260px, 1.5fr) minmax(180px, 0.9fr) minmax(180px, 0.9fr) auto;
+  align-items: end;
+  column-gap: 0.8rem;
+  row-gap: 0.6rem;
+}
+
+.reports-student-field {
+  align-self: stretch;
+}
+
+#reports-form > button {
+  width: auto;
+  justify-self: start;
+  align-self: end;
+  height: calc(1em + 0.84rem + 2px);
+  padding: 0.42rem 0.8rem;
+}
+
 .management-section h3 {
   margin: 0 0 0.35rem;
 }
@@ -1213,6 +1239,11 @@ td {
 .management-section-grade-types {
   background: #eff6ed;
   border-color: #c7d8bf;
+}
+
+.management-section-grading-criteria {
+  background: #f4efe7;
+  border-color: #d5c7b4;
 }
 
 .subsection-toggle-row {
@@ -1431,6 +1462,56 @@ td {
   margin: 0 0 0.4rem;
 }
 
+#grading-criteria-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.grading-criteria-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1.4fr) minmax(220px, 0.8fr);
+  gap: 0.8rem;
+}
+
+.grading-criteria-card {
+  border: 1px solid #dbcdb9;
+  border-radius: 10px;
+  background: rgba(255, 251, 243, 0.82);
+  padding: 0.8rem;
+}
+
+.grading-criteria-card h4 {
+  margin: 0 0 0.4rem;
+}
+
+.grading-criteria-card .muted {
+  margin-top: 0;
+}
+
+.letter-grade-scale-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 0.6rem 0.75rem;
+}
+
+#grading-gpa-scale,
+#grading-gpa-other {
+  max-width: 180px;
+}
+
+.grading-criteria-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+#grading-criteria-edit-btn,
+#grading-criteria-submit-btn,
+#grading-criteria-cancel-btn {
+  width: auto;
+}
+
 #attendance-filter-form > button {
   align-self: end;
   justify-self: start;
@@ -1630,6 +1711,14 @@ td {
   .quarter-grid {
     grid-template-columns: 1fr 1fr;
   }
+
+  .grading-criteria-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #reports-form {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1670,6 +1759,14 @@ td {
   .auth-panel {
     grid-column: 1;
     transform: none;
+  }
+
+  .letter-grade-scale-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #reports-form {
+    grid-template-columns: 1fr;
   }
 
 }
