@@ -415,6 +415,7 @@ let editingUserId = "";
 const expandedStudentAverageRows = new Set();
 const expandedSubjectAverageRows = new Set();
 const expandedStudentAttendanceRows = new Set();
+const expandedStudentInstructionalHourRows = new Set();
 const trendSelectedStudentIds = new Set();
 const gpaTrendSelectedStudentIds = new Set();
 const volumeSelectedStudentIds = new Set();
@@ -1024,6 +1025,110 @@ function studentAttendanceSummaryByRange(studentId, startDate, endDate) {
     attended,
     absent
   };
+}
+
+function instructionalHourBuckets() {
+  const quarterByName = new Map(
+    (state.settings.quarters || []).map((quarter) => [String(quarter.name || "").toUpperCase(), { ...quarter }])
+  );
+  return [
+    {
+      key: "total",
+      label: "Total",
+      startDate: state.settings.schoolYear.startDate,
+      endDate: state.settings.schoolYear.endDate
+    },
+    ..."Q1 Q2 Q3 Q4".split(" ").map((name) => {
+      const quarter = quarterByName.get(name);
+      return {
+        key: name.toLowerCase(),
+        label: name,
+        startDate: quarter?.startDate || "",
+        endDate: quarter?.endDate || ""
+      };
+    })
+  ];
+}
+
+function buildInstructionalHoursSnapshot(studentIds = null) {
+  const targetStudentIds = studentIds && studentIds.length
+    ? new Set(studentIds)
+    : new Set(state.students.map((student) => student.id));
+  const buckets = instructionalHourBuckets();
+  const summaryByStudent = new Map();
+  const attendanceByStudentDate = new Map();
+  const yearStart = toDate(state.settings.schoolYear.startDate);
+  const yearEnd = toDate(state.settings.schoolYear.endDate);
+  const todayKey = todayISO();
+  if (Number.isNaN(yearStart.getTime()) || Number.isNaN(yearEnd.getTime()) || yearEnd < yearStart) {
+    return { buckets, summaryByStudent };
+  }
+
+  const ensureBucketMetrics = () => ({ earned: 0, projected: 0 });
+  const ensureStudentSummary = (studentId) => {
+    if (!summaryByStudent.has(studentId)) {
+      summaryByStudent.set(studentId, {
+        buckets: Object.fromEntries(buckets.map((bucket) => [bucket.key, ensureBucketMetrics()])),
+        subjects: new Map()
+      });
+    }
+    return summaryByStudent.get(studentId);
+  };
+  const ensureSubjectSummary = (studentSummary, subjectId) => {
+    if (!studentSummary.subjects.has(subjectId)) {
+      studentSummary.subjects.set(subjectId, {
+        subjectId,
+        buckets: Object.fromEntries(buckets.map((bucket) => [bucket.key, ensureBucketMetrics()]))
+      });
+    }
+    return studentSummary.subjects.get(subjectId);
+  };
+  const addHours = (metrics, hours, earned) => {
+    metrics.projected += hours;
+    if (earned) metrics.earned += hours;
+  };
+
+  state.attendance.forEach((record) => {
+    if (!targetStudentIds.has(record.studentId)) return;
+    const key = `${record.studentId}||${record.date}`;
+    if (!attendanceByStudentDate.has(key)) {
+      attendanceByStudentDate.set(key, !!record.present);
+      return;
+    }
+    const existingPresent = attendanceByStudentDate.get(key);
+    if (existingPresent && !record.present) {
+      attendanceByStudentDate.set(key, false);
+    }
+  });
+
+  const cursor = new Date(yearStart);
+  while (cursor <= yearEnd) {
+    const dateKey = toISO(cursor);
+    const events = calendarEventsForDate(dateKey, Array.from(targetStudentIds));
+    events.forEach((event) => {
+      if (!targetStudentIds.has(event.studentId)) return;
+      const course = getCourse(event.courseId);
+      if (!course) return;
+      const hours = Number(course.hoursPerDay || 0);
+      if (!(hours > 0)) return;
+
+      const studentSummary = ensureStudentSummary(event.studentId);
+      const subjectSummary = ensureSubjectSummary(studentSummary, course.subjectId || "__unknown_subject__");
+      const earned = dateKey <= todayKey && attendanceByStudentDate.get(`${event.studentId}||${dateKey}`) === true;
+
+      addHours(studentSummary.buckets.total, hours, earned);
+      addHours(subjectSummary.buckets.total, hours, earned);
+      buckets.slice(1).forEach((bucket) => {
+        if (!bucket.startDate || !bucket.endDate) return;
+        if (!inRange(dateKey, bucket.startDate, bucket.endDate)) return;
+        addHours(studentSummary.buckets[bucket.key], hours, earned);
+        addHours(subjectSummary.buckets[bucket.key], hours, earned);
+      });
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return { buckets, summaryByStudent };
 }
 
 function dateDiffDays(a, b){ return Math.floor((b - a) / (1000 * 60 * 60 * 24)); }
@@ -3107,6 +3212,9 @@ function renderDashboard() {
   Array.from(expandedStudentAttendanceRows).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) expandedStudentAttendanceRows.delete(studentId);
   });
+  Array.from(expandedStudentInstructionalHourRows).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) expandedStudentInstructionalHourRows.delete(studentId);
+  });
   Array.from(trendSelectedStudentIds).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) trendSelectedStudentIds.delete(studentId);
   });
@@ -3254,6 +3362,44 @@ function renderDashboard() {
     return [studentRow, ...quarterRows];
   });
   rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
+
+  const instructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id));
+  const formatInstructionalHoursCell = (bucketMetrics) => {
+    const earned = Number(bucketMetrics?.earned || 0).toFixed(1);
+    const projected = Number(bucketMetrics?.projected || 0).toFixed(1);
+    return `<span class="instructional-hours-cell">${earned} / ${projected} hrs</span>`;
+  };
+  const instructionalHourRows = dashboardStudents
+    .map((student) => {
+      const studentSummary = instructionalHours.summaryByStudent.get(student.id) || {
+        buckets: Object.fromEntries(instructionalHours.buckets.map((bucket) => [bucket.key, { earned: 0, projected: 0 }])),
+        subjects: new Map()
+      };
+      const expanded = expandedStudentInstructionalHourRows.has(student.id);
+      const detailRows = Array.from(studentSummary.subjects.values())
+        .sort((a, b) =>
+          (b.buckets.total.earned - a.buckets.total.earned)
+          || getSubjectName(a.subjectId).localeCompare(getSubjectName(b.subjectId)))
+        .map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${getSubjectName(subjectSummary.subjectId)}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}</tr>`)
+        .join("");
+
+      return {
+        studentName: `${student.firstName} ${student.lastName}`,
+        earnedTotal: studentSummary.buckets.total.earned,
+        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "-" : "+"}</button> ${student.firstName} ${student.lastName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatInstructionalHoursCell(studentSummary.buckets[bucket.key])}</td>`).join("")}</tr>`,
+        detailRow: expanded
+          ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>")
+          : ""
+      };
+    })
+    .sort((a, b) => b.earnedTotal - a.earnedTotal || a.studentName.localeCompare(b.studentName));
+  rowOrEmpty(
+    document.getElementById("dashboard-student-instructional-hours-table"),
+    instructionalHourRows.flatMap((entry) => entry.detailRow ? [entry.row, entry.detailRow] : [entry.row]),
+    "No students added yet.",
+    6
+  );
+
   renderGradeTrending();
   renderGpaTrending();
   renderGradeTypeVolumeChart();
@@ -4932,6 +5078,13 @@ function bindEvents() {
     if (toggleStudentAttendanceId) {
       if (expandedStudentAttendanceRows.has(toggleStudentAttendanceId)) expandedStudentAttendanceRows.delete(toggleStudentAttendanceId);
       else expandedStudentAttendanceRows.add(toggleStudentAttendanceId);
+      renderDashboard();
+      return;
+    }
+    const toggleStudentInstructionalHoursId = t.getAttribute("data-toggle-student-instructional-hours");
+    if (toggleStudentInstructionalHoursId) {
+      if (expandedStudentInstructionalHourRows.has(toggleStudentInstructionalHoursId)) expandedStudentInstructionalHourRows.delete(toggleStudentInstructionalHoursId);
+      else expandedStudentInstructionalHourRows.add(toggleStudentInstructionalHoursId);
       renderDashboard();
       return;
     }

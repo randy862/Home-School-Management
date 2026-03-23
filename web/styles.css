@@ -325,6 +325,16 @@ h3 {
   margin-bottom: 0.75rem;
 }
 
+#quarters-form > button,
+#holiday-form > button {
+  align-self: end;
+  justify-self: start;
+  width: auto;
+  min-width: 0;
+  height: calc(1em + 0.84rem + 2px);
+  padding: 0.42rem 0.8rem;
+}
+
 label {
   display: grid;
   gap: 0.2rem;
@@ -676,6 +686,32 @@ td {
 .student-avg-type-cell {
   padding-left: 4.2rem;
   color: var(--muted);
+}
+
+.instructional-hours-cell {
+  white-space: nowrap;
+}
+
+.instructional-hours-notation {
+  margin: -0.25rem 0 0.75rem;
+}
+
+.dashboard-section-student-performance th,
+.dashboard-section-student-performance td,
+.dashboard-section-student-attendance th,
+.dashboard-section-student-attendance td,
+.dashboard-section-student-instructional-hours th,
+.dashboard-section-student-instructional-hours td {
+  text-align: center;
+}
+
+.dashboard-section-student-performance th:first-child,
+.dashboard-section-student-performance td:first-child,
+.dashboard-section-student-attendance th:first-child,
+.dashboard-section-student-attendance td:first-child,
+.dashboard-section-student-instructional-hours th:first-child,
+.dashboard-section-student-instructional-hours td:first-child {
+  text-align: left;
 }
 
 .student-avg-detail-empty {
