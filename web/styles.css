@@ -1302,6 +1302,10 @@ td {
   padding: 0.42rem 0.8rem;
 }
 
+#reports-message {
+  margin-top: 0.65rem;
+}
+
 .management-section h3 {
   margin: 0 0 0.35rem;
 }
