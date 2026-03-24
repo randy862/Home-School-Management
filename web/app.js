@@ -2197,6 +2197,37 @@ function reportSummaryRows(studentIds, range) {
   });
 }
 
+function reportStudentCourseSummaryRows(studentIds, range) {
+  const studentOrder = new Map(studentIds.map((studentId, index) => [studentId, index]));
+  const rows = [];
+  studentIds.forEach((studentId) => {
+    const tests = state.tests.filter((test) =>
+      test.studentId === studentId
+      && inRange(test.date, range.startDate, range.endDate));
+    const courseMap = new Map();
+    tests.forEach((test) => {
+      const courseId = test.courseId || "__unknown_course__";
+      if (!courseMap.has(courseId)) courseMap.set(courseId, []);
+      courseMap.get(courseId).push(test);
+    });
+    Array.from(courseMap.entries()).forEach(([courseId, courseTests]) => {
+      const averageScore = weightedAverageForTests(courseTests, { quarterScoped: range.quarterScoped });
+      rows.push({
+        studentId,
+        student: getStudentName(studentId),
+        course: courseId === "__unknown_course__" ? "Unknown Course" : getCourseName(courseId),
+        averageScore,
+        letterGrade: courseTests.length ? scoreToLetterGrade(averageScore) : "",
+        gpa: courseTests.length ? averageToGpa(averageScore) : 0,
+        count: courseTests.length
+      });
+    });
+  });
+  return rows.sort((a, b) =>
+    (studentOrder.get(a.studentId) ?? Number.MAX_SAFE_INTEGER) - (studentOrder.get(b.studentId) ?? Number.MAX_SAFE_INTEGER)
+    || a.course.localeCompare(b.course));
+}
+
 function reportGradeRows(studentIds, range) {
   const studentOrder = new Map(studentIds.map((studentId, index) => [studentId, index]));
   return state.tests
@@ -2235,7 +2266,9 @@ function reportAttendanceRows(studentIds, range) {
 function buildPrintableReportHtml({ studentIds, range }) {
   const titlePeriod = range.quarter ? `${range.schoolYear.label} | ${range.quarter.name}` : `${range.schoolYear.label} | All Quarters`;
   const selectedStudentsLabel = studentIds.map((studentId) => getStudentName(studentId)).join(", ");
+  const configuredWeights = configuredGradeTypes();
   const summaryRows = reportSummaryRows(studentIds, range);
+  const studentCourseSummaryRows = reportStudentCourseSummaryRows(studentIds, range);
   const gradeRows = reportGradeRows(studentIds, range);
   const attendanceRows = reportAttendanceRows(studentIds, range);
   const instructionalHourRows = reportInstructionalHourRows(studentIds, range);
@@ -2245,6 +2278,29 @@ function buildPrintableReportHtml({ studentIds, range }) {
   const gradeTableRows = gradeRows.length
     ? gradeRows.map((row) => `<tr><td>${escapeHtml(row.student)}</td><td>${escapeHtml(row.subject)}</td><td>${escapeHtml(row.course)}</td><td>${row.date}</td><td>${escapeHtml(row.gradeType)}</td><td>${escapeHtml(row.grade)}</td></tr>`).join("")
     : "<tr><td colspan='6'>No grade records found for the selected filters.</td></tr>";
+  const studentCourseSummarySections = studentCourseSummaryRows.length
+    ? (() => {
+      const groupedRows = new Map();
+      studentCourseSummaryRows.forEach((row) => {
+        if (!groupedRows.has(row.student)) groupedRows.set(row.student, []);
+        groupedRows.get(row.student).push(row);
+      });
+      return Array.from(groupedRows.entries()).map(([student, rows]) => {
+        const tableRows = rows
+          .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${row.count ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${escapeHtml(row.letterGrade || "-")}</td><td>${row.count ? row.gpa.toFixed(2) : "-"}</td></tr>`)
+          .join("");
+        return `
+          <h2>${escapeHtml(student)}</h2>
+          <table>
+            <thead><tr><th>Course</th><th>Average Score</th><th>Letter Grade</th><th>GPA</th></tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>`;
+      }).join("");
+    })()
+    : "<p>No course summary data found for the selected filters.</p>";
+  const gradeWeightingTableRows = configuredWeights.length
+    ? configuredWeights.map((gradeType) => `<tr><td>${escapeHtml(gradeType.name)}</td><td>${gradeType.weight == null ? "Not set" : `${Number(gradeType.weight).toFixed(1)}%`}</td></tr>`).join("")
+    : "<tr><td colspan='2'>No grade weighting configured.</td></tr>";
   const attendanceTableRows = attendanceRows.length
     ? attendanceRows.map((row) => `<tr><td>${escapeHtml(row.student)}</td><td>${row.date}</td><td>${row.attendance}</td></tr>`).join("")
     : "<tr><td colspan='3'>No attendance records found for the selected filters.</td></tr>";
@@ -2315,6 +2371,13 @@ function buildPrintableReportHtml({ studentIds, range }) {
       <table>
         <thead><tr><th>Student Name</th><th>Average Scores</th><th>Letter Grade</th><th>GPA</th><th>Days Attended</th><th>Days Absent</th><th>Instructional Days Completed</th><th>Instructional Hours Completed</th></tr></thead>
         <tbody>${summaryTableRows}</tbody>
+      </table>
+      <h2>Course Summary</h2>
+      ${studentCourseSummarySections}
+      <h2>Grade Weighting</h2>
+      <table>
+        <thead><tr><th>Grade Type</th><th>Weight</th></tr></thead>
+        <tbody>${gradeWeightingTableRows}</tbody>
       </table>
     </section>
 
