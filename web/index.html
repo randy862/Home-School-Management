@@ -910,21 +910,30 @@
       <h2>Reports</h2>
       <div class="reports-section">
         <form id="reports-form" class="grid-form">
-          <label class="reports-student-field">Student
-            <details id="reports-student-dropdown" class="multi-select-dropdown">
-              <summary id="reports-student-summary">Students (0 selected)</summary>
-              <div id="reports-student-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label>School Year
-            <select id="reports-school-year" required></select>
-          </label>
-          <label>Quarter
-            <select id="reports-quarter" required></select>
-          </label>
+          <section class="reports-filter-group">
+            <h3>Report Criteria</h3>
+            <div class="reports-criteria-grid">
+              <label class="reports-student-field">Student
+                <details id="reports-student-dropdown" class="multi-select-dropdown">
+                  <summary id="reports-student-summary">Students (0 selected)</summary>
+                  <div id="reports-student-options" class="checklist-vertical"></div>
+                </details>
+              </label>
+              <label>School Year
+                <select id="reports-school-year" required></select>
+              </label>
+              <label>Quarter
+                <select id="reports-quarter" required></select>
+              </label>
+            </div>
+          </section>
+          <section class="reports-filter-group">
+            <h3>Report Content</h3>
+            <div id="reports-content-options" class="checklist-vertical reports-content-checklist"></div>
+          </section>
           <button id="reports-generate-btn" type="submit">Generate Report</button>
         </form>
-        <p id="reports-message" class="muted">Select students, school year, and quarter to generate a printable report.</p>
+        <p id="reports-message" class="muted">Select report criteria and content to generate a printable report.</p>
       </div>
     </section>
   </main>

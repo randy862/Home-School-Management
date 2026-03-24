@@ -664,6 +664,14 @@ let calendarSelectedStudentIds = new Set();
 let calendarSelectedSubjectIds = new Set();
 let calendarSelectedCourseIds = new Set();
 let reportSelectedStudentIds = new Set();
+const REPORT_CONTENT_OPTIONS = [
+  { id: "studentSummary", label: "Student Summary" },
+  { id: "courseSummary", label: "Course Summary" },
+  { id: "detailedGrades", label: "Detailed Grades" },
+  { id: "detailedAttendance", label: "Detailed Attendance" },
+  { id: "instructionalHours", label: "Instructional Hours" }
+];
+let reportSelectedContentIds = new Set(REPORT_CONTENT_OPTIONS.map((option) => option.id));
 let loginMessageKind = "";
 let userFormMessageKind = "";
 function cloneGradeTypes(items) {
@@ -1591,6 +1599,7 @@ function renderSelects() {
   renderDailyBreakStudentChecklist(getSelectedDailyBreakStudentIds());
   renderAttendanceStudentChecklist();
   renderReportStudentChecklist(Array.from(reportSelectedStudentIds));
+  renderReportContentChecklist(Array.from(reportSelectedContentIds));
   renderStudentPerformanceGradeMethodChecklist(Array.from(studentPerformanceSelectedGradeMethods));
   renderTrendStudentChecklist(Array.from(trendSelectedStudentIds));
   renderGpaTrendStudentChecklist(Array.from(gpaTrendSelectedStudentIds));
@@ -1949,6 +1958,23 @@ function getSelectedReportStudentIds() {
   return Array.from(document.querySelectorAll(".reports-student-checkbox:checked")).map((el) => el.value);
 }
 
+function renderReportContentChecklist(preselectedContentIds = []) {
+  const optionsWrap = document.getElementById("reports-content-options");
+  if (!optionsWrap) return;
+  const validIds = new Set(REPORT_CONTENT_OPTIONS.map((option) => option.id));
+  const selected = new Set(preselectedContentIds.filter((contentId) => validIds.has(contentId)));
+  const checkboxes = REPORT_CONTENT_OPTIONS.map((option, idx) => {
+    const checked = selected.has(option.id) ? " checked" : "";
+    const inputId = `reports-content-${idx}-${option.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="reports-content-checkbox" value="${option.id}"${checked}><label for="${inputId}">${option.label}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes;
+}
+
+function getSelectedReportContentIds() {
+  return Array.from(document.querySelectorAll(".reports-content-checkbox:checked")).map((el) => el.value);
+}
+
 function setReportsMessage(kind, message) {
   const el = document.getElementById("reports-message");
   if (!el) return;
@@ -2266,6 +2292,7 @@ function reportAttendanceRows(studentIds, range) {
 function buildPrintableReportHtml({ studentIds, range }) {
   const titlePeriod = range.quarter ? `${range.schoolYear.label} | ${range.quarter.name}` : `${range.schoolYear.label} | All Quarters`;
   const selectedStudentsLabel = studentIds.map((studentId) => getStudentName(studentId)).join(", ");
+  const selectedContentIds = Array.from(reportSelectedContentIds);
   const configuredWeights = configuredGradeTypes();
   const summaryRows = reportSummaryRows(studentIds, range);
   const studentCourseSummaryRows = reportStudentCourseSummaryRows(studentIds, range);
@@ -2327,6 +2354,75 @@ function buildPrintableReportHtml({ studentIds, range }) {
     })()
     : "<p>No instructional hours found for the selected filters.</p>";
   const totalInstructionalHours = instructionalHourRows.reduce((sum, row) => sum + row.instructionalHours, 0);
+  const pageSections = [];
+
+  if (selectedContentIds.includes("studentSummary")) {
+    pageSections.push(`
+    <section class="report-page report-page-break">
+      <h1>Student Summary</h1>
+      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      <table>
+        <thead><tr><th>Student Name</th><th>Average Scores</th><th>Letter Grade</th><th>GPA</th><th>Days Attended</th><th>Days Absent</th><th>Instructional Days Completed</th><th>Instructional Hours Completed</th></tr></thead>
+        <tbody>${summaryTableRows}</tbody>
+      </table>
+    </section>`);
+  }
+
+  if (selectedContentIds.includes("courseSummary")) {
+    pageSections.push(`
+    <section class="report-page report-page-break">
+      <h1>Course Summary</h1>
+      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      ${studentCourseSummarySections}
+    </section>`);
+  }
+
+  if (selectedContentIds.includes("detailedGrades")) {
+    pageSections.push(`
+    <section class="report-page report-page-break">
+      <h1>Detailed Grades</h1>
+      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      <table>
+        <thead><tr><th>Student</th><th>Subject</th><th>Course</th><th>Date</th><th>Grade Type</th><th>Grade</th></tr></thead>
+        <tbody>${gradeTableRows}</tbody>
+      </table>
+    </section>`);
+  }
+
+  if (selectedContentIds.includes("detailedAttendance")) {
+    pageSections.push(`
+    <section class="report-page report-page-break">
+      <h1>Detailed Attendance</h1>
+      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      <table>
+        <thead><tr><th>Student</th><th>Date</th><th>Attendance</th></tr></thead>
+        <tbody>${attendanceTableRows}</tbody>
+      </table>
+    </section>`);
+  }
+
+  if (selectedContentIds.includes("instructionalHours")) {
+    pageSections.push(`
+    <section class="report-page">
+      <h1>Instructional Hours</h1>
+      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      ${instructionalHoursSections}
+      <p class="report-meta"><strong>Total Instructional Hours:</strong> ${totalInstructionalHours.toFixed(1)}</p>
+    </section>`);
+  }
+
+  const gradeWeightingSection = `
+      <section class="report-subsection report-subsection-grade-weighting">
+        <h2>Grade Weighting</h2>
+        <table>
+          <thead><tr><th>Grade Type</th><th>Weight</th></tr></thead>
+          <tbody>${gradeWeightingTableRows}</tbody>
+        </table>
+      </section>`;
+  if (pageSections.length) {
+    pageSections[0] = pageSections[0].replace("</section>", `${gradeWeightingSection}
+    </section>`);
+  }
 
   return `<!doctype html>
 <html lang="en">
@@ -2342,6 +2438,7 @@ function buildPrintableReportHtml({ studentIds, range }) {
     .report-page.report-page-break { page-break-after: always; }
     h1 { margin: 0 0 8px; font-size: 28px; }
     h2 { margin: 20px 0 8px; font-size: 20px; }
+    .report-subsection-grade-weighting { margin-top: 20px; }
     .report-meta { margin: 0 0 18px; color: #6c5847; }
     table { width: 100%; border-collapse: collapse; }
     th, td { border: 1px solid #d9cdb7; padding: 8px 10px; text-align: left; vertical-align: top; }
@@ -2365,46 +2462,7 @@ function buildPrintableReportHtml({ studentIds, range }) {
       <button type="button" onclick="window.print()">Print</button>
     </div>
 
-    <section class="report-page report-page-break">
-      <h1>Student Summary</h1>
-      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
-      <table>
-        <thead><tr><th>Student Name</th><th>Average Scores</th><th>Letter Grade</th><th>GPA</th><th>Days Attended</th><th>Days Absent</th><th>Instructional Days Completed</th><th>Instructional Hours Completed</th></tr></thead>
-        <tbody>${summaryTableRows}</tbody>
-      </table>
-      <h2>Course Summary</h2>
-      ${studentCourseSummarySections}
-      <h2>Grade Weighting</h2>
-      <table>
-        <thead><tr><th>Grade Type</th><th>Weight</th></tr></thead>
-        <tbody>${gradeWeightingTableRows}</tbody>
-      </table>
-    </section>
-
-    <section class="report-page report-page-break">
-      <h1>Grade Report</h1>
-      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
-      <table>
-        <thead><tr><th>Student</th><th>Subject</th><th>Course</th><th>Date</th><th>Grade Type</th><th>Grade</th></tr></thead>
-        <tbody>${gradeTableRows}</tbody>
-      </table>
-    </section>
-
-    <section class="report-page report-page-break">
-      <h1>Attendance Report</h1>
-      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
-      <table>
-        <thead><tr><th>Student</th><th>Date</th><th>Attendance</th></tr></thead>
-        <tbody>${attendanceTableRows}</tbody>
-      </table>
-    </section>
-
-    <section class="report-page">
-      <h1>Instructional Hours Report</h1>
-      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
-      ${instructionalHoursSections}
-      <p class="report-meta"><strong>Total Instructional Hours:</strong> ${totalInstructionalHours.toFixed(1)}</p>
-    </section>
+    ${pageSections.join("\n")}
   </div>
 </body>
 </html>`;
@@ -2412,10 +2470,15 @@ function buildPrintableReportHtml({ studentIds, range }) {
 
 function generatePrintableReport() {
   const studentIds = Array.from(reportSelectedStudentIds);
+  const selectedContentIds = Array.from(reportSelectedContentIds);
   const schoolYearId = document.getElementById("reports-school-year")?.value || "";
   const quarterName = document.getElementById("reports-quarter")?.value || "";
   if (!studentIds.length || !schoolYearId || !quarterName) {
     setReportsMessage("error", "Student, School Year, and Quarter are all required.");
+    return;
+  }
+  if (!selectedContentIds.length) {
+    setReportsMessage("error", "Select at least one Report Content option.");
     return;
   }
   const range = reportRangeForSelection(schoolYearId, quarterName);
@@ -5920,7 +5983,7 @@ function bindEvents() {
   if (reportsSchoolYearSelect) {
     reportsSchoolYearSelect.addEventListener("change", () => {
       syncReportsQuarterOptions();
-      setReportsMessage("", "Select students, school year, and quarter to generate a printable report.");
+      setReportsMessage("", "Select report criteria and content to generate a printable report.");
     });
   }
 
@@ -6594,6 +6657,10 @@ function bindEvents() {
     if (t.classList.contains("reports-student-checkbox")) {
       reportSelectedStudentIds = new Set(getSelectedReportStudentIds());
       updateReportStudentSummary();
+      return;
+    }
+    if (t.classList.contains("reports-content-checkbox")) {
+      reportSelectedContentIds = new Set(getSelectedReportContentIds());
       return;
     }
     if (t.classList.contains("calendar-student-all-checkbox")) {

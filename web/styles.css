@@ -1255,14 +1255,43 @@ td {
 }
 
 #reports-form {
-  grid-template-columns: minmax(260px, 1.5fr) minmax(180px, 0.9fr) minmax(180px, 0.9fr) auto;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  gap: 0.85rem;
+  margin-bottom: 0;
+}
+
+.reports-filter-group {
+  border: 1px solid #d8cfbf;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  padding: 0.8rem;
+}
+
+.reports-filter-group h3 {
+  margin: 0 0 0.65rem;
+}
+
+.reports-criteria-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.5fr) minmax(180px, 0.9fr) minmax(180px, 0.9fr);
+  gap: 0.8rem;
   align-items: end;
-  column-gap: 0.8rem;
-  row-gap: 0.6rem;
 }
 
 .reports-student-field {
   align-self: stretch;
+}
+
+#reports-form .reports-criteria-grid > label > select,
+#reports-form .reports-criteria-grid .multi-select-dropdown summary {
+  height: 42px;
+  line-height: 1.2;
+}
+
+.reports-content-checklist {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.45rem 0.9rem;
 }
 
 #reports-form > button {
@@ -1784,6 +1813,10 @@ td {
 
 @media (max-width: 640px) {
   #calendar-form {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-criteria-grid {
     grid-template-columns: 1fr;
   }
 
