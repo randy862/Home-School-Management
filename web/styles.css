@@ -490,6 +490,16 @@ button.secondary-btn {
   align-self: stretch;
 }
 
+.student-performance-grade-method-field {
+  align-self: stretch;
+}
+
+#student-performance-filter-form {
+  grid-template-columns: minmax(260px, 320px);
+  align-items: end;
+  margin-bottom: 0.75rem;
+}
+
 #daily-break-form {
   grid-template-columns: minmax(250px, 1.7fr) 180px 180px;
   align-items: end;
@@ -571,6 +581,11 @@ button.secondary-btn {
   align-items: end;
 }
 
+#instruction-hours-trend-filter-form {
+  grid-template-columns: minmax(260px, 2.2fr) minmax(90px, 0.6fr) minmax(140px, 1fr) auto;
+  align-items: end;
+}
+
 #volume-filter-form {
   grid-template-columns: minmax(260px, 2.2fr) minmax(90px, 0.6fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
   align-items: end;
@@ -590,6 +605,10 @@ button.secondary-btn {
   min-width: 0;
 }
 
+#instruction-hours-trend-filter-form label {
+  min-width: 0;
+}
+
 #volume-filter-form label {
   min-width: 0;
 }
@@ -603,6 +622,10 @@ button.secondary-btn {
 }
 
 #gpa-trend-filter-quarter {
+  max-width: 110px;
+}
+
+#instruction-hours-trend-filter-quarter {
   max-width: 110px;
 }
 
@@ -624,6 +647,10 @@ button.secondary-btn {
   max-width: 220px;
 }
 
+#instruction-hours-trend-filter-subject {
+  max-width: 220px;
+}
+
 #volume-filter-subject,
 #volume-filter-grade-type {
   max-width: 220px;
@@ -631,6 +658,7 @@ button.secondary-btn {
 
 #trend-filter-form > button,
 #gpa-trend-filter-form > button,
+#instruction-hours-trend-filter-form > button,
 #volume-filter-form > button,
 #work-filter-form > button {
   align-self: end;
@@ -641,11 +669,19 @@ button.secondary-btn {
 }
 
 @media (max-width: 900px) {
+  #student-performance-filter-form {
+    grid-template-columns: 1fr;
+  }
+
   #trend-filter-form {
     grid-template-columns: 1fr 1fr;
   }
 
   #gpa-trend-filter-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #instruction-hours-trend-filter-form {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -666,6 +702,11 @@ button.secondary-btn {
   #gpa-trend-filter-quarter,
   #gpa-trend-filter-subject,
   #gpa-trend-filter-grade-type {
+    max-width: none;
+  }
+
+  #instruction-hours-trend-filter-quarter,
+  #instruction-hours-trend-filter-subject {
     max-width: none;
   }
 
@@ -1356,6 +1397,11 @@ td {
 .dashboard-section-gpa-trending {
   background: #eef3f0;
   border-color: #c7d5cc;
+}
+
+.dashboard-section-instruction-hours-trending {
+  background: #edf1f8;
+  border-color: #c5d1e3;
 }
 
 .dashboard-section-work-distribution {

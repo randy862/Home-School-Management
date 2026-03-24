@@ -5,6 +5,8 @@ const SESSION_KEY = "hsm_session_v1";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+const EXCLUDED_GRADE_TYPE_FILTER_OPTIONS = new Set(["homework"]);
+const STUDENT_PERFORMANCE_GRADE_METHODS = ["Percentage", "Letter", "GPA"];
 const LETTER_GRADE_ORDER = ["A", "B", "C", "D", "F"];
 const DEFAULT_LETTER_GRADE_SCALE = [
   { label: "A", start: 90, end: 100 },
@@ -630,11 +632,14 @@ const expandedStudentAverageRows = new Set();
 const expandedSubjectAverageRows = new Set();
 const expandedStudentAttendanceRows = new Set();
 const expandedStudentInstructionalHourRows = new Set();
+const studentPerformanceSelectedGradeMethods = new Set(STUDENT_PERFORMANCE_GRADE_METHODS);
 const trendSelectedStudentIds = new Set();
 const gpaTrendSelectedStudentIds = new Set();
+const instructionHoursTrendSelectedStudentIds = new Set();
 const volumeSelectedStudentIds = new Set();
 const workSelectedStudentIds = new Set();
-let workDistributionGradeType = "Assignment";
+const workDistributionSelectedGradeTypes = new Set();
+let workDistributionGradeTypesInitialized = false;
 let editingCourseId = "";
 let editingHolidayId = "";
 let editingPlanId = "";
@@ -1586,8 +1591,10 @@ function renderSelects() {
   renderDailyBreakStudentChecklist(getSelectedDailyBreakStudentIds());
   renderAttendanceStudentChecklist();
   renderReportStudentChecklist(Array.from(reportSelectedStudentIds));
+  renderStudentPerformanceGradeMethodChecklist(Array.from(studentPerformanceSelectedGradeMethods));
   renderTrendStudentChecklist(Array.from(trendSelectedStudentIds));
   renderGpaTrendStudentChecklist(Array.from(gpaTrendSelectedStudentIds));
+  renderInstructionHoursTrendStudentChecklist(Array.from(instructionHoursTrendSelectedStudentIds));
   renderVolumeStudentChecklist(Array.from(volumeSelectedStudentIds));
   renderWorkStudentChecklist(Array.from(workSelectedStudentIds));
 
@@ -1809,6 +1816,32 @@ function renderSelects() {
       gpaTrendGradeTypeSelect.appendChild(option);
     });
     if (Array.from(gpaTrendGradeTypeSelect.options).some((o) => o.value === current)) gpaTrendGradeTypeSelect.value = current;
+  }
+
+  const instructionHoursTrendQuarterSelect = document.getElementById("instruction-hours-trend-filter-quarter");
+  if (instructionHoursTrendQuarterSelect) {
+    const current = instructionHoursTrendQuarterSelect.value || "all";
+    instructionHoursTrendQuarterSelect.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      instructionHoursTrendQuarterSelect.appendChild(option);
+    });
+    if (Array.from(instructionHoursTrendQuarterSelect.options).some((o) => o.value === current)) instructionHoursTrendQuarterSelect.value = current;
+  }
+
+  const instructionHoursTrendSubjectSelect = document.getElementById("instruction-hours-trend-filter-subject");
+  if (instructionHoursTrendSubjectSelect) {
+    const current = instructionHoursTrendSubjectSelect.value || "all";
+    instructionHoursTrendSubjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+    state.subjects.forEach((subject) => {
+      const option = document.createElement("option");
+      option.value = subject.id;
+      option.textContent = subject.name;
+      instructionHoursTrendSubjectSelect.appendChild(option);
+    });
+    if (Array.from(instructionHoursTrendSubjectSelect.options).some((o) => o.value === current)) instructionHoursTrendSubjectSelect.value = current;
   }
 
   const volumeQuarterSelect = document.getElementById("volume-filter-quarter");
@@ -2288,6 +2321,57 @@ function getGpaTrendSelectedStudentIds() {
   return Array.from(document.querySelectorAll(".gpa-trend-student-checkbox:checked")).map((el) => el.value);
 }
 
+function renderStudentPerformanceGradeMethodChecklist(preselectedMethods = []) {
+  const optionsWrap = document.getElementById("student-performance-grade-method-options");
+  if (!optionsWrap) return;
+  const selected = new Set(preselectedMethods.filter((method) => STUDENT_PERFORMANCE_GRADE_METHODS.includes(method)));
+  optionsWrap.innerHTML = STUDENT_PERFORMANCE_GRADE_METHODS.map((method, idx) => {
+    const checked = selected.has(method) ? " checked" : "";
+    const inputId = `student-performance-grade-method-${idx}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-performance-grade-method-checkbox" value="${method}"${checked}><label for="${inputId}">${method}</label></div>`;
+  }).join("");
+  updateStudentPerformanceGradeMethodSummary();
+}
+
+function updateStudentPerformanceGradeMethodSummary() {
+  const summary = document.getElementById("student-performance-grade-method-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".student-performance-grade-method-checkbox:checked").length;
+  summary.textContent = selectedCount === 0 || selectedCount === STUDENT_PERFORMANCE_GRADE_METHODS.length
+    ? "Grade Method (All)"
+    : `Grade Method (${selectedCount} selected)`;
+}
+
+function getSelectedStudentPerformanceGradeMethods() {
+  const selected = Array.from(document.querySelectorAll(".student-performance-grade-method-checkbox:checked")).map((el) => el.value);
+  return selected.length ? selected : [...STUDENT_PERFORMANCE_GRADE_METHODS];
+}
+
+function renderInstructionHoursTrendStudentChecklist(preselectedStudentIds = []) {
+  const container = document.getElementById("instruction-hours-trend-student-dropdown");
+  const optionsWrap = document.getElementById("instruction-hours-trend-student-options");
+  if (!container || !optionsWrap) return;
+  const selected = new Set(preselectedStudentIds);
+  const checkboxes = visibleStudents().map((s, idx) => {
+    const checked = selected.has(s.id) ? " checked" : "";
+    const inputId = `instruction-hours-trend-student-${idx}-${s.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="instruction-hours-trend-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
+  updateInstructionHoursTrendStudentSummary();
+}
+
+function updateInstructionHoursTrendStudentSummary() {
+  const summary = document.getElementById("instruction-hours-trend-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".instruction-hours-trend-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getInstructionHoursTrendSelectedStudentIds() {
+  return Array.from(document.querySelectorAll(".instruction-hours-trend-student-checkbox:checked")).map((el) => el.value);
+}
+
 function renderVolumeStudentChecklist(preselectedStudentIds = []) {
   const container = document.getElementById("volume-student-dropdown");
   const optionsWrap = document.getElementById("volume-student-options");
@@ -2331,13 +2415,16 @@ function availableGradeTypes() {
   const out = [];
   canonicalGradeTypes().forEach((type) => {
     const key = type.toLowerCase();
+    if (EXCLUDED_GRADE_TYPE_FILTER_OPTIONS.has(key)) return;
     if (seen.has(key)) return;
     seen.add(key);
     out.push(type);
   });
   state.tests.forEach((test) => {
     const type = gradeTypeName(test);
+    if (!type) return;
     const key = type.toLowerCase();
+    if (EXCLUDED_GRADE_TYPE_FILTER_OPTIONS.has(key)) return;
     if (seen.has(key)) return;
     seen.add(key);
     out.push(type);
@@ -2349,13 +2436,20 @@ function renderWorkDistributionGradeTypeFilter() {
   const host = document.getElementById("work-distribution-grade-type-filter");
   if (!host) return;
   const types = availableGradeTypes();
-  if (!types.includes(workDistributionGradeType)) workDistributionGradeType = types[0] || "Assignment";
+  if (!workDistributionGradeTypesInitialized) {
+    types.forEach((type) => workDistributionSelectedGradeTypes.add(type));
+    workDistributionGradeTypesInitialized = true;
+  } else {
+    Array.from(workDistributionSelectedGradeTypes).forEach((type) => {
+      if (!types.includes(type)) workDistributionSelectedGradeTypes.delete(type);
+    });
+  }
   host.innerHTML = `
     <p class="work-dist-filter-title">Grade Type</p>
     <div class="work-dist-options">
       ${types.map((type, idx) => {
         const id = `work-dist-grade-type-${idx}`;
-        const checked = type === workDistributionGradeType ? " checked" : "";
+        const checked = workDistributionSelectedGradeTypes.has(type) ? " checked" : "";
         return `<label for="${id}" class="work-dist-option"><input id="${id}" type="checkbox" class="work-dist-grade-type-checkbox" value="${type}"${checked}>${type}</label>`;
       }).join("")}
     </div>`;
@@ -3856,6 +3950,226 @@ function renderGpaTrending() {
     ${legendHtml}`;
 }
 
+function renderInstructionHoursTrending() {
+  const chartHost = document.getElementById("instruction-hours-trending-chart");
+  if (!chartHost) return;
+  const allowedStudentIds = visibleStudentIds();
+
+  const sy = state.settings.schoolYear;
+  const syStart = toDate(sy.startDate);
+  const syEnd = toDate(sy.endDate);
+  const today = toDate(todayISO());
+  const effectiveEnd = syEnd < today ? syEnd : today;
+
+  const quarterFilter = document.getElementById("instruction-hours-trend-filter-quarter")?.value || "all";
+  const subjectFilter = document.getElementById("instruction-hours-trend-filter-subject")?.value || "all";
+  const selectedStudentIds = getInstructionHoursTrendSelectedStudentIds();
+  const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
+  const effectiveEndIso = toISO(effectiveEnd);
+  let monthStartIso = sy.startDate;
+  let monthEndIso = effectiveEndIso;
+  if (quarterRange && quarterFilter !== "all") {
+    if (toDate(quarterRange.startDate) > toDate(monthStartIso)) monthStartIso = quarterRange.startDate;
+    if (toDate(quarterRange.endDate) < toDate(monthEndIso)) monthEndIso = quarterRange.endDate;
+  }
+
+  const months = schoolYearMonths(monthStartIso, monthEndIso);
+  if (!months.length) {
+    chartHost.innerHTML = syStart > today
+      ? "<p class='muted'>School year has not started yet.</p>"
+      : (quarterFilter !== "all"
+        ? "<p class='muted'>No elapsed months in the selected quarter yet.</p>"
+        : "<p class='muted'>No school year range set.</p>");
+    return;
+  }
+
+  const targetStudentIds = selectedStudentIds.length
+    ? selectedStudentIds.filter((studentId) => allowedStudentIds.has(studentId))
+    : (isStudentUser() ? visibleStudents().map((student) => student.id) : []);
+  const targetStudentIdSet = new Set(targetStudentIds);
+  const seriesBase = targetStudentIds.length
+    ? targetStudentIds.map((studentId) => ({ id: studentId, label: getStudentName(studentId) }))
+    : [{ id: "all", label: "All Students" }];
+  const seriesIndex = new Map(seriesBase.map((entry) => [entry.id, entry]));
+  const monthlyHours = new Map(seriesBase.map((entry) => [entry.id, new Map(months.map((month) => [`${month.year}-${month.month}`, 0]))]));
+  const attendanceByStudentDate = new Map();
+
+  state.attendance.forEach((record) => {
+    if (!allowedStudentIds.has(record.studentId)) return;
+    const key = `${record.studentId}||${record.date}`;
+    if (!attendanceByStudentDate.has(key)) {
+      attendanceByStudentDate.set(key, !!record.present);
+      return;
+    }
+    const existingPresent = attendanceByStudentDate.get(key);
+    if (existingPresent && !record.present) attendanceByStudentDate.set(key, false);
+  });
+
+  const cursor = new Date(syStart);
+  while (cursor <= effectiveEnd) {
+    const dateKey = toISO(cursor);
+    const events = calendarEventsForDate(dateKey, Array.from(allowedStudentIds));
+    events.forEach((event) => {
+      if (!allowedStudentIds.has(event.studentId)) return;
+      if (targetStudentIds.length && !targetStudentIdSet.has(event.studentId)) return;
+      if (quarterRange && quarterFilter !== "all" && !inRange(dateKey, quarterRange.startDate, quarterRange.endDate)) return;
+      if (attendanceByStudentDate.get(`${event.studentId}||${dateKey}`) !== true) return;
+      const course = getCourse(event.courseId);
+      if (!course) return;
+      if (subjectFilter !== "all" && course.subjectId !== subjectFilter) return;
+      const hours = Number(course.hoursPerDay || 0);
+      if (!(hours > 0)) return;
+
+      const monthKey = `${cursor.getFullYear()}-${cursor.getMonth()}`;
+      if (!monthlyHours.get(seriesBase[0].id)?.has(monthKey)) return;
+
+      if (seriesIndex.has(event.studentId)) {
+        monthlyHours.set(event.studentId, monthlyHours.get(event.studentId) || new Map());
+        monthlyHours.get(event.studentId).set(monthKey, (monthlyHours.get(event.studentId).get(monthKey) || 0) + hours);
+        return;
+      }
+      if (monthlyHours.has("all")) {
+        monthlyHours.get("all").set(monthKey, (monthlyHours.get("all").get(monthKey) || 0) + hours);
+      }
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
+  const series = seriesBase.map((entry, idx) => ({
+    ...entry,
+    color: palette[idx % palette.length],
+    monthly: months.map((monthEntry) => {
+      const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
+      const total = Number(monthlyHours.get(entry.id)?.get(`${monthEntry.year}-${monthEntry.month}`) || 0);
+      return {
+        label: monthStart.toLocaleDateString(undefined, { month: "short" }),
+        hours: total
+      };
+    })
+  }));
+
+  const plottedValues = series.flatMap((lineSeries) => lineSeries.monthly.map((row) => row.hours));
+  const rawMax = plottedValues.length ? Math.max(...plottedValues) : 0;
+  const yMax = rawMax > 0 ? Math.ceil((rawMax + Math.max(2, rawMax * 0.08)) / 5) * 5 : 10;
+  const yTickStep = yMax <= 20 ? 2 : (yMax <= 60 ? 5 : (yMax <= 120 ? 10 : 20));
+  const yTicks = [];
+  for (let tick = 0; tick <= yMax; tick += yTickStep) yTicks.push(tick);
+  if (yTicks[yTicks.length - 1] !== yMax) yTicks.push(yMax);
+
+  const width = 960;
+  const height = 260;
+  const margin = { top: 62, right: 20, bottom: 48, left: 52 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const xPad = 16;
+  const xSpan = Math.max(1, plotW - (xPad * 2));
+  const xStep = months.length > 1 ? xSpan / (months.length - 1) : 0;
+  const xFor = (idx) => margin.left + xPad + (xStep * idx);
+  const yFor = (value) => {
+    const clamped = clamp(value, 0, yMax);
+    return margin.top + ((yMax - clamped) / Math.max(yMax, 1)) * plotH;
+  };
+
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${tick.toFixed(1)}</text></g>`;
+  }).join("");
+
+  const xTickSvg = months.map((row, idx) => {
+    const monthStart = new Date(row.year, row.month, 1, 12, 0, 0);
+    const x = xFor(idx);
+    return `<text x="${x.toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${monthStart.toLocaleDateString(undefined, { month: "short" })}</text>`;
+  }).join("");
+
+  const lineSvg = series.map((lineSeries) => {
+    let path = "";
+    lineSeries.monthly.forEach((row, idx) => {
+      const x = xFor(idx);
+      const y = yFor(row.hours || 0);
+      if (!path) path += `M ${x.toFixed(2)} ${y.toFixed(2)} `;
+      else path += `L ${x.toFixed(2)} ${y.toFixed(2)} `;
+    });
+    return `<path d="${path.trim()}" class="trend-line" style="stroke:${lineSeries.color}" fill="none"></path>`;
+  }).join("");
+
+  const pointSvg = series.flatMap((lineSeries) => lineSeries.monthly.map((row, idx) => {
+    const x = xFor(idx);
+    const y = yFor(row.hours || 0);
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${lineSeries.color};stroke:${lineSeries.color}"><title>${lineSeries.label} ${row.label}: ${row.hours.toFixed(1)} hours</title></circle>`;
+  })).join("");
+
+  const labelTop = margin.top + 10;
+  const labelBottom = height - margin.bottom - 6;
+  const minLabelGap = 12;
+  const valueLabelParts = [];
+  months.forEach((_, monthIdx) => {
+    const monthLabels = series.map((lineSeries, lineIdx) => {
+      const row = lineSeries.monthly[monthIdx];
+      const x = xFor(monthIdx);
+      const y = yFor(row.hours || 0);
+      const nearTop = y <= margin.top + 16;
+      const nearBottom = y >= (height - margin.bottom - 10);
+      const offsetBase = ((monthIdx + lineIdx) % 2 === 0) ? -10 : 14;
+      const offset = nearTop ? 22 : (nearBottom ? -10 : offsetBase);
+      const preferredY = clamp(y + offset, labelTop, labelBottom);
+      return {
+        color: lineSeries.color,
+        text: `${(row.hours || 0).toFixed(1)}`,
+        x,
+        preferredY
+      };
+    }).sort((a, b) => a.preferredY - b.preferredY);
+
+    for (let i = 1; i < monthLabels.length; i += 1) {
+      if (monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+        monthLabels[i].preferredY = monthLabels[i - 1].preferredY + minLabelGap;
+      }
+    }
+    const overflow = monthLabels.length ? monthLabels[monthLabels.length - 1].preferredY - labelBottom : 0;
+    if (overflow > 0) {
+      for (let i = monthLabels.length - 1; i >= 0; i -= 1) {
+        monthLabels[i].preferredY -= overflow;
+        if (i > 0 && monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+          monthLabels[i - 1].preferredY = monthLabels[i].preferredY - minLabelGap;
+        }
+      }
+    }
+    monthLabels.forEach((label) => {
+      label.preferredY = clamp(label.preferredY, labelTop, labelBottom);
+      valueLabelParts.push(`<text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text>`);
+    });
+  });
+  const valueLabelSvg = valueLabelParts.join("");
+
+  const legendHtml = `
+    <div class="trend-legend">
+      ${series.map((lineSeries) => `
+        <span class="trend-legend-item">
+          <span class="trend-legend-line" style="background:${lineSeries.color}"></span>
+          <span>${lineSeries.label}</span>
+        </span>`).join("")}
+    </div>`;
+
+  const hasData = series.some((lineSeries) => lineSeries.monthly.some((row) => row.hours > 0));
+  const noData = hasData ? "" : `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No instructional hours for selected filters</text>`;
+
+  chartHost.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly instructional hours trend line chart">
+      <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      ${yTickSvg}
+      ${xTickSvg}
+      ${lineSvg}
+      ${pointSvg}
+      ${valueLabelSvg}
+      ${noData}
+      <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
+      <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Instruction Hours</text>
+    </svg>
+    ${legendHtml}`;
+}
+
 function renderGradeTypeVolumeChart() {
   const chartHost = document.getElementById("grade-type-volume-chart");
   if (!chartHost) return;
@@ -3992,6 +4306,11 @@ function renderWorkDistributionChart() {
   const chartHost = document.getElementById("work-distribution-chart");
   if (!chartHost) return;
   const allowedStudentIds = visibleStudentIds();
+  const availableTypes = availableGradeTypes();
+  const selectedGradeTypes = workDistributionSelectedGradeTypes.size
+    ? Array.from(workDistributionSelectedGradeTypes)
+    : availableTypes;
+  const selectedGradeTypeSet = new Set(selectedGradeTypes);
 
   const sy = state.settings.schoolYear;
   const quarterFilter = document.getElementById("work-filter-quarter")?.value || "all";
@@ -4005,7 +4324,7 @@ function renderWorkDistributionChart() {
     if (selectedStudentIds.length && !selectedStudentIds.includes(t.studentId)) return false;
     const gradeType = resolveGradeType(t);
     if (!gradeType) return false;
-    return gradeType === workDistributionGradeType;
+    return selectedGradeTypeSet.has(gradeType);
   });
 
   const bySubject = new Map();
@@ -4017,9 +4336,12 @@ function renderWorkDistributionChart() {
   const entries = Array.from(bySubject.entries())
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   const total = entries.reduce((sum, [, count]) => sum + count, 0);
+  const selectedGradeTypeLabel = selectedGradeTypes.length === availableTypes.length
+    ? "All"
+    : selectedGradeTypes.join(", ");
 
   if (!total) {
-    chartHost.innerHTML = `<p class='muted'>No ${workDistributionGradeType} grades for this school year.</p>`;
+    chartHost.innerHTML = `<p class='muted'>No grades found for the selected grade types: ${escapeHtml(selectedGradeTypeLabel)}.</p>`;
     return;
   }
 
@@ -4082,7 +4404,8 @@ function renderWorkDistributionChart() {
         ${sliceSvg}
         ${labelSvg}
       </svg>
-      <div class="pie-total">Total ${workDistributionGradeType}: ${total}</div>
+      <div class="pie-total">Total Grades: ${total}</div>
+      <div class="muted">Grade Types: ${escapeHtml(selectedGradeTypeLabel)}</div>
     </div>`;
 }
 
@@ -4178,7 +4501,16 @@ function renderDashboard() {
   });
 
   const quarterByName = new Map(state.settings.quarters.map((entry) => [entry.name, entry]));
-  const formatAvgCell = (avgValue, count) => count > 0 ? `${avgValue.toFixed(1)}%` : "No grades";
+  const selectedGradeMethods = getSelectedStudentPerformanceGradeMethods();
+  const formatAvgCell = (avgValue, count) => {
+    if (count <= 0) return "No grades";
+    return selectedGradeMethods.map((method) => {
+      if (method === "Percentage") return `${avgValue.toFixed(1)}%`;
+      if (method === "Letter") return scoreToLetterGrade(avgValue) || "-";
+      if (method === "GPA") return averageToGpa(avgValue).toFixed(2);
+      return "";
+    }).filter(Boolean).join("/");
+  };
   const gradeTypeOrder = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
   const studentMetrics = dashboardStudents
     .map((student) => {
@@ -4351,6 +4683,7 @@ function renderDashboard() {
 
   renderGradeTrending();
   renderGpaTrending();
+  renderInstructionHoursTrending();
   renderGradeTypeVolumeChart();
   renderWorkDistributionGradeTypeFilter();
   renderWorkDistributionChart();
@@ -5948,6 +6281,23 @@ function bindEvents() {
       renderGpaTrending();
     });
   }
+  ["instruction-hours-trend-filter-quarter", "instruction-hours-trend-filter-subject"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderInstructionHoursTrending());
+  });
+  const instructionHoursTrendClearFiltersBtn = document.getElementById("instruction-hours-trend-clear-filters-btn");
+  if (instructionHoursTrendClearFiltersBtn) {
+    instructionHoursTrendClearFiltersBtn.addEventListener("click", () => {
+      const quarterFilter = document.getElementById("instruction-hours-trend-filter-quarter");
+      const subjectFilter = document.getElementById("instruction-hours-trend-filter-subject");
+      if (quarterFilter) quarterFilter.value = "all";
+      if (subjectFilter) subjectFilter.value = "all";
+      instructionHoursTrendSelectedStudentIds.clear();
+      document.querySelectorAll(".instruction-hours-trend-student-checkbox").forEach((el) => { el.checked = false; });
+      updateInstructionHoursTrendStudentSummary();
+      renderInstructionHoursTrending();
+    });
+  }
   ["volume-filter-quarter", "volume-filter-subject", "volume-filter-grade-type"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGradeTypeVolumeChart());
@@ -5978,7 +6328,8 @@ function bindEvents() {
       if (quarterFilter) quarterFilter.value = "all";
       workSelectedStudentIds.clear();
       document.querySelectorAll(".work-student-checkbox").forEach((el) => { el.checked = false; });
-      workDistributionGradeType = "Assignment";
+      workDistributionSelectedGradeTypes.clear();
+      availableGradeTypes().forEach((type) => workDistributionSelectedGradeTypes.add(type));
       updateWorkStudentSummary();
       renderWorkDistributionGradeTypeFilter();
       renderWorkDistributionChart();
@@ -6006,6 +6357,13 @@ function bindEvents() {
       renderGpaTrending();
       return;
     }
+    if (t.classList.contains("instruction-hours-trend-student-checkbox")) {
+      instructionHoursTrendSelectedStudentIds.clear();
+      getInstructionHoursTrendSelectedStudentIds().forEach((id) => instructionHoursTrendSelectedStudentIds.add(id));
+      updateInstructionHoursTrendStudentSummary();
+      renderInstructionHoursTrending();
+      return;
+    }
     if (t.classList.contains("volume-student-checkbox")) {
       volumeSelectedStudentIds.clear();
       getVolumeSelectedStudentIds().forEach((id) => volumeSelectedStudentIds.add(id));
@@ -6020,14 +6378,18 @@ function bindEvents() {
       renderWorkDistributionChart();
       return;
     }
+    if (t.classList.contains("student-performance-grade-method-checkbox")) {
+      studentPerformanceSelectedGradeMethods.clear();
+      getSelectedStudentPerformanceGradeMethods().forEach((method) => studentPerformanceSelectedGradeMethods.add(method));
+      renderStudentPerformanceGradeMethodChecklist(Array.from(studentPerformanceSelectedGradeMethods));
+      renderDashboard();
+      return;
+    }
     if (t.classList.contains("work-dist-grade-type-checkbox")) {
       const selectedType = t.getAttribute("value") || "";
       if (!selectedType) return;
-      workDistributionGradeType = selectedType;
-      document.querySelectorAll(".work-dist-grade-type-checkbox").forEach((el) => {
-        if (!(el instanceof HTMLInputElement)) return;
-        el.checked = el.value === selectedType;
-      });
+      if (t instanceof HTMLInputElement && t.checked) workDistributionSelectedGradeTypes.add(selectedType);
+      else workDistributionSelectedGradeTypes.delete(selectedType);
       renderWorkDistributionChart();
       return;
     }
