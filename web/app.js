@@ -2095,6 +2095,75 @@ function reportInstructionalHoursByStudent(studentIds, schoolYearId, range) {
   return results;
 }
 
+function reportInstructionalHourRows(studentIds, range) {
+  const schoolYear = getSchoolYear(range.schoolYear.id);
+  if (!schoolYear) return [];
+  const reportDates = instructionalDatesByRangeForSchoolYear(schoolYear, range.startDate, range.endDate);
+  const reportDateSet = new Set(reportDates);
+  const today = todayISO();
+  const attendanceByStudentDate = new Map();
+  state.attendance.forEach((record) => {
+    if (!studentIds.includes(record.studentId) || !reportDateSet.has(record.date)) return;
+    const key = `${record.studentId}||${record.date}`;
+    if (!attendanceByStudentDate.has(key)) attendanceByStudentDate.set(key, !!record.present);
+    else if (attendanceByStudentDate.get(key) && !record.present) attendanceByStudentDate.set(key, false);
+  });
+
+  const rows = [];
+  studentIds.forEach((studentId) => {
+    const enrollmentCourseIds = state.enrollments
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => entry.courseId);
+    enrollmentCourseIds.forEach((courseId) => {
+      const course = getCourse(courseId);
+      if (!course) return;
+      const hours = Number(course.hoursPerDay || 0);
+      if (!(hours > 0)) return;
+      const matchingPlans = state.plans.filter((plan) => plan.studentId === studentId && plan.courseId === courseId);
+      const applicablePlans = matchingPlans
+        .map((plan) => ({ plan, range: resolvedPlanRangeForSchoolYear(plan, range.schoolYear.id, schoolYear) }))
+        .filter((entry) => entry.range.startDate && entry.range.endDate && entry.range.endDate >= range.startDate && entry.range.startDate <= range.endDate);
+      const dateKeys = new Set();
+
+      if (applicablePlans.length) {
+        applicablePlans.forEach(({ plan, range: planRange }) => {
+          const effectiveStart = planRange.startDate > range.startDate ? planRange.startDate : range.startDate;
+          const effectiveEnd = planRange.endDate < range.endDate ? planRange.endDate : range.endDate;
+          instructionalDatesByRangeForSchoolYear(schoolYear, effectiveStart, effectiveEnd).forEach((dateKey) => {
+            const weekday = toDate(dateKey).getDay();
+            const weekdays = Array.isArray(plan.weekdays) ? plan.weekdays.map(Number) : [];
+            if (!weekdays.includes(weekday)) return;
+            dateKeys.add(dateKey);
+          });
+        });
+      } else {
+        reportDates.forEach((dateKey) => dateKeys.add(dateKey));
+      }
+
+      let earned = 0;
+      const seenCourseDates = new Set();
+      dateKeys.forEach((dateKey) => {
+        const dedupeKey = `${studentId}||${courseId}||${dateKey}`;
+        if (seenCourseDates.has(dedupeKey)) return;
+        seenCourseDates.add(dedupeKey);
+        if (dateKey <= today && attendanceByStudentDate.get(`${studentId}||${dateKey}`) === true) {
+          earned += hours;
+        }
+      });
+
+      rows.push({
+        student: getStudentName(studentId),
+        course: getCourseName(courseId),
+        instructionalHours: earned
+      });
+    });
+  });
+
+  return rows.sort((a, b) =>
+    a.student.localeCompare(b.student)
+    || a.course.localeCompare(b.course));
+}
+
 function reportInstructionalDaysCompleted(startDate, endDate) {
   const effectiveEnd = endDate < todayISO() ? endDate : todayISO();
   if (!startDate || !endDate || effectiveEnd < startDate) return 0;
@@ -2169,6 +2238,7 @@ function buildPrintableReportHtml({ studentIds, range }) {
   const summaryRows = reportSummaryRows(studentIds, range);
   const gradeRows = reportGradeRows(studentIds, range);
   const attendanceRows = reportAttendanceRows(studentIds, range);
+  const instructionalHourRows = reportInstructionalHourRows(studentIds, range);
   const summaryTableRows = summaryRows.length
     ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${escapeHtml(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td><td>${row.attended}</td><td>${row.absent}</td><td>${row.instructionalDaysCompleted}</td><td>${row.instructionalHoursCompleted.toFixed(1)}</td></tr>`).join("")
     : "<tr><td colspan='8'>No student summary data found for the selected filters.</td></tr>";
@@ -2178,6 +2248,29 @@ function buildPrintableReportHtml({ studentIds, range }) {
   const attendanceTableRows = attendanceRows.length
     ? attendanceRows.map((row) => `<tr><td>${escapeHtml(row.student)}</td><td>${row.date}</td><td>${row.attendance}</td></tr>`).join("")
     : "<tr><td colspan='3'>No attendance records found for the selected filters.</td></tr>";
+  const instructionalHoursSections = instructionalHourRows.length
+    ? (() => {
+      const groupedRows = new Map();
+      instructionalHourRows.forEach((row) => {
+        if (!groupedRows.has(row.student)) groupedRows.set(row.student, []);
+        groupedRows.get(row.student).push(row);
+      });
+      return Array.from(groupedRows.entries()).map(([student, rows]) => {
+        const studentTotal = rows.reduce((sum, row) => sum + row.instructionalHours, 0);
+        const tableRows = rows
+          .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${row.instructionalHours.toFixed(1)}</td></tr>`)
+          .join("");
+        return `
+          <h2>${escapeHtml(student)}</h2>
+          <table>
+            <thead><tr><th>Course</th><th>Instructional Hours</th></tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+          <p class="report-meta"><strong>${escapeHtml(student)} Total Instructional Hours:</strong> ${studentTotal.toFixed(1)}</p>`;
+      }).join("");
+    })()
+    : "<p>No instructional hours found for the selected filters.</p>";
+  const totalInstructionalHours = instructionalHourRows.reduce((sum, row) => sum + row.instructionalHours, 0);
 
   return `<!doctype html>
 <html lang="en">
@@ -2192,6 +2285,7 @@ function buildPrintableReportHtml({ studentIds, range }) {
     .report-page { background: #fff; border: 1px solid #d7c8ad; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(24, 33, 20, 0.08); }
     .report-page.report-page-break { page-break-after: always; }
     h1 { margin: 0 0 8px; font-size: 28px; }
+    h2 { margin: 20px 0 8px; font-size: 20px; }
     .report-meta { margin: 0 0 18px; color: #6c5847; }
     table { width: 100%; border-collapse: collapse; }
     th, td { border: 1px solid #d9cdb7; padding: 8px 10px; text-align: left; vertical-align: top; }
@@ -2233,13 +2327,20 @@ function buildPrintableReportHtml({ studentIds, range }) {
       </table>
     </section>
 
-    <section class="report-page">
+    <section class="report-page report-page-break">
       <h1>Attendance Report</h1>
       <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
       <table>
         <thead><tr><th>Student</th><th>Date</th><th>Attendance</th></tr></thead>
         <tbody>${attendanceTableRows}</tbody>
       </table>
+    </section>
+
+    <section class="report-page">
+      <h1>Instructional Hours Report</h1>
+      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      ${instructionalHoursSections}
+      <p class="report-meta"><strong>Total Instructional Hours:</strong> ${totalInstructionalHours.toFixed(1)}</p>
     </section>
   </div>
 </body>
