@@ -22,6 +22,7 @@ Thumbs.db
 
 # Logs
 *.log
+.runtime/
 
 # Local migration exports
 NOTES/local-state-export.json

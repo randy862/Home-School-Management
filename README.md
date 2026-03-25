@@ -1,68 +1,72 @@
 # Home School Management
 
-Home School Management is a single-page web app for managing students, courses, plans, attendance, grades, and system users.
+Home School Management is a web application for managing students, courses, plans, attendance, grades, reports, and system users.
 
-This repo now includes an MSSQL migration scaffold to move persistence from browser `localStorage` to SQL Server Express.
+The repository currently contains:
+- a working customer-facing SPA in `web/`
+- a transitional Node backend in `server/`
+- planning assets for the next architecture phase: production deployment on Debian with Apache, Node.js, and PostgreSQL
+
+The active platform direction is:
+1. production-ready single-tenant hosting
+2. backend-owned auth and domain APIs
+3. later multi-tenant SaaS expansion
 
 ## Authentication
 
-- Administrators can access every page and manage user accounts from the new `Users` page.
+- Administrators can access every page and manage user accounts from the `Users` page.
 - Student accounts are linked to a student record and are limited to read-only access on Dashboard, Schedule, Attendance, and Grades.
-- Existing installs bootstrap a default admin login:
+- Existing installs currently bootstrap a default admin login:
   - Username: `admin`
   - Password: `ChangeMe123!`
-  - Change this password after the first sign-in.
+  - This is a transitional local/prototype behavior that will be replaced by backend-owned auth before hosted deployment.
+
+## Strategic Direction
+
+The next major milestone is a hosted single-tenant deployment that establishes:
+- backend-enforced authentication and authorization
+- PostgreSQL as the target runtime database
+- domain APIs that replace full-state synchronization
+- deployment assets for Apache reverse proxy and Debian application hosting
+
+Reference planning docs:
+- `NOTES/target-architecture.md`
+- `NOTES/milestone-1-production-plan.md`
+- `NOTES/postgresql-schema-v1.md`
+- `NOTES/backend-auth-api-refactor-plan.md`
 
 ## Project Layout
 
-- `web/` frontend SPA (current production behavior uses local storage)
-- `server/` Node API and SQL Server migration/import scaffolding
-- `server/migrations/` SQL schema scripts
+- `web/` customer-facing frontend SPA
+- `server/` current backend and transitional persistence work
 - `RUNBOOKS/` repeatable operating procedures
-- `CHECKLISTS/` quality, handoff, and migration gates
-- `PROMPTS/` reusable agent prompts
-- `NOTES/` discovery, specs, and migration planning notes
-- Root governance files: `AGENTS.md`, `WORKPLAN.md`, `STATUS.md`, `DECISIONS.md`
+- `CHECKLISTS/` quality, handoff, and deployment gates
+- `PROMPTS/` reusable role prompts
+- `NOTES/` architecture, discovery, and migration planning notes
+- root governance files: `AGENTS.md`, `WORKPLAN.md`, `STATUS.md`, `DECISIONS.md`
 
-## Quick Start (API + Frontend on Local PC)
+## Local Start
 
 1. One-click startup (recommended):
    - Open PowerShell.
    - Run:
      - `cd "C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management"`
      - `.\run-local.ps1`
-   - Example prompt:
-     - `C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management>`
-     - `.\run-local.ps1`
-   - What it does:
-     - Starts API listener (`server/`)
-     - Starts local web server on port `5500`
-     - Opens `http://127.0.0.1:5500/web/`
 2. Optional configuration update:
    - `run-local.ps1` auto-creates `.env` from `.env.example` if `.env` is missing.
    - Edit `.env` only if you need to change SQL connection values.
 3. Manual startup (if needed):
-   - Start API listener (Terminal 1):
-   - `cd "C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management\server"`
-   - `npm install`
-   - `npm start`
-   - Example prompt:
-     - `C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management\server>`
+   - API listener:
+     - `cd "C:\Users\rmitchell\OneDrive - Kalleo Technologies, LLC\VSCode\Home-School-Management\server"`
      - `npm install`
      - `npm start`
-4. Start web server (Terminal 2, repo root):
-   - `python -m http.server 5500`
-5. Open `http://127.0.0.1:5500/web/`.
+   - Static web server from repo root:
+     - `python -m http.server 5500`
+4. Open `http://127.0.0.1:5500/web/`.
 
-If you run frontend only without API listener, the app can load but API-backed persistence will not be active.
+## Transitional SQL Bridge
 
-## MSSQL Migration Prep (New)
-
-1. Copy `.env.example` to `.env` and set SQL credentials.
-2. In `server/`, install dependencies: `npm install`.
-3. Run schema migration: `npm run db:migrate`.
-4. Export local app state JSON (from browser local storage), then import:
-   - `npm run db:import-state -- --file ../NOTES/local-state-export.json`
+The repo includes an MSSQL-based bridge used to prove backend persistence and migration mechanics during the current transition. That work remains useful for reference and data-shape discovery, but it is not the intended long-term hosted architecture.
 
 ## Collaboration Cadence
 
