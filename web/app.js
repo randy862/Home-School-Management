@@ -1,6 +1,19 @@
 const STORAGE_KEY = "hsm_state_v2";
-const API_BASE_URL = window.HSM_API_BASE_URL || "http://localhost:3000";
+const IS_LOCAL_DEV_HOST = ["localhost", "127.0.0.1"].includes(window.location.hostname) && (window.location.port === "5500" || window.location.port === "");
+const API_BASE_URL = window.HSM_API_BASE_URL || (IS_LOCAL_DEV_HOST ? "http://localhost:3000" : window.location.origin);
 const API_STATE_ENDPOINT = `${API_BASE_URL}/api/state`;
+const API_AUTH_LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login`;
+const API_AUTH_LOGOUT_ENDPOINT = `${API_BASE_URL}/api/auth/logout`;
+const API_ME_ENDPOINT = `${API_BASE_URL}/api/me`;
+const API_USERS_ENDPOINT = `${API_BASE_URL}/api/users`;
+const API_STUDENTS_ENDPOINT = `${API_BASE_URL}/api/students`;
+const API_SUBJECTS_ENDPOINT = `${API_BASE_URL}/api/subjects`;
+const API_COURSES_ENDPOINT = `${API_BASE_URL}/api/courses`;
+const API_ENROLLMENTS_ENDPOINT = `${API_BASE_URL}/api/enrollments`;
+const API_SCHOOL_YEARS_ENDPOINT = `${API_BASE_URL}/api/school-years`;
+const API_QUARTERS_ENDPOINT = `${API_BASE_URL}/api/quarters`;
+const API_ATTENDANCE_ENDPOINT = `${API_BASE_URL}/api/attendance`;
+const API_TESTS_ENDPOINT = `${API_BASE_URL}/api/tests`;
 const SESSION_KEY = "hsm_session_v1";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -18,6 +31,7 @@ const DEFAULT_LETTER_GRADE_SCALE = [
 const DEFAULT_ADMIN_USERNAME = "admin";
 const DEFAULT_ADMIN_PASSWORD = "ChangeMe123!";
 const STUDENT_ALLOWED_TABS = new Set(["dashboard", "calendar", "attendance", "grades"]);
+const HOSTED_MODE_STORAGE_KEY = "hsm_hosted_mode_v1";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -701,6 +715,247 @@ function loadSession() {
   }
 }
 
+function loadHostedModePreference() {
+  try {
+    return localStorage.getItem(HOSTED_MODE_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function saveHostedModePreference(value) {
+  try {
+    localStorage.setItem(HOSTED_MODE_STORAGE_KEY, value ? "true" : "false");
+  } catch {
+    // Ignore storage write failures and keep runtime behavior in memory only.
+  }
+}
+
+let hostedModeEnabled = loadHostedModePreference();
+if (!IS_LOCAL_DEV_HOST) {
+  hostedModeEnabled = true;
+}
+
+function setHostedModeEnabled(value) {
+  hostedModeEnabled = !!value;
+  saveHostedModePreference(hostedModeEnabled);
+}
+
+function authFetch(url, options = {}) {
+  return fetch(url, {
+    credentials: "include",
+    ...options,
+    headers: {
+      "Accept": "application/json",
+      ...(options.headers || {})
+    }
+  });
+}
+
+function updateCurrentUserFromSummary(userSummary) {
+  if (!userSummary || !userSummary.id) {
+    currentUserId = "";
+    return;
+  }
+
+  const existing = state.users.find((entry) => entry.id === userSummary.id) || {};
+  const merged = {
+    ...existing,
+    id: userSummary.id,
+    username: userSummary.username || existing.username || "",
+    role: userSummary.role === "student" ? "student" : "admin",
+    studentId: userSummary.studentId || "",
+    mustChangePassword: !!userSummary.mustChangePassword
+  };
+
+  state.users = state.users.filter((entry) => entry.id !== merged.id);
+  state.users.push(merged);
+  currentUserId = merged.id;
+}
+
+async function refreshHostedUsers() {
+  const response = await authFetch(API_USERS_ENDPOINT);
+  if (!response.ok) throw new Error(`Users fetch failed (${response.status})`);
+  const users = await response.json();
+  if (!Array.isArray(users)) return;
+
+  state.users = users.map((user) => ({
+    ...user,
+    studentId: user.studentId || "",
+    mustChangePassword: !!user.mustChangePassword,
+    passwordHash: "",
+    passwordSalt: ""
+  }));
+}
+
+async function refreshHostedStudents() {
+  const response = await authFetch(API_STUDENTS_ENDPOINT);
+  if (!response.ok) throw new Error(`Students fetch failed (${response.status})`);
+  const students = await response.json();
+  if (Array.isArray(students)) {
+    state.students = students;
+  }
+}
+
+async function refreshHostedSubjects() {
+  const response = await authFetch(API_SUBJECTS_ENDPOINT);
+  if (!response.ok) throw new Error(`Subjects fetch failed (${response.status})`);
+  const subjects = await response.json();
+  if (Array.isArray(subjects)) {
+    state.subjects = subjects;
+  }
+}
+
+async function refreshHostedCourses() {
+  const response = await authFetch(API_COURSES_ENDPOINT);
+  if (!response.ok) throw new Error(`Courses fetch failed (${response.status})`);
+  const courses = await response.json();
+  if (Array.isArray(courses)) {
+    state.courses = courses.map((course) => ({
+      ...course,
+      hoursPerDay: Number(course.hoursPerDay || 0),
+      exclusiveResource: !!course.exclusiveResource
+    }));
+  }
+}
+
+async function refreshHostedEnrollments() {
+  const response = await authFetch(API_ENROLLMENTS_ENDPOINT);
+  if (!response.ok) throw new Error(`Enrollments fetch failed (${response.status})`);
+  const enrollments = await response.json();
+  if (Array.isArray(enrollments)) {
+    state.enrollments = enrollments.map((enrollment) => ({
+      ...enrollment,
+      scheduleOrder: enrollment.scheduleOrder == null ? null : Number(enrollment.scheduleOrder)
+    }));
+  }
+}
+
+async function refreshHostedSchoolYears() {
+  const response = await authFetch(API_SCHOOL_YEARS_ENDPOINT);
+  if (!response.ok) throw new Error(`School years fetch failed (${response.status})`);
+  const schoolYears = await response.json();
+  if (!Array.isArray(schoolYears) || !schoolYears.length) return;
+
+  const normalized = schoolYears.map((schoolYear) => ({
+    ...schoolYear,
+    requiredInstructionalDays: schoolYear.requiredInstructionalDays == null ? null : Number(schoolYear.requiredInstructionalDays),
+    requiredInstructionalHours: schoolYear.requiredInstructionalHours == null ? null : Number(schoolYear.requiredInstructionalHours)
+  }));
+  const current = normalized.find((schoolYear) => schoolYear.isCurrent) || normalized[0];
+
+  state.settings.schoolYears = normalized.map(({ isCurrent, ...schoolYear }) => ({ ...schoolYear }));
+  state.settings.currentSchoolYearId = current.id;
+  state.settings.schoolYear = {
+    id: current.id,
+    label: current.label,
+    startDate: current.startDate,
+    endDate: current.endDate,
+    requiredInstructionalDays: current.requiredInstructionalDays,
+    requiredInstructionalHours: current.requiredInstructionalHours
+  };
+}
+
+async function refreshHostedQuarters() {
+  const response = await authFetch(API_QUARTERS_ENDPOINT);
+  if (!response.ok) throw new Error(`Quarters fetch failed (${response.status})`);
+  const quarters = await response.json();
+  if (!Array.isArray(quarters)) return;
+
+  state.settings.allQuarters = quarters;
+  state.settings.quarters = quarters.filter((quarter) => quarter.schoolYearId === state.settings.currentSchoolYearId);
+}
+
+async function refreshHostedAttendance() {
+  const response = await authFetch(API_ATTENDANCE_ENDPOINT);
+  if (!response.ok) throw new Error(`Attendance fetch failed (${response.status})`);
+  const attendance = await response.json();
+  if (Array.isArray(attendance)) {
+    state.attendance = attendance.map((row) => ({
+      ...row,
+      present: !!row.present
+    }));
+  }
+}
+
+async function refreshHostedTests() {
+  const response = await authFetch(API_TESTS_ENDPOINT);
+  if (!response.ok) throw new Error(`Tests fetch failed (${response.status})`);
+  const tests = await response.json();
+  if (Array.isArray(tests)) {
+    state.tests = tests.map((row) => ({
+      ...row,
+      score: Number(row.score || 0),
+      maxScore: Number(row.maxScore || 0)
+    }));
+  }
+}
+
+async function hydrateHostedDomainState() {
+  if (!currentUser()) return;
+  await refreshHostedStudents();
+  await refreshHostedSubjects();
+  await refreshHostedCourses();
+  await refreshHostedEnrollments();
+  await refreshHostedSchoolYears();
+  await refreshHostedQuarters();
+  await refreshHostedAttendance();
+  await refreshHostedTests();
+  if (isAdminUser()) {
+    await refreshHostedUsers();
+  }
+  normalizeSettingsShape(state);
+}
+
+async function loginWithBackend(username, password) {
+  const response = await authFetch(API_AUTH_LOGIN_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
+  });
+
+  if (!response.ok) {
+    let message = `Login failed (${response.status})`;
+    try {
+      const payload = await response.json();
+      if (payload && payload.error) message = payload.error;
+    } catch {
+      // Keep generic message if payload is not JSON.
+    }
+    throw new Error(message);
+  }
+
+  const payload = await response.json();
+  updateCurrentUserFromSummary(payload.user);
+  saveSession();
+  setHostedModeEnabled(true);
+  await hydrateHostedDomainState();
+}
+
+async function bootstrapHostedSession() {
+  const response = await authFetch(API_ME_ENDPOINT);
+  if (response.status === 401) {
+    currentUserId = "";
+    saveSession();
+    return false;
+  }
+  if (!response.ok) throw new Error(`Session bootstrap failed (${response.status})`);
+
+  const payload = await response.json();
+  updateCurrentUserFromSummary(payload.user);
+  saveSession();
+  await hydrateHostedDomainState();
+  return true;
+}
+
+async function logoutWithBackend() {
+  try {
+    await authFetch(API_AUTH_LOGOUT_ENDPOINT, { method: "POST" });
+  } catch {
+    // Keep local logout behavior even if the API call fails.
+  }
+}
+
 function currentUser() {
   return state.users.find((user) => user.id === currentUserId) || null;
 }
@@ -807,8 +1062,9 @@ function renderSessionChrome() {
 
   if (loginShell) loginShell.classList.toggle("hidden", signedIn);
   if (appShell) appShell.classList.toggle("hidden", !signedIn);
-  if (defaultAdminNote) defaultAdminNote.classList.toggle("hidden", signedIn || !state.users.some((entry) => entry.id === "default-admin-user"));
-  if (userBanner) userBanner.classList.toggle("hidden", !signedIn || !isAdminUser(user) || !state.users.some((entry) => entry.id === "default-admin-user"));
+  const showBootstrapAdminMessaging = !hostedModeEnabled && state.users.some((entry) => entry.id === "default-admin-user");
+  if (defaultAdminNote) defaultAdminNote.classList.toggle("hidden", signedIn || !showBootstrapAdminMessaging);
+  if (userBanner) userBanner.classList.toggle("hidden", !signedIn || !isAdminUser(user) || !showBootstrapAdminMessaging);
 
   if (sessionSummary) {
     if (!user) sessionSummary.textContent = "Not signed in";
@@ -828,13 +1084,17 @@ function renderSessionChrome() {
   else setActiveTab(currentTab);
 }
 
-function logout() {
+async function logout() {
+  if (hostedModeEnabled) {
+    await logoutWithBackend();
+  }
   currentUserId = "";
   saveSession();
   resetLoginMessage();
   renderSessionChrome();
 }
 function scheduleApiSave() {
+  if (hostedModeEnabled) return;
   if (!apiSyncReady) return;
   if (apiSaveInFlight) {
     apiSavePending = true;
@@ -862,6 +1122,29 @@ function saveState() {
 }
 
 async function bootstrapStateFromApi() {
+  if (hostedModeEnabled) {
+    apiSyncReady = false;
+    try {
+      const signedIn = await bootstrapHostedSession();
+      if (!signedIn) resetLoginMessage();
+      renderAll();
+    } catch (error) {
+      console.warn("Hosted session bootstrap skipped:", error.message);
+      if (IS_LOCAL_DEV_HOST) {
+        setHostedModeEnabled(false);
+        apiSyncReady = true;
+        await bootstrapStateFromApi();
+        return;
+      }
+      setLoginMessage("error", "Unable to reach the hosted session service.");
+      currentUserId = "";
+      renderAll();
+    } finally {
+      apiSyncReady = true;
+    }
+    return;
+  }
+
   try {
     const localState = state;
     const remoteState = await fetchStateFromApi();
@@ -5706,6 +5989,17 @@ function bindEvents() {
     e.preventDefault();
     const username = document.getElementById("login-username").value.trim().toLowerCase();
     const password = document.getElementById("login-password").value;
+    if (hostedModeEnabled) {
+      try {
+        await loginWithBackend(username, password);
+        resetLoginMessage();
+        document.getElementById("login-form").reset();
+        renderAll();
+      } catch (error) {
+        setLoginMessage("error", error.message || "Unable to sign in.");
+      }
+      return;
+    }
     const user = state.users.find((entry) => entry.username.toLowerCase() === username);
     if (!user || !(await verifyPasswordForUser(user, password))) {
       setLoginMessage("error", "Invalid username or password.");
@@ -5723,7 +6017,7 @@ function bindEvents() {
   });
 
   const logoutBtn = document.getElementById("logout-btn");
-  if (logoutBtn) logoutBtn.addEventListener("click", () => logout());
+  if (logoutBtn) logoutBtn.addEventListener("click", async () => logout());
 
   const userRoleSelect = document.getElementById("user-role");
   if (userRoleSelect) userRoleSelect.addEventListener("change", () => ensureStudentSelection());

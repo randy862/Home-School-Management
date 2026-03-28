@@ -1,0 +1,27 @@
+[Unit]
+Description=Home School Management API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/debian/apps/home-school-management/server
+Environment=APP_ENV=production
+Environment=DB_CLIENT=postgres
+Environment=APP_PORT=3000
+Environment=APP_CORS_ORIGIN=http://192.168.1.210
+Environment=SESSION_COOKIE_NAME=hsm_session
+Environment=SESSION_COOKIE_SECURE=false
+Environment=SESSION_COOKIE_SAMESITE=Lax
+Environment=SESSION_TTL_HOURS=168
+Environment=PGHOST=192.168.1.202
+Environment=PGPORT=5432
+Environment=PGDATABASE=appdb
+Environment=PGUSER=appuser
+Environment=PGPASSWORD=StrongPassword123!
+ExecStart=/usr/bin/node src/app.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home School Management Control Plane</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <header class="hero">
+      <p class="eyebrow">Control Plane</p>
+      <h1>Home School Management Operator Console</h1>
+      <p class="lead">The hosted single-tenant platform is live. This shell is the first operator-facing entry point for tenant lifecycle work, provisioning visibility, and support operations.</p>
+    </header>
+
+    <section class="panel-grid">
+      <article class="panel">
+        <h2>Current Stage</h2>
+        <p>Hosted runtime is active on Apache, Node.js, and PostgreSQL. The next phase is introducing tenant and operator boundaries without destabilizing the customer-facing app.</p>
+      </article>
+
+      <article class="panel">
+        <h2>Next Control-Plane Work</h2>
+        <ul>
+          <li>Tenant registry and status model</li>
+          <li>Provisioning workflow and audit trail</li>
+          <li>Operator authentication</li>
+          <li>Per-tenant database lifecycle controls</li>
+        </ul>
+      </article>
+
+      <article class="panel">
+        <h2>Tracked Assets</h2>
+        <ul id="asset-list"></ul>
+      </article>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -7,11 +7,14 @@
   "scripts": {
     "start": "node src/app.js",
     "db:migrate": "node src/scripts/migrate.js",
-    "db:import-state": "node src/scripts/import-state.js"
+    "db:import-state": "node src/scripts/import-state.js",
+    "db:migrate:pg": "node src/scripts/migrate-postgres.js",
+    "db:seed:pg-admin": "node src/scripts/seed-postgres-admin.js"
   },
   "dependencies": {
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
-    "mssql": "^11.0.1"
+    "mssql": "^11.0.1",
+    "pg": "^8.13.3"
   }
 }

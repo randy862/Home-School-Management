@@ -10,7 +10,16 @@ function toBool(value, fallback) {
 
 module.exports = {
   app: {
-    port: Number(process.env.APP_PORT || 3000)
+    env: process.env.APP_ENV || "development",
+    port: Number(process.env.APP_PORT || 3000),
+    corsOrigin: process.env.APP_CORS_ORIGIN || "*",
+    dbClient: String(process.env.DB_CLIENT || "mssql").toLowerCase()
+  },
+  session: {
+    cookieName: process.env.SESSION_COOKIE_NAME || "hsm_session",
+    cookieSecure: toBool(process.env.SESSION_COOKIE_SECURE, false),
+    cookieSameSite: process.env.SESSION_COOKIE_SAMESITE || "Lax",
+    ttlHours: Number(process.env.SESSION_TTL_HOURS || 168)
   },
   db: (() => {
     const rawServer = process.env.MSSQL_SERVER || "localhost\\SQLEXPRESS";
@@ -37,5 +46,17 @@ module.exports = {
       config.port = Number(portValue || 1433);
     }
     return config;
-  })()
+  })(),
+  postgres: {
+    host: process.env.PGHOST || "127.0.0.1",
+    port: Number(process.env.PGPORT || 5432),
+    database: process.env.PGDATABASE || "appdb",
+    user: process.env.PGUSER || "appuser",
+    password: process.env.PGPASSWORD || "",
+    ssl: (() => {
+      const mode = String(process.env.PGSSLMODE || "disable").toLowerCase();
+      if (mode === "disable") return false;
+      return { rejectUnauthorized: mode === "verify-full" };
+    })()
+  }
 };

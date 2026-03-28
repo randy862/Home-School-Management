@@ -1,0 +1,86 @@
+:root {
+  --bg: #f5efe3;
+  --ink: #1f2933;
+  --muted: #52606d;
+  --panel: rgba(255, 255, 255, 0.78);
+  --line: rgba(31, 41, 51, 0.12);
+  --accent: #b44f2f;
+  --accent-2: #3a6b6f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(180, 79, 47, 0.18), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(58, 107, 111, 0.2), transparent 35%),
+    linear-gradient(180deg, #fcf8f1 0%, var(--bg) 100%);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.admin-shell {
+  width: min(1100px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 3rem 0 4rem;
+}
+
+.hero {
+  margin-bottom: 2rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.05;
+}
+
+.lead {
+  max-width: 60rem;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.panel {
+  padding: 1.25rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 20px 50px rgba(31, 41, 51, 0.08);
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.panel p,
+.panel li {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.panel ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}

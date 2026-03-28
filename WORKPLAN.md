@@ -41,11 +41,11 @@
   - [x] Define target architecture and deployment topology
   - [x] Define Milestone 1 scope, sequencing, and acceptance criteria
   - [x] Define PostgreSQL schema direction for hosted runtime
-  - [ ] Choose backend session/auth approach and document endpoint contract
+  - [x] Choose backend session/auth approach and document endpoint contract
   - [ ] Design first domain APIs to replace full-state sync in production
   - [ ] Refactor backend toward PostgreSQL-backed repositories
-  - [ ] Refactor frontend login/bootstrap to use backend auth
-  - [ ] Create Debian/Apache deployment assets and runbooks
+  - [x] Refactor frontend login/bootstrap to use backend auth
+  - [x] Create Debian/Apache deployment assets and runbooks
   - [ ] Run production readiness smoke checks
 
 ## Milestone 5: Multi-Tenant SaaS Foundation (Planned)
@@ -73,7 +73,7 @@
 
 ## Active Next Actions
 
-1. Choose the backend auth/session pattern and document the endpoint contract.
-2. Design the first domain endpoints that will replace `GET/PUT /api/state`.
+1. Verify hosted login/session bootstrap behavior end-to-end in the browser after the frontend auth refactor.
+2. Expand the first domain APIs beyond `GET /api/users` and `GET /api/students`.
 3. Define the initial PostgreSQL migration/repository strategy for the hosted runtime.
-4. Prepare Debian deployment assets for Apache reverse proxy and app service startup.
+4. Flesh out the control-plane schema and provisioning workflow behind the new `admin/` and `control-api/` scaffolds.
