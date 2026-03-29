@@ -1,5 +1,5 @@
 const express = require("express");
-const { app: appConfig, session: sessionConfig } = require("./config");
+const { app: appConfig, internal: internalConfig, session: sessionConfig } = require("./config");
 const { getPool } = require("./db");
 const { getPostgresPool } = require("./postgres-db");
 const { applyCors, createAuthContextMiddleware } = require("./middleware/auth-context");
@@ -175,6 +175,7 @@ const infraRouteDeps = {
   isPostgresMode
 };
 const setupRouteDeps = {
+  controlPlaneKey: internalConfig.controlPlaneKey,
   getSetupStatus,
   initializeSetup,
   isPostgresMode,

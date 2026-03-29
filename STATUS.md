@@ -224,15 +224,21 @@ Date: 2026-03-27
 - Propagated tenant setup completion back into control-plane state:
   - added `POST /api/control/environments/:id/sync-setup`
   - added background reconciliation for `token_issued` environments with reachable tenant runtime URLs
-  - staged verification confirmed a freshly provisioned environment moved from `token_issued` to `initialized` after setup-state sync against `http://192.168.1.210/api/setup/status`
+  - added a shared-key protected tenant runtime route at `GET /api/internal/setup/status`
+  - staged verification confirmed the internal route returns `401` without the key and `200` with the key
+  - staged verification confirmed a freshly provisioned environment moved from `token_issued` to `initialized` after setup-state sync through the internal route
+- Advanced host/web deployment automation to the current safe boundary:
+  - verified `APP001` has `ssh` available for future host-level deployment orchestration
+  - confirmed `APP001 -> WEB001` automation is currently blocked by host-key trust, so the worker does not yet force cross-host deployment commands
+  - the current worker now produces real schema/bootstrap/runtime artifacts on `APP001`, which is the safe deployment foundation before remote host automation is enabled
 
 ## Blocked
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.
 - Direct SSH validation to `SQL001` from this PC still needs to be confirmed separately; current confirmed database path remains through `APP001`.
 
 ## Next
-1. Replace the remaining local-only worker steps with real host/web deployment automation instead of only schema/bootstrap artifacts on `APP001`.
-2. Add a secure internal runtime-auth mechanism for setup-state and health synchronization so control-plane polling no longer relies on the tenant runtime's public setup-status surface.
+1. Establish trusted host-to-host deployment access from `APP001` to target hosts such as `WEB001`, then wire real app/web deployment commands into the worker.
+2. Add a stronger long-term service-to-service auth model for runtime health/setup synchronization beyond the shared-key staging path.
 3. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
 
 ## Current Assessment

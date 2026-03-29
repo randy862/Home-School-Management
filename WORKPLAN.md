@@ -81,7 +81,7 @@
 
 ## Active Next Actions
 
-1. Replace the remaining local-only worker steps with real host/web deployment automation instead of only schema/bootstrap artifacts on `APP001`.
-2. Add a secure internal runtime-auth mechanism for setup-state and health synchronization so control-plane polling no longer depends on the public setup-status endpoint.
+1. Establish trusted host-to-host deployment access from `APP001` to targets such as `WEB001`, then wire real app/web deployment commands into the worker.
+2. Replace the shared-key setup-sync path with a stronger long-term service-to-service auth model for runtime status polling.
 3. Keep hosted browser smoke validation as the regression gate after each major backend-boundary slice.
 4. Add deeper operator drill-down only where the next runtime-execution slice exposes new operational states worth surfacing.

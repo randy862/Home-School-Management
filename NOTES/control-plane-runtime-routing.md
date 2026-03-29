@@ -59,3 +59,10 @@ Define how the control plane resolves an incoming tenant hostname to the tenant/
 - This slice resolves runtime identity and database-routing metadata.
 - It does not yet mint tenant runtime secrets or create tenant-specific connection users.
 - Those secrets remain part of the later provisioning-execution work.
+
+## Current Sync Hardening
+- Tenant runtime setup-state synchronization no longer depends on the public setup-status endpoint.
+- Control-plane reconciliation now uses:
+  - `GET /api/internal/setup/status`
+  - `x-control-plane-key`
+- This keeps setup completion polling on a control-plane-only path while we design a stronger long-term service-to-service auth model.

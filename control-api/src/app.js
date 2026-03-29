@@ -43,6 +43,7 @@ const { createSetupSyncService } = require("./setup-sync");
 const app = express();
 const runtimeAutomation = createTenantRuntimeAutomation(automationConfig);
 const setupSyncService = createSetupSyncService({
+  controlPlaneKey: internalConfig.apiKey,
   listSetupSyncCandidates,
   markTenantEnvironmentInitialized,
   timeoutMs: automationConfig.setupSyncRequestTimeoutMs

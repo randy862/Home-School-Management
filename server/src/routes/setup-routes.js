@@ -2,6 +2,7 @@ const { createSessionToken, hashPassword, hashSessionToken, mapUserSummary, seri
 
 function registerSetupRoutes(app, deps) {
   const {
+    controlPlaneKey,
     getSetupStatus,
     initializeSetup,
     isPostgresMode,
@@ -43,12 +44,41 @@ function registerSetupRoutes(app, deps) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
+
+  app.get("/api/internal/setup/status", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode)) return;
+    if (!ensureInternalControlPlaneRequest(req, res, controlPlaneKey)) return;
+
+    try {
+      const status = await getSetupStatus();
+      res.json({
+        initialized: !!status.initialized,
+        setupCompletedAt: status.setupCompletedAt || null
+      });
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
 }
 
 function ensurePostgresMode(res, isPostgresMode) {
   if (isPostgresMode) return true;
   res.status(404).json({ error: "Setup endpoints are available only in postgres mode." });
   return false;
+}
+
+function ensureInternalControlPlaneRequest(req, res, controlPlaneKey) {
+  const expected = String(controlPlaneKey || "").trim();
+  if (!expected) {
+    res.status(503).json({ error: "Internal control-plane access is not configured." });
+    return false;
+  }
+  const provided = String(req.headers["x-control-plane-key"] || "").trim();
+  if (!provided || provided !== expected) {
+    res.status(401).json({ error: "Internal control-plane authentication required." });
+    return false;
+  }
+  return true;
 }
 
 async function normalizeSetupPayload(input) {

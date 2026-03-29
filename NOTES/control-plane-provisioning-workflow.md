@@ -68,6 +68,8 @@ Define the first end-to-end provisioning workflow that turns the current hosted 
   - CORS origin
   - session config
 - Worker restarts the tenant app service and verifies `/health`.
+- Current implementation note:
+  - the staged control plane now writes tenant runtime bundle artifacts on `APP001`, but host-to-host app/web deployment automation is still deferred until `APP001` has a trusted automation path to target hosts such as `WEB001`
 
 ### 6. Register Release
 - Worker writes `tenant_releases` row for the deployed version.
@@ -89,7 +91,7 @@ Define the first end-to-end provisioning workflow that turns the current hosted 
   - starts the normal session
 - Control plane should poll or receive confirmation that setup completed.
 - Current implementation note:
-  - the staged control plane now supports manual and background setup-state synchronization by polling the tenant runtime `GET /api/setup/status` endpoint
+  - the staged control plane now supports manual and background setup-state synchronization through a shared-key protected tenant runtime endpoint at `GET /api/internal/setup/status`
 
 ### 9. Mark Environment Ready
 - Control plane updates:

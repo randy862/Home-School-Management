@@ -15,6 +15,9 @@ module.exports = {
     corsOrigin: process.env.APP_CORS_ORIGIN || "*",
     dbClient: String(process.env.DB_CLIENT || "mssql").toLowerCase()
   },
+  internal: {
+    controlPlaneKey: String(process.env.CONTROL_PLANE_INTERNAL_KEY || "").trim()
+  },
   session: {
     cookieName: process.env.SESSION_COOKIE_NAME || "hsm_session",
     cookieSecure: toBool(process.env.SESSION_COOKIE_SECURE, false),
