@@ -178,12 +178,17 @@ Define the first end-to-end provisioning workflow that turns the current hosted 
 - `POST /api/control/tenants/:id/environments`
 - `GET /api/control/environments/:id`
 - `POST /api/control/environments/:id/provision`
+- `POST /api/control/environments/:id/deploy-release`
 - `POST /api/control/environments/:id/setup-token`
+- `POST /api/control/environments/:id/suspend`
+- `POST /api/control/environments/:id/resume`
+- `POST /api/control/environments/:id/decommission`
 
 ### Jobs
 - `GET /api/control/jobs`
 - `GET /api/control/jobs/:id`
 - `POST /api/control/jobs/:id/retry`
+- `GET /api/control/audit`
 
 ## Recovery Model
 
@@ -193,6 +198,47 @@ Define the first end-to-end provisioning workflow that turns the current hosted 
 - Terminal failure still lands on the same job record with the final error plus full event history.
 - Manual operator retry creates a new queued child job linked by `retry_of_job_id` instead of rewriting the failed job in place.
 - Idempotency keys apply at queue time: the same intent returns the existing queued/running/completed job, while a conflicting request using the same key is rejected.
+
+## Release Deployment Follow-Up
+
+- `deploy_release` is now the first post-provisioning lifecycle job.
+- It reuses the deployment executor and release registration path without rerunning schema creation, migrations, or setup-token issuance.
+- The control plane records a fresh `tenant_releases` row, updates `tenant_environments.current_release_id`, and keeps the environment in `ready` on success.
+- The current staged validation path is:
+  - queue `POST /api/control/environments/:id/deploy-release`
+  - wait for app/web deployment events
+  - confirm `release_registered`
+  - confirm the environment record now points to the new `current_release_id`
+
+## Tenant Lifecycle Follow-Up
+
+- `suspend_tenant`, `resume_tenant`, and `decommission_tenant` now run as queued jobs against a target environment.
+- `suspend_tenant`:
+  - sets `tenants.status = suspended`
+  - sets `tenant_environments.status = degraded`
+  - marks environment health as `suspended`
+  - makes runtime resolution return `404` because only active tenants remain routable
+- `resume_tenant`:
+  - restores `tenants.status = active`
+  - restores `tenant_environments.status = ready`
+  - marks environment health as `healthy`
+  - restores runtime resolution for the tenant domain
+- `decommission_tenant`:
+  - sets `tenants.status = decommissioned`
+  - sets `tenant_environments.status = archived`
+  - marks environment health as `decommissioned`
+  - leaves runtime resolution unavailable for the tenant domain
+
+## Observability Follow-Up
+
+- `GET /api/control/audit` now exposes recent operator activity with filters for tenant, target type, target id, action type, and result count.
+- The `/control/` UI now uses that feed to show `Operator Activity` on tenant, environment, and job detail views.
+- Job detail now also surfaces support-oriented diagnostics:
+  - current attempt vs maximum attempts
+  - next retry timing when automatic retry is scheduled
+  - retry lineage through `retry_of_job_id`
+  - a simplified failure classification and operator guidance summary
+- This does not replace deeper logs yet, but it gives operators and support a usable first-line history without reading raw JSON first.
 
 ## First UI Surface For `admin/`
 - tenant list

@@ -275,15 +275,40 @@ Date: 2026-03-27
   - staged validation confirmed idempotent queueing with repeated `POST /api/control/environments/:id/provision` calls returning the same job for the same idempotency key
   - staged validation confirmed manual retry creates a new queued child job with `retryOfJobId` set to the original failed job
   - staged validation confirmed automatic retry now records `retry_pending` and `retry_scheduled`, waits 30 seconds, reclaims the same job for a second attempt, and only then lands in terminal `failed` when the configured retry budget is exhausted
+- Started Session 3 lifecycle work with a dedicated `deploy_release` job:
+  - added `POST /api/control/environments/:id/deploy-release` so operators can queue release-only deployment work without rerunning provisioning or setup-token issuance
+  - added worker handling for `jobType = deploy_release` that writes a fresh runtime bundle, reuses the proven app/web deployment executor, registers a new `tenant_releases` row, and updates `tenant_environments.current_release_id`
+  - `deploy_release` now records release-specific job history (`runtime_bundle_written`, `app_deploy_completed`, `web_deploy_completed`, `release_registered`, `succeeded`) while leaving schema/setup-state workflows untouched
+  - staged validation on `APP001` succeeded for `job-0d846d36-bca0-49b8-8a8e-8298231bc22e` with release version `deploy-release-20260329a`
+  - staged validation confirmed the environment record advanced to `currentReleaseId = release-bcec9841-0c12-4741-be17-cb68e7846d28` and retained `status = ready`, `setupState = initialized`, and healthy app/web deployment results
+- Completed Session 3B tenant lifecycle jobs on staging:
+  - added `POST /api/control/environments/:id/suspend`, `/resume`, and `/decommission` as queued operator actions
+  - added worker completion handling for `suspend_tenant`, `resume_tenant`, and `decommission_tenant`
+  - `suspend_tenant` now moves the tenant to `status = suspended`, marks the environment `degraded`, records `tenant_suspended`, and blocks public runtime resolution because only `active` tenants remain routable
+  - `resume_tenant` now restores the tenant to `status = active`, marks the environment `ready`, records `tenant_resumed`, and restores public runtime resolution
+  - `decommission_tenant` now moves the tenant to `status = decommissioned`, archives the environment, records `tenant_decommissioned`, and leaves runtime resolution permanently unavailable for that domain
+  - staged validation on disposable tenant `tenant-66e44430-6d18-478a-a9e5-e545c0fb35a1` and environment `env-06716426-2059-4b52-9226-0dd8962c6a38` succeeded end to end for all three lifecycle jobs
+  - staged validation confirmed:
+    - suspend job `job-ee3e6d5d-f53a-406c-8216-36bf63132a0e` returned `succeeded` and `GET /api/runtime/resolve?host=lifecycle-20260329.school.local` switched from a tenant result to `404`
+    - resume job `job-54728e8f-52c9-4a76-9df9-b43df842df98` returned `succeeded` and public runtime resolution resumed for `lifecycle-20260329.school.local`
+    - decommission job `job-9609d738-5f8b-4bd8-a1e2-09d464af18ae` returned `succeeded`, archived the environment, and left runtime resolution returning `404`
+- Completed Session 4 observability and auditability hardening in code and staging:
+  - added authenticated `GET /api/control/audit` with filter support for `tenantId`, `targetType`, `targetId`, `actionType`, and `limit`
+  - expanded the PostgreSQL operator store with filtered audit-log reads joined to operator usernames and roles
+  - upgraded `/control/` detail views so tenant, environment, and job screens now show `Operator Activity` instead of forcing operators into raw JSON
+  - added operator-facing job diagnostics in the staged UI, including attempt counts, retry timing, retry lineage, failure classification, and guidance summaries for support use
+  - redeployed `control-api/` to `APP001` and refreshed `/control/` assets on `WEB001`
+  - staged validation confirmed `GET /api/control/audit?limit=5` returns recent operator actions including Session 3 lifecycle events with actor, target, tenant, and structured details
+  - staged validation confirmed the deployed `/control/app.js` now includes the new audit-trail and job-diagnostics rendering code paths
 
 ## Blocked
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.
 - Direct SSH validation to `SQL001` from this PC still needs to be confirmed separately; current confirmed database path remains through `APP001`.
 
 ## Next
-1. Expose Session 2 recovery signals more clearly in `/control/` so operators can see attempt counts, next retry time, and retry lineage without reading raw JSON.
-2. Start Session 3 by defining and implementing broader tenant lifecycle jobs beyond the current provisioning/setup-token paths.
-3. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
+1. Start Session 5 UI polish to make the control plane feel like a finished SaaS admin product rather than a technical console.
+2. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
+3. Consider whether the new audit trail should expand into a broader support view or searchable operations history after the main UI pass.
 
 ## Current Assessment
 - The app is a strong functional product foundation.

@@ -53,6 +53,22 @@ function mapProvisioningJobEventRow(row) {
   };
 }
 
+function mapOperatorAuditLogRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    operatorUserId: row.operatorUserId ?? row.operator_user_id ?? null,
+    operatorUsername: row.operatorUsername ?? row.operator_username ?? null,
+    operatorRole: row.operatorRole ?? row.operator_role ?? null,
+    actionType: row.actionType ?? row.action_type,
+    targetType: row.targetType ?? row.target_type,
+    targetId: row.targetId ?? row.target_id ?? null,
+    tenantId: row.tenantId ?? row.tenant_id ?? null,
+    details: row.details ?? row.details_json ?? {},
+    createdAt: row.createdAt ?? row.created_at
+  };
+}
+
 async function countOperators() {
   const pool = getPostgresPool();
   const result = await pool.query("SELECT COUNT(*)::int AS total FROM operator_users");
@@ -635,7 +651,7 @@ async function resolveTenantRuntimeByHost(host, options = {}) {
     JOIN tenants t ON t.id = d.tenant_id
     JOIN tenant_environments e ON e.tenant_id = t.id
     WHERE lower(d.domain) = $1
-      AND t.status <> 'decommissioned'
+      AND t.status = 'active'
       AND e.status <> 'archived'
       ${environmentFilterSql}
     ORDER BY
@@ -732,6 +748,54 @@ async function listProvisioningJobEvents(jobId) {
     ORDER BY created_at ASC
   `, [jobId]);
   return result.rows.map(mapProvisioningJobEventRow);
+}
+
+async function listOperatorAuditLog(filters = {}) {
+  const pool = getPostgresPool();
+  const params = [];
+  const clauses = [];
+
+  if (filters.tenantId) {
+    params.push(String(filters.tenantId).trim());
+    clauses.push(`a.tenant_id = $${params.length}`);
+  }
+  if (filters.targetType) {
+    params.push(String(filters.targetType).trim());
+    clauses.push(`a.target_type = $${params.length}`);
+  }
+  if (filters.targetId) {
+    params.push(String(filters.targetId).trim());
+    clauses.push(`a.target_id = $${params.length}`);
+  }
+  if (filters.actionType) {
+    params.push(String(filters.actionType).trim());
+    clauses.push(`a.action_type = $${params.length}`);
+  }
+
+  const limit = Math.min(Math.max(Number(filters.limit) || 20, 1), 100);
+  params.push(limit);
+
+  const whereSql = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const result = await pool.query(`
+    SELECT
+      a.id,
+      a.operator_user_id AS "operatorUserId",
+      u.username AS "operatorUsername",
+      u.role AS "operatorRole",
+      a.action_type AS "actionType",
+      a.target_type AS "targetType",
+      a.target_id AS "targetId",
+      a.tenant_id AS "tenantId",
+      a.details_json AS "details",
+      a.created_at AS "createdAt"
+    FROM operator_audit_log a
+    LEFT JOIN operator_users u ON u.id = a.operator_user_id
+    ${whereSql}
+    ORDER BY a.created_at DESC
+    LIMIT $${params.length}
+  `, params);
+
+  return result.rows.map(mapOperatorAuditLogRow);
 }
 
 async function queueProvisioningJob(job, context = {}) {
@@ -840,7 +904,7 @@ async function queueProvisioningJob(job, context = {}) {
       VALUES ($1, 'queued', $2, $3::jsonb)
     `, [job.id, job.message || `${job.jobType} queued`, JSON.stringify(job.payload || {})]);
 
-    if (job.jobType === 'provision_environment' && job.tenantEnvironmentId) {
+    if ((job.jobType === "provision_environment" || job.jobType === "deploy_release") && job.tenantEnvironmentId) {
       await client.query(`
         UPDATE tenant_environments
         SET status = 'provisioning', updated_at = NOW()
@@ -1262,6 +1326,183 @@ async function completeProvisionEnvironmentJob(job, automationResult = {}) {
   }
 }
 
+async function completeDeployReleaseJob(job, automationResult = {}) {
+  const pool = getPostgresPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const environmentResult = await client.query(`
+      SELECT
+        id,
+        tenant_id AS "tenantId",
+        environment_key AS "environmentKey",
+        display_name AS "displayName",
+        status,
+        app_base_url AS "appBaseUrl",
+        app_host AS "appHost",
+        web_host AS "webHost",
+        database_host AS "databaseHost",
+        database_name AS "databaseName",
+        database_schema AS "databaseSchema",
+        current_release_id AS "currentReleaseId",
+        setup_state AS "setupState"
+      FROM tenant_environments
+      WHERE id = $1
+      LIMIT 1
+    `, [job.tenantEnvironmentId]);
+    const environment = environmentResult.rows[0];
+    if (!environment) {
+      const error = new Error("Environment not found for deploy-release job.");
+      error.code = "environment_not_found";
+      throw error;
+    }
+
+    const payload = job.payload || {};
+    const releaseId = `release-${randomUUID()}`;
+    const releaseVersion = String(payload.releaseVersion || `release-${environment.environmentKey}-${Date.now()}`).trim();
+
+    await client.query(`
+      INSERT INTO tenant_releases (
+        id,
+        tenant_environment_id,
+        release_version,
+        deployed_by,
+        deployed_at,
+        release_notes
+      )
+      VALUES ($1, $2, $3, $4, NOW(), $5)
+    `, [
+      releaseId,
+      environment.id,
+      releaseVersion,
+      job.requestedByOperatorUserId || null,
+      "Deployed by control-plane worker"
+    ]);
+
+    const updatedEnvironmentResult = await client.query(`
+      UPDATE tenant_environments
+      SET
+        status = 'ready',
+        app_base_url = COALESCE(NULLIF($2, ''), app_base_url),
+        app_host = COALESCE(NULLIF($3, ''), app_host),
+        web_host = COALESCE(NULLIF($4, ''), web_host),
+        current_release_id = $5,
+        last_health_check_at = NOW(),
+        last_health_status = 'healthy',
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING
+        id,
+        tenant_id AS "tenantId",
+        environment_key AS "environmentKey",
+        display_name AS "displayName",
+        status,
+        app_base_url AS "appBaseUrl",
+        app_host AS "appHost",
+        web_host AS "webHost",
+        database_host AS "databaseHost",
+        database_name AS "databaseName",
+        database_schema AS "databaseSchema",
+        current_release_id AS "currentReleaseId",
+        setup_state AS "setupState",
+        initialized_at AS "initializedAt",
+        last_health_check_at AS "lastHealthCheckAt",
+        last_health_status AS "lastHealthStatus",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+    `, [
+      environment.id,
+      payload.appBaseUrl || environment.appBaseUrl || null,
+      payload.appHost || environment.appHost || null,
+      payload.webHost || environment.webHost || null,
+      releaseId
+    ]);
+
+    const jobResult = {
+      releaseId,
+      releaseVersion,
+      environmentStatus: "ready",
+      setupState: environment.setupState || "uninitialized",
+      health: "healthy",
+      runtimeBundlePath: automationResult.bundlePath || null,
+      databaseSchema: automationResult.databaseSchema || environment.databaseSchema || null,
+      deployment: automationResult.deployment || {
+        enabled: false,
+        app: { attempted: false, skipped: true, reason: "deployment_disabled" },
+        web: { attempted: false, skipped: true, reason: "deployment_disabled" }
+      }
+    };
+
+    const completedJobResult = await client.query(`
+      UPDATE provisioning_jobs
+      SET
+        status = 'succeeded',
+        completed_at = NOW(),
+        result_json = $2::jsonb
+      WHERE id = $1
+      RETURNING
+        id,
+        tenant_id AS "tenantId",
+        tenant_environment_id AS "tenantEnvironmentId",
+        job_type AS "jobType",
+        status,
+        requested_by_operator_user_id AS "requestedByOperatorUserId",
+        requested_at AS "requestedAt",
+        started_at AS "startedAt",
+        completed_at AS "completedAt",
+        last_attempt_at AS "lastAttemptAt",
+        next_attempt_at AS "nextAttemptAt",
+        attempt_count AS "attemptCount",
+        max_attempts AS "maxAttempts",
+        retry_of_job_id AS "retryOfJobId",
+        error_code AS "errorCode",
+        error_message AS "errorMessage",
+        idempotency_key AS "idempotencyKey",
+        payload_json AS "payload",
+        result_json AS "result"
+    `, [job.id, JSON.stringify(jobResult)]);
+
+    await client.query(`
+      INSERT INTO provisioning_job_events (provisioning_job_id, event_type, message, details_json)
+      VALUES
+        ($1, 'runtime_bundle_written', 'Tenant runtime bundle written for release deployment', $2::jsonb),
+        ($1, 'app_deploy_completed', 'Tenant app deployment step completed', $3::jsonb),
+        ($1, 'web_deploy_completed', 'Tenant web deployment step completed', $4::jsonb),
+        ($1, 'release_registered', 'Tenant release registered', $5::jsonb),
+        ($1, 'succeeded', 'Deploy release completed', $6::jsonb)
+    `, [
+      job.id,
+      JSON.stringify({
+        runtimeBundlePath: automationResult.bundlePath || null
+      }),
+      JSON.stringify(automationResult.deployment?.app || {
+        attempted: false,
+        skipped: true,
+        reason: "deployment_disabled"
+      }),
+      JSON.stringify(automationResult.deployment?.web || {
+        attempted: false,
+        skipped: true,
+        reason: "deployment_disabled"
+      }),
+      JSON.stringify({ releaseId, releaseVersion }),
+      JSON.stringify(jobResult)
+    ]);
+
+    await client.query("COMMIT");
+    return {
+      job: mapProvisioningJobRow(completedJobResult.rows[0]),
+      environment: updatedEnvironmentResult.rows[0]
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function completeSetupTokenJob(job, automationResult = {}) {
   const pool = getPostgresPool();
   const client = await pool.connect();
@@ -1368,6 +1609,190 @@ async function completeSetupTokenJob(job, automationResult = {}) {
 
     await client.query("COMMIT");
     return mapProvisioningJobRow(completedJobResult.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function completeTenantLifecycleJob(job, environment) {
+  const pool = getPostgresPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const environmentResult = await client.query(`
+      SELECT
+        e.id,
+        e.tenant_id AS "tenantId",
+        e.environment_key AS "environmentKey",
+        e.display_name AS "displayName",
+        e.status,
+        e.app_base_url AS "appBaseUrl",
+        e.app_host AS "appHost",
+        e.web_host AS "webHost",
+        e.database_host AS "databaseHost",
+        e.database_name AS "databaseName",
+        e.database_schema AS "databaseSchema",
+        e.current_release_id AS "currentReleaseId",
+        e.setup_state AS "setupState",
+        t.status AS "tenantStatus",
+        t.display_name AS "tenantDisplayName"
+      FROM tenant_environments e
+      JOIN tenants t ON t.id = e.tenant_id
+      WHERE e.id = $1
+      LIMIT 1
+    `, [environment.id]);
+    const current = environmentResult.rows[0];
+    if (!current) {
+      const error = new Error("Environment not found for tenant lifecycle job.");
+      error.code = "environment_not_found";
+      throw error;
+    }
+
+    const definitions = {
+      suspend_tenant: {
+        tenantStatus: "suspended",
+        environmentStatus: "degraded",
+        healthStatus: "suspended",
+        eventType: "tenant_suspended",
+        message: "Tenant suspended",
+        successMessage: "Suspend tenant completed"
+      },
+      resume_tenant: {
+        tenantStatus: "active",
+        environmentStatus: "ready",
+        healthStatus: "healthy",
+        eventType: "tenant_resumed",
+        message: "Tenant resumed",
+        successMessage: "Resume tenant completed"
+      },
+      decommission_tenant: {
+        tenantStatus: "decommissioned",
+        environmentStatus: "archived",
+        healthStatus: "decommissioned",
+        eventType: "tenant_decommissioned",
+        message: "Tenant decommissioned",
+        successMessage: "Decommission tenant completed"
+      }
+    };
+
+    const definition = definitions[job.jobType];
+    if (!definition) {
+      const error = new Error("Unsupported tenant lifecycle job.");
+      error.code = "unsupported_lifecycle_job";
+      throw error;
+    }
+
+    await client.query(`
+      UPDATE tenants
+      SET
+        status = $2,
+        updated_at = NOW()
+      WHERE id = $1
+    `, [current.tenantId, definition.tenantStatus]);
+
+    const updatedEnvironmentResult = await client.query(`
+      UPDATE tenant_environments
+      SET
+        status = $2,
+        last_health_check_at = NOW(),
+        last_health_status = $3,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING
+        id,
+        tenant_id AS "tenantId",
+        environment_key AS "environmentKey",
+        display_name AS "displayName",
+        status,
+        app_base_url AS "appBaseUrl",
+        app_host AS "appHost",
+        web_host AS "webHost",
+        database_host AS "databaseHost",
+        database_name AS "databaseName",
+        database_schema AS "databaseSchema",
+        current_release_id AS "currentReleaseId",
+        setup_state AS "setupState",
+        initialized_at AS "initializedAt",
+        last_health_check_at AS "lastHealthCheckAt",
+        last_health_status AS "lastHealthStatus",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+    `, [current.id, definition.environmentStatus, definition.healthStatus]);
+
+    const jobResultPayload = {
+      tenantStatus: definition.tenantStatus,
+      environmentStatus: definition.environmentStatus,
+      health: definition.healthStatus,
+      tenantId: current.tenantId,
+      tenantDisplayName: current.tenantDisplayName,
+      tenantEnvironmentId: current.id,
+      environmentKey: current.environmentKey,
+      notes: String(job.payload?.notes || "").trim() || null
+    };
+
+    const completedJobResult = await client.query(`
+      UPDATE provisioning_jobs
+      SET
+        status = 'succeeded',
+        completed_at = NOW(),
+        result_json = $2::jsonb
+      WHERE id = $1
+      RETURNING
+        id,
+        tenant_id AS "tenantId",
+        tenant_environment_id AS "tenantEnvironmentId",
+        job_type AS "jobType",
+        status,
+        requested_by_operator_user_id AS "requestedByOperatorUserId",
+        requested_at AS "requestedAt",
+        started_at AS "startedAt",
+        completed_at AS "completedAt",
+        last_attempt_at AS "lastAttemptAt",
+        next_attempt_at AS "nextAttemptAt",
+        attempt_count AS "attemptCount",
+        max_attempts AS "maxAttempts",
+        retry_of_job_id AS "retryOfJobId",
+        error_code AS "errorCode",
+        error_message AS "errorMessage",
+        idempotency_key AS "idempotencyKey",
+        payload_json AS "payload",
+        result_json AS "result"
+    `, [job.id, JSON.stringify(jobResultPayload)]);
+
+    await client.query(`
+      INSERT INTO provisioning_job_events (provisioning_job_id, event_type, message, details_json)
+      VALUES
+        ($1, $2, $3, $4::jsonb),
+        ($1, 'succeeded', $5, $6::jsonb)
+    `, [
+      job.id,
+      definition.eventType,
+      definition.message,
+      JSON.stringify(jobResultPayload),
+      definition.successMessage,
+      JSON.stringify(jobResultPayload)
+    ]);
+
+    await client.query(`
+      INSERT INTO operator_audit_log (operator_user_id, action_type, target_type, target_id, tenant_id, details_json)
+      VALUES ($1, $2, 'tenant_environment', $3, $4, $5::jsonb)
+    `, [
+      job.requestedByOperatorUserId || null,
+      job.jobType,
+      current.id,
+      current.tenantId,
+      JSON.stringify(jobResultPayload)
+    ]);
+
+    await client.query("COMMIT");
+    return {
+      job: mapProvisioningJobRow(completedJobResult.rows[0]),
+      environment: updatedEnvironmentResult.rows[0]
+    };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -1483,7 +1908,7 @@ async function retryProvisioningJob(jobId, options = {}, context = {}) {
       })
     ]);
 
-    if (existing.jobType === "provision_environment" && existing.tenantEnvironmentId) {
+    if ((existing.jobType === "provision_environment" || existing.jobType === "deploy_release") && existing.tenantEnvironmentId) {
       await client.query(`
         UPDATE tenant_environments
         SET status = 'provisioning', updated_at = NOW()
@@ -1540,8 +1965,10 @@ function stableJson(value) {
 module.exports = {
   appendProvisioningJobEvent,
   claimNextProvisioningJob,
+  completeDeployReleaseJob,
   completeProvisionEnvironmentJob,
   completeSetupTokenJob,
+  completeTenantLifecycleJob,
   countOperators,
   createBootstrapOperator,
   createOperatorSession,
@@ -1552,6 +1979,7 @@ module.exports = {
   getProvisioningJobById,
   getTenantById,
   getTenantEnvironmentById,
+  listOperatorAuditLog,
   listSetupSyncCandidates,
   listProvisioningJobEvents,
   listProvisioningJobs,

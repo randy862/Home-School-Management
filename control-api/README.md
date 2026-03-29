@@ -24,6 +24,11 @@ Proposed first endpoint groups:
 - `/api/control/tenants`
 - `/api/control/environments`
 - `/api/control/jobs`
+- `/api/control/audit`
+- `/api/control/environments/:id/deploy-release`
+- `/api/control/environments/:id/suspend`
+- `/api/control/environments/:id/resume`
+- `/api/control/environments/:id/decommission`
 - `/api/runtime/resolve`
 - `/api/internal/runtime/resolve`
 
@@ -41,10 +46,13 @@ Current implementation status:
 - operator login/logout/session bootstrap
 - tenant/environment/job read routes
 - tenant/environment/provisioning mutation routes with platform-admin enforcement
+- dedicated platform-admin release deployment route: `POST /api/control/environments/:id/deploy-release`
+- dedicated platform-admin lifecycle routes: `POST /api/control/environments/:id/suspend`, `POST /api/control/environments/:id/resume`, and `POST /api/control/environments/:id/decommission`
 - public tenant-runtime resolution by host plus internal runtime-routing resolution
 - short-lived signed internal service-auth support for tenant-runtime setup synchronization and internal runtime-resolution routes, with legacy shared-key fallback available during staged rollout
 - in-process provisioning worker that claims queued jobs, records job events, runs tenant runtime migration/setup-token scripts, can optionally perform app/web deployment steps with strict SSH trust, updates environment state, registers releases, and completes setup-token issuance metadata
 - provisioning job recovery support with idempotent queueing, retry-attempt metadata, automatic transient-failure rescheduling, and manual `POST /api/control/jobs/:id/retry` creation of linked follow-up jobs
+- authenticated filtered audit-log reads through `GET /api/control/audit`
 - manual environment setup-state sync route: `POST /api/control/environments/:id/sync-setup`
 
 Deployment-related environment variables:

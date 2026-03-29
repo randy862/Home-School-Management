@@ -61,11 +61,63 @@ function registerEnvironmentRoutes(app, deps) {
     }
   });
 
+  app.post("/api/control/environments/:id/deploy-release", async (req, res) => {
+    if (!ensurePlatformAdmin(req, res)) return;
+
+    try {
+      const job = await queueProvisioningJob(normalizeDeployReleaseJobPayload(req.body, req.params.id), {
+        operatorUserId: req.auth.user.id
+      });
+      res.status(201).json(job);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/control/environments/:id/setup-token", async (req, res) => {
     if (!ensurePlatformAdmin(req, res)) return;
 
     try {
       const job = await queueProvisioningJob(normalizeSetupTokenJobPayload(req.body, req.params.id), {
+        operatorUserId: req.auth.user.id
+      });
+      res.status(201).json(job);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/control/environments/:id/suspend", async (req, res) => {
+    if (!ensurePlatformAdmin(req, res)) return;
+
+    try {
+      const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, req.params.id, "suspend_tenant", "Suspend tenant queued"), {
+        operatorUserId: req.auth.user.id
+      });
+      res.status(201).json(job);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/control/environments/:id/resume", async (req, res) => {
+    if (!ensurePlatformAdmin(req, res)) return;
+
+    try {
+      const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, req.params.id, "resume_tenant", "Resume tenant queued"), {
+        operatorUserId: req.auth.user.id
+      });
+      res.status(201).json(job);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/control/environments/:id/decommission", async (req, res) => {
+    if (!ensurePlatformAdmin(req, res)) return;
+
+    try {
+      const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, req.params.id, "decommission_tenant", "Decommission tenant queued"), {
         operatorUserId: req.auth.user.id
       });
       res.status(201).json(job);
@@ -206,6 +258,69 @@ function normalizeSetupTokenJobPayload(input, tenantEnvironmentId) {
     payload: {
       ttlHours,
       deliveredVia,
+      notes
+    }
+  };
+}
+
+function normalizeDeployReleaseJobPayload(input, tenantEnvironmentId) {
+  const tenantId = String(input?.tenantId || "").trim() || null;
+  const releaseVersion = String(input?.releaseVersion || "").trim();
+  const appBaseUrl = String(input?.appBaseUrl || "").trim();
+  const appHost = String(input?.appHost || "").trim();
+  const webHost = String(input?.webHost || "").trim();
+  const idempotencyKey = String(input?.idempotencyKey || "").trim();
+  const maxAttempts = normalizeMaxAttempts(input?.maxAttempts);
+
+  if (!tenantEnvironmentId) {
+    const error = new Error("Environment id is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!releaseVersion) {
+    const error = new Error("Release version is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    id: `job-${randomUUID()}`,
+    tenantId,
+    tenantEnvironmentId,
+    jobType: "deploy_release",
+    idempotencyKey: idempotencyKey || null,
+    maxAttempts,
+    message: "Deploy release queued",
+    payload: {
+      releaseVersion,
+      appBaseUrl,
+      appHost,
+      webHost
+    }
+  };
+}
+
+function normalizeLifecycleJobPayload(input, tenantEnvironmentId, jobType, message) {
+  const tenantId = String(input?.tenantId || "").trim() || null;
+  const idempotencyKey = String(input?.idempotencyKey || "").trim();
+  const maxAttempts = normalizeMaxAttempts(input?.maxAttempts);
+  const notes = String(input?.notes || "").trim();
+
+  if (!tenantEnvironmentId) {
+    const error = new Error("Environment id is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    id: `job-${randomUUID()}`,
+    tenantId,
+    tenantEnvironmentId,
+    jobType,
+    idempotencyKey: idempotencyKey || null,
+    maxAttempts,
+    message,
+    payload: {
       notes
     }
   };

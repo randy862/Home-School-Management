@@ -3,8 +3,10 @@ const { app: appConfig, automation: automationConfig, internal: internalConfig, 
 const {
   appendProvisioningJobEvent,
   claimNextProvisioningJob,
+  completeDeployReleaseJob,
   completeProvisionEnvironmentJob,
   completeSetupTokenJob,
+  completeTenantLifecycleJob,
   countOperators,
   createBootstrapOperator,
   createOperatorSession,
@@ -15,6 +17,7 @@ const {
   getProvisioningJobById,
   getTenantById,
   getTenantEnvironmentById,
+  listOperatorAuditLog,
   listSetupSyncCandidates,
   listProvisioningJobEvents,
   listProvisioningJobs,
@@ -32,6 +35,7 @@ const {
 } = require("./postgres-operator-store");
 const { applyCors, createOperatorAuthContextMiddleware } = require("./middleware/auth-context");
 const { errorHandler } = require("./middleware/error-handler");
+const { registerAuditRoutes } = require("./routes/audit-routes");
 const { registerEnvironmentRoutes } = require("./routes/environment-routes");
 const { registerInfraRoutes } = require("./routes/infra-routes");
 const { registerJobRoutes } = require("./routes/job-routes");
@@ -59,6 +63,9 @@ app.use(createOperatorAuthContextMiddleware({
 }));
 
 registerInfraRoutes(app);
+registerAuditRoutes(app, {
+  listOperatorAuditLog
+});
 registerOperatorAuthRoutes(app, {
   countOperators,
   createBootstrapOperator,
@@ -105,6 +112,15 @@ async function executeProvisioningJob(job) {
       await completeProvisionEnvironmentJob(job, automationResult);
       return;
     }
+    if (job.jobType === "deploy_release") {
+      const environment = await getTenantEnvironmentById(job.tenantEnvironmentId);
+      if (!environment) {
+        throw Object.assign(new Error("Environment not found for deploy-release job."), { code: "environment_not_found" });
+      }
+      const automationResult = await runtimeAutomation.deployRelease(environment, job.payload || {});
+      await completeDeployReleaseJob(job, automationResult);
+      return;
+    }
     if (job.jobType === "issue_setup_token") {
       const environment = await getTenantEnvironmentById(job.tenantEnvironmentId);
       if (!environment) {
@@ -112,6 +128,14 @@ async function executeProvisioningJob(job) {
       }
       const automationResult = await runtimeAutomation.issueSetupToken(environment);
       await completeSetupTokenJob(job, automationResult);
+      return;
+    }
+    if (job.jobType === "suspend_tenant" || job.jobType === "resume_tenant" || job.jobType === "decommission_tenant") {
+      const environment = await getTenantEnvironmentById(job.tenantEnvironmentId);
+      if (!environment) {
+        throw Object.assign(new Error("Environment not found for tenant lifecycle job."), { code: "environment_not_found" });
+      }
+      await completeTenantLifecycleJob(job, environment);
       return;
     }
 

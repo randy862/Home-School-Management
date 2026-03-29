@@ -251,6 +251,10 @@ function renderTenantDetail(tenant) {
       ${renderDetailField("Created", formatDateTime(tenant.createdAt))}
       ${renderDetailField("Updated", formatDateTime(tenant.updatedAt))}
     </div>
+    <section class="history-block">
+      <h4>Operator Activity</h4>
+      ${renderAuditTrail(tenant.auditEntries || [], "No operator activity recorded for this customer yet.")}
+    </section>
   `;
 }
 
@@ -381,6 +385,10 @@ function renderEnvironmentDetail(environment) {
       <h4>Related Jobs</h4>
       ${renderRelatedJobs(relatedJobs)}
     </section>
+    <section class="history-block">
+      <h4>Operator Activity</h4>
+      ${renderAuditTrail(environment.auditEntries || [], "No operator activity recorded for this environment yet.")}
+    </section>
     <details class="raw-details">
       <summary>Raw JSON</summary>
       <pre>${escapeHtml(JSON.stringify(environment, null, 2))}</pre>
@@ -425,6 +433,7 @@ function renderJobDetail(job) {
       ${renderDetailField("Error", job.errorMessage || job.errorCode || "None")}
       ${renderDetailField("Idempotency", job.idempotencyKey || "None")}
     </div>
+    ${renderJobDiagnostics(job)}
     ${renderJobResultSummary(job.result || {})}
     ${renderDeploymentSummary(deployment)}
     <section class="history-block">
@@ -439,6 +448,10 @@ function renderJobDetail(job) {
     <section class="history-block">
       <h4>Events</h4>
       ${renderJobEvents(job.events || [])}
+    </section>
+    <section class="history-block">
+      <h4>Operator Activity</h4>
+      ${renderAuditTrail(job.auditEntries || [], "No operator activity recorded for this job yet.")}
     </section>
     <section class="history-block">
       <h4>Payload</h4>
@@ -498,7 +511,11 @@ async function loadTenantDetail(tenantId, silent = false) {
   refs.tenantFormShell.classList.add("hidden");
   refs.tenantForm.classList.add("hidden");
   try {
-    const tenant = await apiFetch(`/api/control/tenants/${encodeURIComponent(tenantId)}`);
+    const [tenant, auditEntries] = await Promise.all([
+      apiFetch(`/api/control/tenants/${encodeURIComponent(tenantId)}`),
+      fetchAuditEntries({ tenantId, targetType: "tenant", targetId: tenantId, limit: 12 })
+    ]);
+    tenant.auditEntries = auditEntries;
     renderTenantDetail(tenant);
     if (!silent) setFlash("info", `Loaded customer record for ${tenant.displayName}.`);
   } catch (error) {
@@ -601,6 +618,12 @@ async function loadEnvironmentDetail(environmentId, silent = false) {
   refs.environmentForm.classList.add("hidden");
   try {
     const environment = await apiFetch(`/api/control/environments/${encodeURIComponent(environmentId)}`);
+    environment.auditEntries = await fetchAuditEntries({
+      tenantId: environment.tenantId,
+      targetType: "tenant_environment",
+      targetId: environmentId,
+      limit: 12
+    });
     renderEnvironmentDetail(environment);
     if (!silent) setFlash("info", `Loaded environment ${environment.displayName}.`);
   } catch (error) {
@@ -615,6 +638,12 @@ async function loadJobDetail(jobId, silent = false) {
   refs.jobForm.classList.add("hidden");
   try {
     const job = await apiFetch(`/api/control/jobs/${encodeURIComponent(jobId)}`);
+    job.auditEntries = await fetchAuditEntries({
+      tenantId: job.tenantId,
+      targetType: "provisioning_job",
+      targetId: jobId,
+      limit: 12
+    });
     renderJobDetail(job);
     if (!silent) setFlash("info", `Loaded job ${job.id}.`);
   } catch (error) {
@@ -975,6 +1004,29 @@ function renderTimeline(events) {
   `;
 }
 
+function renderAuditTrail(entries, emptyMessage) {
+  if (!entries.length) {
+    return `<div class="empty-state">${escapeHtml(emptyMessage)}</div>`;
+  }
+  return `
+    <div class="timeline event-timeline">
+      ${entries.map((entry) => `
+        <div class="timeline-item event-item">
+          <span class="timeline-dot timeline-info"></span>
+          <div>
+            <div class="event-head">
+              <strong>${escapeHtml(formatAuditAction(entry.actionType))}</strong>
+              <span class="tag">${escapeHtml(formatDateTime(entry.createdAt))}</span>
+            </div>
+            <p>${escapeHtml(buildAuditSummary(entry))}</p>
+            ${renderEventDetails({ details: entry.details || {} })}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
 function renderJobEvents(events) {
   if (!events.length) {
     return '<div class="empty-state">No job events recorded yet.</div>';
@@ -995,6 +1047,32 @@ function renderJobEvents(events) {
         </div>
       `).join("")}
     </div>
+  `;
+}
+
+function renderJobDiagnostics(job) {
+  const childRetries = state.jobs.filter((item) => item.retryOfJobId === job.id);
+  const parentRetry = job.retryOfJobId ? state.jobs.find((item) => item.id === job.retryOfJobId) : null;
+  const entries = [
+    { label: "Attempts", value: `${Number(job.attemptCount || 0)} of ${Number(job.maxAttempts || 1)}` },
+    { label: "Last Attempt", value: formatDateTime(job.lastAttemptAt) || null },
+    { label: "Next Retry", value: renderNextRetry(job) },
+    { label: "Retry Parent", value: job.retryOfJobId || null },
+    { label: "Retry Parent Type", value: parentRetry ? formatJobType(parentRetry.jobType) : null },
+    { label: "Child Retries", value: childRetries.length ? String(childRetries.length) : null },
+    { label: "Failure Class", value: classifyJobFailure(job) },
+    { label: "Guidance", value: buildJobGuidance(job) }
+  ].filter((entry) => entry.value);
+
+  if (!entries.length) return "";
+  return `
+    <section class="history-block">
+      <h4>Diagnostics</h4>
+      <p class="panel-copy">${escapeHtml(buildJobDiagnosticSummary(job, childRetries.length))}</p>
+      <div class="info-chip-grid">
+        ${entries.map((entry) => renderInfoChip(entry.label, entry.value)).join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -1202,6 +1280,81 @@ function formatJobType(value) {
 
 function formatJobEventType(value) {
   return formatJobType(value);
+}
+
+function formatAuditAction(value) {
+  return formatJobType(value);
+}
+
+function buildAuditSummary(entry) {
+  const actor = entry.operatorUsername ? `${entry.operatorUsername}${entry.operatorRole ? ` (${entry.operatorRole})` : ""}` : "System";
+  const target = [entry.targetType, entry.targetId].filter(Boolean).join(" ");
+  return `${actor} recorded ${formatAuditAction(entry.actionType)}${target ? ` on ${target}.` : "."}`;
+}
+
+function buildJobDiagnosticSummary(job, childRetryCount) {
+  const parts = [`This ${formatJobType(job.jobType).toLowerCase()} job is currently ${String(job.status || "unknown").toLowerCase()}.`];
+  if (job.errorMessage || job.errorCode) {
+    parts.push(`Latest failure: ${job.errorMessage || job.errorCode}.`);
+  }
+  if (childRetryCount) {
+    parts.push(`${childRetryCount} follow-up retry job${childRetryCount === 1 ? "" : "s"} were created from this job.`);
+  } else if (job.retryOfJobId) {
+    parts.push("This job was created as a retry of an earlier failed or canceled job.");
+  }
+  return parts.join(" ");
+}
+
+function renderNextRetry(job) {
+  const normalizedStatus = String(job.status || "").toLowerCase();
+  if (normalizedStatus !== "queued") return null;
+  const nextAttempt = formatDateTime(job.nextAttemptAt);
+  const requested = formatDateTime(job.requestedAt);
+  if (!nextAttempt || nextAttempt === requested) return null;
+  return nextAttempt;
+}
+
+function classifyJobFailure(job) {
+  if (!job.errorCode && !job.errorMessage && String(job.status || "").toLowerCase() !== "failed") return null;
+  const message = String(job.errorMessage || "").toLowerCase();
+  const code = String(job.errorCode || "").toLowerCase();
+  if (message.includes("timeout") || message.includes("no route to host") || message.includes("connection") || ["etimedout", "econnrefused", "econnreset", "enotfound"].includes(code)) {
+    return "Connectivity / infrastructure";
+  }
+  if (code.includes("auth") || message.includes("unauthorized") || message.includes("forbidden")) {
+    return "Authentication / authorization";
+  }
+  if (message.includes("not found")) {
+    return "Missing dependency";
+  }
+  return "Execution failure";
+}
+
+function buildJobGuidance(job) {
+  const normalizedStatus = String(job.status || "").toLowerCase();
+  if (normalizedStatus === "failed") {
+    if ((job.attemptCount || 0) < (job.maxAttempts || 1)) {
+      return "Review the failure and retry if the dependency issue has been corrected.";
+    }
+    return "Retry budget is exhausted. Create a follow-up retry job after correcting the underlying issue.";
+  }
+  if (normalizedStatus === "queued" && renderNextRetry(job)) {
+    return "This job is waiting for its scheduled retry window.";
+  }
+  if (normalizedStatus === "running") {
+    return "Watch the event stream and deployment results for the next completed step.";
+  }
+  return null;
+}
+
+async function fetchAuditEntries(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) params.set("tenantId", filters.tenantId);
+  if (filters.targetType) params.set("targetType", filters.targetType);
+  if (filters.targetId) params.set("targetId", filters.targetId);
+  if (filters.limit) params.set("limit", String(filters.limit));
+  const query = params.toString();
+  return apiFetch(`/api/control/audit${query ? `?${query}` : ""}`);
 }
 
 function resolveEnvironmentName(environmentId) {

@@ -39,6 +39,31 @@ function createTenantRuntimeAutomation(config) {
       };
     },
 
+    async deployRelease(environment, payload = {}) {
+      const dbConfig = buildTenantDbConfig(config, environment);
+      const bundlePath = path.join(runtimeBundleDir, `${environment.id}.env`);
+      const bundleContents = buildRuntimeBundle(environment, dbConfig, payload);
+      await fs.mkdir(runtimeBundleDir, { recursive: true });
+      await fs.writeFile(bundlePath, bundleContents, { encoding: "utf8", mode: 0o600 });
+
+      let deployment = {
+        enabled: Boolean(config.deploymentEnabled),
+        app: { attempted: false, skipped: true, reason: "deployment_disabled" },
+        web: { attempted: false, skipped: true, reason: "deployment_disabled" }
+      };
+      if (config.deploymentEnabled) {
+        deployment = await deployEnvironmentRelease(config, environment, bundlePath);
+      }
+
+      return {
+        bundlePath,
+        databaseHost: dbConfig.host,
+        databaseName: dbConfig.database,
+        databaseSchema: dbConfig.schema,
+        deployment
+      };
+    },
+
     async issueSetupToken(environment) {
       const dbConfig = buildTenantDbConfig(config, environment);
       const { stdout } = await runServerScript(serverDir, "src/scripts/create-setup-token.js", buildServerScriptEnv(dbConfig, environment));
