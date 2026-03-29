@@ -158,15 +158,15 @@ function renderLists() {
   const inFlightJobs = state.jobs.filter((job) => ["queued", "running"].includes(String(job.status || "").toLowerCase())).length;
 
   refs.customerCount.textContent = String(state.tenants.length);
-  refs.customerSummary.textContent = `${activeTenants} active, ${draftTenants} still in draft or inactive states.`;
+  refs.customerSummary.textContent = `${activeTenants} live, ${draftTenants} still in draft or inactive states.`;
   refs.activeCustomerCount.textContent = String(activeTenants);
   refs.activeCustomerSummary.textContent = `${Math.max(state.tenants.length - activeTenants, 0)} customer records still need activation or follow-up.`;
   refs.setupNeededCount.textContent = String(setupNeeded);
-  refs.setupNeededSummary.textContent = setupNeeded ? `${setupNeeded} environment${setupNeeded === 1 ? "" : "s"} still need setup completion.` : "All recorded environments have setup issued or completed.";
+  refs.setupNeededSummary.textContent = setupNeeded ? `${setupNeeded} environment${setupNeeded === 1 ? "" : "s"} still need onboarding completion.` : "All recorded environments have setup issued or completed.";
   refs.attentionCount.textContent = String(failedJobs + inFlightJobs);
   refs.attentionSummary.textContent = failedJobs
-    ? `${failedJobs} failed job${failedJobs === 1 ? "" : "s"} need review, with ${inFlightJobs} still in progress.`
-    : (inFlightJobs ? `${inFlightJobs} job${inFlightJobs === 1 ? "" : "s"} currently in progress.` : "No failed or in-progress jobs need attention.");
+    ? `${failedJobs} operation${failedJobs === 1 ? "" : "s"} need review, with ${inFlightJobs} still in progress.`
+    : (inFlightJobs ? `${inFlightJobs} operation${inFlightJobs === 1 ? "" : "s"} currently in progress.` : "No failed or in-progress work needs attention.");
 
   refs.tenantList.innerHTML = renderTenantTable(state.tenants);
   refs.environmentList.innerHTML = renderEnvironmentTable(state.environments);
@@ -194,7 +194,7 @@ function populateSelect(select, items, valueKey, labelFn, includeBlank = false) 
 }
 
 function renderTenantTable(tenants) {
-  if (!tenants.length) return '<div class="empty-state">No tenants recorded yet.</div>';
+  if (!tenants.length) return '<div class="empty-state">No customer records yet.</div>';
   return `
     <div class="table-shell">
       <table class="data-table">
@@ -213,8 +213,7 @@ function renderTenantTable(tenants) {
           ${tenants.map((tenant) => `
             <tr class="${tenant.id === state.selectedTenantId ? "selected-row" : ""}">
               <td>
-                <button type="button" class="text-link-btn tenant-detail-link" data-tenant-detail-id="${escapeHtml(tenant.id)}">${escapeHtml(tenant.displayName)}</button>
-                <div class="table-subcopy">${escapeHtml(tenant.slug)}</div>
+                <button type="button" class="text-link-btn tenant-detail-link" data-tenant-detail-id="${escapeHtml(tenant.id)}">${escapeHtml(formatCustomerDisplayName(tenant.displayName))}</button>
               </td>
               <td>${escapeHtml(tenant.primaryContactName || "Not recorded")}</td>
               <td>${escapeHtml(tenant.primaryContactEmail || "Not recorded")}</td>
@@ -259,7 +258,7 @@ function renderTenantDetail(tenant) {
 }
 
 function renderEnvironmentTable(environments) {
-  if (!environments.length) return '<div class="empty-state">No environments created yet.</div>';
+  if (!environments.length) return '<div class="empty-state">No customer environments yet.</div>';
   return `
     <div class="table-shell">
       <table class="data-table">
@@ -277,8 +276,7 @@ function renderEnvironmentTable(environments) {
           ${environments.map((environment) => `
             <tr class="${environment.id === state.selectedEnvironmentId ? "selected-row" : ""}">
               <td>
-                <button type="button" class="text-link-btn" data-environment-detail-id="${escapeHtml(environment.id)}">${escapeHtml(environment.tenantDisplayName || environment.tenantId || "Unknown tenant")}</button>
-                <div class="table-subcopy">${escapeHtml(environment.tenantSlug || "")}</div>
+                <button type="button" class="text-link-btn" data-environment-detail-id="${escapeHtml(environment.id)}">${escapeHtml(formatCustomerDisplayName(environment.tenantDisplayName || environment.tenantId || "Unknown tenant"))}</button>
               </td>
               <td>
                 <strong>${escapeHtml(environment.displayName || "Environment")}</strong>
@@ -301,14 +299,14 @@ function renderEnvironmentTable(environments) {
 }
 
 function renderJobTable(jobs) {
-  if (!jobs.length) return '<div class="empty-state">No provisioning jobs queued yet.</div>';
+  if (!jobs.length) return '<div class="empty-state">No operations have been queued yet.</div>';
   return `
     <div class="table-shell">
       <table class="data-table">
         <thead>
           <tr>
             <th>Tenant</th>
-            <th>Job Type</th>
+            <th>Operation</th>
             <th>Environment</th>
             <th>Requested</th>
             <th>Status</th>
@@ -319,8 +317,7 @@ function renderJobTable(jobs) {
           ${jobs.map((job) => `
             <tr class="${job.id === state.selectedJobId ? "selected-row" : ""}">
               <td>
-                <button type="button" class="text-link-btn" data-job-detail-id="${escapeHtml(job.id)}">${escapeHtml(resolveJobTenantName(job))}</button>
-                <div class="table-subcopy">${escapeHtml(resolveJobTenantSlug(job))}</div>
+                <button type="button" class="text-link-btn" data-job-detail-id="${escapeHtml(job.id)}">${escapeHtml(formatCustomerDisplayName(resolveJobTenantName(job)))}</button>
               </td>
               <td>${escapeHtml(formatJobType(job.jobType))}</td>
               <td>${escapeHtml(resolveEnvironmentName(job.tenantEnvironmentId) || job.tenantEnvironmentId || "Not recorded")}</td>
@@ -352,7 +349,7 @@ function renderEnvironmentDetail(environment) {
   refs.environmentDetail.innerHTML = `
     <div class="detail-toolbar">
       <div>
-        <strong>Environment Detail</strong>
+        <strong>Environment Overview</strong>
         <p class="detail-copy">${escapeHtml(environment.tenantDisplayName || environment.tenantId || "Unknown tenant")} / ${escapeHtml(environment.environmentKey || "environment")}</p>
       </div>
       <button id="environment-detail-refresh" type="button" class="secondary-btn">Refresh Detail</button>
@@ -415,7 +412,7 @@ function renderJobDetail(job) {
   refs.jobDetail.innerHTML = `
     <div class="detail-toolbar">
       <div>
-        <strong>Job Detail</strong>
+        <strong>Operation Detail</strong>
         <p class="detail-copy">${escapeHtml(formatJobType(job.jobType))}</p>
       </div>
       <button id="job-detail-refresh" type="button" class="secondary-btn">Refresh Detail</button>
@@ -439,10 +436,10 @@ function renderJobDetail(job) {
     <section class="history-block">
       <h4>Lifecycle</h4>
       ${renderTimeline([
-        { label: "Job queued", when: job.requestedAt, tone: "info" },
-        { label: "Job started", when: job.startedAt, tone: "warn" },
-        { label: "Job completed", when: job.completedAt, tone: "success" },
-        { label: `Job status is ${job.status || "unknown"}`, when: job.completedAt || job.startedAt || job.requestedAt, tone: ["completed", "succeeded"].includes(job.status) ? "success" : "info" }
+        { label: "Operation requested", when: job.requestedAt, tone: "info" },
+        { label: "Operation started", when: job.startedAt, tone: "warn" },
+        { label: "Operation completed", when: job.completedAt, tone: "success" },
+        { label: `Operation status is ${job.status || "unknown"}`, when: job.completedAt || job.startedAt || job.requestedAt, tone: ["completed", "succeeded"].includes(job.status) ? "success" : "info" }
       ])}
     </section>
     <section class="history-block">
@@ -540,7 +537,7 @@ async function selectTenant(tenantId) {
 function fillTenantFormForEdit(tenant) {
   refs.tenantFormShell.classList.remove("hidden");
   refs.tenantForm.classList.remove("hidden");
-  refs.tenantFormTitle.textContent = "Edit Tenant";
+  refs.tenantFormTitle.textContent = "Edit Customer";
   refs.tenantEditId.value = tenant.id;
   refs.tenantSlug.value = tenant.slug || "";
   refs.tenantSlug.disabled = true;
@@ -554,7 +551,7 @@ function fillTenantFormForEdit(tenant) {
   refs.tenantContactName.value = tenant.primaryContactName || "";
   refs.tenantContactEmail.value = tenant.primaryContactEmail || "";
   refs.tenantNotes.value = tenant.notes || "";
-  refs.tenantSubmitBtn.textContent = "Save Tenant";
+  refs.tenantSubmitBtn.textContent = "Save Customer";
 }
 
 function resetTenantForm() {
@@ -563,7 +560,7 @@ function resetTenantForm() {
   refs.tenantDetailBody.innerHTML = "";
   refs.tenantFormShell.classList.add("hidden");
   refs.tenantForm.classList.add("hidden");
-  refs.tenantFormTitle.textContent = "Create Tenant";
+  refs.tenantFormTitle.textContent = "Create Customer";
   refs.tenantEditId.value = "";
   refs.tenantSlug.disabled = false;
   refs.tenantPrimaryDomain.disabled = false;
@@ -571,7 +568,7 @@ function resetTenantForm() {
   refs.tenantDomainType.value = "platform_subdomain";
   refs.tenantPlanCode.value = "standard";
   refs.tenantStatus.value = "draft";
-  refs.tenantSubmitBtn.textContent = "Create Tenant";
+  refs.tenantSubmitBtn.textContent = "Create Customer";
   state.selectedTenantId = "";
   renderLists();
 }
@@ -580,7 +577,7 @@ function openCreateTenantForm() {
   resetTenantForm();
   refs.tenantFormShell.classList.remove("hidden");
   refs.tenantForm.classList.remove("hidden");
-  refs.tenantFormTitle.textContent = "Create Tenant";
+  refs.tenantFormTitle.textContent = "Create Customer";
 }
 
 function resetEnvironmentForm() {
@@ -914,7 +911,7 @@ function bindEvents() {
     const jobType = refs.jobType.value;
     const environmentId = refs.jobEnvironmentId.value;
     const tenantId = refs.jobTenantId.value;
-    setFlash("info", jobType === "issue_setup_token" ? "Queueing setup-token issuance..." : "Queueing provision job...");
+    setFlash("info", jobType === "issue_setup_token" ? "Queueing setup-token issuance..." : "Queueing environment operation...");
     try {
       const path = `/api/control/environments/${encodeURIComponent(environmentId)}/${jobType === "issue_setup_token" ? "setup-token" : "provision"}`;
       let body;
@@ -943,7 +940,7 @@ function bindEvents() {
       setActiveWorkspace("jobs");
       await refreshData(false);
       await loadJobDetail(job.id, true);
-      setFlash("success", "Job queued.");
+      setFlash("success", "Operation queued.");
     } catch (error) {
       setFlash("error", error.message);
     }
@@ -1067,7 +1064,7 @@ function renderJobDiagnostics(job) {
   if (!entries.length) return "";
   return `
     <section class="history-block">
-      <h4>Diagnostics</h4>
+      <h4>Operational Diagnostics</h4>
       <p class="panel-copy">${escapeHtml(buildJobDiagnosticSummary(job, childRetries.length))}</p>
       <div class="info-chip-grid">
         ${entries.map((entry) => renderInfoChip(entry.label, entry.value)).join("")}
@@ -1099,7 +1096,7 @@ function renderJobResultSummary(result) {
   if (!entries.length) return "";
   return `
     <section class="history-block">
-      <h4>Result Summary</h4>
+      <h4>Outcome Summary</h4>
       <p class="panel-copy">${escapeHtml(buildJobOutcomeSummary(result))}</p>
       <div class="info-chip-grid">
         ${entries.map((entry) => renderInfoChip(entry.label, entry.value)).join("")}
@@ -1276,6 +1273,12 @@ function formatJobType(value) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function formatCustomerDisplayName(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text.replace(/[\s_-]+(\d{8,14})$/, "").trim();
 }
 
 function formatJobEventType(value) {

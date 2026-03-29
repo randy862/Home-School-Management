@@ -1,14 +1,20 @@
 :root {
-  --bg: #f5efe3;
-  --ink: #1f2933;
-  --muted: #52606d;
-  --panel: rgba(255, 255, 255, 0.84);
-  --line: rgba(31, 41, 51, 0.12);
-  --accent: #b44f2f;
-  --accent-2: #3a6b6f;
-  --success: #256b4a;
-  --warn: #8f5b00;
-  --danger: #932f2f;
+  --bg: #f1ece3;
+  --bg-2: #fbf6ee;
+  --ink: #2f1f14;
+  --muted: #6c5847;
+  --panel: rgba(255, 255, 255, 0.9);
+  --panel-strong: rgba(255, 255, 255, 0.96);
+  --line: rgba(215, 200, 173, 0.95);
+  --line-strong: rgba(194, 166, 118, 0.95);
+  --accent: #875422;
+  --accent-deep: #5f3414;
+  --accent-2: #6c5847;
+  --success: #234b23;
+  --warn: #946100;
+  --danger: #8a3434;
+  --shadow-soft: 0 18px 40px rgba(40, 36, 30, 0.08);
+  --shadow-panel: 0 24px 60px rgba(40, 36, 30, 0.12);
 }
 
 * {
@@ -20,10 +26,10 @@ body {
   min-height: 100vh;
   color: var(--ink);
   background:
-    radial-gradient(circle at top left, rgba(180, 79, 47, 0.18), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(58, 107, 111, 0.2), transparent 35%),
-    linear-gradient(180deg, #fcf8f1 0%, var(--bg) 100%);
-  font-family: Georgia, "Times New Roman", serif;
+    radial-gradient(circle at 10% 0%, #efe4d2 0, transparent 40%),
+    radial-gradient(circle at 100% 100%, #e6d8be 0, transparent 35%),
+    linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 100%);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .hidden {
@@ -36,8 +42,80 @@ body {
   padding: 3rem 0 4rem;
 }
 
-.hero {
-  margin-bottom: 1.5rem;
+.top {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  grid-template-areas:
+    "brand title"
+    "brand subtitle"
+    ". intro";
+  gap: 0 0.85rem;
+  align-items: start;
+  margin-bottom: 1.25rem;
+}
+
+.control-top {
+  position: relative;
+}
+
+.brand-photo {
+  display: block;
+  grid-area: brand;
+  width: auto;
+  max-width: none;
+  height: 220px;
+  margin: 0;
+  justify-self: start;
+  align-self: stretch;
+  object-fit: contain;
+  object-position: center top;
+  border-radius: 12px;
+  border: 1px solid #cfb086;
+  box-shadow: 0 8px 20px rgba(95, 63, 27, 0.22);
+}
+
+.title-logo {
+  display: block;
+  grid-area: title;
+  width: min(980px, 118%);
+  max-height: none;
+  object-fit: contain;
+  object-position: left center;
+  height: auto;
+  justify-self: start;
+  margin: -192px 0 -272px -150px;
+}
+
+.subtitle {
+  grid-area: subtitle;
+  margin: -0.32rem 0 0;
+  color: #2f1b0f;
+  font-family: "Segoe Script", "Lucida Handwriting", "Brush Script MT", "Palatino Linotype", cursive;
+  font-weight: 700;
+  font-size: 1.22rem;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  text-shadow: 0 1px 0 rgba(255, 248, 236, 0.7);
+  width: min(980px, 118%);
+  justify-self: start;
+  margin-left: -150px;
+  text-align: center;
+}
+
+.control-intro {
+  grid-area: intro;
+  margin-top: 0.8rem;
+  width: fit-content;
+  max-width: 780px;
+  padding: 0.8rem 1rem;
+  border-radius: 12px;
+  background: rgba(255, 251, 243, 0.82);
+}
+
+.control-intro .lead {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .eyebrow,
@@ -57,8 +135,9 @@ strong {
 }
 
 h1 {
-  font-size: clamp(2rem, 4vw, 3.4rem);
-  line-height: 1.03;
+  font-size: clamp(1.8rem, 3.2vw, 2.8rem);
+  line-height: 1.05;
+  max-width: 14ch;
 }
 
 h2 {
@@ -100,12 +179,11 @@ h2 {
 }
 
 .panel {
-  padding: 1.25rem;
+  padding: 1.15rem;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 20px;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 20px 50px rgba(31, 41, 51, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(24, 33, 20, 0.08);
 }
 
 .operator-bar {
@@ -114,8 +192,11 @@ h2 {
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1rem;
-  padding: 0.25rem 0 0.75rem;
-  border-bottom: 1px solid rgba(31, 41, 51, 0.08);
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow-soft);
 }
 
 .operator-summary {
@@ -135,19 +216,26 @@ h2 {
   gap: 0.75rem;
   flex-wrap: wrap;
   margin-bottom: 1rem;
+  padding: 0.7rem;
+  align-items: center;
+  border-radius: 14px;
 }
 
 .tab-btn {
-  background: rgba(58, 107, 111, 0.08);
+  background: #fff8ed;
   color: var(--ink);
-  border: 1px solid rgba(58, 107, 111, 0.16);
+  border: 1px solid #c2a676;
   font-weight: 700;
+  min-width: 150px;
+  border-radius: 10px;
+  padding: 0.45rem 0.75rem;
 }
 
 .tab-btn.active {
   background: linear-gradient(135deg, var(--accent), #cc7d2d);
   color: #fff;
   border-color: transparent;
+  box-shadow: none;
 }
 
 .workspace-panel {
@@ -162,8 +250,10 @@ h2 {
 
 .metric-card {
   min-height: 0;
-  padding: 0.9rem 1rem;
-  border-radius: 18px;
+  padding: 0.95rem 1rem 1rem;
+  border-radius: 12px;
+  background: linear-gradient(150deg, #fff8ee, #f6e8d4);
+  border-color: #e1cfad;
 }
 
 .metric-card strong {
@@ -209,7 +299,13 @@ h2 {
 }
 
 .panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1rem;
+  padding-bottom: 0.95rem;
+  border-bottom: 1px solid rgba(27, 44, 52, 0.08);
 }
 
 .stack-form {
@@ -276,12 +372,13 @@ button:hover {
   background: linear-gradient(135deg, var(--accent), #cc7d2d);
   color: #fff;
   font-weight: 700;
+  box-shadow: 0 14px 28px rgba(183, 90, 47, 0.22);
 }
 
 .secondary-btn {
-  background: rgba(58, 107, 111, 0.1);
+  background: rgba(255, 255, 255, 0.68);
   color: var(--ink);
-  border: 1px solid rgba(58, 107, 111, 0.18);
+  border: 1px solid rgba(34, 95, 105, 0.16);
 }
 
 .flash {
@@ -316,8 +413,9 @@ button:hover {
 .table-shell {
   overflow: auto;
   border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.72);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .data-table {
@@ -339,12 +437,12 @@ button:hover {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
-  background: rgba(58, 107, 111, 0.06);
+  background: rgba(34, 95, 105, 0.05);
 }
 
 .data-table tbody tr:hover,
 .data-table tbody tr.selected-row {
-  background: rgba(180, 79, 47, 0.08);
+  background: rgba(183, 90, 47, 0.07);
 }
 
 .table-subcopy {
@@ -386,7 +484,7 @@ button:hover {
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 0.95rem 1rem;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.82);
   cursor: pointer;
 }
 
@@ -453,9 +551,9 @@ button:hover {
 .detail-card {
   margin-top: 1rem;
   padding: 1rem;
-  border-radius: 16px;
-  border: 1px solid rgba(58, 107, 111, 0.18);
-  background: rgba(58, 107, 111, 0.08);
+  border-radius: 20px;
+  border: 1px solid rgba(34, 95, 105, 0.16);
+  background: linear-gradient(180deg, rgba(34, 95, 105, 0.08) 0%, rgba(255, 255, 255, 0.78) 100%);
 }
 
 .detail-toolbar {
@@ -487,8 +585,9 @@ button:hover {
 .detail-field {
   padding: 0.85rem;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(31, 41, 51, 0.08);
+  background: var(--panel-strong);
+  border: 1px solid rgba(27, 44, 52, 0.08);
+  box-shadow: 0 10px 22px rgba(40, 36, 30, 0.05);
 }
 
 .detail-field span {
@@ -563,8 +662,8 @@ button:hover {
 .info-chip {
   padding: 0.75rem 0.8rem;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(31, 41, 51, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(27, 44, 52, 0.08);
 }
 
 .info-chip span {
@@ -591,8 +690,8 @@ button:hover {
 .deploy-card {
   padding: 0.9rem;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(31, 41, 51, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(27, 44, 52, 0.08);
 }
 
 .deploy-head {
@@ -645,8 +744,8 @@ button:hover {
   width: 100%;
   padding: 0.8rem 0.95rem;
   border-radius: 14px;
-  border: 1px solid rgba(31, 41, 51, 0.12);
-  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(27, 44, 52, 0.12);
+  background: rgba(255, 255, 255, 0.82);
   text-align: left;
 }
 
@@ -658,6 +757,10 @@ button:hover {
 
 .raw-details {
   margin-top: 1rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(27, 44, 52, 0.08);
 }
 
 .raw-details summary {
@@ -684,9 +787,33 @@ code {
     padding-top: 1.25rem;
   }
 
+  .top {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "brand"
+      "title"
+      "subtitle"
+      "intro";
+  }
+
   .operator-bar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .title-logo,
+  .subtitle {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .title-logo {
+    margin: 0;
+  }
+
+  .control-intro {
+    max-width: 100%;
+    width: 100%;
   }
 
   .detail-toolbar,

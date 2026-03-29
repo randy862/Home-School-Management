@@ -8,10 +8,14 @@
 </head>
 <body data-api-base="/control-api">
   <main class="admin-shell">
-    <header class="hero">
-      <p class="eyebrow">Control Plane</p>
-      <h1>Home School Management Operator Console</h1>
-      <p class="lead">Manage hosted customers, track environment readiness, and monitor provisioning work from one operator console.</p>
+    <header class="top control-top">
+      <img class="brand-photo" src="/assets/MitchellFamily.png" alt="The Mitchell Family crest">
+      <img class="title-logo" src="/assets/Logo2.png" alt="The Mitchell Family Home School Management System">
+      <p class="subtitle">Home School Management Control Center</p>
+      <div class="control-intro panel">
+        <p class="eyebrow">Platform Operations</p>
+        <p class="lead">Manage hosted customers, monitor environment readiness, and review operational history from the same branded Home School Management interface.</p>
+      </div>
     </header>
 
     <section id="auth-section" class="auth-grid">
@@ -68,41 +72,41 @@
 
       <section class="panel-grid metrics-grid">
         <article class="metric-card panel">
-          <span class="status-kicker">Customers</span>
+          <span class="status-kicker">Total Customers</span>
           <strong id="customer-count">0</strong>
           <p id="customer-summary" class="metric-copy">No customer records loaded.</p>
         </article>
         <article class="metric-card panel">
-          <span class="status-kicker">Active Customers</span>
+          <span class="status-kicker">Live Customers</span>
           <strong id="active-customer-count">0</strong>
           <p id="active-customer-summary" class="metric-copy">No active customers recorded.</p>
         </article>
         <article class="metric-card panel">
-          <span class="status-kicker">Needs Setup</span>
+          <span class="status-kicker">Setup Required</span>
           <strong id="setup-needed-count">0</strong>
           <p id="setup-needed-summary" class="metric-copy">No environments are awaiting setup.</p>
         </article>
         <article class="metric-card panel">
-          <span class="status-kicker">Needs Attention</span>
+          <span class="status-kicker">Attention Needed</span>
           <strong id="attention-count">0</strong>
           <p id="attention-summary" class="metric-copy">No failed or stalled work detected.</p>
         </article>
       </section>
 
       <nav class="workspace-tabs panel" aria-label="Control sections">
-        <button id="tab-tenants" class="tab-btn active" type="button">Tenant Registry</button>
+        <button id="tab-tenants" class="tab-btn active" type="button">Customers</button>
         <button id="tab-environments" class="tab-btn" type="button">Environments</button>
-        <button id="tab-jobs" class="tab-btn" type="button">Provisioning Queue</button>
+        <button id="tab-jobs" class="tab-btn" type="button">Operations</button>
       </nav>
 
       <section class="workspace-grid">
         <article id="workspace-tenants" class="panel tall-panel workspace-panel">
           <div class="panel-head">
             <div>
-              <h2>Tenant Registry</h2>
-              <p class="panel-copy">Manage customer accounts separately from runtime environments and deployment work.</p>
+              <h2>Customers</h2>
+              <p class="panel-copy">Manage customer organizations, contacts, plan details, and the URLs they use to access the platform.</p>
             </div>
-            <button id="tenant-open-create-btn" type="button" class="primary-btn">Create New Tenant</button>
+            <button id="tenant-open-create-btn" type="button" class="primary-btn">Create Customer</button>
           </div>
           <div id="tenant-detail-shell" class="detail-card hidden">
             <div class="detail-toolbar">
@@ -120,8 +124,8 @@
           <div id="tenant-form-shell" class="detail-card hidden">
             <div class="detail-toolbar">
               <div>
-                <strong id="tenant-form-title">Create Tenant</strong>
-                <p class="detail-copy">Add a new hosted customer record before creating its environment.</p>
+                <strong id="tenant-form-title">Create Customer</strong>
+                <p class="detail-copy">Create a customer record before adding environments or operational work.</p>
               </div>
             </div>
             <form id="tenant-form" class="stack-form action-form hidden">
@@ -146,7 +150,7 @@
               <label><span>Contact Email</span><input id="tenant-contact-email" type="email"></label>
               <label><span>Notes</span><textarea id="tenant-notes"></textarea></label>
               <div class="operator-actions">
-                <button id="tenant-submit-btn" type="submit" class="primary-btn">Create Tenant</button>
+                <button id="tenant-submit-btn" type="submit" class="primary-btn">Create Customer</button>
                 <button id="tenant-reset-btn" type="button" class="secondary-btn">Close</button>
               </div>
             </form>
@@ -158,7 +162,7 @@
           <div class="panel-head">
             <div>
               <h2>Environments</h2>
-              <p class="panel-copy">Attach deployable environments to tenants and queue provisioning work.</p>
+              <p class="panel-copy">Track where each customer runs, which hosts are assigned, and whether the environment is healthy and ready.</p>
             </div>
             <button id="environment-open-create-btn" type="button" class="primary-btn">Create Environment</button>
           </div>
@@ -192,16 +196,16 @@
         <article id="workspace-jobs" class="panel tall-panel workspace-panel hidden">
           <div class="panel-head">
             <div>
-              <h2>Provisioning Queue</h2>
-              <p class="panel-copy">Queue environment provisioning and setup-token issuance as durable control-plane jobs.</p>
+              <h2>Operations</h2>
+              <p class="panel-copy">Track provisioning, setup, deployment, and lifecycle actions as durable customer operations with history.</p>
             </div>
-            <button id="job-open-create-btn" type="button" class="primary-btn">Queue Job</button>
+            <button id="job-open-create-btn" type="button" class="primary-btn">Queue Operation</button>
           </div>
           <div id="job-form-shell" class="detail-card hidden">
             <div class="detail-toolbar">
               <div>
-                <strong>Queue Job</strong>
-                <p class="detail-copy">Create a tracked provisioning or setup-token job for a selected customer environment.</p>
+                <strong>Queue Operation</strong>
+                <p class="detail-copy">Create a tracked provisioning or setup-token operation for a selected customer environment.</p>
               </div>
             </div>
             <form id="job-form" class="stack-form action-form hidden">
@@ -227,7 +231,7 @@
               </div>
               <label><span>Idempotency Key</span><input id="job-idempotency-key"></label>
               <div class="operator-actions">
-                <button type="submit" class="primary-btn">Queue Job</button>
+                <button type="submit" class="primary-btn">Queue Operation</button>
                 <button id="job-reset-btn" type="button" class="secondary-btn">Close</button>
               </div>
             </form>
