@@ -175,7 +175,7 @@ const infraRouteDeps = {
   isPostgresMode
 };
 const setupRouteDeps = {
-  controlPlaneKey: internalConfig.controlPlaneKey,
+  internalConfig,
   getSetupStatus,
   initializeSetup,
   isPostgresMode,

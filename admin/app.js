@@ -6,32 +6,45 @@ const state = {
   tenants: [],
   environments: [],
   jobs: [],
+  activeWorkspace: "tenants",
   selectedTenantId: "",
   selectedEnvironmentId: "",
   selectedJobId: ""
 };
 
 const refs = {
-  apiBaseLabel: document.getElementById("api-base-label"),
-  sessionStateLabel: document.getElementById("session-state-label"),
-  sessionStateDetail: document.getElementById("session-state-detail"),
   bootstrapCard: document.getElementById("bootstrap-card"),
   loginCard: document.getElementById("login-card"),
   flash: document.getElementById("flash-message"),
   consoleSection: document.getElementById("console-section"),
+  tabTenants: document.getElementById("tab-tenants"),
+  tabEnvironments: document.getElementById("tab-environments"),
+  tabJobs: document.getElementById("tab-jobs"),
+  workspaceTenants: document.getElementById("workspace-tenants"),
+  workspaceEnvironments: document.getElementById("workspace-environments"),
+  workspaceJobs: document.getElementById("workspace-jobs"),
   operatorName: document.getElementById("operator-name"),
+  operatorSessionBadge: document.getElementById("operator-session-badge"),
   operatorMeta: document.getElementById("operator-meta"),
-  tenantCount: document.getElementById("tenant-count"),
-  tenantSummary: document.getElementById("tenant-summary"),
-  environmentCount: document.getElementById("environment-count"),
-  environmentSummary: document.getElementById("environment-summary"),
-  jobCount: document.getElementById("job-count"),
-  jobSummary: document.getElementById("job-summary"),
+  customerCount: document.getElementById("customer-count"),
+  customerSummary: document.getElementById("customer-summary"),
+  activeCustomerCount: document.getElementById("active-customer-count"),
+  activeCustomerSummary: document.getElementById("active-customer-summary"),
+  setupNeededCount: document.getElementById("setup-needed-count"),
+  setupNeededSummary: document.getElementById("setup-needed-summary"),
+  attentionCount: document.getElementById("attention-count"),
+  attentionSummary: document.getElementById("attention-summary"),
   tenantList: document.getElementById("tenant-list"),
+  tenantDetailShell: document.getElementById("tenant-detail-shell"),
+  tenantDetailBody: document.getElementById("tenant-detail-body"),
   environmentList: document.getElementById("environment-list"),
   jobList: document.getElementById("job-list"),
+  environmentFormShell: document.getElementById("environment-form-shell"),
   environmentDetail: document.getElementById("environment-detail"),
+  jobFormShell: document.getElementById("job-form-shell"),
   jobDetail: document.getElementById("job-detail"),
+  tenantFormShell: document.getElementById("tenant-form-shell"),
+  tenantFormTitle: document.getElementById("tenant-form-title"),
   tenantForm: document.getElementById("tenant-form"),
   environmentForm: document.getElementById("environment-form"),
   jobForm: document.getElementById("job-form"),
@@ -56,7 +69,14 @@ const refs = {
   tenantContactEmail: document.getElementById("tenant-contact-email"),
   tenantNotes: document.getElementById("tenant-notes"),
   tenantSubmitBtn: document.getElementById("tenant-submit-btn"),
-  tenantResetBtn: document.getElementById("tenant-reset-btn")
+  tenantResetBtn: document.getElementById("tenant-reset-btn"),
+  tenantOpenCreateBtn: document.getElementById("tenant-open-create-btn"),
+  tenantDetailEditBtn: document.getElementById("tenant-detail-edit-btn"),
+  tenantDetailCloseBtn: document.getElementById("tenant-detail-close-btn"),
+  environmentOpenCreateBtn: document.getElementById("environment-open-create-btn"),
+  environmentResetBtn: document.getElementById("environment-reset-btn"),
+  jobOpenCreateBtn: document.getElementById("job-open-create-btn"),
+  jobResetBtn: document.getElementById("job-reset-btn")
 };
 
 function apiUrl(path) {
@@ -95,15 +115,14 @@ function setFlash(kind, message) {
 }
 
 function setSessionState(title, detail) {
-  refs.sessionStateLabel.textContent = title;
-  refs.sessionStateDetail.textContent = detail;
+  if (refs.operatorSessionBadge) refs.operatorSessionBadge.textContent = title;
+  if (refs.operatorMeta && !state.operator) refs.operatorMeta.textContent = detail;
 }
 
 function renderAuthState() {
   const initialized = state.setupInitialized;
   const operator = state.operator;
 
-  refs.apiBaseLabel.textContent = state.apiBase;
   refs.bootstrapCard.classList.toggle("hidden", initialized !== false || !!operator);
   refs.loginCard.classList.toggle("hidden", initialized !== true || !!operator);
   refs.consoleSection.classList.toggle("hidden", !operator);
@@ -123,29 +142,35 @@ function renderOperator() {
   if (!state.operator) return;
   refs.operatorName.textContent = state.operator.username;
   refs.operatorMeta.textContent = `${state.operator.role} | ${state.operator.isActive ? "active" : "inactive"}`;
+  refs.operatorSessionBadge.textContent = state.operator.isActive ? "Signed In" : "Inactive";
   const isPlatformAdmin = state.operator.role === "platform_admin";
   refs.tenantForm.classList.toggle("hidden", !isPlatformAdmin);
   refs.environmentForm.classList.toggle("hidden", !isPlatformAdmin);
   refs.jobForm.classList.toggle("hidden", !isPlatformAdmin);
+  renderWorkspaceTabs();
 }
 
 function renderLists() {
   const activeTenants = state.tenants.filter((tenant) => tenant.status === "active").length;
-  const provisioningEnvironments = state.environments.filter((environment) => environment.status === "provisioning").length;
-  const tokenIssuedEnvironments = state.environments.filter((environment) => environment.setupState === "token_issued").length;
-  const queuedJobs = state.jobs.filter((job) => job.status === "queued").length;
-  const completedJobs = state.jobs.filter((job) => ["completed", "succeeded"].includes(job.status)).length;
+  const draftTenants = state.tenants.filter((tenant) => tenant.status !== "active").length;
+  const setupNeeded = state.environments.filter((environment) => !["token_issued", "initialized"].includes(String(environment.setupState || "").toLowerCase())).length;
+  const failedJobs = state.jobs.filter((job) => String(job.status || "").toLowerCase() === "failed").length;
+  const inFlightJobs = state.jobs.filter((job) => ["queued", "running"].includes(String(job.status || "").toLowerCase())).length;
 
-  refs.tenantCount.textContent = String(state.tenants.length);
-  refs.tenantSummary.textContent = `${activeTenants} active, ${Math.max(state.tenants.length - activeTenants, 0)} not active.`;
-  refs.environmentCount.textContent = String(state.environments.length);
-  refs.environmentSummary.textContent = `${provisioningEnvironments} provisioning, ${tokenIssuedEnvironments} token issued.`;
-  refs.jobCount.textContent = String(queuedJobs);
-  refs.jobSummary.textContent = `${completedJobs} completed, ${Math.max(state.jobs.length - queuedJobs - completedJobs, 0)} in other states.`;
+  refs.customerCount.textContent = String(state.tenants.length);
+  refs.customerSummary.textContent = `${activeTenants} active, ${draftTenants} still in draft or inactive states.`;
+  refs.activeCustomerCount.textContent = String(activeTenants);
+  refs.activeCustomerSummary.textContent = `${Math.max(state.tenants.length - activeTenants, 0)} customer records still need activation or follow-up.`;
+  refs.setupNeededCount.textContent = String(setupNeeded);
+  refs.setupNeededSummary.textContent = setupNeeded ? `${setupNeeded} environment${setupNeeded === 1 ? "" : "s"} still need setup completion.` : "All recorded environments have setup issued or completed.";
+  refs.attentionCount.textContent = String(failedJobs + inFlightJobs);
+  refs.attentionSummary.textContent = failedJobs
+    ? `${failedJobs} failed job${failedJobs === 1 ? "" : "s"} need review, with ${inFlightJobs} still in progress.`
+    : (inFlightJobs ? `${inFlightJobs} job${inFlightJobs === 1 ? "" : "s"} currently in progress.` : "No failed or in-progress jobs need attention.");
 
-  refs.tenantList.innerHTML = renderTenantItems(state.tenants);
-  refs.environmentList.innerHTML = renderEnvironmentItems(state.environments);
-  refs.jobList.innerHTML = renderJobItems(state.jobs);
+  refs.tenantList.innerHTML = renderTenantTable(state.tenants);
+  refs.environmentList.innerHTML = renderEnvironmentTable(state.environments);
+  refs.jobList.innerHTML = renderJobTable(state.jobs);
 
   populateSelect(refs.environmentTenantId, state.tenants, "id", (tenant) => `${tenant.displayName} (${tenant.slug})`);
   populateSelect(refs.jobTenantId, state.tenants, "id", (tenant) => `${tenant.displayName} (${tenant.slug})`, true);
@@ -168,53 +193,146 @@ function populateSelect(select, items, valueKey, labelFn, includeBlank = false) 
   }
 }
 
-function renderTenantItems(tenants) {
+function renderTenantTable(tenants) {
   if (!tenants.length) return '<div class="empty-state">No tenants recorded yet.</div>';
-  return tenants.map((tenant) => `
-    <article class="record-item ${tenant.id === state.selectedTenantId ? "selected" : ""}" data-tenant-id="${escapeHtml(tenant.id)}">
-      <h3>${escapeHtml(tenant.displayName)}</h3>
-      <div class="record-meta">
-        ${renderStatusTag(tenant.status, "tenant")}
-        <span class="tag">${escapeHtml(tenant.planCode || "standard")}</span>
-        <span class="tag">${escapeHtml(tenant.slug)}</span>
-      </div>
-      <p>${escapeHtml(tenant.primaryContactName || "No primary contact recorded.")}</p>
-      <p>${escapeHtml(tenant.primaryContactEmail || tenant.primaryDomain || "No contact channel recorded.")}</p>
-      <p><code>${escapeHtml(tenant.id)}</code></p>
-    </article>
-  `).join("");
+  return `
+    <div class="table-shell">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Organization</th>
+            <th>Contact Name</th>
+            <th>Contact Email</th>
+            <th>Tenant URL</th>
+            <th>Status</th>
+            <th>Plan</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tenants.map((tenant) => `
+            <tr class="${tenant.id === state.selectedTenantId ? "selected-row" : ""}">
+              <td>
+                <button type="button" class="text-link-btn tenant-detail-link" data-tenant-detail-id="${escapeHtml(tenant.id)}">${escapeHtml(tenant.displayName)}</button>
+                <div class="table-subcopy">${escapeHtml(tenant.slug)}</div>
+              </td>
+              <td>${escapeHtml(tenant.primaryContactName || "Not recorded")}</td>
+              <td>${escapeHtml(tenant.primaryContactEmail || "Not recorded")}</td>
+              <td>${tenant.primaryDomain ? `<a href="http://${escapeHtml(tenant.primaryDomain)}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded"}</td>
+              <td>${renderStatusTag(tenant.status, "tenant")}</td>
+              <td>${escapeHtml(tenant.planCode || "standard")}</td>
+              <td>
+                <div class="table-actions">
+                  <button type="button" class="secondary-btn table-action-btn" data-tenant-detail-id="${escapeHtml(tenant.id)}">Details</button>
+                  <button type="button" class="secondary-btn table-action-btn" data-tenant-id="${escapeHtml(tenant.id)}">View / Edit</button>
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
-function renderEnvironmentItems(environments) {
+function renderTenantDetail(tenant) {
+  refs.tenantDetailShell.classList.remove("hidden");
+  refs.tenantDetailBody.innerHTML = `
+    <div class="compact-details">
+      ${renderDetailField("Organization Name", tenant.displayName || "Not recorded")}
+      ${renderDetailField("Slug", tenant.slug || "Not recorded")}
+      ${renderDetailFieldHtml("Tenant URL", tenant.primaryDomain ? `<a href="http://${escapeHtml(tenant.primaryDomain)}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded")}
+      ${renderDetailField("Domain Type", startCase(tenant.primaryDomainType || "platform_subdomain"))}
+      ${renderDetailField("Status", startCase(tenant.status || "draft"))}
+      ${renderDetailField("Subscription Plan", tenant.planCode || "standard")}
+      ${renderDetailField("Contact Name", tenant.primaryContactName || "Not recorded")}
+      ${renderDetailField("Contact Email", tenant.primaryContactEmail || "Not recorded")}
+      ${renderDetailField("Notes", tenant.notes || "None recorded")}
+      ${renderDetailField("Created", formatDateTime(tenant.createdAt))}
+      ${renderDetailField("Updated", formatDateTime(tenant.updatedAt))}
+    </div>
+  `;
+}
+
+function renderEnvironmentTable(environments) {
   if (!environments.length) return '<div class="empty-state">No environments created yet.</div>';
-  return environments.map((environment) => `
-    <article class="record-item ${environment.id === state.selectedEnvironmentId ? "selected" : ""}" data-environment-id="${escapeHtml(environment.id)}">
-      <h3>${escapeHtml(environment.displayName)}</h3>
-      <div class="record-meta">
-        ${renderStatusTag(environment.status, "environment")}
-        ${renderStatusTag(environment.setupState || "uninitialized", "setup")}
-        <span class="tag">${escapeHtml(environment.environmentKey)}</span>
-      </div>
-      <p>${escapeHtml(environment.tenantDisplayName || environment.tenantId || "Unknown tenant")}</p>
-      <p>${escapeHtml(environment.appBaseUrl || "No app base URL recorded.")}</p>
-      <p><code>${escapeHtml(environment.id)}</code></p>
-    </article>
-  `).join("");
+  return `
+    <div class="table-shell">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Tenant</th>
+            <th>Environment</th>
+            <th>App URL</th>
+            <th>Status</th>
+            <th>Setup</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${environments.map((environment) => `
+            <tr class="${environment.id === state.selectedEnvironmentId ? "selected-row" : ""}">
+              <td>
+                <button type="button" class="text-link-btn" data-environment-detail-id="${escapeHtml(environment.id)}">${escapeHtml(environment.tenantDisplayName || environment.tenantId || "Unknown tenant")}</button>
+                <div class="table-subcopy">${escapeHtml(environment.tenantSlug || "")}</div>
+              </td>
+              <td>
+                <strong>${escapeHtml(environment.displayName || "Environment")}</strong>
+                <div class="table-subcopy">${escapeHtml(environment.environmentKey || "No key recorded")}</div>
+              </td>
+              <td>${environment.appBaseUrl ? `<a href="${escapeHtml(environment.appBaseUrl)}" target="_blank" rel="noreferrer">${escapeHtml(environment.appBaseUrl)}</a>` : "Not recorded"}</td>
+              <td>${renderStatusTag(environment.status, "environment")}</td>
+              <td>${renderStateTag(environment.setupState || "uninitialized", "setup", formatSetupState(environment.setupState || "uninitialized"))}</td>
+              <td>
+                <div class="table-actions">
+                  <button type="button" class="secondary-btn table-action-btn" data-environment-detail-id="${escapeHtml(environment.id)}">Details</button>
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
-function renderJobItems(jobs) {
+function renderJobTable(jobs) {
   if (!jobs.length) return '<div class="empty-state">No provisioning jobs queued yet.</div>';
-  return jobs.map((job) => `
-    <article class="record-item ${job.id === state.selectedJobId ? "selected" : ""}" data-job-id="${escapeHtml(job.id)}">
-      <h3>${escapeHtml(formatJobType(job.jobType))}</h3>
-      <div class="record-meta">
-        ${renderStatusTag(job.status, "job")}
-        <span class="tag">${escapeHtml(job.tenantEnvironmentId || "no-environment")}</span>
-      </div>
-      <p>${escapeHtml(formatDateTime(job.requestedAt) || "No request time recorded.")}</p>
-      <p><code>${escapeHtml(job.id)}</code></p>
-    </article>
-  `).join("");
+  return `
+    <div class="table-shell">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Tenant</th>
+            <th>Job Type</th>
+            <th>Environment</th>
+            <th>Requested</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${jobs.map((job) => `
+            <tr class="${job.id === state.selectedJobId ? "selected-row" : ""}">
+              <td>
+                <button type="button" class="text-link-btn" data-job-detail-id="${escapeHtml(job.id)}">${escapeHtml(resolveJobTenantName(job))}</button>
+                <div class="table-subcopy">${escapeHtml(resolveJobTenantSlug(job))}</div>
+              </td>
+              <td>${escapeHtml(formatJobType(job.jobType))}</td>
+              <td>${escapeHtml(resolveEnvironmentName(job.tenantEnvironmentId) || job.tenantEnvironmentId || "Not recorded")}</td>
+              <td>${escapeHtml(formatDateTime(job.requestedAt) || "Not recorded")}</td>
+              <td>${renderStatusTag(job.status, "job")}</td>
+              <td>
+                <div class="table-actions">
+                  <button type="button" class="secondary-btn table-action-btn" data-job-detail-id="${escapeHtml(job.id)}">Details</button>
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function renderEnvironmentDetail(environment) {
@@ -285,6 +403,7 @@ function renderJobDetail(job) {
     return;
   }
   refs.jobDetail.classList.remove("hidden");
+  const deployment = job.result?.deployment || null;
   refs.jobDetail.innerHTML = `
     <div class="detail-toolbar">
       <div>
@@ -306,6 +425,8 @@ function renderJobDetail(job) {
       ${renderDetailField("Error", job.errorMessage || job.errorCode || "None")}
       ${renderDetailField("Idempotency", job.idempotencyKey || "None")}
     </div>
+    ${renderJobResultSummary(job.result || {})}
+    ${renderDeploymentSummary(deployment)}
     <section class="history-block">
       <h4>Lifecycle</h4>
       ${renderTimeline([
@@ -317,11 +438,7 @@ function renderJobDetail(job) {
     </section>
     <section class="history-block">
       <h4>Events</h4>
-      ${renderTimeline((job.events || []).map((event) => ({
-        label: `${formatJobEventType(event.eventType)}: ${event.message}`,
-        when: event.createdAt,
-        tone: eventTone(event.eventType)
-      })))}
+      ${renderJobEvents(job.events || [])}
     </section>
     <section class="history-block">
       <h4>Payload</h4>
@@ -337,22 +454,56 @@ function renderJobDetail(job) {
   });
 }
 
+function renderWorkspaceTabs() {
+  const active = state.activeWorkspace || "tenants";
+  refs.tabTenants?.classList.toggle("active", active === "tenants");
+  refs.tabEnvironments?.classList.toggle("active", active === "environments");
+  refs.tabJobs?.classList.toggle("active", active === "jobs");
+  refs.workspaceTenants?.classList.toggle("hidden", active !== "tenants");
+  refs.workspaceEnvironments?.classList.toggle("hidden", active !== "environments");
+  refs.workspaceJobs?.classList.toggle("hidden", active !== "jobs");
+}
+
+function setActiveWorkspace(workspace) {
+  state.activeWorkspace = workspace;
+  renderWorkspaceTabs();
+}
+
 function bindRecordClicks() {
+  refs.tenantList.querySelectorAll("[data-tenant-detail-id]").forEach((element) => {
+    element.addEventListener("click", async () => {
+      await loadTenantDetail(element.getAttribute("data-tenant-detail-id"));
+    });
+  });
   refs.tenantList.querySelectorAll("[data-tenant-id]").forEach((element) => {
     element.addEventListener("click", async () => {
       await selectTenant(element.getAttribute("data-tenant-id"));
     });
   });
-  refs.environmentList.querySelectorAll("[data-environment-id]").forEach((element) => {
+  refs.environmentList.querySelectorAll("[data-environment-detail-id]").forEach((element) => {
     element.addEventListener("click", async () => {
-      await loadEnvironmentDetail(element.getAttribute("data-environment-id"));
+      await loadEnvironmentDetail(element.getAttribute("data-environment-detail-id"));
     });
   });
-  refs.jobList.querySelectorAll("[data-job-id]").forEach((element) => {
+  refs.jobList.querySelectorAll("[data-job-detail-id]").forEach((element) => {
     element.addEventListener("click", async () => {
-      await loadJobDetail(element.getAttribute("data-job-id"));
+      await loadJobDetail(element.getAttribute("data-job-detail-id"));
     });
   });
+}
+
+async function loadTenantDetail(tenantId, silent = false) {
+  state.selectedTenantId = tenantId;
+  renderLists();
+  refs.tenantFormShell.classList.add("hidden");
+  refs.tenantForm.classList.add("hidden");
+  try {
+    const tenant = await apiFetch(`/api/control/tenants/${encodeURIComponent(tenantId)}`);
+    renderTenantDetail(tenant);
+    if (!silent) setFlash("info", `Loaded customer record for ${tenant.displayName}.`);
+  } catch (error) {
+    setFlash("error", error.message);
+  }
 }
 
 async function selectTenant(tenantId) {
@@ -360,6 +511,8 @@ async function selectTenant(tenantId) {
   renderLists();
   try {
     const tenant = await apiFetch(`/api/control/tenants/${encodeURIComponent(tenantId)}`);
+    refs.tenantDetailShell.classList.add("hidden");
+    refs.tenantDetailBody.innerHTML = "";
     fillTenantFormForEdit(tenant);
     setFlash("info", `Loaded tenant ${tenant.displayName} for editing.`);
   } catch (error) {
@@ -368,11 +521,16 @@ async function selectTenant(tenantId) {
 }
 
 function fillTenantFormForEdit(tenant) {
+  refs.tenantFormShell.classList.remove("hidden");
+  refs.tenantForm.classList.remove("hidden");
+  refs.tenantFormTitle.textContent = "Edit Tenant";
   refs.tenantEditId.value = tenant.id;
   refs.tenantSlug.value = tenant.slug || "";
   refs.tenantSlug.disabled = true;
   refs.tenantPrimaryDomain.disabled = true;
   refs.tenantDomainType.disabled = true;
+  refs.tenantPrimaryDomain.value = tenant.primaryDomain || "";
+  refs.tenantDomainType.value = tenant.primaryDomainType || "platform_subdomain";
   refs.tenantDisplayName.value = tenant.displayName || "";
   refs.tenantPlanCode.value = tenant.planCode || "standard";
   refs.tenantStatus.value = tenant.status || "draft";
@@ -380,11 +538,15 @@ function fillTenantFormForEdit(tenant) {
   refs.tenantContactEmail.value = tenant.primaryContactEmail || "";
   refs.tenantNotes.value = tenant.notes || "";
   refs.tenantSubmitBtn.textContent = "Save Tenant";
-  refs.tenantResetBtn.classList.remove("hidden");
 }
 
 function resetTenantForm() {
   refs.tenantForm.reset();
+  refs.tenantDetailShell.classList.add("hidden");
+  refs.tenantDetailBody.innerHTML = "";
+  refs.tenantFormShell.classList.add("hidden");
+  refs.tenantForm.classList.add("hidden");
+  refs.tenantFormTitle.textContent = "Create Tenant";
   refs.tenantEditId.value = "";
   refs.tenantSlug.disabled = false;
   refs.tenantPrimaryDomain.disabled = false;
@@ -393,14 +555,50 @@ function resetTenantForm() {
   refs.tenantPlanCode.value = "standard";
   refs.tenantStatus.value = "draft";
   refs.tenantSubmitBtn.textContent = "Create Tenant";
-  refs.tenantResetBtn.classList.add("hidden");
   state.selectedTenantId = "";
   renderLists();
+}
+
+function openCreateTenantForm() {
+  resetTenantForm();
+  refs.tenantFormShell.classList.remove("hidden");
+  refs.tenantForm.classList.remove("hidden");
+  refs.tenantFormTitle.textContent = "Create Tenant";
+}
+
+function resetEnvironmentForm() {
+  refs.environmentForm.reset();
+  refs.environmentFormShell.classList.add("hidden");
+  refs.environmentForm.classList.add("hidden");
+}
+
+function openCreateEnvironmentForm() {
+  resetEnvironmentForm();
+  refs.environmentFormShell.classList.remove("hidden");
+  refs.environmentForm.classList.remove("hidden");
+}
+
+function resetJobForm() {
+  refs.jobForm.reset();
+  document.getElementById("job-ttl-hours").value = "2";
+  document.getElementById("job-delivered-via").value = "operator_console";
+  refs.jobType.value = "provision_environment";
+  syncJobFormMode();
+  refs.jobFormShell.classList.add("hidden");
+  refs.jobForm.classList.add("hidden");
+}
+
+function openCreateJobForm() {
+  resetJobForm();
+  refs.jobFormShell.classList.remove("hidden");
+  refs.jobForm.classList.remove("hidden");
 }
 
 async function loadEnvironmentDetail(environmentId, silent = false) {
   state.selectedEnvironmentId = environmentId;
   renderLists();
+  refs.environmentFormShell.classList.add("hidden");
+  refs.environmentForm.classList.add("hidden");
   try {
     const environment = await apiFetch(`/api/control/environments/${encodeURIComponent(environmentId)}`);
     renderEnvironmentDetail(environment);
@@ -413,6 +611,8 @@ async function loadEnvironmentDetail(environmentId, silent = false) {
 async function loadJobDetail(jobId, silent = false) {
   state.selectedJobId = jobId;
   renderLists();
+  refs.jobFormShell.classList.add("hidden");
+  refs.jobForm.classList.add("hidden");
   try {
     const job = await apiFetch(`/api/control/jobs/${encodeURIComponent(jobId)}`);
     renderJobDetail(job);
@@ -427,6 +627,7 @@ async function bootstrap() {
   bindEvents();
   syncJobFormMode();
   resetTenantForm();
+  renderWorkspaceTabs();
   await refreshSession();
 }
 
@@ -463,24 +664,48 @@ async function refreshSession() {
 async function refreshData(showFlash = true) {
   if (!state.operator) return;
   if (showFlash) setFlash("info", "Refreshing control-plane data...");
-  try {
-    const [tenants, environments, jobs] = await Promise.all([
-      apiFetch("/api/control/tenants"),
-      apiFetch("/api/control/environments"),
-      apiFetch("/api/control/jobs")
-    ]);
-    state.tenants = Array.isArray(tenants) ? tenants : [];
-    state.environments = Array.isArray(environments) ? environments : [];
-    state.jobs = Array.isArray(jobs) ? jobs : [];
-    renderOperator();
-    renderLists();
-    syncJobFormMode();
-    if (state.selectedEnvironmentId) await loadEnvironmentDetail(state.selectedEnvironmentId, true);
-    if (state.selectedJobId) await loadJobDetail(state.selectedJobId, true);
-    if (showFlash) setFlash("success", "Control-plane data refreshed.");
-  } catch (error) {
-    setFlash("error", error.message);
+  const results = await Promise.allSettled([
+    apiFetch("/api/control/tenants"),
+    apiFetch("/api/control/environments"),
+    apiFetch("/api/control/jobs")
+  ]);
+
+  const [tenantResult, environmentResult, jobResult] = results;
+  const failures = [];
+
+  if (tenantResult.status === "fulfilled") {
+    state.tenants = Array.isArray(tenantResult.value) ? tenantResult.value : [];
+  } else {
+    state.tenants = [];
+    failures.push(`tenant registry: ${tenantResult.reason.message}`);
   }
+
+  if (environmentResult.status === "fulfilled") {
+    state.environments = Array.isArray(environmentResult.value) ? environmentResult.value : [];
+  } else {
+    state.environments = [];
+    failures.push(`environments: ${environmentResult.reason.message}`);
+  }
+
+  if (jobResult.status === "fulfilled") {
+    state.jobs = Array.isArray(jobResult.value) ? jobResult.value : [];
+  } else {
+    state.jobs = [];
+    failures.push(`provisioning queue: ${jobResult.reason.message}`);
+  }
+
+  renderOperator();
+  renderLists();
+  syncJobFormMode();
+  if (state.selectedEnvironmentId) await loadEnvironmentDetail(state.selectedEnvironmentId, true);
+  if (state.selectedJobId) await loadJobDetail(state.selectedJobId, true);
+
+  if (failures.length) {
+    setFlash("error", `Some data could not be loaded: ${failures.join("; ")}`);
+    return;
+  }
+
+  if (showFlash) setFlash("success", "Control-plane data refreshed.");
 }
 
 function bindEvents() {
@@ -550,9 +775,51 @@ function bindEvents() {
     await refreshData(true);
   });
 
+  refs.tabTenants?.addEventListener("click", () => setActiveWorkspace("tenants"));
+  refs.tabEnvironments?.addEventListener("click", () => setActiveWorkspace("environments"));
+  refs.tabJobs?.addEventListener("click", () => setActiveWorkspace("jobs"));
+
   refs.tenantResetBtn?.addEventListener("click", () => {
     resetTenantForm();
-    setFlash("info", "Tenant edit canceled.");
+    setFlash("info", "Tenant form closed.");
+  });
+
+  refs.tenantOpenCreateBtn?.addEventListener("click", () => {
+    openCreateTenantForm();
+    setFlash(null, "");
+  });
+
+  refs.environmentOpenCreateBtn?.addEventListener("click", () => {
+    openCreateEnvironmentForm();
+    setFlash(null, "");
+  });
+
+  refs.environmentResetBtn?.addEventListener("click", () => {
+    resetEnvironmentForm();
+    setFlash("info", "Environment form closed.");
+  });
+
+  refs.jobOpenCreateBtn?.addEventListener("click", () => {
+    openCreateJobForm();
+    setFlash(null, "");
+  });
+
+  refs.jobResetBtn?.addEventListener("click", () => {
+    resetJobForm();
+    setFlash("info", "Job form closed.");
+  });
+
+  refs.tenantDetailEditBtn?.addEventListener("click", async () => {
+    if (!state.selectedTenantId) return;
+    await selectTenant(state.selectedTenantId);
+  });
+
+  refs.tenantDetailCloseBtn?.addEventListener("click", () => {
+    refs.tenantDetailShell.classList.add("hidden");
+    refs.tenantDetailBody.innerHTML = "";
+    state.selectedTenantId = "";
+    renderLists();
+    setFlash(null, "");
   });
 
   refs.tenantForm?.addEventListener("submit", async (event) => {
@@ -604,7 +871,8 @@ function bindEvents() {
         method: "POST",
         body: JSON.stringify(body)
       });
-      refs.environmentForm.reset();
+      resetEnvironmentForm();
+      setActiveWorkspace("environments");
       await refreshData(false);
       setFlash("success", "Environment created.");
     } catch (error) {
@@ -641,12 +909,9 @@ function bindEvents() {
         };
       }
       const job = await apiFetch(path, { method: "POST", body: JSON.stringify(body) });
-      refs.jobForm.reset();
-      document.getElementById("job-ttl-hours").value = "2";
-      document.getElementById("job-delivered-via").value = "operator_console";
-      refs.jobType.value = "provision_environment";
-      syncJobFormMode();
+      resetJobForm();
       state.selectedJobId = job.id;
+      setActiveWorkspace("jobs");
       await refreshData(false);
       await loadJobDetail(job.id, true);
       setFlash("success", "Job queued.");
@@ -668,11 +933,24 @@ function renderStatusTag(value, kind = "neutral") {
   return `<span class="tag tag-${escapeHtml(kind)} tag-${escapeHtml(String(value || "unknown").toLowerCase().replace(/[^a-z0-9-]/g, "-"))}">${escapeHtml(value || "unknown")}</span>`;
 }
 
+function renderStateTag(value, kind, label) {
+  return `<span class="tag tag-${escapeHtml(kind)} tag-${escapeHtml(String(value || "unknown").toLowerCase().replace(/[^a-z0-9-]/g, "-"))}">${escapeHtml(label || value || "unknown")}</span>`;
+}
+
 function renderDetailField(label, value) {
   return `
     <div class="detail-field">
       <span>${escapeHtml(label)}</span>
       <strong>${escapeHtml(value || "Not recorded")}</strong>
+    </div>
+  `;
+}
+
+function renderDetailFieldHtml(label, value) {
+  return `
+    <div class="detail-field">
+      <span>${escapeHtml(label)}</span>
+      <strong>${value || "Not recorded"}</strong>
     </div>
   `;
 }
@@ -693,6 +971,120 @@ function renderTimeline(events) {
           </div>
         </div>
       `).join("")}
+    </div>
+  `;
+}
+
+function renderJobEvents(events) {
+  if (!events.length) {
+    return '<div class="empty-state">No job events recorded yet.</div>';
+  }
+  return `
+    <div class="timeline event-timeline">
+      ${events.filter((event) => event.createdAt).map((event) => `
+        <div class="timeline-item event-item">
+          <span class="timeline-dot timeline-${escapeHtml(eventTone(event.eventType))}"></span>
+          <div>
+            <div class="event-head">
+              <strong>${escapeHtml(formatJobEventType(event.eventType))}</strong>
+              <span class="tag">${escapeHtml(formatDateTime(event.createdAt))}</span>
+            </div>
+            <p>${escapeHtml(event.message || "No message recorded.")}</p>
+            ${renderEventDetails(event)}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderEventDetails(event) {
+  const details = event?.details || {};
+  const detailEntries = summarizeObject(details);
+  const hasRaw = Object.keys(details).length > 0;
+  return `
+    ${detailEntries.length ? `<div class="event-meta">${detailEntries.map(({ label, value }) => renderInfoChip(label, value)).join("")}</div>` : ""}
+    ${hasRaw ? `<details class="raw-details compact-details"><summary>Event Details</summary><pre>${escapeHtml(JSON.stringify(details, null, 2))}</pre></details>` : ""}
+  `;
+}
+
+function renderJobResultSummary(result) {
+  const entries = [
+    { label: "Release", value: result.releaseVersion || null },
+    { label: "Release Id", value: result.releaseId || null },
+    { label: "Environment", value: formatEnvironmentStatus(result.environmentStatus) || null },
+    { label: "Setup", value: formatSetupState(result.setupState) || null },
+    { label: "Health", value: result.health || null },
+    { label: "Schema", value: result.databaseSchema || null }
+  ].filter((entry) => entry.value);
+
+  if (!entries.length) return "";
+  return `
+    <section class="history-block">
+      <h4>Result Summary</h4>
+      <p class="panel-copy">${escapeHtml(buildJobOutcomeSummary(result))}</p>
+      <div class="info-chip-grid">
+        ${entries.map((entry) => renderInfoChip(entry.label, entry.value)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderDeploymentSummary(deployment) {
+  if (!deployment || !deployment.enabled) return "";
+  return `
+    <section class="history-block">
+      <h4>Deployment</h4>
+      <p class="panel-copy">This job can restart the tenant app on the app host and publish the hosted web assets on the web host.</p>
+      <div class="deployment-grid">
+        ${renderDeploymentCard("App Deploy", deployment.app)}
+        ${renderDeploymentCard("Web Deploy", deployment.web)}
+      </div>
+    </section>
+  `;
+}
+
+function renderDeploymentCard(title, step) {
+  if (!step) {
+    return `
+      <article class="deploy-card">
+        <h5>${escapeHtml(title)}</h5>
+        <p class="panel-copy">No deployment step recorded.</p>
+      </article>
+    `;
+  }
+  const status = step.attempted ? "attempted" : (step.skipped ? "skipped" : "pending");
+  const chips = [
+    { label: "Method", value: formatDeployMethod(step.method) || null },
+    { label: "Host", value: formatHostLabel(step.host) || null },
+    { label: "Resolved Host", value: step.resolvedHost || null },
+    { label: "Target Path", value: step.deployDir || null },
+    { label: "Service", value: step.serviceName || null },
+    { label: "Health Check", value: step.healthCheckUrl || null },
+    { label: "SSH Target", value: step.sshTarget || null },
+    { label: "Runtime Env File", value: step.runtimeEnvPath || null },
+    { label: "Source Copy", value: step.sourceCopySkipped ? "Skipped because app files were already on the app host" : null },
+    { label: "Reason", value: formatStepReason(step.reason) || null }
+  ].filter((entry) => entry.value);
+  return `
+    <article class="deploy-card">
+      <div class="deploy-head">
+        <h5>${escapeHtml(title)}</h5>
+        ${renderStatusTag(status, "job")}
+      </div>
+      <p class="panel-copy">${escapeHtml(buildDeploySummary(title, step, status))}</p>
+      <div class="info-chip-grid">
+        ${chips.map((entry) => renderInfoChip(entry.label, entry.value)).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderInfoChip(label, value) {
+  return `
+    <div class="info-chip">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value || "Not recorded")}</strong>
     </div>
   `;
 }
@@ -718,10 +1110,70 @@ function renderRelatedJobs(jobs) {
 
 function eventTone(eventType) {
   const normalized = String(eventType || "").toLowerCase();
-  if (["succeeded", "completed", "release_registered"].includes(normalized)) return "success";
+  if (["succeeded", "completed", "release_registered", "app_deploy_completed", "web_deploy_completed"].includes(normalized)) return "success";
   if (["failed", "error"].includes(normalized)) return "danger";
   if (["running", "database_prepared", "runtime_allocated", "token_issued"].includes(normalized)) return "warn";
   return "info";
+}
+
+function buildJobOutcomeSummary(result) {
+  const env = formatEnvironmentStatus(result.environmentStatus) || "Unknown";
+  const setup = formatSetupState(result.setupState) || "Unknown";
+  const health = result.health || "unknown";
+  return `Environment is ${env.toLowerCase()}, setup is ${setup.toLowerCase()}, and runtime health is ${String(health).toLowerCase()}.`;
+}
+
+function buildDeploySummary(title, step, status) {
+  if (status === "attempted") {
+    const host = formatHostLabel(step.host) || "the target host";
+    if (title === "App Deploy") {
+      return `The tenant app was updated on ${host} and checked through its local health endpoint.`;
+    }
+    return `The hosted web assets were published on ${host} and checked through the web server health endpoint.`;
+  }
+  if (status === "skipped") {
+    return formatStepReason(step.reason) || "This deployment step was skipped.";
+  }
+  return "This deployment step has not run yet.";
+}
+
+function formatHostLabel(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "APP001") return "APP001 (app host)";
+  if (normalized === "WEB001") return "WEB001 (web host)";
+  if (normalized === "DB001" || normalized === "SQL001") return `${normalized} (database host)`;
+  return value || "";
+}
+
+function formatDeployMethod(value) {
+  if (value === "local") return "Local on app host";
+  if (value === "ssh") return "Remote over SSH";
+  return value || "";
+}
+
+function formatStepReason(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "deployment_disabled") return "Deployment automation is disabled for this worker.";
+  if (normalized === "app_host_not_configured") return "No app host is configured for this environment.";
+  if (normalized === "web_host_not_configured") return "No web host is configured for this environment.";
+  return value || "";
+}
+
+function formatSetupState(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "token_issued") return "Setup Token Issued";
+  if (normalized === "initialized") return "Initialized";
+  if (normalized === "uninitialized") return "Not Initialized";
+  return startCase(value);
+}
+
+function formatEnvironmentStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "ready") return "Ready";
+  if (normalized === "provisioning") return "Provisioning";
+  if (normalized === "pending") return "Pending";
+  if (normalized === "degraded") return "Degraded";
+  return startCase(value);
 }
 
 function compareDatesDesc(left, right) {
@@ -752,6 +1204,25 @@ function formatJobEventType(value) {
   return formatJobType(value);
 }
 
+function resolveEnvironmentName(environmentId) {
+  const environment = state.environments.find((item) => item.id === environmentId);
+  return environment?.displayName || "";
+}
+
+function resolveJobTenantName(job) {
+  const tenant = state.tenants.find((item) => item.id === job.tenantId);
+  if (tenant?.displayName) return tenant.displayName;
+  const environment = state.environments.find((item) => item.id === job.tenantEnvironmentId);
+  return environment?.tenantDisplayName || job.tenantId || "Unknown tenant";
+}
+
+function resolveJobTenantSlug(job) {
+  const tenant = state.tenants.find((item) => item.id === job.tenantId);
+  if (tenant?.slug) return tenant.slug;
+  const environment = state.environments.find((item) => item.id === job.tenantEnvironmentId);
+  return environment?.tenantSlug || "";
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -759,6 +1230,26 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function summarizeObject(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return [];
+  return Object.entries(input)
+    .filter(([, value]) => value != null && value !== "" && typeof value !== "object")
+    .slice(0, 6)
+    .map(([key, value]) => ({
+      label: startCase(key),
+      value: String(value)
+    }));
+}
+
+function startCase(value) {
+  return String(value || "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
 }
 
 bootstrap();

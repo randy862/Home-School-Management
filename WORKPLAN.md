@@ -81,7 +81,14 @@
 
 ## Active Next Actions
 
-1. Establish trusted host-to-host deployment access from `APP001` to targets such as `WEB001`, then wire real app/web deployment commands into the worker.
+1. Do a browser-level pass on the staged `/control/` job detail to confirm the new deployment cards and event details are readable in practice.
 2. Replace the shared-key setup-sync path with a stronger long-term service-to-service auth model for runtime status polling.
-3. Keep hosted browser smoke validation as the regression gate after each major backend-boundary slice.
-4. Add deeper operator drill-down only where the next runtime-execution slice exposes new operational states worth surfacing.
+   - [x] Implement short-lived signed internal service tokens in code for `control-api -> tenant runtime` setup-status synchronization.
+   - [x] Add matching token verification on tenant-runtime internal setup-status routes and on `control-api` internal runtime-resolution routes.
+   - [x] Load the staged shared secret on `APP001` services, validate the signed-token path end to end, then disable the legacy shared-key fallback.
+3. Define job retry, idempotency, and recovery behavior for failed or partial provisioning work.
+   - [x] Add retry metadata to provisioning jobs (`attempt_count`, `max_attempts`, `next_attempt_at`, `last_attempt_at`, `retry_of_job_id`).
+   - [x] Make job queueing idempotent by intent when an idempotency key is supplied.
+   - [x] Add automatic transient-failure requeue behavior plus a manual `POST /api/control/jobs/:id/retry` endpoint.
+   - [x] Validate idempotent queueing, operator-created retry jobs, and automatic retry scheduling on `APP001` staging.
+4. Keep hosted browser smoke validation as the regression gate after each major backend-boundary slice.

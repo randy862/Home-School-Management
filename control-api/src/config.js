@@ -8,6 +8,22 @@ function toBool(value, fallback) {
   return String(value).toLowerCase() === "true";
 }
 
+function parseAliasMap(value) {
+  return String(value || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reduce((acc, entry) => {
+      const [rawKey, ...rest] = entry.split("=");
+      const key = String(rawKey || "").trim().toLowerCase();
+      const mapped = rest.join("=").trim();
+      if (key && mapped) {
+        acc[key] = mapped;
+      }
+      return acc;
+    }, {});
+}
+
 module.exports = {
   app: {
     env: process.env.CONTROL_APP_ENV || process.env.APP_ENV || "development",
@@ -16,6 +32,13 @@ module.exports = {
   },
   internal: {
     apiKey: process.env.CONTROL_INTERNAL_API_KEY || "",
+    serviceAuthSecret: process.env.CONTROL_INTERNAL_AUTH_SECRET || "",
+    serviceAuthIssuer: String(process.env.CONTROL_INTERNAL_AUTH_ISSUER || "control-plane").trim() || "control-plane",
+    tenantRuntimeAudience: String(process.env.CONTROL_INTERNAL_TENANT_RUNTIME_AUDIENCE || "tenant-runtime-internal").trim() || "tenant-runtime-internal",
+    runtimeResolveAudience: String(process.env.CONTROL_INTERNAL_RUNTIME_RESOLVE_AUDIENCE || "control-plane-internal").trim() || "control-plane-internal",
+    serviceAuthTtlSeconds: Number(process.env.CONTROL_INTERNAL_AUTH_TTL_SECONDS || 120),
+    serviceAuthClockSkewSeconds: Number(process.env.CONTROL_INTERNAL_AUTH_CLOCK_SKEW_SECONDS || 30),
+    allowLegacyApiKey: toBool(process.env.CONTROL_INTERNAL_ALLOW_LEGACY_API_KEY, true),
     workerEnabled: toBool(process.env.CONTROL_WORKER_ENABLED, true),
     workerPollMs: Number(process.env.CONTROL_WORKER_POLL_MS || 5000)
   },
@@ -26,6 +49,27 @@ module.exports = {
     tenantDbPassword: process.env.CONTROL_TENANT_PGPASSWORD || process.env.CONTROL_PGPASSWORD || process.env.PGPASSWORD || "",
     tenantDbPort: Number(process.env.CONTROL_TENANT_PGPORT || process.env.CONTROL_PGPORT || process.env.PGPORT || 5432),
     tenantDbSslMode: String(process.env.CONTROL_TENANT_PGSSLMODE || process.env.CONTROL_PGSSLMODE || process.env.PGSSLMODE || "disable").toLowerCase(),
+    deploymentEnabled: toBool(process.env.CONTROL_DEPLOYMENT_ENABLED, false),
+    sshBin: process.env.CONTROL_DEPLOY_SSH_BIN || "ssh",
+    scpBin: process.env.CONTROL_DEPLOY_SCP_BIN || "scp",
+    sshUser: process.env.CONTROL_DEPLOY_SSH_USER || "debian",
+    sshPort: Number(process.env.CONTROL_DEPLOY_SSH_PORT || 22),
+    sshConnectTimeoutSeconds: Number(process.env.CONTROL_DEPLOY_SSH_CONNECT_TIMEOUT_SECONDS || 10),
+    localHosts: String(process.env.CONTROL_DEPLOY_LOCAL_HOSTS || "127.0.0.1,localhost")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+    hostAliases: parseAliasMap(process.env.CONTROL_HOST_ALIASES || ""),
+    appSourceDir: process.env.CONTROL_DEPLOY_APP_SOURCE_DIR || path.resolve(__dirname, "../../server"),
+    appDeployDir: process.env.CONTROL_DEPLOY_APP_DIR || "/home/debian/apps/home-school-management/server",
+    appRuntimeEnvFilename: process.env.CONTROL_DEPLOY_APP_RUNTIME_ENV_FILENAME || ".env.runtime",
+    appServiceName: process.env.CONTROL_DEPLOY_APP_SERVICE || "home-school-management.service",
+    appHealthCheckUrl: process.env.CONTROL_DEPLOY_APP_HEALTH_URL || "http://127.0.0.1:3000/health",
+    webSourceDir: process.env.CONTROL_DEPLOY_WEB_SOURCE_DIR || path.resolve(__dirname, "../../web"),
+    webDeployDir: process.env.CONTROL_DEPLOY_WEB_DIR || "/var/www/home-school-management/web",
+    webHealthCheckUrl: process.env.CONTROL_DEPLOY_WEB_HEALTH_URL || "http://127.0.0.1/health",
+    healthCheckRetries: Number(process.env.CONTROL_DEPLOY_HEALTH_RETRIES || 10),
+    healthCheckDelayMs: Number(process.env.CONTROL_DEPLOY_HEALTH_DELAY_MS || 2000),
     setupSyncEnabled: toBool(process.env.CONTROL_SETUP_SYNC_ENABLED, true),
     setupSyncPollMs: Number(process.env.CONTROL_SETUP_SYNC_POLL_MS || 15000),
     setupSyncRequestTimeoutMs: Number(process.env.CONTROL_SETUP_SYNC_TIMEOUT_MS || 5000)

@@ -25,8 +25,9 @@ Define how the control plane resolves an incoming tenant hostname to the tenant/
 ## Internal Resolution
 - Endpoint: `GET /api/internal/runtime/resolve`
 - Auth:
-  - `x-control-plane-key: <CONTROL_INTERNAL_API_KEY>`
-  - if no shared key is configured yet, a signed-in `platform_admin` session may use the route for controlled staging validation
+  - preferred: `Authorization: Bearer <short-lived signed internal service token>`
+  - transition fallback: `x-control-plane-key: <CONTROL_INTERNAL_API_KEY>` while legacy rollout is still enabled
+  - a signed-in `platform_admin` session may use the route for controlled staging validation
 - Purpose:
   - returns the same tenant/environment identity data as the public endpoint
   - adds runtime routing metadata needed by trusted infrastructure callers
@@ -64,5 +65,6 @@ Define how the control plane resolves an incoming tenant hostname to the tenant/
 - Tenant runtime setup-state synchronization no longer depends on the public setup-status endpoint.
 - Control-plane reconciliation now uses:
   - `GET /api/internal/setup/status`
-  - `x-control-plane-key`
-- This keeps setup completion polling on a control-plane-only path while we design a stronger long-term service-to-service auth model.
+  - preferred: `Authorization: Bearer <short-lived signed internal service token>`
+  - transition fallback: `x-control-plane-key`
+- This keeps setup completion polling on a control-plane-only path while moving the long-term trust model to short-lived signed internal service tokens with explicit audience and expiry.

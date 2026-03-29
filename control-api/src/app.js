@@ -21,6 +21,8 @@ const {
   listTenantEnvironments,
   listTenants,
   markProvisioningJobFailed,
+  retryProvisioningJob,
+  scheduleProvisioningJobRetry,
   markTenantEnvironmentInitialized,
   queueProvisioningJob,
   resolveTenantRuntimeByHost,
@@ -43,7 +45,7 @@ const { createSetupSyncService } = require("./setup-sync");
 const app = express();
 const runtimeAutomation = createTenantRuntimeAutomation(automationConfig);
 const setupSyncService = createSetupSyncService({
-  controlPlaneKey: internalConfig.apiKey,
+  internalConfig,
   listSetupSyncCandidates,
   markTenantEnvironmentInitialized,
   timeoutMs: automationConfig.setupSyncRequestTimeoutMs
@@ -86,7 +88,8 @@ registerEnvironmentRoutes(app, {
 registerJobRoutes(app, {
   getProvisioningJobById,
   listProvisioningJobEvents,
-  listProvisioningJobs
+  listProvisioningJobs,
+  retryProvisioningJob
 });
 
 app.use(errorHandler);
@@ -119,13 +122,60 @@ async function executeProvisioningJob(job) {
       jobType: job.jobType
     });
   } catch (error) {
-    await appendProvisioningJobEvent(job.id, "failed", error.message, {
-      jobType: job.jobType
-    });
+    const retryDecision = getRetryDecision(job, error);
+    if (retryDecision.shouldRetry) {
+      await appendProvisioningJobEvent(job.id, "retry_pending", retryDecision.reason, {
+        jobType: job.jobType,
+        errorCode: error.code || "execution_failed",
+        attemptCount: job.attemptCount || 0,
+        maxAttempts: job.maxAttempts || 1,
+        retryDelaySeconds: retryDecision.delaySeconds
+      });
+      await scheduleProvisioningJobRetry(job.id, {
+        errorCode: error.code || "execution_failed",
+        reason: retryDecision.reason,
+        delaySeconds: retryDecision.delaySeconds,
+        result: {
+          jobType: job.jobType,
+          errorCode: error.code || "execution_failed",
+          errorMessage: error.message
+        }
+      });
+      return;
+    }
+
     await markProvisioningJobFailed(job.id, error.code || "execution_failed", error.message, {
-      jobType: job.jobType
+      jobType: job.jobType,
+      attemptCount: job.attemptCount || 0,
+      maxAttempts: job.maxAttempts || 1
     });
   }
+}
+
+function getRetryDecision(job, error) {
+  const attemptCount = Number(job?.attemptCount || 0);
+  const maxAttempts = Number(job?.maxAttempts || 1);
+  if (attemptCount >= maxAttempts) {
+    return { shouldRetry: false };
+  }
+
+  const code = String(error?.code || "").trim().toUpperCase();
+  const message = String(error?.message || "").toLowerCase();
+  const transientCodes = new Set(["ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "EAI_AGAIN", "ENOTFOUND"]);
+  const transientMessage = message.includes("timeout")
+    || message.includes("temporarily unavailable")
+    || message.includes("connection reset")
+    || message.includes("no route to host");
+  if (!transientCodes.has(code) && !transientMessage) {
+    return { shouldRetry: false };
+  }
+
+  const delaySeconds = Math.min(30 * Math.max(attemptCount, 1), 300);
+  return {
+    shouldRetry: true,
+    delaySeconds,
+    reason: `Transient failure detected (${code || "execution_failed"}); retry ${attemptCount + 1} of ${maxAttempts} scheduled in ${delaySeconds} seconds.`
+  };
 }
 
 app.listen(appConfig.port, () => {

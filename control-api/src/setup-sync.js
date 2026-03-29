@@ -1,9 +1,10 @@
 const http = require("http");
 const https = require("https");
+const { createInternalServiceToken } = require("./internal-service-auth");
 
 function createSetupSyncService(deps) {
   const {
-    controlPlaneKey,
+    internalConfig,
     listSetupSyncCandidates,
     markTenantEnvironmentInitialized,
     timeoutMs
@@ -14,7 +15,7 @@ function createSetupSyncService(deps) {
       const environments = await listSetupSyncCandidates();
       const updates = [];
       for (const environment of environments) {
-        const status = await fetchSetupStatus(environment.appBaseUrl, timeoutMs, controlPlaneKey);
+        const status = await fetchSetupStatus(environment.appBaseUrl, timeoutMs, internalConfig);
         if (status?.initialized) {
           updates.push(await markTenantEnvironmentInitialized(environment.id, {
             source: "runtime_setup_status",
@@ -27,7 +28,7 @@ function createSetupSyncService(deps) {
     },
 
     async syncEnvironment(environment) {
-      const status = await fetchSetupStatus(environment.appBaseUrl, timeoutMs, controlPlaneKey);
+      const status = await fetchSetupStatus(environment.appBaseUrl, timeoutMs, internalConfig);
       if (!status?.initialized) {
         return {
           synchronized: false,
@@ -49,7 +50,7 @@ function createSetupSyncService(deps) {
   };
 }
 
-function fetchSetupStatus(appBaseUrl, timeoutMs, controlPlaneKey) {
+function fetchSetupStatus(appBaseUrl, timeoutMs, internalConfig) {
   const base = String(appBaseUrl || "").trim();
   if (!base) return Promise.resolve(null);
   const url = new URL("/api/internal/setup/status", base);
@@ -57,9 +58,7 @@ function fetchSetupStatus(appBaseUrl, timeoutMs, controlPlaneKey) {
 
   return new Promise((resolve, reject) => {
     const request = transport.get(url, {
-      headers: {
-        "x-control-plane-key": String(controlPlaneKey || "")
-      }
+      headers: buildInternalAuthHeaders(internalConfig)
     }, (response) => {
       let body = "";
       response.on("data", (chunk) => {
@@ -84,6 +83,26 @@ function fetchSetupStatus(appBaseUrl, timeoutMs, controlPlaneKey) {
     });
     request.on("error", () => resolve(null));
   });
+}
+
+function buildInternalAuthHeaders(internalConfig) {
+  const headers = {};
+  const secret = String(internalConfig?.serviceAuthSecret || "").trim();
+  if (secret) {
+    headers.authorization = `Bearer ${createInternalServiceToken({
+      secret,
+      issuer: internalConfig?.serviceAuthIssuer,
+      audience: internalConfig?.tenantRuntimeAudience,
+      subject: "control-plane:setup-sync",
+      ttlSeconds: internalConfig?.serviceAuthTtlSeconds
+    })}`;
+    return headers;
+  }
+
+  if (internalConfig?.allowLegacyApiKey && internalConfig?.apiKey) {
+    headers["x-control-plane-key"] = String(internalConfig.apiKey || "");
+  }
+  return headers;
 }
 
 module.exports = {

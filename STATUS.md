@@ -231,14 +231,58 @@ Date: 2026-03-27
   - verified `APP001` has `ssh` available for future host-level deployment orchestration
   - confirmed `APP001 -> WEB001` automation is currently blocked by host-key trust, so the worker does not yet force cross-host deployment commands
   - the current worker now produces real schema/bootstrap/runtime artifacts on `APP001`, which is the safe deployment foundation before remote host automation is enabled
+- Implemented the next deployment automation slice in repo code:
+  - `control-api` provisioning can now be switched into a real deployment mode with `CONTROL_DEPLOYMENT_ENABLED=true`
+  - when enabled, the worker can treat configured `APP001` identities as local, copy `server/` into the app deploy directory, write `.env.runtime`, restart `home-school-management.service`, and verify the app health URL
+  - when enabled, the worker can also push `web/` assets to the configured web host via `scp`/`ssh` and verify the remote Apache health URL
+  - deployment results now record per-job app/web execution details so operators can see whether deployment ran, was skipped, or failed closed
+  - strict SSH trust remains in place; this slice is implemented but still requires on-host `APP001 -> WEB001` trust validation before it should be treated as production-ready
+- Validated the new deployment executor on-host across `APP001` and `WEB001`:
+  - established strict `APP001 -> WEB001` SSH trust with explicit host entries plus an `APP001` SSH config mapping `WEB001` and `192.168.1.210` to the existing `~/.ssh/proxmox_codex` key
+  - enabled `CONTROL_DEPLOYMENT_ENABLED=true` and `CONTROL_DEPLOY_LOCAL_HOSTS=APP001,192.168.1.200,127.0.0.1,localhost` in the staged `home-school-management-control-api.service`
+  - added `CONTROL_HOST_ALIASES=APP001=192.168.1.200,WEB001=192.168.1.210,DB001=192.168.1.202` so the worker can resolve control-plane host labels on `APP001`
+  - synced the current `control-api/` and `web/` trees to `APP001` so the worker has both app and web source artifacts available locally
+  - fixed a local app-deploy self-copy bug when source and deploy directories are the same path on `APP001`
+  - fixed health-check timing by retrying app/web health probes instead of failing immediately after service restart or remote copy
+  - granted the `debian` deploy user ownership of `/var/www/home-school-management/web` on `WEB001` so the worker's `scp` deployment path can write the hosted web assets directly
+  - manually exercised the exact `tenant-runtime-automation.provisionEnvironment(...)` path on `APP001` against the staged tenant environment and got a successful result covering schema readiness, runtime bundle write, local app restart/health, remote web push, and remote Apache health verification
+- Validated the real queued worker path on staging:
+  - added `control-api/src/scripts/queue-provision-job.js` to queue a real `provision_environment` job and wait for worker completion during validation
+  - first queued rehearsal failed with `ENOTFOUND DB001`, which exposed that the stored control-plane host labels were not all resolvable on `APP001`
+  - after adding host-alias resolution in the worker and loading `CONTROL_HOST_ALIASES`, a second queued `provision_environment` job succeeded end to end
+  - the completed job now records `app_deploy_completed` and `web_deploy_completed` events plus deployment details in the final job result payload, matching the intended operator-history model
+- Improved staged operator visibility for deployment jobs:
+  - upgraded the `/control/` job-detail UI to surface result summary chips, dedicated app/web deployment cards, and richer event detail blocks before raw JSON
+  - deployed the refreshed operator-console assets to `WEB001` under `/var/www/home-school-management/control/`
+  - verified the staged `/control/app.js` and `/control/styles.css` assets now include the new deployment-summary rendering code and styles
+- Began Session 1 architectural hardening on internal service trust:
+  - replaced the control plane's shared-key-only setup-sync request path with short-lived signed internal bearer tokens in code
+  - added matching signed-token verification on tenant runtime `GET /api/internal/setup/status`
+  - hardened `control-api` internal runtime-resolution auth to accept signed service tokens as the preferred path, with legacy header-key fallback left enabled for staged rollout
+  - documented the new env vars and rollout boundary so staging can switch services cleanly before the legacy shared-key path is disabled
+- Completed Session 1 staging cutover for internal service auth:
+  - loaded a staged shared secret into `home-school-management.service` and `home-school-management-control-api.service` on `APP001`
+  - redeployed `server/` and `control-api/`, restarted both services, and fixed a rollout regression in the control-api unit's `PGOPTIONS` line
+  - verified `GET /api/internal/setup/status` still returns `401` with no auth, returns `200` with a short-lived signed bearer token, and now rejects the old `x-control-plane-key` path after fallback disablement
+  - verified the real operator-driven `POST /api/control/environments/:id/sync-setup` path still succeeds end to end for the routable staged environment after the fallback was disabled
+- Completed Session 2 job recovery hardening in code and staging:
+  - added `002_job_recovery_fields.sql` so provisioning jobs now track `attempt_count`, `max_attempts`, `next_attempt_at`, `last_attempt_at`, and `retry_of_job_id`
+  - `queueProvisioningJob(...)` now enforces idempotency by returning the existing job for the same request intent and rejecting conflicting reuse of the same idempotency key
+  - the worker now only claims jobs whose `next_attempt_at` is due, increments attempt metadata on claim, and records retry scheduling separately from terminal failure
+  - added `scheduleProvisioningJobRetry(...)` for automatic requeue of transient failures and `retryProvisioningJob(...)` plus `POST /api/control/jobs/:id/retry` for operator-created follow-up jobs
+  - manual retry now links child jobs back to the original failed job via `retry_of_job_id`, updates environment status back to `provisioning` for `provision_environment`, and records operator audit log entries
+  - staged rollout required a real PostgreSQL migration on `APP001`; the first post-code restart surfaced `column "next_attempt_at" does not exist`, which was resolved by rerunning the control-api migration with the service's live DB environment
+  - staged validation confirmed idempotent queueing with repeated `POST /api/control/environments/:id/provision` calls returning the same job for the same idempotency key
+  - staged validation confirmed manual retry creates a new queued child job with `retryOfJobId` set to the original failed job
+  - staged validation confirmed automatic retry now records `retry_pending` and `retry_scheduled`, waits 30 seconds, reclaims the same job for a second attempt, and only then lands in terminal `failed` when the configured retry budget is exhausted
 
 ## Blocked
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.
 - Direct SSH validation to `SQL001` from this PC still needs to be confirmed separately; current confirmed database path remains through `APP001`.
 
 ## Next
-1. Establish trusted host-to-host deployment access from `APP001` to target hosts such as `WEB001`, then wire real app/web deployment commands into the worker.
-2. Add a stronger long-term service-to-service auth model for runtime health/setup synchronization beyond the shared-key staging path.
+1. Expose Session 2 recovery signals more clearly in `/control/` so operators can see attempt counts, next retry time, and retry lineage without reading raw JSON.
+2. Start Session 3 by defining and implementing broader tenant lifecycle jobs beyond the current provisioning/setup-token paths.
 3. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
 
 ## Current Assessment

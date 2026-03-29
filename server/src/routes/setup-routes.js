@@ -1,8 +1,9 @@
 const { createSessionToken, hashPassword, hashSessionToken, mapUserSummary, serializeSessionCookie } = require("../auth-service");
+const { parseBearerToken, verifyInternalServiceToken } = require("../internal-service-auth");
 
 function registerSetupRoutes(app, deps) {
   const {
-    controlPlaneKey,
+    internalConfig,
     getSetupStatus,
     initializeSetup,
     isPostgresMode,
@@ -47,7 +48,7 @@ function registerSetupRoutes(app, deps) {
 
   app.get("/api/internal/setup/status", async (req, res) => {
     if (!ensurePostgresMode(res, isPostgresMode)) return;
-    if (!ensureInternalControlPlaneRequest(req, res, controlPlaneKey)) return;
+    if (!ensureInternalControlPlaneRequest(req, res, internalConfig)) return;
 
     try {
       const status = await getSetupStatus();
@@ -67,18 +68,39 @@ function ensurePostgresMode(res, isPostgresMode) {
   return false;
 }
 
-function ensureInternalControlPlaneRequest(req, res, controlPlaneKey) {
-  const expected = String(controlPlaneKey || "").trim();
-  if (!expected) {
-    res.status(503).json({ error: "Internal control-plane access is not configured." });
-    return false;
-  }
-  const provided = String(req.headers["x-control-plane-key"] || "").trim();
-  if (!provided || provided !== expected) {
+function ensureInternalControlPlaneRequest(req, res, internalConfig) {
+  const serviceAuthSecret = String(internalConfig?.serviceAuthSecret || "").trim();
+  const bearerToken = parseBearerToken(req.headers.authorization);
+  if (serviceAuthSecret && bearerToken) {
+    const verification = verifyInternalServiceToken(bearerToken, {
+      secret: serviceAuthSecret,
+      expectedAudience: internalConfig?.expectedAudience,
+      expectedIssuer: internalConfig?.controlPlaneIssuer,
+      clockSkewSeconds: internalConfig?.serviceAuthClockSkewSeconds
+    });
+    if (verification.ok) {
+      req.internalServiceAuth = verification.claims;
+      return true;
+    }
     res.status(401).json({ error: "Internal control-plane authentication required." });
     return false;
   }
-  return true;
+
+  const expected = String(internalConfig?.controlPlaneKey || "").trim();
+  if (expected && internalConfig?.allowLegacyControlPlaneKey) {
+    const provided = String(req.headers["x-control-plane-key"] || "").trim();
+    if (provided && provided === expected) {
+      return true;
+    }
+  }
+
+  if (serviceAuthSecret || expected) {
+    res.status(401).json({ error: "Internal control-plane authentication required." });
+    return false;
+  }
+
+  res.status(503).json({ error: "Internal control-plane access is not configured." });
+  return false;
 }
 
 async function normalizeSetupPayload(input) {

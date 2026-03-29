@@ -1,3 +1,5 @@
+const { parseBearerToken, verifyInternalServiceToken } = require("../internal-service-auth");
+
 function registerRuntimeRoutes(app, deps) {
   const {
     internalConfig,
@@ -64,21 +66,41 @@ function registerRuntimeRoutes(app, deps) {
 }
 
 function ensureInternalRequest(req, res, internalConfig) {
-  const configured = String(internalConfig?.apiKey || "").trim();
-  if (!configured) {
-    if (req.auth?.user?.role === "platform_admin") {
-      return true;
+  const bearerToken = parseBearerToken(req.headers.authorization);
+  const serviceAuthSecret = String(internalConfig?.serviceAuthSecret || "").trim();
+  if (serviceAuthSecret && bearerToken) {
+    const verification = verifyInternalServiceToken(bearerToken, {
+      secret: serviceAuthSecret,
+      expectedAudience: internalConfig?.runtimeResolveAudience,
+      clockSkewSeconds: internalConfig?.serviceAuthClockSkewSeconds
+    });
+    if (!verification.ok) {
+      res.status(401).json({ error: "Internal control-plane authentication required." });
+      return false;
     }
-    res.status(503).json({ error: "Internal runtime routing is not configured." });
-    return false;
+    req.internalServiceAuth = verification.claims;
+    return true;
   }
 
-  const provided = String(req.headers["x-control-plane-key"] || "").trim();
-  if (!provided || provided !== configured) {
+  const configured = String(internalConfig?.apiKey || "").trim();
+  if (configured && internalConfig?.allowLegacyApiKey) {
+    const provided = String(req.headers["x-control-plane-key"] || "").trim();
+    if (provided && provided === configured) {
+      return true;
+    }
+  }
+
+  if (req.auth?.user?.role === "platform_admin") {
+    return true;
+  }
+
+  if (serviceAuthSecret || configured) {
     res.status(401).json({ error: "Internal control-plane authentication required." });
     return false;
   }
-  return true;
+
+  res.status(503).json({ error: "Internal runtime routing is not configured." });
+  return false;
 }
 
 function normalizeRequestedHost(req) {

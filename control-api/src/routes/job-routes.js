@@ -1,7 +1,7 @@
-const { ensureAuthenticated } = require("./route-auth");
+const { ensureAuthenticated, ensurePlatformAdmin } = require("./route-auth");
 
 function registerJobRoutes(app, deps) {
-  const { getProvisioningJobById, listProvisioningJobEvents, listProvisioningJobs } = deps;
+  const { getProvisioningJobById, listProvisioningJobEvents, listProvisioningJobs, retryProvisioningJob } = deps;
 
   app.get("/api/control/jobs", async (req, res) => {
     if (!ensureAuthenticated(req, res)) return;
@@ -28,6 +28,22 @@ function registerJobRoutes(app, deps) {
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/control/jobs/:id/retry", async (req, res) => {
+    if (!ensurePlatformAdmin(req, res)) return;
+
+    try {
+      const job = await retryProvisioningJob(req.params.id, {
+        idempotencyKey: String(req.body?.idempotencyKey || "").trim() || null,
+        maxAttempts: req.body?.maxAttempts
+      }, {
+        operatorUserId: req.auth.user.id
+      });
+      res.status(201).json(job);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 }

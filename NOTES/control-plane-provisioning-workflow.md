@@ -69,7 +69,8 @@ Define the first end-to-end provisioning workflow that turns the current hosted 
   - session config
 - Worker restarts the tenant app service and verifies `/health`.
 - Current implementation note:
-  - the staged control plane now writes tenant runtime bundle artifacts on `APP001`, but host-to-host app/web deployment automation is still deferred until `APP001` has a trusted automation path to target hosts such as `WEB001`
+  - the staged control plane now has an opt-in deployment executor that can copy `server/` into the configured app deploy directory, write `.env.runtime`, restart `home-school-management.service`, verify app health, and push `web/` assets to the configured web host over `scp`/`ssh`
+  - cross-host execution still depends on trusted `APP001 -> WEB001` SSH access; the worker intentionally keeps strict host verification and fails closed if that trust path is not established
 
 ### 6. Register Release
 - Worker writes `tenant_releases` row for the deployed version.
@@ -91,7 +92,8 @@ Define the first end-to-end provisioning workflow that turns the current hosted 
   - starts the normal session
 - Control plane should poll or receive confirmation that setup completed.
 - Current implementation note:
-  - the staged control plane now supports manual and background setup-state synchronization through a shared-key protected tenant runtime endpoint at `GET /api/internal/setup/status`
+  - the staged control plane now supports manual and background setup-state synchronization through an internal tenant runtime endpoint at `GET /api/internal/setup/status`
+  - the preferred auth path is now a short-lived signed service token from the control plane, with legacy shared-key fallback left enabled only for staged cutover
 
 ### 9. Mark Environment Ready
 - Control plane updates:
@@ -181,6 +183,16 @@ Define the first end-to-end provisioning workflow that turns the current hosted 
 ### Jobs
 - `GET /api/control/jobs`
 - `GET /api/control/jobs/:id`
+- `POST /api/control/jobs/:id/retry`
+
+## Recovery Model
+
+- Each provisioning job tracks `attempt_count`, `max_attempts`, `last_attempt_at`, and `next_attempt_at`.
+- Automatic retry reuses the same job record only for transient failures and only while `attempt_count < max_attempts`.
+- Automatic retry appends `retry_pending` and `retry_scheduled` events before moving the job back to `queued`.
+- Terminal failure still lands on the same job record with the final error plus full event history.
+- Manual operator retry creates a new queued child job linked by `retry_of_job_id` instead of rewriting the failed job in place.
+- Idempotency keys apply at queue time: the same intent returns the existing queued/running/completed job, while a conflicting request using the same key is rejected.
 
 ## First UI Surface For `admin/`
 - tenant list

@@ -42,5 +42,31 @@ Current implementation status:
 - tenant/environment/job read routes
 - tenant/environment/provisioning mutation routes with platform-admin enforcement
 - public tenant-runtime resolution by host plus internal runtime-routing resolution
-- in-process provisioning worker that claims queued jobs, records job events, runs tenant runtime migration/setup-token scripts, updates environment state, registers releases, and completes setup-token issuance metadata
+- short-lived signed internal service-auth support for tenant-runtime setup synchronization and internal runtime-resolution routes, with legacy shared-key fallback available during staged rollout
+- in-process provisioning worker that claims queued jobs, records job events, runs tenant runtime migration/setup-token scripts, can optionally perform app/web deployment steps with strict SSH trust, updates environment state, registers releases, and completes setup-token issuance metadata
+- provisioning job recovery support with idempotent queueing, retry-attempt metadata, automatic transient-failure rescheduling, and manual `POST /api/control/jobs/:id/retry` creation of linked follow-up jobs
 - manual environment setup-state sync route: `POST /api/control/environments/:id/sync-setup`
+
+Deployment-related environment variables:
+- `CONTROL_INTERNAL_AUTH_SECRET=<shared-secret>` to sign short-lived internal service tokens used for tenant-runtime synchronization
+- `CONTROL_INTERNAL_AUTH_ISSUER=control-plane`
+- `CONTROL_INTERNAL_TENANT_RUNTIME_AUDIENCE=tenant-runtime-internal`
+- `CONTROL_INTERNAL_RUNTIME_RESOLVE_AUDIENCE=control-plane-internal`
+- `CONTROL_INTERNAL_AUTH_TTL_SECONDS=120`
+- `CONTROL_INTERNAL_ALLOW_LEGACY_API_KEY=true` during staged cutover, then `false` after the shared-key path is retired
+- `CONTROL_DEPLOYMENT_ENABLED=true` to enable real app/web deployment steps during `provision_environment`
+- `CONTROL_DEPLOY_LOCAL_HOSTS=APP001,192.168.1.200,127.0.0.1,localhost` to tell the worker when the app host should be treated as local
+- `CONTROL_HOST_ALIASES=APP001=192.168.1.200,WEB001=192.168.1.210,DB001=192.168.1.202` to resolve control-plane host labels on the worker host
+- `CONTROL_DEPLOY_APP_DIR=/home/debian/apps/home-school-management/server`
+- `CONTROL_DEPLOY_APP_SERVICE=home-school-management.service`
+- `CONTROL_DEPLOY_APP_HEALTH_URL=http://127.0.0.1:3000/health`
+- `CONTROL_DEPLOY_WEB_DIR=/var/www/home-school-management/web`
+- `CONTROL_DEPLOY_WEB_HEALTH_URL=http://127.0.0.1/health`
+- `CONTROL_DEPLOY_HEALTH_RETRIES=10`
+- `CONTROL_DEPLOY_HEALTH_DELAY_MS=2000`
+- `CONTROL_DEPLOY_SSH_USER=debian`
+- `CONTROL_DEPLOY_SSH_PORT=22`
+- `CONTROL_DEPLOY_SSH_CONNECT_TIMEOUT_SECONDS=10`
+
+Validation helper:
+- `src/scripts/validate-deployment.js` manually exercises `tenant-runtime-automation.provisionEnvironment(...)` using environment metadata passed through env vars

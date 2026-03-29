@@ -144,6 +144,7 @@ function normalizeProvisionJobPayload(input, tenantEnvironmentId) {
   const databaseName = String(input?.databaseName || "").trim();
   const databaseSchema = String(input?.databaseSchema || "").trim();
   const idempotencyKey = String(input?.idempotencyKey || "").trim();
+  const maxAttempts = normalizeMaxAttempts(input?.maxAttempts);
 
   if (!tenantEnvironmentId) {
     const error = new Error("Environment id is required.");
@@ -157,6 +158,7 @@ function normalizeProvisionJobPayload(input, tenantEnvironmentId) {
     tenantEnvironmentId,
     jobType: "provision_environment",
     idempotencyKey: idempotencyKey || null,
+    maxAttempts,
     message: "Provision environment queued",
     payload: {
       releaseVersion,
@@ -177,6 +179,7 @@ function normalizeSetupTokenJobPayload(input, tenantEnvironmentId) {
   const deliveredVia = String(input?.deliveredVia || "operator_console").trim() || "operator_console";
   const notes = String(input?.notes || "").trim();
   const idempotencyKey = String(input?.idempotencyKey || "").trim();
+  const maxAttempts = normalizeMaxAttempts(input?.maxAttempts);
 
   if (!tenantEnvironmentId) {
     const error = new Error("Environment id is required.");
@@ -195,6 +198,7 @@ function normalizeSetupTokenJobPayload(input, tenantEnvironmentId) {
     tenantEnvironmentId,
     jobType: "issue_setup_token",
     idempotencyKey: idempotencyKey || null,
+    maxAttempts,
     message: "Issue setup token queued",
     deliveredVia,
     notes,
@@ -205,6 +209,12 @@ function normalizeSetupTokenJobPayload(input, tenantEnvironmentId) {
       notes
     }
   };
+}
+
+function normalizeMaxAttempts(value) {
+  const parsed = Number(value || 3);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 10) return 3;
+  return Math.floor(parsed);
 }
 
 module.exports = {

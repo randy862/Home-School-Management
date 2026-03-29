@@ -1,6 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const { spawn } = require("child_process");
+const os = require("os");
 const { Client } = require("pg");
 
 function createTenantRuntimeAutomation(config) {
@@ -20,11 +21,21 @@ function createTenantRuntimeAutomation(config) {
       await fs.mkdir(runtimeBundleDir, { recursive: true });
       await fs.writeFile(bundlePath, bundleContents, { encoding: "utf8", mode: 0o600 });
 
+      let deployment = {
+        enabled: Boolean(config.deploymentEnabled),
+        app: { attempted: false, skipped: true, reason: "deployment_disabled" },
+        web: { attempted: false, skipped: true, reason: "deployment_disabled" }
+      };
+      if (config.deploymentEnabled) {
+        deployment = await deployEnvironmentRelease(config, environment, bundlePath);
+      }
+
       return {
         bundlePath,
         databaseHost: dbConfig.host,
         databaseName: dbConfig.database,
-        databaseSchema: schemaName
+        databaseSchema: schemaName,
+        deployment
       };
     },
 
@@ -48,7 +59,7 @@ function buildTenantDbConfig(config, environment) {
     throw new Error("Environment database host, name, and schema are required for tenant runtime automation.");
   }
   return {
-    host: environment.databaseHost,
+    host: resolveConfiguredHost(config, environment.databaseHost),
     port: config.tenantDbPort,
     database: environment.databaseName,
     user: config.tenantDbUser,
@@ -109,6 +120,173 @@ function buildRuntimeBundle(environment, dbConfig, payload) {
   return `${lines.join("\n")}\n`;
 }
 
+async function deployEnvironmentRelease(config, environment, bundlePath) {
+  const deployment = {
+    enabled: true,
+    app: { attempted: false, skipped: true, reason: "app_host_not_configured" },
+    web: { attempted: false, skipped: true, reason: "web_host_not_configured" }
+  };
+
+  if (environment.appHost) {
+    deployment.app = await deployAppRelease(config, environment, bundlePath);
+  }
+  if (environment.webHost) {
+    deployment.web = await deployWebRelease(config, environment);
+  }
+
+  return deployment;
+}
+
+async function deployAppRelease(config, environment, bundlePath) {
+  const host = String(environment.appHost || "").trim();
+  if (!host) {
+    return { attempted: false, skipped: true, reason: "app_host_not_configured" };
+  }
+  const resolvedHost = resolveConfiguredHost(config, host);
+
+  if (isLocalHost(config, resolvedHost) || isLocalHost(config, host)) {
+    await fs.mkdir(config.appDeployDir, { recursive: true });
+    const sourceEqualsDeployDir = samePath(config.appSourceDir, config.appDeployDir);
+    if (!sourceEqualsDeployDir) {
+      await copyDirectoryContents(config.appSourceDir, config.appDeployDir, {
+        exclude: new Set(["node_modules", ".git"])
+      });
+    }
+    await fs.copyFile(bundlePath, path.join(config.appDeployDir, config.appRuntimeEnvFilename));
+    await runCommand("systemctl", ["--user", "restart", config.appServiceName]);
+    await waitForCommand("curl", ["-fsS", config.appHealthCheckUrl], config);
+    return {
+      attempted: true,
+      method: "local",
+      host,
+      resolvedHost,
+      sourceCopySkipped: sourceEqualsDeployDir,
+      deployDir: config.appDeployDir,
+      runtimeEnvPath: path.posix.join(config.appDeployDir, config.appRuntimeEnvFilename),
+      serviceName: config.appServiceName,
+      healthCheckUrl: config.appHealthCheckUrl
+    };
+  }
+
+  const sshTarget = buildSshTarget(config, resolvedHost);
+  await verifySshAccess(config, sshTarget);
+  await runCommand(config.sshBin, buildSshArgs(config, sshTarget, `mkdir -p ${quoteShellArg(config.appDeployDir)}`));
+  await copyDirectoryViaScp(config, config.appSourceDir, `${sshTarget}:${config.appDeployDir}`);
+  await copyFileViaScp(config, bundlePath, `${sshTarget}:${path.posix.join(config.appDeployDir, config.appRuntimeEnvFilename)}`);
+  await runCommand(config.sshBin, buildSshArgs(config, sshTarget, `systemctl --user restart ${quoteShellArg(config.appServiceName)}`));
+  await waitForCommand(config.sshBin, buildSshArgs(config, sshTarget, `curl -fsS ${quoteShellArg(config.appHealthCheckUrl)}`), config);
+  return {
+    attempted: true,
+    method: "ssh",
+    host,
+    resolvedHost,
+    sshTarget,
+    deployDir: config.appDeployDir,
+    runtimeEnvPath: path.posix.join(config.appDeployDir, config.appRuntimeEnvFilename),
+    serviceName: config.appServiceName,
+    healthCheckUrl: config.appHealthCheckUrl
+  };
+}
+
+async function deployWebRelease(config, environment) {
+  const host = String(environment.webHost || "").trim();
+  if (!host) {
+    return { attempted: false, skipped: true, reason: "web_host_not_configured" };
+  }
+  const resolvedHost = resolveConfiguredHost(config, host);
+
+  const sshTarget = buildSshTarget(config, resolvedHost);
+  await verifySshAccess(config, sshTarget);
+  await runCommand(config.sshBin, buildSshArgs(config, sshTarget, `mkdir -p ${quoteShellArg(config.webDeployDir)}`));
+  await copyDirectoryViaScp(config, config.webSourceDir, `${sshTarget}:${config.webDeployDir}`);
+  await waitForCommand(config.sshBin, buildSshArgs(config, sshTarget, `curl -fsS ${quoteShellArg(config.webHealthCheckUrl)}`), config);
+  return {
+    attempted: true,
+    method: "ssh",
+    host,
+    resolvedHost,
+    sshTarget,
+    deployDir: config.webDeployDir,
+    healthCheckUrl: config.webHealthCheckUrl
+  };
+}
+
+function isLocalHost(config, host) {
+  const normalized = String(host || "").trim().toLowerCase();
+  if (!normalized) return false;
+
+  const hostnames = new Set([
+    ...normalizeHostList(config.localHosts || []),
+    normalizeHostname(os.hostname())
+  ]);
+  return hostnames.has(normalized);
+}
+
+function buildSshTarget(config, host) {
+  if (String(host).includes("@")) return host;
+  return `${config.sshUser}@${host}`;
+}
+
+async function verifySshAccess(config, sshTarget) {
+  await runCommand(config.sshBin, buildSshArgs(config, sshTarget, "true"));
+}
+
+function buildSshArgs(config, sshTarget, remoteCommand) {
+  return [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    `ConnectTimeout=${config.sshConnectTimeoutSeconds}`,
+    "-p",
+    String(config.sshPort),
+    sshTarget,
+    remoteCommand
+  ];
+}
+
+async function copyFileViaScp(config, sourcePath, destination) {
+  await runCommand(config.scpBin, [
+    "-B",
+    "-P",
+    String(config.sshPort),
+    sourcePath,
+    destination
+  ]);
+}
+
+async function copyDirectoryViaScp(config, sourceDir, destination) {
+  const entries = await fs.readdir(sourceDir);
+  for (const entry of entries) {
+    if (entry === "node_modules" || entry === ".git") continue;
+    await runCommand(config.scpBin, [
+      "-B",
+      "-P",
+      String(config.sshPort),
+      "-r",
+      path.join(sourceDir, entry),
+      destination
+    ]);
+  }
+}
+
+async function copyDirectoryContents(sourceDir, targetDir, options = {}) {
+  const exclude = options.exclude || new Set();
+  const entries = await fs.readdir(sourceDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (exclude.has(entry.name)) continue;
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
+    if (entry.isDirectory()) {
+      await fs.mkdir(targetPath, { recursive: true });
+      await copyDirectoryContents(sourcePath, targetPath, options);
+      continue;
+    }
+    if (entry.isFile()) {
+      await fs.copyFile(sourcePath, targetPath);
+    }
+  }
+}
+
 function runServerScript(serverDir, relativeScriptPath, extraEnv) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [relativeScriptPath], {
@@ -139,6 +317,52 @@ function runServerScript(serverDir, relativeScriptPath, extraEnv) {
   });
 }
 
+function runCommand(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd || process.cwd(),
+      env: {
+        ...process.env,
+        ...(options.env || {})
+      },
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+        return;
+      }
+      reject(new Error((stderr || stdout || `${command} exited with code ${code}`).trim()));
+    });
+  });
+}
+
+async function waitForCommand(command, args, config) {
+  const retries = Number(config.healthCheckRetries || 1);
+  const delayMs = Number(config.healthCheckDelayMs || 0);
+  let lastError = null;
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    try {
+      return await runCommand(command, args);
+    } catch (error) {
+      lastError = error;
+      if (attempt >= retries) break;
+      await sleep(delayMs);
+    }
+  }
+  throw lastError || new Error("Command retry failed.");
+}
+
 function parseSetupTokenOutput(stdout) {
   const token = stdout.match(/^Token:\s*(.+)$/m)?.[1]?.trim();
   const expiresAt = stdout.match(/^Expires:\s*(.+)$/m)?.[1]?.trim();
@@ -150,6 +374,31 @@ function parseSetupTokenOutput(stdout) {
 
 function escapeIdentifier(value) {
   return `"${String(value || "").replace(/"/g, "\"\"")}"`;
+}
+
+function quoteShellArg(value) {
+  return `'${String(value || "").replace(/'/g, `'\"'\"'`)}'`;
+}
+
+function normalizeHostname(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeHostList(values) {
+  return values.map((value) => normalizeHostname(value)).filter(Boolean);
+}
+
+function samePath(left, right) {
+  return path.resolve(String(left || "")) === path.resolve(String(right || ""));
+}
+
+function resolveConfiguredHost(config, host) {
+  const normalized = normalizeHostname(host);
+  return config.hostAliases?.[normalized] || host;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
 }
 
 module.exports = {

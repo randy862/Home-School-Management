@@ -28,6 +28,11 @@ function mapProvisioningJobRow(row) {
     requestedAt: row.requestedAt ?? row.requested_at ?? null,
     startedAt: row.startedAt ?? row.started_at ?? null,
     completedAt: row.completedAt ?? row.completed_at ?? null,
+    lastAttemptAt: row.lastAttemptAt ?? row.last_attempt_at ?? null,
+    nextAttemptAt: row.nextAttemptAt ?? row.next_attempt_at ?? null,
+    attemptCount: Number(row.attemptCount ?? row.attempt_count ?? 0),
+    maxAttempts: Number(row.maxAttempts ?? row.max_attempts ?? 1),
+    retryOfJobId: row.retryOfJobId ?? row.retry_of_job_id ?? null,
     errorCode: row.errorCode ?? row.error_code ?? null,
     errorMessage: row.errorMessage ?? row.error_message ?? null,
     idempotencyKey: row.idempotencyKey ?? row.idempotency_key ?? null,
@@ -205,18 +210,23 @@ async function listTenants() {
   const pool = getPostgresPool();
   const result = await pool.query(`
     SELECT
-      id,
-      slug,
-      display_name AS "displayName",
-      status,
-      plan_code AS "planCode",
-      primary_contact_name AS "primaryContactName",
-      primary_contact_email AS "primaryContactEmail",
-      notes,
-      created_at AS "createdAt",
-      updated_at AS "updatedAt"
-    FROM tenants
-    ORDER BY created_at DESC
+      t.id,
+      t.slug,
+      t.display_name AS "displayName",
+      t.status,
+      t.plan_code AS "planCode",
+      t.primary_contact_name AS "primaryContactName",
+      t.primary_contact_email AS "primaryContactEmail",
+      t.notes,
+      t.created_at AS "createdAt",
+      t.updated_at AS "updatedAt",
+      d.domain AS "primaryDomain",
+      d.domain_type AS "primaryDomainType"
+    FROM tenants t
+    LEFT JOIN tenant_domains d
+      ON d.tenant_id = t.id
+     AND d.is_primary = TRUE
+    ORDER BY t.created_at DESC
   `);
   return result.rows;
 }
@@ -225,18 +235,23 @@ async function getTenantById(id) {
   const pool = getPostgresPool();
   const result = await pool.query(`
     SELECT
-      id,
-      slug,
-      display_name AS "displayName",
-      status,
-      plan_code AS "planCode",
-      primary_contact_name AS "primaryContactName",
-      primary_contact_email AS "primaryContactEmail",
-      notes,
-      created_at AS "createdAt",
-      updated_at AS "updatedAt"
-    FROM tenants
-    WHERE id = $1
+      t.id,
+      t.slug,
+      t.display_name AS "displayName",
+      t.status,
+      t.plan_code AS "planCode",
+      t.primary_contact_name AS "primaryContactName",
+      t.primary_contact_email AS "primaryContactEmail",
+      t.notes,
+      t.created_at AS "createdAt",
+      t.updated_at AS "updatedAt",
+      d.domain AS "primaryDomain",
+      d.domain_type AS "primaryDomainType"
+    FROM tenants t
+    LEFT JOIN tenant_domains d
+      ON d.tenant_id = t.id
+     AND d.is_primary = TRUE
+    WHERE t.id = $1
     LIMIT 1
   `, [id]);
   return result.rows[0] || null;
@@ -302,7 +317,11 @@ async function createTenant(tenant, context = {}) {
     `, [context.operatorUserId || null, tenant.id, JSON.stringify({ slug: tenant.slug, primaryDomain: tenant.primaryDomain })]);
 
     await client.query("COMMIT");
-    return tenantResult.rows[0];
+    return {
+      ...tenantResult.rows[0],
+      primaryDomain: tenant.primaryDomain,
+      primaryDomainType: tenant.primaryDomainType
+    };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -347,10 +366,23 @@ async function updateTenant(id, tenant, context = {}) {
 
   const updated = result.rows[0] || null;
   if (updated) {
+    const domainResult = await pool.query(`
+      SELECT
+        domain AS "primaryDomain",
+        domain_type AS "primaryDomainType"
+      FROM tenant_domains
+      WHERE tenant_id = $1
+        AND is_primary = TRUE
+      LIMIT 1
+    `, [id]);
     await pool.query(`
       INSERT INTO operator_audit_log (operator_user_id, action_type, target_type, target_id, tenant_id, details_json)
       VALUES ($1, 'update_tenant', 'tenant', $2, $2, $3::jsonb)
     `, [context.operatorUserId || null, id, JSON.stringify({ status: tenant.status, planCode: tenant.planCode })]);
+    return {
+      ...updated,
+      ...(domainResult.rows[0] || {})
+    };
   }
   return updated;
 }
@@ -639,6 +671,11 @@ async function listProvisioningJobs() {
       j.requested_at AS "requestedAt",
       j.started_at AS "startedAt",
       j.completed_at AS "completedAt",
+      j.last_attempt_at AS "lastAttemptAt",
+      j.next_attempt_at AS "nextAttemptAt",
+      j.attempt_count AS "attemptCount",
+      j.max_attempts AS "maxAttempts",
+      j.retry_of_job_id AS "retryOfJobId",
       j.error_code AS "errorCode",
       j.error_message AS "errorMessage",
       j.idempotency_key AS "idempotencyKey",
@@ -647,7 +684,7 @@ async function listProvisioningJobs() {
     FROM provisioning_jobs j
     ORDER BY j.requested_at DESC
   `);
-  return result.rows;
+  return result.rows.map(mapProvisioningJobRow);
 }
 
 async function getProvisioningJobById(id) {
@@ -663,6 +700,11 @@ async function getProvisioningJobById(id) {
       j.requested_at AS "requestedAt",
       j.started_at AS "startedAt",
       j.completed_at AS "completedAt",
+      j.last_attempt_at AS "lastAttemptAt",
+      j.next_attempt_at AS "nextAttemptAt",
+      j.attempt_count AS "attemptCount",
+      j.max_attempts AS "maxAttempts",
+      j.retry_of_job_id AS "retryOfJobId",
       j.error_code AS "errorCode",
       j.error_message AS "errorMessage",
       j.idempotency_key AS "idempotencyKey",
@@ -698,6 +740,51 @@ async function queueProvisioningJob(job, context = {}) {
   try {
     await client.query("BEGIN");
 
+    if (job.idempotencyKey) {
+      const existingResult = await client.query(`
+        SELECT
+          id,
+          tenant_id AS "tenantId",
+          tenant_environment_id AS "tenantEnvironmentId",
+          job_type AS "jobType",
+          status,
+          requested_by_operator_user_id AS "requestedByOperatorUserId",
+          requested_at AS "requestedAt",
+          started_at AS "startedAt",
+          completed_at AS "completedAt",
+          last_attempt_at AS "lastAttemptAt",
+          next_attempt_at AS "nextAttemptAt",
+          attempt_count AS "attemptCount",
+          max_attempts AS "maxAttempts",
+          retry_of_job_id AS "retryOfJobId",
+          error_code AS "errorCode",
+          error_message AS "errorMessage",
+          idempotency_key AS "idempotencyKey",
+          payload_json AS "payload",
+          result_json AS "result"
+        FROM provisioning_jobs
+        WHERE idempotency_key = $1
+        LIMIT 1
+      `, [job.idempotencyKey]);
+
+      const existing = mapProvisioningJobRow(existingResult.rows[0]);
+      if (existing) {
+        const sameIntent = existing.jobType === job.jobType
+          && existing.tenantId === (job.tenantId || null)
+          && existing.tenantEnvironmentId === (job.tenantEnvironmentId || null)
+          && JSON.stringify(stableJson(existing.payload || {})) === JSON.stringify(stableJson(job.payload || {}));
+
+        if (!sameIntent) {
+          const error = new Error("This idempotency key is already used for a different provisioning request.");
+          error.statusCode = 409;
+          throw error;
+        }
+
+        await client.query("COMMIT");
+        return existing;
+      }
+    }
+
     const jobResult = await client.query(`
       INSERT INTO provisioning_jobs (
         id,
@@ -707,11 +794,15 @@ async function queueProvisioningJob(job, context = {}) {
         status,
         requested_by_operator_user_id,
         requested_at,
+        attempt_count,
+        max_attempts,
+        next_attempt_at,
+        retry_of_job_id,
         idempotency_key,
         payload_json,
         result_json
       )
-      VALUES ($1, $2, $3, $4, 'queued', $5, NOW(), $6, $7::jsonb, '{}'::jsonb)
+      VALUES ($1, $2, $3, $4, 'queued', $5, NOW(), 0, $6, NOW(), $7, $8, $9::jsonb, '{}'::jsonb)
       RETURNING
         id,
         tenant_id AS "tenantId",
@@ -722,6 +813,11 @@ async function queueProvisioningJob(job, context = {}) {
         requested_at AS "requestedAt",
         started_at AS "startedAt",
         completed_at AS "completedAt",
+        last_attempt_at AS "lastAttemptAt",
+        next_attempt_at AS "nextAttemptAt",
+        attempt_count AS "attemptCount",
+        max_attempts AS "maxAttempts",
+        retry_of_job_id AS "retryOfJobId",
         error_code AS "errorCode",
         error_message AS "errorMessage",
         idempotency_key AS "idempotencyKey",
@@ -733,6 +829,8 @@ async function queueProvisioningJob(job, context = {}) {
       job.tenantEnvironmentId || null,
       job.jobType,
       context.operatorUserId || null,
+      normalizeMaxAttempts(job.maxAttempts),
+      job.retryOfJobId || null,
       job.idempotencyKey || null,
       JSON.stringify(job.payload || {})
     ]);
@@ -782,16 +880,20 @@ async function claimNextProvisioningJob() {
         SELECT id
         FROM provisioning_jobs
         WHERE status = 'queued'
-        ORDER BY requested_at ASC
+          AND next_attempt_at <= NOW()
+        ORDER BY next_attempt_at ASC, requested_at ASC
         LIMIT 1
         FOR UPDATE SKIP LOCKED
       )
       UPDATE provisioning_jobs j
       SET
         status = 'running',
-        started_at = NOW(),
+        started_at = COALESCE(j.started_at, NOW()),
+        last_attempt_at = NOW(),
+        attempt_count = j.attempt_count + 1,
         error_code = NULL,
-        error_message = NULL
+        error_message = NULL,
+        next_attempt_at = NOW()
       FROM next_job
       WHERE j.id = next_job.id
       RETURNING
@@ -804,6 +906,11 @@ async function claimNextProvisioningJob() {
         j.requested_at AS "requestedAt",
         j.started_at AS "startedAt",
         j.completed_at AS "completedAt",
+        j.last_attempt_at AS "lastAttemptAt",
+        j.next_attempt_at AS "nextAttemptAt",
+        j.attempt_count AS "attemptCount",
+        j.max_attempts AS "maxAttempts",
+        j.retry_of_job_id AS "retryOfJobId",
         j.error_code AS "errorCode",
         j.error_message AS "errorMessage",
         j.idempotency_key AS "idempotencyKey",
@@ -869,6 +976,11 @@ async function markProvisioningJobFailed(jobId, errorCode, errorMessage, result 
         requested_at AS "requestedAt",
         started_at AS "startedAt",
         completed_at AS "completedAt",
+        last_attempt_at AS "lastAttemptAt",
+        next_attempt_at AS "nextAttemptAt",
+        attempt_count AS "attemptCount",
+        max_attempts AS "maxAttempts",
+        retry_of_job_id AS "retryOfJobId",
         error_code AS "errorCode",
         error_message AS "errorMessage",
         idempotency_key AS "idempotencyKey",
@@ -879,6 +991,66 @@ async function markProvisioningJobFailed(jobId, errorCode, errorMessage, result 
       INSERT INTO provisioning_job_events (provisioning_job_id, event_type, message, details_json)
       VALUES ($1, 'failed', $2, $3::jsonb)
     `, [jobId, errorMessage || "Job failed.", JSON.stringify({ errorCode: errorCode || "job_failed", ...(result || {}) })]);
+    await client.query("COMMIT");
+    return mapProvisioningJobRow(jobResult.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function scheduleProvisioningJobRetry(jobId, options = {}) {
+  const pool = getPostgresPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const delaySeconds = Math.max(Number(options.delaySeconds) || 30, 5);
+    const reason = options.reason || "Transient failure detected; retry scheduled.";
+    const resultPayload = {
+      ...(options.result || {}),
+      retryScheduled: true,
+      retryDelaySeconds: delaySeconds
+    };
+
+    const jobResult = await client.query(`
+      UPDATE provisioning_jobs
+      SET
+        status = 'queued',
+        completed_at = NULL,
+        error_code = $2,
+        error_message = $3,
+        result_json = $4::jsonb,
+        next_attempt_at = NOW() + ($5 * INTERVAL '1 second')
+      WHERE id = $1
+      RETURNING
+        id,
+        tenant_id AS "tenantId",
+        tenant_environment_id AS "tenantEnvironmentId",
+        job_type AS "jobType",
+        status,
+        requested_by_operator_user_id AS "requestedByOperatorUserId",
+        requested_at AS "requestedAt",
+        started_at AS "startedAt",
+        completed_at AS "completedAt",
+        last_attempt_at AS "lastAttemptAt",
+        next_attempt_at AS "nextAttemptAt",
+        attempt_count AS "attemptCount",
+        max_attempts AS "maxAttempts",
+        retry_of_job_id AS "retryOfJobId",
+        error_code AS "errorCode",
+        error_message AS "errorMessage",
+        idempotency_key AS "idempotencyKey",
+        payload_json AS "payload",
+        result_json AS "result"
+    `, [jobId, options.errorCode || "retry_scheduled", reason, JSON.stringify(resultPayload), delaySeconds]);
+
+    await client.query(`
+      INSERT INTO provisioning_job_events (provisioning_job_id, event_type, message, details_json)
+      VALUES ($1, 'retry_scheduled', $2, $3::jsonb)
+    `, [jobId, reason, JSON.stringify(resultPayload)]);
+
     await client.query("COMMIT");
     return mapProvisioningJobRow(jobResult.rows[0]);
   } catch (error) {
@@ -995,7 +1167,12 @@ async function completeProvisionEnvironmentJob(job, automationResult = {}) {
       setupState: environment.setupState || "uninitialized",
       health: "healthy",
       runtimeBundlePath: automationResult.bundlePath || null,
-      databaseSchema: automationResult.databaseSchema || environment.databaseSchema || null
+      databaseSchema: automationResult.databaseSchema || environment.databaseSchema || null,
+      deployment: automationResult.deployment || {
+        enabled: false,
+        app: { attempted: false, skipped: true, reason: "deployment_disabled" },
+        web: { attempted: false, skipped: true, reason: "deployment_disabled" }
+      }
     };
 
     const completedJobResult = await client.query(`
@@ -1015,6 +1192,11 @@ async function completeProvisionEnvironmentJob(job, automationResult = {}) {
         requested_at AS "requestedAt",
         started_at AS "startedAt",
         completed_at AS "completedAt",
+        last_attempt_at AS "lastAttemptAt",
+        next_attempt_at AS "nextAttemptAt",
+        attempt_count AS "attemptCount",
+        max_attempts AS "maxAttempts",
+        retry_of_job_id AS "retryOfJobId",
         error_code AS "errorCode",
         error_message AS "errorMessage",
         idempotency_key AS "idempotencyKey",
@@ -1029,8 +1211,10 @@ async function completeProvisionEnvironmentJob(job, automationResult = {}) {
         ($1, 'database_prepared', 'Tenant runtime database routing is available', $3::jsonb),
         ($1, 'migrations_applied', 'Tenant runtime migrations applied', $4::jsonb),
         ($1, 'runtime_bundle_written', 'Tenant runtime bundle written', $5::jsonb),
-        ($1, 'release_registered', 'Tenant release registered', $6::jsonb),
-        ($1, 'succeeded', 'Provision environment completed', $7::jsonb)
+        ($1, 'app_deploy_completed', 'Tenant app deployment step completed', $6::jsonb),
+        ($1, 'web_deploy_completed', 'Tenant web deployment step completed', $7::jsonb),
+        ($1, 'release_registered', 'Tenant release registered', $8::jsonb),
+        ($1, 'succeeded', 'Provision environment completed', $9::jsonb)
     `, [
       job.id,
       JSON.stringify({
@@ -1050,6 +1234,16 @@ async function completeProvisionEnvironmentJob(job, automationResult = {}) {
       }),
       JSON.stringify({
         runtimeBundlePath: automationResult.bundlePath || null
+      }),
+      JSON.stringify(automationResult.deployment?.app || {
+        attempted: false,
+        skipped: true,
+        reason: "deployment_disabled"
+      }),
+      JSON.stringify(automationResult.deployment?.web || {
+        attempted: false,
+        skipped: true,
+        reason: "deployment_disabled"
       }),
       JSON.stringify({ releaseId, releaseVersion }),
       JSON.stringify(jobResult)
@@ -1149,6 +1343,11 @@ async function completeSetupTokenJob(job, automationResult = {}) {
         requested_at AS "requestedAt",
         started_at AS "startedAt",
         completed_at AS "completedAt",
+        last_attempt_at AS "lastAttemptAt",
+        next_attempt_at AS "nextAttemptAt",
+        attempt_count AS "attemptCount",
+        max_attempts AS "maxAttempts",
+        retry_of_job_id AS "retryOfJobId",
         error_code AS "errorCode",
         error_message AS "errorMessage",
         idempotency_key AS "idempotencyKey",
@@ -1177,6 +1376,167 @@ async function completeSetupTokenJob(job, automationResult = {}) {
   }
 }
 
+async function retryProvisioningJob(jobId, options = {}, context = {}) {
+  const pool = getPostgresPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const existingResult = await client.query(`
+      SELECT
+        id,
+        tenant_id AS "tenantId",
+        tenant_environment_id AS "tenantEnvironmentId",
+        job_type AS "jobType",
+        status,
+        requested_by_operator_user_id AS "requestedByOperatorUserId",
+        requested_at AS "requestedAt",
+        started_at AS "startedAt",
+        completed_at AS "completedAt",
+        last_attempt_at AS "lastAttemptAt",
+        next_attempt_at AS "nextAttemptAt",
+        attempt_count AS "attemptCount",
+        max_attempts AS "maxAttempts",
+        retry_of_job_id AS "retryOfJobId",
+        error_code AS "errorCode",
+        error_message AS "errorMessage",
+        idempotency_key AS "idempotencyKey",
+        payload_json AS "payload",
+        result_json AS "result"
+      FROM provisioning_jobs
+      WHERE id = $1
+      LIMIT 1
+      FOR UPDATE
+    `, [jobId]);
+    const existing = mapProvisioningJobRow(existingResult.rows[0]);
+    if (!existing) {
+      const error = new Error("Job not found.");
+      error.statusCode = 404;
+      throw error;
+    }
+    if (!["failed", "canceled"].includes(existing.status)) {
+      const error = new Error("Only failed or canceled jobs can be retried.");
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const retryJobId = `job-${randomUUID()}`;
+    const retryResult = await client.query(`
+      INSERT INTO provisioning_jobs (
+        id,
+        tenant_id,
+        tenant_environment_id,
+        job_type,
+        status,
+        requested_by_operator_user_id,
+        requested_at,
+        attempt_count,
+        max_attempts,
+        next_attempt_at,
+        retry_of_job_id,
+        idempotency_key,
+        payload_json,
+        result_json
+      )
+      VALUES ($1, $2, $3, $4, 'queued', $5, NOW(), 0, $6, NOW(), $7, $8, $9::jsonb, '{}'::jsonb)
+      RETURNING
+        id,
+        tenant_id AS "tenantId",
+        tenant_environment_id AS "tenantEnvironmentId",
+        job_type AS "jobType",
+        status,
+        requested_by_operator_user_id AS "requestedByOperatorUserId",
+        requested_at AS "requestedAt",
+        started_at AS "startedAt",
+        completed_at AS "completedAt",
+        last_attempt_at AS "lastAttemptAt",
+        next_attempt_at AS "nextAttemptAt",
+        attempt_count AS "attemptCount",
+        max_attempts AS "maxAttempts",
+        retry_of_job_id AS "retryOfJobId",
+        error_code AS "errorCode",
+        error_message AS "errorMessage",
+        idempotency_key AS "idempotencyKey",
+        payload_json AS "payload",
+        result_json AS "result"
+    `, [
+      retryJobId,
+      existing.tenantId || null,
+      existing.tenantEnvironmentId || null,
+      existing.jobType,
+      context.operatorUserId || null,
+      normalizeMaxAttempts(options.maxAttempts || existing.maxAttempts || 3),
+      existing.id,
+      String(options.idempotencyKey || "").trim() || null,
+      JSON.stringify(existing.payload || {})
+    ]);
+
+    await client.query(`
+      INSERT INTO provisioning_job_events (provisioning_job_id, event_type, message, details_json)
+      VALUES ($1, 'queued', $2, $3::jsonb)
+    `, [
+      retryJobId,
+      `Retry queued for ${existing.jobType}`,
+      JSON.stringify({
+        retriedFromJobId: existing.id,
+        previousAttemptCount: existing.attemptCount,
+        maxAttempts: normalizeMaxAttempts(options.maxAttempts || existing.maxAttempts || 3)
+      })
+    ]);
+
+    if (existing.jobType === "provision_environment" && existing.tenantEnvironmentId) {
+      await client.query(`
+        UPDATE tenant_environments
+        SET status = 'provisioning', updated_at = NOW()
+        WHERE id = $1
+      `, [existing.tenantEnvironmentId]);
+    }
+
+    await client.query(`
+      INSERT INTO operator_audit_log (operator_user_id, action_type, target_type, target_id, tenant_id, details_json)
+      VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+    `, [
+      context.operatorUserId || null,
+      `retry_${existing.jobType}`,
+      "provisioning_job",
+      retryJobId,
+      existing.tenantId || null,
+      JSON.stringify({
+        retriedFromJobId: existing.id,
+        tenantEnvironmentId: existing.tenantEnvironmentId || null,
+        maxAttempts: normalizeMaxAttempts(options.maxAttempts || existing.maxAttempts || 3),
+        idempotencyKey: String(options.idempotencyKey || "").trim() || null
+      })
+    ]);
+
+    await client.query("COMMIT");
+    return mapProvisioningJobRow(retryResult.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+function normalizeMaxAttempts(value) {
+  const parsed = Number(value || 3);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 10) return 3;
+  return Math.floor(parsed);
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) {
+    return value.map(stableJson);
+  }
+  if (value && typeof value === "object") {
+    return Object.keys(value).sort().reduce((accumulator, key) => {
+      accumulator[key] = stableJson(value[key]);
+      return accumulator;
+    }, {});
+  }
+  return value;
+}
+
 module.exports = {
   appendProvisioningJobEvent,
   claimNextProvisioningJob,
@@ -1200,8 +1560,10 @@ module.exports = {
   markProvisioningJobFailed,
   markTenantEnvironmentInitialized,
   queueProvisioningJob,
+  retryProvisioningJob,
   resolveTenantRuntimeByHost,
   revokeOperatorSessionByTokenHash,
+  scheduleProvisioningJobRetry,
   updateOperatorLastLogin,
   updateTenant
 };

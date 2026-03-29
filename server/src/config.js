@@ -16,7 +16,12 @@ module.exports = {
     dbClient: String(process.env.DB_CLIENT || "mssql").toLowerCase()
   },
   internal: {
-    controlPlaneKey: String(process.env.CONTROL_PLANE_INTERNAL_KEY || "").trim()
+    controlPlaneKey: String(process.env.CONTROL_PLANE_INTERNAL_KEY || "").trim(),
+    serviceAuthSecret: String(process.env.CONTROL_PLANE_INTERNAL_AUTH_SECRET || "").trim(),
+    controlPlaneIssuer: String(process.env.CONTROL_PLANE_INTERNAL_AUTH_ISSUER || "control-plane").trim() || "control-plane",
+    expectedAudience: String(process.env.CONTROL_PLANE_INTERNAL_AUTH_AUDIENCE || "tenant-runtime-internal").trim() || "tenant-runtime-internal",
+    serviceAuthClockSkewSeconds: Number(process.env.CONTROL_PLANE_INTERNAL_AUTH_CLOCK_SKEW_SECONDS || 30),
+    allowLegacyControlPlaneKey: toBool(process.env.CONTROL_PLANE_ALLOW_LEGACY_INTERNAL_KEY, true)
   },
   session: {
     cookieName: process.env.SESSION_COOKIE_NAME || "hsm_session",
