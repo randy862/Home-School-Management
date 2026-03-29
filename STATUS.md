@@ -20,7 +20,7 @@ Date: 2026-03-27
 - Added the first PostgreSQL-hosted backend slice in repo code:
   - PostgreSQL config/env support
   - initial PostgreSQL schema migration asset
-  - bootstrap admin seed script
+  - hosted setup-token initialization flow
   - backend-owned auth/session endpoints for PostgreSQL mode
   - PostgreSQL-backed `GET /api/users`, `GET /api/me`, and protected `GET /api/students`
 - Validated infrastructure access and state:
@@ -49,22 +49,191 @@ Date: 2026-03-27
 - Expanded hosted read coverage again for attendance and grades:
   - backend now exposes PostgreSQL-backed `GET /api/attendance` and `GET /api/tests`
   - hosted frontend hydration now refreshes attendance and tests from backend APIs during session bootstrap
+- Expanded hosted read coverage for planning/calendar and grading settings:
+  - backend now exposes PostgreSQL-backed `GET /api/daily-breaks`, `GET /api/holidays`, `GET /api/plans`, `GET /api/grade-types`, and `GET /api/grading-criteria`
+  - hosted frontend hydration now refreshes daily breaks, holidays, plans, grade types, and grading criteria from backend APIs during session bootstrap
+- Added the first hosted write APIs on PostgreSQL-backed domains:
+  - backend now exposes admin-protected holiday CRUD: `POST/PATCH/DELETE /api/holidays`
+  - backend now exposes admin-protected plan writes: `POST /api/plans`, `PATCH /api/plans/:id`, and `DELETE /api/plans/:id`
+  - hosted frontend holiday and plan management now writes through backend APIs instead of browser-only persistence
+- Extended hosted write coverage to daily breaks:
+  - backend now exposes admin-protected daily break CRUD: `POST/PATCH/DELETE /api/daily-breaks`
+  - hosted frontend daily break management now writes through backend APIs instead of browser-only persistence
+- Extended hosted write coverage to grade settings:
+  - backend now exposes admin-protected grade-settings writes: `PUT /api/grade-types` and `PUT /api/grading-criteria`
+  - hosted frontend grade type Apply and grading criteria Save now persist through backend APIs instead of browser-only persistence
+- Defined the repository-transition path for the hosted backend:
+  - added `NOTES/postgres-repository-transition-plan.md`
+  - sequenced route extraction, service boundaries, repository ownership, and legacy bridge isolation
+- Started backend route extraction from `server/src/app.js`:
+  - moved calendar/planning route registration and payload validation into `server/src/routes/calendar-routes.js`
+  - kept endpoint behavior stable while reducing `app.js` domain concentration
+- Continued backend route extraction with grading:
+  - moved grade settings route registration and payload validation into `server/src/routes/grading-routes.js`
+  - kept hosted grade-type and grading-criteria behavior stable while shrinking `app.js` further
+- Continued backend route extraction with curriculum reads:
+  - moved hosted curriculum read route registration into `server/src/routes/curriculum-routes.js`
+  - extracted `subjects`, `courses`, and `enrollments` without changing endpoint behavior
+- Extended curriculum extraction into backend-owned writes:
+  - backend now exposes hosted curriculum writes for `subjects`, `courses`, and `enrollments`
+  - hosted frontend subject/course/enrollment create-delete flows now persist through backend APIs
+  - hosted enrollment schedule-order updates now persist through `PATCH /api/enrollments/:id`
+- Extended hosted student management into backend-owned writes:
+  - backend now exposes hosted student create/delete operations
+  - hosted frontend student create/delete flows now persist through backend APIs and rehydrate dependent hosted domains
+- Extended hosted user management into backend-owned writes:
+  - backend now exposes hosted user create/update/delete operations with server-side password hashing
+  - hosted frontend user management now persists through backend APIs instead of browser-only password/state handling
+- Extended hosted school-year and quarter management into backend-owned writes:
+  - backend now exposes hosted school-year create/update/delete/current operations and quarter replacement per school year
+  - hosted frontend school-year and quarter forms now persist through backend APIs and refresh hosted plan dates after config changes
+- Extended hosted attendance and grade management into backend-owned writes:
+  - backend now exposes hosted attendance CRUD and grade/test create-update-delete operations
+  - hosted frontend attendance and grade management now persists through backend APIs instead of browser-only state handling
+- Continued backend route extraction with instructional records:
+  - moved hosted attendance/test route registration and payload validation into `server/src/routes/records-routes.js`
+  - `server/src/app.js` now delegates attendance and grade/test API registration instead of carrying those handlers inline
+- Continued backend route extraction with admin/user management:
+  - moved hosted user and student route registration into `server/src/routes/admin-routes.js`
+  - `server/src/app.js` now delegates user/student API registration instead of carrying those admin handlers inline
+- Continued backend route extraction with auth/session routes:
+  - moved hosted login/logout/session route registration into `server/src/routes/auth-routes.js`
+  - `server/src/app.js` now delegates auth route registration while keeping the existing session middleware behavior stable
+- Continued backend extraction with shared middleware and the transitional state bridge:
+  - moved hosted CORS/auth-context middleware into `server/src/middleware/auth-context.js`
+  - moved transitional `GET/PUT /api/state` registration into `server/src/routes/state-routes.js`
+- Continued backend extraction with infrastructure wiring:
+  - moved `/health` registration into `server/src/routes/infra-routes.js`
+  - moved the generic Express error handler into `server/src/middleware/error-handler.js`
+- Defined the replacement path for hosted bootstrap-admin setup:
+  - added `NOTES/hosted-admin-initialization-flow.md`
+  - documented a backend-owned one-time initialization flow and retirement path for the default hosted admin password
+- Implemented the first hosted admin initialization slice:
+  - added backend setup status and setup initialization endpoints
+  - added PostgreSQL setup token/runtime-state migration and CLI setup-token generation script
+  - added a hosted first-run setup UI that appears only when backend setup is incomplete
+  - deployed the new setup flow to the current hosted environment and verified:
+    - `GET /api/setup/status` returns `{"initialized":true}` on the current initialized deployment
+    - the hosted page includes the new first-run setup UI markup
+    - the CLI setup-token generator safely refuses to create tokens after setup is complete
+- Rehearsed the hosted admin initialization flow end to end against an isolated temporary schema on `APP001`:
+  - setup status returned `{"initialized":false}` before initialization
+  - `POST /api/setup/initialize` returned `201 Created`
+  - the issued setup session authenticated successfully against `GET /api/me`
+  - setup status returned `{"initialized":true}` after initialization
+  - setup-token generation correctly refused a second token after initialization
+  - the rehearsal schema and temporary app process were cleaned up after validation
+- Retired the hosted bootstrap-admin seed path from the production codebase:
+  - removed `db:seed:pg-admin` from `server/package.json`
+  - removed `server/src/scripts/seed-postgres-admin.js`
+  - updated the hosted deployment runbook to rely solely on setup tokens for first-run admin establishment
+- Documented the backend auth/session model and protected endpoint contract:
+  - added `NOTES/backend-auth-session-contract.md`
+  - linked the hosted API contract to the new auth/session reference
+- Completed a hosted browser smoke pass against the current deployment:
+  - verified login/logout plus user/student/curriculum/settings/attendance/grade CRUD flows successfully
+  - confirmed the hosted backend-owned admin surface is working end to end on the current deployment
 - Added first control-plane scaffolding:
   - `admin/` operator-console placeholder
   - `control-api/` placeholder
   - `NOTES/control-plane-foundation.md`
+- Defined the first control-plane implementation model:
+  - added `NOTES/control-plane-schema-v1.md`
+  - added `NOTES/control-plane-provisioning-workflow.md`
+  - updated `admin/` and `control-api/README.md` so the scaffolds reflect the planned tenant/environment/job boundary
+- Translated the control-plane model into the first `control-api/` scaffold:
+  - added `control-api/package.json`
+  - added initial PostgreSQL control-plane migration in `control-api/migrations/postgres/001_initial_control_plane.sql`
+  - added `control-api/src/app.js`, route modules, middleware, PostgreSQL store helpers, and migration script
+  - scaffolded operator auth plus tenant/environment/job route groups, with read endpoints wired and mutation endpoints explicitly marked as `501` placeholders for the next slice
+- Defined operator auth and session behavior separately from tenant auth:
+  - added `NOTES/operator-auth-session-contract.md`
+  - established distinct operator cookie, session store, role model, and protected endpoint expectations
+- Started the first real `control-api/` mutation slice:
+  - added shared route auth helpers for authenticated-operator and platform-admin enforcement
+  - implemented tenant create/update mutations
+  - implemented tenant-environment creation
+  - implemented provisioning-job queueing for environment provision and setup-token issuance
+  - implemented control-plane job and environment detail reads
+- Added the first control-plane operator bootstrap path:
+  - `GET /api/operator/setup/status`
+  - `POST /api/operator/setup/bootstrap`
+  - bootstrap now creates the first `platform_admin` only when no operators exist and starts a normal operator session
+- Upgraded the `admin/` operator UI from placeholder content to a working control-plane shell:
+  - bootstrap and login gates
+  - session-aware operator dashboard
+  - tenant, environment, and provisioning job views
+  - first form flows for tenant creation, environment creation, and job queueing
+  - tenant edit flow plus environment/job detail inspection
+- Rehearsed the `control-api` scaffold end to end against an isolated temporary schema on `APP001`:
+  - `GET /api/operator/setup/status` returned `{"initialized":false}` before bootstrap
+  - `POST /api/operator/setup/bootstrap` returned `201 Created`
+  - operator session bootstrap succeeded through `GET /api/operator/me`
+  - tenant creation, environment creation, provision-job queueing, and setup-token-job queueing all succeeded
+  - environment state moved to `provisioning` and `token_issued` after the queued jobs
+  - repeated bootstrap correctly returned `409` after initialization
+  - the rehearsal schema and temporary process were cleaned up after validation
+- Fixed a control-plane bootstrap bug discovered during rehearsal:
+  - replaced the invalid aggregate `FOR UPDATE` pattern in `createBootstrapOperator(...)` with an explicit table lock before counting operators
+- Deployed the control-plane staging path on Debian hosts:
+  - `APP001` now runs `home-school-management-control-api.service` on port `3100`
+  - `APP001` uses PostgreSQL schema `hsm_control_staging` inside `appdb` for persistent non-production control-plane state
+  - `WEB001` now serves the operator UI at `/control/`
+  - `WEB001` now proxies `/control-api/` to `APP001:3100`
+  - externally verified `http://192.168.1.210/control/` and `http://192.168.1.210/control-api/api/operator/setup/status`
+- Fixed a non-production deployment issue in the control-api systemd unit:
+  - quoted `PGOPTIONS` in `home-school-management-control-api.service` so PostgreSQL-backed routes can use the staging schema correctly
+- Completed a public staged smoke pass against the deployed control-plane paths:
+  - verified `http://192.168.1.210/control/` serves the operator UI shell with bootstrap, login, tenant, environment, and job sections
+  - recovered the staged bootstrap-created operator through normal `POST /api/operator/auth/login`
+  - verified `GET /api/operator/me` after login and `401` after logout
+  - created and updated a tenant through `POST/PATCH /api/control/tenants`
+  - created a tenant environment through `POST /api/control/tenants/:id/environments`
+  - queued both provision and setup-token jobs through `/api/control/environments/:id/provision` and `/api/control/environments/:id/setup-token`
+  - verified list/detail reads for tenants, environments, and jobs through the public staged proxy
+  - confirmed environment state advanced to `provisioning` and `token_issued` after the queued job actions
+- Confirmed the operator UI already covers most of the first post-smoke enhancement slice:
+  - tenant edit flow is live
+  - environment detail refresh is live
+  - job detail inspection is live
+- Extended the staged operator UI with richer operational visibility:
+  - added metric summaries for tenant, environment, and job state counts
+  - added status-colored badges across tenant, environment, and job records
+  - replaced raw-detail-first environment views with summary fields, action history, and related-job navigation
+  - replaced raw-detail-first job views with lifecycle history plus payload/result sections
+  - deployed the refreshed static assets to `WEB001` under `/control/`
+- Added tenant-runtime resolution and first execution behind queued control-plane jobs:
+  - added public `GET /api/runtime/resolve` for hostname-to-tenant/environment lookup
+  - added internal `GET /api/internal/runtime/resolve` for database-routing metadata, with staged fallback to `platform_admin` session auth when no shared key is configured yet
+  - added an in-process control-api worker that claims queued jobs, records job events, and completes `provision_environment` plus `issue_setup_token`
+  - job detail responses now include ordered event history
+  - provision-job execution now registers a release, updates environment health/runtime metadata, and finishes with `status = succeeded`
+  - setup-token execution now records issuance metadata during worker execution and finishes with `status = succeeded`
+- Verified the new control-plane execution paths on staging:
+  - public runtime resolution returned the expected tenant/environment for `staging-20260328192442.school.local`
+  - internal runtime resolution returned database-routing metadata through an authenticated operator session
+  - queued `provision_environment` reached `succeeded` with runtime, database, release, and success events
+  - queued `issue_setup_token` reached `succeeded` with issuance and success events
+  - the staged operator UI was redeployed so `succeeded` jobs and event history render correctly
+- Replaced the worker's placeholder provisioning side effects with real tenant-runtime automation on staging:
+  - the worker now creates the target PostgreSQL schema for the tenant environment
+  - the worker now runs the tenant `server/src/scripts/migrate-postgres.js` script against the target schema
+  - the worker now writes a locked-down runtime bundle artifact under `/home/debian/apps/home-school-management/runtime-bundles/`
+  - the worker now runs the tenant `server/src/scripts/create-setup-token.js` CLI and writes the raw token to a locked-down artifact file instead of only recording metadata
+  - staged verification confirmed both the `.env` bundle and `.setup-token.txt` artifact files were created with `600`-style permissions
+- Propagated tenant setup completion back into control-plane state:
+  - added `POST /api/control/environments/:id/sync-setup`
+  - added background reconciliation for `token_issued` environments with reachable tenant runtime URLs
+  - staged verification confirmed a freshly provisioned environment moved from `token_issued` to `initialized` after setup-state sync against `http://192.168.1.210/api/setup/status`
 
 ## Blocked
-- No technical blockers inside the repo.
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.
 - Direct SSH validation to `SQL001` from this PC still needs to be confirmed separately; current confirmed database path remains through `APP001`.
 
 ## Next
-1. Document the backend auth/session model and protected endpoint contract.
-2. Verify hosted login and shell bootstrap through `WEB001` in a browser after the frontend auth refactor.
-3. Expand domain APIs beyond the current hosted read bridge and retire more hosted dependence on full-state behavior.
-4. Plan the repository-layer transition from transitional SQL state sync to PostgreSQL domain persistence.
-5. Replace temporary bootstrap-admin operations with a controlled hosted admin initialization flow.
+1. Replace the remaining local-only worker steps with real host/web deployment automation instead of only schema/bootstrap artifacts on `APP001`.
+2. Add a secure internal runtime-auth mechanism for setup-state and health synchronization so control-plane polling no longer relies on the tenant runtime's public setup-status surface.
+3. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
 
 ## Current Assessment
 - The app is a strong functional product foundation.

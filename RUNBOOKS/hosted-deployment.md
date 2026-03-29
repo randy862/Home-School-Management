@@ -7,14 +7,22 @@ Stand up the first hosted single-tenant deployment across `APP001`, `WEB001`, an
 1. Copy `server/` to `/home/debian/apps/home-school-management/server`.
 2. Install dependencies with `npm install`.
 3. Apply PostgreSQL migrations with `node src/scripts/migrate-postgres.js`.
-4. Seed the bootstrap admin with `node src/scripts/seed-postgres-admin.js`.
-5. Install the user service from `infra/systemd/home-school-management.service`.
-6. Enable and start the service with:
+4. Install the user service from `infra/systemd/home-school-management.service`.
+5. Enable and start the service with:
    - `systemctl --user daemon-reload`
    - `systemctl --user enable --now home-school-management.service`
-7. Verify with:
+6. Generate a one-time hosted setup token with:
+   - `npm run db:create-setup-token`
+7. Complete first-run admin setup through the hosted web UI using that token.
+8. Verify with:
    - `systemctl --user status home-school-management.service`
    - `curl http://127.0.0.1:3000/health`
+   - `curl http://127.0.0.1:3000/api/setup/status`
+
+### Existing Deployment Note
+- Existing initialized deployments do not use the first-run setup flow again.
+- Create additional admins through the normal hosted user-management surface after login.
+- If a deployment must be rebuilt from scratch, rerun migrations and use a fresh setup token instead of any seeded default-admin shortcut.
 
 ## WEB001
 1. Copy `web/` to `/var/www/home-school-management/web`.
@@ -32,7 +40,8 @@ Stand up the first hosted single-tenant deployment across `APP001`, `WEB001`, an
 ## SQL001
 1. Ensure `appuser` owns or can create in schema `public`.
 2. Verify tables with `\dt`.
-3. Verify the seeded admin exists in `users`.
+3. Verify `setup_tokens` and `app_runtime_state` exist after migrations.
+4. After initialization, verify the first hosted admin exists in `users`.
 
 ## Current Test URLs
 - API health: `http://192.168.1.200:3000/health`

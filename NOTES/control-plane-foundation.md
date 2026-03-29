@@ -66,9 +66,15 @@ Keep the tenant-facing app stable while introducing a separate operator/control 
    - create tenant record
    - allocate database
    - run tenant schema migration
-   - seed tenant admin
+   - issue tenant setup token
    - mark tenant active
 4. Define the operator authentication model separately from tenant auth.
+
+## Current Deliverables
+- `NOTES/control-plane-schema-v1.md`
+- `NOTES/control-plane-provisioning-workflow.md`
+- updated `admin/` shell that reflects the first tenant/environment/provisioning model
+- updated `control-api/README.md` with the first proposed responsibility and endpoint split
 
 ## Dependency on Tenant App Refactor
 - The tenant-facing app should keep moving from full-state sync toward domain APIs before tenant provisioning is introduced broadly.

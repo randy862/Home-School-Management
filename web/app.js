@@ -5,6 +5,8 @@ const API_STATE_ENDPOINT = `${API_BASE_URL}/api/state`;
 const API_AUTH_LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login`;
 const API_AUTH_LOGOUT_ENDPOINT = `${API_BASE_URL}/api/auth/logout`;
 const API_ME_ENDPOINT = `${API_BASE_URL}/api/me`;
+const API_SETUP_STATUS_ENDPOINT = `${API_BASE_URL}/api/setup/status`;
+const API_SETUP_INITIALIZE_ENDPOINT = `${API_BASE_URL}/api/setup/initialize`;
 const API_USERS_ENDPOINT = `${API_BASE_URL}/api/users`;
 const API_STUDENTS_ENDPOINT = `${API_BASE_URL}/api/students`;
 const API_SUBJECTS_ENDPOINT = `${API_BASE_URL}/api/subjects`;
@@ -13,6 +15,11 @@ const API_ENROLLMENTS_ENDPOINT = `${API_BASE_URL}/api/enrollments`;
 const API_SCHOOL_YEARS_ENDPOINT = `${API_BASE_URL}/api/school-years`;
 const API_QUARTERS_ENDPOINT = `${API_BASE_URL}/api/quarters`;
 const API_ATTENDANCE_ENDPOINT = `${API_BASE_URL}/api/attendance`;
+const API_DAILY_BREAKS_ENDPOINT = `${API_BASE_URL}/api/daily-breaks`;
+const API_HOLIDAYS_ENDPOINT = `${API_BASE_URL}/api/holidays`;
+const API_PLANS_ENDPOINT = `${API_BASE_URL}/api/plans`;
+const API_GRADE_TYPES_ENDPOINT = `${API_BASE_URL}/api/grade-types`;
+const API_GRADING_CRITERIA_ENDPOINT = `${API_BASE_URL}/api/grading-criteria`;
 const API_TESTS_ENDPOINT = `${API_BASE_URL}/api/tests`;
 const SESSION_KEY = "hsm_session_v1";
 
@@ -687,7 +694,10 @@ const REPORT_CONTENT_OPTIONS = [
 ];
 let reportSelectedContentIds = new Set(REPORT_CONTENT_OPTIONS.map((option) => option.id));
 let loginMessageKind = "";
+let setupMessageKind = "";
 let userFormMessageKind = "";
+let hostedSetupChecked = false;
+let hostedSetupInitialized = true;
 function cloneGradeTypes(items) {
   return (items || []).map((gt) => ({ id: gt.id || uid(), name: String(gt.name || "").trim(), weight: gt.weight == null ? null : Number(gt.weight) }));
 }
@@ -750,6 +760,23 @@ function authFetch(url, options = {}) {
       ...(options.headers || {})
     }
   });
+}
+
+async function parseApiResponse(response, fallbackMessage) {
+  if (response.ok) {
+    if (response.status === 204) return null;
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  let message = fallbackMessage;
+  try {
+    const payload = await response.json();
+    if (payload?.error) message = payload.error;
+  } catch {
+    // Keep fallback message if the response is not JSON.
+  }
+  throw new Error(message);
 }
 
 function updateCurrentUserFromSummary(userSummary) {
@@ -878,6 +905,357 @@ async function refreshHostedAttendance() {
   }
 }
 
+async function refreshHostedDailyBreaks() {
+  const response = await authFetch(API_DAILY_BREAKS_ENDPOINT);
+  if (!response.ok) throw new Error(`Daily breaks fetch failed (${response.status})`);
+  const dailyBreaks = await response.json();
+  if (Array.isArray(dailyBreaks)) {
+    state.settings.dailyBreaks = dailyBreaks.map((entry) => ({
+      ...entry,
+      studentIds: Array.isArray(entry.studentIds) ? entry.studentIds : [],
+      weekdays: Array.isArray(entry.weekdays) ? entry.weekdays.map((day) => Number(day)).filter(Number.isInteger) : [],
+      durationMinutes: entry.durationMinutes == null ? 60 : Number(entry.durationMinutes)
+    }));
+  }
+}
+
+async function refreshHostedHolidays() {
+  const response = await authFetch(API_HOLIDAYS_ENDPOINT);
+  if (!response.ok) throw new Error(`Holidays fetch failed (${response.status})`);
+  const holidays = await response.json();
+  if (Array.isArray(holidays)) {
+    state.settings.holidays = holidays;
+  }
+}
+
+async function refreshHostedPlans() {
+  const response = await authFetch(API_PLANS_ENDPOINT);
+  if (!response.ok) throw new Error(`Plans fetch failed (${response.status})`);
+  const plans = await response.json();
+  if (Array.isArray(plans)) {
+    state.plans = plans.map((plan) => ({
+      ...plan,
+      weekdays: Array.isArray(plan.weekdays) ? plan.weekdays.map((day) => Number(day)).filter(Number.isInteger) : []
+    }));
+  }
+}
+
+async function refreshHostedGradeTypes() {
+  const response = await authFetch(API_GRADE_TYPES_ENDPOINT);
+  if (!response.ok) throw new Error(`Grade types fetch failed (${response.status})`);
+  const gradeTypes = await response.json();
+  if (Array.isArray(gradeTypes)) {
+    state.settings.gradeTypes = gradeTypes.map((entry) => ({
+      ...entry,
+      weight: entry.weight == null ? null : Number(entry.weight)
+    }));
+  }
+}
+
+async function refreshHostedGradingCriteria() {
+  const response = await authFetch(API_GRADING_CRITERIA_ENDPOINT);
+  if (!response.ok) throw new Error(`Grading criteria fetch failed (${response.status})`);
+  const criteria = await response.json();
+  if (criteria && typeof criteria === "object") {
+    state.settings.gradingCriteria = {
+      letterScale: Array.isArray(criteria.letterScale) ? criteria.letterScale : [],
+      gpaScaleOption: criteria.gpaScaleOption || "4",
+      gpaMax: criteria.gpaMax == null ? 4 : Number(criteria.gpaMax)
+    };
+  }
+}
+
+async function createHostedHoliday(payload) {
+  const response = await authFetch(API_HOLIDAYS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Holiday save failed (${response.status})`);
+}
+
+async function createHostedDailyBreak(payload) {
+  const response = await authFetch(API_DAILY_BREAKS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Daily break save failed (${response.status})`);
+}
+
+async function updateHostedDailyBreak(id, payload) {
+  const response = await authFetch(`${API_DAILY_BREAKS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Daily break update failed (${response.status})`);
+}
+
+async function deleteHostedDailyBreak(id) {
+  const response = await authFetch(`${API_DAILY_BREAKS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Daily break delete failed (${response.status})`);
+}
+
+async function createHostedSubject(payload) {
+  const response = await authFetch(API_SUBJECTS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Subject save failed (${response.status})`);
+}
+
+async function createHostedStudent(payload) {
+  const response = await authFetch(API_STUDENTS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Student save failed (${response.status})`);
+}
+
+async function createHostedUser(payload) {
+  const response = await authFetch(API_USERS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `User save failed (${response.status})`);
+}
+
+async function createHostedSchoolYear(payload) {
+  const response = await authFetch(API_SCHOOL_YEARS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `School year save failed (${response.status})`);
+}
+
+async function createHostedAttendance(payload) {
+  const response = await authFetch(API_ATTENDANCE_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Attendance save failed (${response.status})`);
+}
+
+async function updateHostedAttendance(id, payload) {
+  const response = await authFetch(`${API_ATTENDANCE_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Attendance update failed (${response.status})`);
+}
+
+async function deleteHostedAttendance(id) {
+  const response = await authFetch(`${API_ATTENDANCE_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Attendance delete failed (${response.status})`);
+}
+
+async function createHostedTest(payload) {
+  const response = await authFetch(API_TESTS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Grade save failed (${response.status})`);
+}
+
+async function updateHostedTest(id, payload) {
+  const response = await authFetch(`${API_TESTS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Grade update failed (${response.status})`);
+}
+
+async function deleteHostedTest(id) {
+  const response = await authFetch(`${API_TESTS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Grade delete failed (${response.status})`);
+}
+
+async function updateHostedSchoolYear(id, payload) {
+  const response = await authFetch(`${API_SCHOOL_YEARS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `School year update failed (${response.status})`);
+}
+
+async function setHostedCurrentSchoolYear(id) {
+  const response = await authFetch(`${API_SCHOOL_YEARS_ENDPOINT}/${encodeURIComponent(id)}/current`, {
+    method: "PATCH"
+  });
+  return parseApiResponse(response, `School year current update failed (${response.status})`);
+}
+
+async function deleteHostedSchoolYear(id) {
+  const response = await authFetch(`${API_SCHOOL_YEARS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `School year delete failed (${response.status})`);
+}
+
+async function saveHostedQuarters(schoolYearId, quarters) {
+  const response = await authFetch(`${API_SCHOOL_YEARS_ENDPOINT}/${encodeURIComponent(schoolYearId)}/quarters`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ quarters })
+  });
+  return parseApiResponse(response, `Quarters save failed (${response.status})`);
+}
+
+async function updateHostedUser(id, payload) {
+  const response = await authFetch(`${API_USERS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `User update failed (${response.status})`);
+}
+
+async function deleteHostedUser(id) {
+  const response = await authFetch(`${API_USERS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `User delete failed (${response.status})`);
+}
+
+async function deleteHostedStudent(id) {
+  const response = await authFetch(`${API_STUDENTS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Student delete failed (${response.status})`);
+}
+
+async function deleteHostedSubject(id) {
+  const response = await authFetch(`${API_SUBJECTS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Subject delete failed (${response.status})`);
+}
+
+async function createHostedCourse(payload) {
+  const response = await authFetch(API_COURSES_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Course save failed (${response.status})`);
+}
+
+async function updateHostedCourse(id, payload) {
+  const response = await authFetch(`${API_COURSES_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Course update failed (${response.status})`);
+}
+
+async function deleteHostedCourse(id) {
+  const response = await authFetch(`${API_COURSES_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Course delete failed (${response.status})`);
+}
+
+async function createHostedEnrollment(payload) {
+  const response = await authFetch(API_ENROLLMENTS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Enrollment save failed (${response.status})`);
+}
+
+async function updateHostedEnrollment(id, payload) {
+  const response = await authFetch(`${API_ENROLLMENTS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Enrollment update failed (${response.status})`);
+}
+
+async function deleteHostedEnrollment(id) {
+  const response = await authFetch(`${API_ENROLLMENTS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Enrollment delete failed (${response.status})`);
+}
+
+async function updateHostedHoliday(id, payload) {
+  const response = await authFetch(`${API_HOLIDAYS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Holiday update failed (${response.status})`);
+}
+
+async function deleteHostedHoliday(id) {
+  const response = await authFetch(`${API_HOLIDAYS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Holiday delete failed (${response.status})`);
+}
+
+async function createHostedPlans(plans) {
+  const response = await authFetch(API_PLANS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ plans })
+  });
+  return parseApiResponse(response, `Plan save failed (${response.status})`);
+}
+
+async function saveHostedGradeTypes(gradeTypes) {
+  const response = await authFetch(API_GRADE_TYPES_ENDPOINT, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ gradeTypes })
+  });
+  return parseApiResponse(response, `Grade types save failed (${response.status})`);
+}
+
+async function saveHostedGradingCriteria(criteria) {
+  const response = await authFetch(API_GRADING_CRITERIA_ENDPOINT, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(criteria)
+  });
+  return parseApiResponse(response, `Grading criteria save failed (${response.status})`);
+}
+
+async function updateHostedPlan(id, payload) {
+  const response = await authFetch(`${API_PLANS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Plan update failed (${response.status})`);
+}
+
+async function deleteHostedPlan(id) {
+  const response = await authFetch(`${API_PLANS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Plan delete failed (${response.status})`);
+}
+
 async function refreshHostedTests() {
   const response = await authFetch(API_TESTS_ENDPOINT);
   if (!response.ok) throw new Error(`Tests fetch failed (${response.status})`);
@@ -900,11 +1278,47 @@ async function hydrateHostedDomainState() {
   await refreshHostedSchoolYears();
   await refreshHostedQuarters();
   await refreshHostedAttendance();
+  await refreshHostedDailyBreaks();
+  await refreshHostedHolidays();
+  await refreshHostedPlans();
+  await refreshHostedGradeTypes();
+  await refreshHostedGradingCriteria();
   await refreshHostedTests();
   if (isAdminUser()) {
     await refreshHostedUsers();
   }
   normalizeSettingsShape(state);
+  gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+}
+
+async function refreshHostedCurriculumState() {
+  await refreshHostedSubjects();
+  await refreshHostedCourses();
+  await refreshHostedEnrollments();
+}
+
+async function refreshHostedCurriculumCascadeState() {
+  await refreshHostedCurriculumState();
+  await refreshHostedPlans();
+  await refreshHostedTests();
+}
+
+async function refreshHostedStudentCascadeState() {
+  await refreshHostedStudents();
+  await refreshHostedCurriculumState();
+  await refreshHostedPlans();
+  await refreshHostedAttendance();
+  await refreshHostedTests();
+  await refreshHostedDailyBreaks();
+  if (isAdminUser()) {
+    await refreshHostedUsers();
+  }
+}
+
+async function refreshHostedSchoolConfigState() {
+  await refreshHostedSchoolYears();
+  await refreshHostedQuarters();
+  await refreshHostedPlans();
 }
 
 async function loginWithBackend(username, password) {
@@ -927,6 +1341,30 @@ async function loginWithBackend(username, password) {
 
   const payload = await response.json();
   updateCurrentUserFromSummary(payload.user);
+  saveSession();
+  setHostedModeEnabled(true);
+  await hydrateHostedDomainState();
+}
+
+async function fetchHostedSetupStatus() {
+  const response = await authFetch(API_SETUP_STATUS_ENDPOINT);
+  if (!response.ok) throw new Error(`Setup status failed (${response.status})`);
+  const payload = await response.json();
+  hostedSetupChecked = true;
+  hostedSetupInitialized = !!payload?.initialized;
+  return hostedSetupInitialized;
+}
+
+async function initializeHostedSetup(setupToken, username, password) {
+  const response = await authFetch(API_SETUP_INITIALIZE_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ setupToken, username, password })
+  });
+  const payload = await parseApiResponse(response, `Setup initialization failed (${response.status})`);
+  hostedSetupChecked = true;
+  hostedSetupInitialized = true;
+  updateCurrentUserFromSummary(payload?.user);
   saveSession();
   setHostedModeEnabled(true);
   await hydrateHostedDomainState();
@@ -1030,6 +1468,16 @@ function setLoginMessage(kind, message) {
   setStatusMessage("login-message", kind, message);
 }
 
+function resetSetupMessage() {
+  setupMessageKind = "";
+  setStatusMessage("setup-message", "", "");
+}
+
+function setSetupMessage(kind, message) {
+  setupMessageKind = kind;
+  setStatusMessage("setup-message", kind, message);
+}
+
 function resetUserFormMessage() {
   userFormMessageKind = "";
   setStatusMessage("user-form-message", "", "");
@@ -1054,14 +1502,19 @@ function setActiveTab(tabName) {
 function renderSessionChrome() {
   const loginShell = document.getElementById("login-shell");
   const appShell = document.getElementById("app-shell");
+  const loginCard = document.getElementById("login-card");
+  const setupCard = document.getElementById("setup-card");
   const sessionSummary = document.getElementById("session-summary");
   const defaultAdminNote = document.getElementById("login-default-admin-note");
   const userBanner = document.getElementById("users-default-admin-banner");
   const user = currentUser();
   const signedIn = !!user;
+  const showHostedSetup = hostedModeEnabled && hostedSetupChecked && !hostedSetupInitialized && !signedIn;
 
   if (loginShell) loginShell.classList.toggle("hidden", signedIn);
   if (appShell) appShell.classList.toggle("hidden", !signedIn);
+  if (loginCard) loginCard.classList.toggle("hidden", showHostedSetup);
+  if (setupCard) setupCard.classList.toggle("hidden", !showHostedSetup);
   const showBootstrapAdminMessaging = !hostedModeEnabled && state.users.some((entry) => entry.id === "default-admin-user");
   if (defaultAdminNote) defaultAdminNote.classList.toggle("hidden", signedIn || !showBootstrapAdminMessaging);
   if (userBanner) userBanner.classList.toggle("hidden", !signedIn || !isAdminUser(user) || !showBootstrapAdminMessaging);
@@ -1125,6 +1578,15 @@ async function bootstrapStateFromApi() {
   if (hostedModeEnabled) {
     apiSyncReady = false;
     try {
+      const initialized = await fetchHostedSetupStatus();
+      if (!initialized) {
+        currentUserId = "";
+        saveSession();
+        resetLoginMessage();
+        resetSetupMessage();
+        renderAll();
+        return;
+      }
       const signedIn = await bootstrapHostedSession();
       if (!signedIn) resetLoginMessage();
       renderAll();
@@ -1486,6 +1948,23 @@ function updateEnrollmentScheduleOrder(enrollmentId, rawValue) {
   if (conflict) {
     alert("That schedule order is already assigned to another course for this student.");
     renderStudentDetail();
+    return;
+  }
+  if (hostedModeEnabled) {
+    (async () => {
+      try {
+        await updateHostedEnrollment(enrollmentId, {
+          studentId: enrollment.studentId,
+          courseId: enrollment.courseId,
+          scheduleOrder: nextOrder
+        });
+        await refreshHostedEnrollments();
+        renderAll();
+      } catch (error) {
+        alert(error.message || "Unable to update schedule order.");
+        renderStudentDetail();
+      }
+    })();
     return;
   }
   enrollment.scheduleOrder = nextOrder;
@@ -3666,7 +4145,9 @@ function renderTests() {
     .slice(0,150)
     .map((t) => {
       const gradeType = gradeTypeName(t);
-      const actions = isAdminUser() ? `<button type='button' data-edit-grade='${t.id}'>Edit</button>` : "View only";
+      const actions = isAdminUser()
+        ? `<button type='button' data-edit-grade='${t.id}'>Edit</button> <button type='button' data-remove-grade='${t.id}'>Remove</button>`
+        : "View only";
       return `<tr><td>${t.date}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${gradeType}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td><td>${actions}</td></tr>`;
     });
   const avgGrade = weightedAverageForTests(filtered, { quarterScoped: quarterFilter !== "all" });
@@ -6016,6 +6497,31 @@ function bindEvents() {
     renderAll();
   });
 
+  const setupForm = document.getElementById("setup-form");
+  if (setupForm) setupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const setupToken = document.getElementById("setup-token").value.trim();
+    const username = document.getElementById("setup-username").value.trim().toLowerCase();
+    const password = document.getElementById("setup-password").value;
+    const confirmPassword = document.getElementById("setup-password-confirm").value;
+    if (!setupToken || !username || !password) {
+      setSetupMessage("error", "Setup token, username, and password are required.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setSetupMessage("error", "Passwords do not match.");
+      return;
+    }
+    try {
+      await initializeHostedSetup(setupToken, username, password);
+      resetSetupMessage();
+      setupForm.reset();
+      renderAll();
+    } catch (error) {
+      setSetupMessage("error", error.message || "Unable to initialize hosted setup.");
+    }
+  });
+
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn) logoutBtn.addEventListener("click", async () => logout());
 
@@ -6049,6 +6555,29 @@ function bindEvents() {
     }
     if (!existing && !password) {
       setUserFormMessage("error", "Password is required for new users.");
+      return;
+    }
+    if (hostedModeEnabled) {
+      try {
+        const payload = {
+          username,
+          role,
+          studentId,
+          mustChangePassword: existing ? existing.mustChangePassword : false,
+          ...(password ? { password } : {})
+        };
+        if (existing) {
+          await updateHostedUser(existing.id, payload);
+        } else {
+          await createHostedUser({ id: uid(), ...payload });
+        }
+        await refreshHostedUsers();
+        resetUserForm();
+        setUserFormMessage("success", existing ? "User account updated." : "User account created.");
+        renderAll();
+      } catch (error) {
+        setUserFormMessage("error", error.message || "Unable to save user account.");
+      }
       return;
     }
     if (existing) {
@@ -6095,6 +6624,27 @@ function bindEvents() {
     const birthdate = document.getElementById("student-birthdate").value;
     const grade = document.getElementById("student-grade").value.trim();
     if (!firstName || !lastName || !birthdate || !grade) return;
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          await createHostedStudent({
+            id: uid(),
+            firstName,
+            lastName,
+            birthdate,
+            grade,
+            ageRecorded: calculateAge(birthdate),
+            createdAt: todayISO()
+          });
+          e.target.reset();
+          await refreshHostedStudents();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save student.");
+        }
+      })();
+      return;
+    }
     state.students.push({ id: uid(), firstName, lastName, birthdate, grade, ageRecorded: calculateAge(birthdate), createdAt: todayISO() });
     e.target.reset(); saveState(); renderAll();
   });
@@ -6105,6 +6655,19 @@ function bindEvents() {
     const name = document.getElementById("subject-name").value.trim();
     if (!name) return;
     if (state.subjects.some((s)=>s.name.toLowerCase()===name.toLowerCase())) { alert("Subject already exists."); return; }
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          await createHostedSubject({ id: uid(), name });
+          e.target.reset();
+          await refreshHostedSubjects();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save subject.");
+        }
+      })();
+      return;
+    }
     state.subjects.push({ id: uid(), name }); e.target.reset(); saveState(); renderAll();
   });
 
@@ -6116,6 +6679,26 @@ function bindEvents() {
     const hoursPerDay = Number(document.getElementById("course-hours").value);
     const exclusiveResource = !!document.getElementById("course-exclusive-resource").checked;
     if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) { alert("Provide course name, subject, and hours/day."); return; }
+    const payload = { name, subjectId, hoursPerDay, exclusiveResource };
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          if (editingCourseId) {
+            await updateHostedCourse(editingCourseId, payload);
+          } else {
+            await createHostedCourse({ id: uid(), ...payload });
+          }
+          editingCourseId = "";
+          e.target.reset();
+          document.getElementById("course-exclusive-resource").checked = false;
+          await refreshHostedCourses();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save course.");
+        }
+      })();
+      return;
+    }
     if (editingCourseId) {
       const existing = state.courses.find((c) => c.id === editingCourseId);
       if (existing) {
@@ -6188,6 +6771,21 @@ function bindEvents() {
         alert("Grade Type weights must total exactly 100% before applying.");
         return;
       }
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            const saved = await saveHostedGradeTypes(cloneGradeTypes(draftGradeTypes()));
+            state.settings.gradeTypes = cloneGradeTypes(Array.isArray(saved) ? saved : []);
+            gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+            gradeTypeDraftDirty = false;
+            editingGradeTypeId = "";
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to save grade types.");
+          }
+        })();
+        return;
+      }
       state.settings.gradeTypes = cloneGradeTypes(draftGradeTypes());
       gradeTypeDraftDirty = false;
       editingGradeTypeId = "";
@@ -6221,6 +6819,28 @@ function bindEvents() {
     const gpaMax = gpaScaleOption === "other" ? Number(gpaOtherRaw) : Number(gpaScaleOption);
     if (!Number.isInteger(gpaMax) || gpaMax <= 0) {
       setGradingCriteriaMessage("error", "GPA Max must be a whole number greater than 0.");
+      return;
+    }
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          const saved = await saveHostedGradingCriteria({
+            letterScale: validation.scale.map((entry) => ({ ...entry })),
+            gpaScaleOption,
+            gpaMax
+          });
+          state.settings.gradingCriteria = {
+            letterScale: Array.isArray(saved?.letterScale) ? saved.letterScale.map((entry) => ({ ...entry })) : [],
+            gpaScaleOption: saved?.gpaScaleOption || gpaScaleOption,
+            gpaMax: saved?.gpaMax == null ? gpaMax : Number(saved.gpaMax)
+          };
+          gradingCriteriaEditMode = false;
+          setGradingCriteriaMessage("success", "Grading Criteria saved.");
+          renderAll();
+        } catch (error) {
+          setGradingCriteriaMessage("error", error.message || "Unable to save grading criteria.");
+        }
+      })();
       return;
     }
     state.settings.gradingCriteria = {
@@ -6266,6 +6886,18 @@ function bindEvents() {
     const courseId = document.getElementById("student-enroll-course").value;
     if (!studentId || !courseId) return;
     if (state.enrollments.some((x)=>x.studentId===studentId && x.courseId===courseId)) { alert("Student already enrolled in this course."); return; }
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          await createHostedEnrollment({ id: uid(), studentId, courseId, scheduleOrder: null });
+          await refreshHostedEnrollments();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save enrollment.");
+        }
+      })();
+      return;
+    }
     state.enrollments.push({ id: uid(), studentId, courseId, scheduleOrder: null }); saveState(); renderAll();
   });
 
@@ -6295,6 +6927,31 @@ function bindEvents() {
     if (!validRange(startDate, endDate)) { alert("School year range is invalid."); return; }
     if (requiredInstructionalDays != null && (!Number.isInteger(requiredInstructionalDays) || requiredInstructionalDays < 0)) { alert("Required Instructional Days must be a whole number 0 or greater."); return; }
     if (requiredInstructionalHours != null && (!Number.isFinite(requiredInstructionalHours) || requiredInstructionalHours < 0)) { alert("Required Instructional Hours must be 0 or greater."); return; }
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          const payload = {
+            label,
+            startDate,
+            endDate,
+            requiredInstructionalDays,
+            requiredInstructionalHours,
+            isCurrent: editingSchoolYearId ? (getSchoolYear(editingSchoolYearId)?.id === state.settings.currentSchoolYearId) : state.settings.schoolYears.length === 0
+          };
+          if (editingSchoolYearId) {
+            await updateHostedSchoolYear(editingSchoolYearId, payload);
+          } else {
+            await createHostedSchoolYear({ id: uid(), ...payload });
+          }
+          editingSchoolYearId = "";
+          await refreshHostedSchoolConfigState();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save school year.");
+        }
+      })();
+      return;
+    }
     const existing = state.settings.schoolYears.find((year) => year.id === editingSchoolYearId);
     const previousStartDate = existing?.startDate || "";
     const previousEndDate = existing?.endDate || "";
@@ -6341,6 +6998,19 @@ function bindEvents() {
       { id: uid(), schoolYearId, name: "Q4", startDate: document.getElementById("q4-start").value, endDate: document.getElementById("q4-end").value }
     ];
     if (!q.every((x)=>validRange(x.startDate, x.endDate))) { alert("Each quarter needs a valid date range."); return; }
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          await saveHostedQuarters(schoolYearId, q);
+          editingQuarterSchoolYearId = "";
+          await refreshHostedSchoolConfigState();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save quarters.");
+        }
+      })();
+      return;
+    }
     state.settings.allQuarters = state.settings.allQuarters.filter((quarter) => quarter.schoolYearId !== schoolYearId);
     state.settings.allQuarters.push(...q);
     syncQuarterlyPlansForSchoolYear(schoolYearId, previousQuarterByName, q);
@@ -6388,6 +7058,24 @@ function bindEvents() {
       durationMinutes,
       weekdays
     };
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          if (editingDailyBreakId) {
+            await updateHostedDailyBreak(editingDailyBreakId, payload);
+          } else {
+            await createHostedDailyBreak({ id: uid(), ...payload });
+          }
+          editingDailyBreakId = "";
+          resetDailyBreakForm();
+          await refreshHostedDailyBreaks();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save daily break.");
+        }
+      })();
+      return;
+    }
     if (editingDailyBreakId) {
       const existing = state.settings.dailyBreaks.find((entry) => entry.id === editingDailyBreakId);
       if (existing) Object.assign(existing, payload);
@@ -6416,6 +7104,25 @@ function bindEvents() {
     const startDate = document.getElementById("holiday-start").value;
     const endDate = document.getElementById("holiday-end").value;
     if (!name || !validRange(startDate, endDate)) { alert("Provide valid holiday/break values."); return; }
+    const payload = { name, type, startDate, endDate };
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          if (editingHolidayId) {
+            await updateHostedHoliday(editingHolidayId, payload);
+          } else {
+            await createHostedHoliday({ id: uid(), ...payload });
+          }
+          editingHolidayId = "";
+          e.target.reset();
+          await refreshHostedHolidays();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save holiday.");
+        }
+      })();
+      return;
+    }
     if (editingHolidayId) {
       const existing = state.settings.holidays.find((h) => h.id === editingHolidayId);
       if (existing) {
@@ -6446,13 +7153,18 @@ function bindEvents() {
     const weekdays = Array.from(document.querySelectorAll("input[name='weekday']:checked")).map((x)=>Number(x.value));
     if (!studentId || !courseIds.length || !weekdays.length) { alert("Plan must include student, at least one enrolled course, and at least one weekday."); return; }
     if (editingPlanId && courseIds.length !== 1) { alert("When editing a plan, select exactly one course."); return; }
+    const activePlanId = editingPlanId;
     const editCourseId = courseIds[0];
+    let hostedCreatePayloads = [];
+    let hostedUpdatePayload = null;
 
     if (planType === "annual") {
       const startDate = state.settings.schoolYear.startDate;
       const endDate = state.settings.schoolYear.endDate;
       if (!validRange(startDate, endDate)) { alert("Current school year range is invalid."); return; }
-      if (editingPlanId) {
+      hostedCreatePayloads = courseIds.map((courseId) => ({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays }));
+      hostedUpdatePayload = { planType, studentId, courseId: editCourseId, startDate, endDate, weekdays };
+      if (!hostedModeEnabled && activePlanId) {
         const existing = state.plans.find((p) => p.id === editingPlanId);
         if (existing) {
           existing.planType = planType;
@@ -6464,7 +7176,7 @@ function bindEvents() {
           delete existing.quarterName;
         }
         editingPlanId = "";
-      } else {
+      } else if (!hostedModeEnabled) {
         courseIds.forEach((courseId) => {
           state.plans.push({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays });
         });
@@ -6476,25 +7188,48 @@ function bindEvents() {
         .map((name) => state.settings.quarters.find((q) => q.name === name))
         .filter(Boolean);
       if (!selectedQuarters.length) { alert("Selected quarter configuration is invalid."); return; }
+      hostedCreatePayloads = selectedQuarters.flatMap((quarter) =>
+        courseIds.map((courseId) => ({
+          id: uid(),
+          planType,
+          studentId,
+          courseId,
+          startDate: quarter.startDate,
+          endDate: quarter.endDate,
+          weekdays,
+          quarterName: quarter.name
+        }))
+      );
 
-      if (editingPlanId) {
+      if (activePlanId) {
         if (selectedQuarters.length > 1) {
           alert("When editing a plan, select exactly one quarter.");
           return;
         }
         const targetQuarter = selectedQuarters[0];
-        const existing = state.plans.find((p) => p.id === editingPlanId);
-        if (existing) {
-          existing.planType = planType;
-          existing.studentId = studentId;
-          existing.courseId = editCourseId;
-          existing.startDate = targetQuarter.startDate;
-          existing.endDate = targetQuarter.endDate;
-          existing.weekdays = weekdays;
-          existing.quarterName = targetQuarter.name;
+        hostedUpdatePayload = {
+          planType,
+          studentId,
+          courseId: editCourseId,
+          startDate: targetQuarter.startDate,
+          endDate: targetQuarter.endDate,
+          weekdays,
+          quarterName: targetQuarter.name
+        };
+        if (!hostedModeEnabled) {
+          const existing = state.plans.find((p) => p.id === editingPlanId);
+          if (existing) {
+            existing.planType = planType;
+            existing.studentId = studentId;
+            existing.courseId = editCourseId;
+            existing.startDate = targetQuarter.startDate;
+            existing.endDate = targetQuarter.endDate;
+            existing.weekdays = weekdays;
+            existing.quarterName = targetQuarter.name;
+          }
+          editingPlanId = "";
         }
-        editingPlanId = "";
-      } else {
+      } else if (!hostedModeEnabled) {
         selectedQuarters.forEach((quarter) => {
           courseIds.forEach((courseId) => {
             state.plans.push({
@@ -6514,7 +7249,9 @@ function bindEvents() {
       const startDate = document.getElementById("plan-start").value;
       const endDate = document.getElementById("plan-end").value;
       if (!validRange(startDate, endDate)) { alert("Provide a valid weekly start/end range."); return; }
-      if (editingPlanId) {
+      hostedCreatePayloads = courseIds.map((courseId) => ({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays }));
+      hostedUpdatePayload = { planType, studentId, courseId: editCourseId, startDate, endDate, weekdays };
+      if (!hostedModeEnabled && activePlanId) {
         const existing = state.plans.find((p) => p.id === editingPlanId);
         if (existing) {
           existing.planType = planType;
@@ -6526,11 +7263,28 @@ function bindEvents() {
           delete existing.quarterName;
         }
         editingPlanId = "";
-      } else {
+      } else if (!hostedModeEnabled) {
         courseIds.forEach((courseId) => {
           state.plans.push({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays });
         });
       }
+    }
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          if (activePlanId) {
+            await updateHostedPlan(activePlanId, hostedUpdatePayload);
+          } else {
+            await createHostedPlans(hostedCreatePayloads);
+          }
+          editingPlanId = "";
+          await refreshHostedPlans();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save plan.");
+        }
+      })();
+      return;
     }
     saveState();
     renderAll();
@@ -6641,6 +7395,56 @@ function bindEvents() {
     const status = document.getElementById("attendance-status").value;
     if (!studentIds.length) { alert("Select at least one student."); return; }
     if (!date) return;
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          if (editingAttendanceId) {
+            const studentId = studentIds[0];
+            await updateHostedAttendance(editingAttendanceId, {
+              studentId,
+              date,
+              present: status === "present"
+            });
+          } else {
+            const duplicates = studentIds
+              .map((studentId) => state.attendance.find((a) => a.studentId === studentId && a.date === date))
+              .filter(Boolean);
+            if (duplicates.length) {
+              if (duplicates.length === 1 && studentIds.length === 1) {
+                const existing = duplicates[0];
+                const shouldEdit = confirm(`An attendance record already exists for ${getStudentName(existing.studentId)} on ${date}. Select OK to edit the existing record instead.`);
+                if (shouldEdit) {
+                  editingAttendanceId = existing.id;
+                  renderAttendanceStudentChecklist([existing.studentId]);
+                  document.getElementById("attendance-date").value = existing.date;
+                  document.getElementById("attendance-status").value = existing.present ? "present" : "absent";
+                  document.getElementById("attendance-submit-btn").textContent = "Update Attendance";
+                  document.getElementById("attendance-cancel-edit-btn").classList.remove("hidden");
+                }
+                return;
+              }
+              const duplicateNames = duplicates.map((record) => getStudentName(record.studentId)).join(", ");
+              alert(`Attendance record(s) already exist for ${duplicateNames} on ${date}. Edit the existing record instead of creating a duplicate.`);
+              return;
+            }
+            for (const studentId of studentIds) {
+              await createHostedAttendance({
+                id: uid(),
+                studentId,
+                date,
+                present: status === "present"
+              });
+            }
+          }
+          resetAttendanceEditMode();
+          await refreshHostedAttendance();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save attendance.");
+        }
+      })();
+      return;
+    }
     if (editingAttendanceId) {
       const studentId = studentIds[0];
       const target = state.attendance.find((a) => a.id === editingAttendanceId);
@@ -7053,6 +7857,18 @@ function bindEvents() {
     const setCurrentSchoolYearId = t.getAttribute("data-set-current-school-year");
     if (setCurrentSchoolYearId) {
       if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await setHostedCurrentSchoolYear(setCurrentSchoolYearId);
+            await refreshHostedSchoolConfigState();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to update current school year.");
+          }
+        })();
+        return;
+      }
       setCurrentSchoolYear(setCurrentSchoolYearId);
       saveState();
       renderAll();
@@ -7074,6 +7890,18 @@ function bindEvents() {
         ? `Delete ${targetYear.label}? This will also remove ${quarterCount} quarter definition${quarterCount === 1 ? "" : "s"} for that school year.`
         : `Delete ${targetYear.label}?`;
       if (!confirm(message)) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedSchoolYear(removeSchoolYearId);
+            await refreshHostedSchoolConfigState();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to delete school year.");
+          }
+        })();
+        return;
+      }
       removeSchoolYear(removeSchoolYearId);
       saveState();
       renderAll();
@@ -7215,6 +8043,19 @@ function bindEvents() {
         confirmed = confirm(`Remove the attendance record for ${getStudentName(target.studentId)} on ${target.date}?`);
       }
       if (!confirmed) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedAttendance(removeAttendanceId);
+            if (editingAttendanceId === removeAttendanceId) resetAttendanceEditMode();
+            await refreshHostedAttendance();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove attendance.");
+          }
+        })();
+        return;
+      }
       state.attendance = state.attendance.filter((a) => a.id !== removeAttendanceId);
       if (editingAttendanceId === removeAttendanceId) resetAttendanceEditMode();
       saveState();
@@ -7245,6 +8086,29 @@ function bindEvents() {
       }
 
       if (editGradeId) {
+        if (hostedModeEnabled) {
+          (async () => {
+            try {
+              await updateHostedTest(editGradeId, {
+                date,
+                studentId,
+                subjectId,
+                courseId,
+                gradeType,
+                testName: gradeType,
+                score: gradeValue,
+                maxScore: 100
+              });
+              row.remove();
+              updateGradeEntryVisibility();
+              await refreshHostedTests();
+              renderAll();
+            } catch (error) {
+              alert(error.message || "Unable to update grade.");
+            }
+          })();
+          return;
+        }
         const existing = state.tests.find((x) => x.id === editGradeId);
         if (existing) {
           existing.date = date;
@@ -7257,6 +8121,30 @@ function bindEvents() {
           existing.maxScore = 100;
         }
       } else {
+        if (hostedModeEnabled) {
+          (async () => {
+            try {
+              await createHostedTest({
+                id: uid(),
+                date,
+                studentId,
+                subjectId,
+                courseId,
+                gradeType,
+                testName: gradeType,
+                score: gradeValue,
+                maxScore: 100
+              });
+              row.remove();
+              updateGradeEntryVisibility();
+              await refreshHostedTests();
+              renderAll();
+            } catch (error) {
+              alert(error.message || "Unable to save grade.");
+            }
+          })();
+          return;
+        }
         state.tests.push({
           id: uid(),
           date,
@@ -7302,6 +8190,36 @@ function bindEvents() {
       updateGradeEntryVisibility();
       return;
     }
+    const removeGradeId = t.getAttribute("data-remove-grade");
+    if (removeGradeId) {
+      if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedTest(removeGradeId);
+            await refreshHostedTests();
+            const editingRow = document.querySelector(`tr[data-edit-grade-id="${removeGradeId}"]`);
+            if (editingRow) {
+              editingRow.remove();
+              updateGradeEntryVisibility();
+            }
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove grade.");
+          }
+        })();
+        return;
+      }
+      state.tests = state.tests.filter((entry) => entry.id !== removeGradeId);
+      const editingRow = document.querySelector(`tr[data-edit-grade-id="${removeGradeId}"]`);
+      if (editingRow) {
+        editingRow.remove();
+        updateGradeEntryVisibility();
+      }
+      saveState();
+      renderAll();
+      return;
+    }
     const editUserId = t.getAttribute("data-edit-user");
     if (editUserId) {
       if (!ensureAdminAction()) return;
@@ -7317,6 +8235,23 @@ function bindEvents() {
         setUserFormMessage("error", "At least one administrator account is required.");
         return;
       }
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedUser(removeUserId);
+            if (editingUserId === removeUserId) resetUserForm();
+            if (currentUserId === removeUserId) {
+              currentUserId = "";
+              saveSession();
+            }
+            await refreshHostedUsers();
+            renderAll();
+          } catch (error) {
+            setUserFormMessage("error", error.message || "Unable to remove user account.");
+          }
+        })();
+        return;
+      }
       state.users = state.users.filter((entry) => entry.id !== removeUserId);
       if (editingUserId === removeUserId) resetUserForm();
       if (currentUserId === removeUserId) logout();
@@ -7324,9 +8259,67 @@ function bindEvents() {
       renderAll();
       return;
     }
-    const studentId = t.getAttribute("data-remove-student"); if (studentId) { if (!ensureAdminAction()) return; removeStudent(studentId); saveState(); renderAll(); return; }
-    const subjectId = t.getAttribute("data-remove-subject"); if (subjectId) { if (!ensureAdminAction()) return; removeSubject(subjectId); saveState(); renderAll(); return; }
-    const courseId = t.getAttribute("data-remove-course"); if (courseId) { if (!ensureAdminAction()) return; removeCourse(courseId); saveState(); renderAll(); return; }
+    const studentId = t.getAttribute("data-remove-student");
+    if (studentId) {
+      if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedStudent(studentId);
+            if (selectedStudentId === studentId) selectedStudentId = "";
+            await refreshHostedStudentCascadeState();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove student.");
+          }
+        })();
+        return;
+      }
+      removeStudent(studentId);
+      saveState();
+      renderAll();
+      return;
+    }
+    const subjectId = t.getAttribute("data-remove-subject");
+    if (subjectId) {
+      if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedSubject(subjectId);
+            await refreshHostedCurriculumCascadeState();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove subject.");
+          }
+        })();
+        return;
+      }
+      removeSubject(subjectId);
+      saveState();
+      renderAll();
+      return;
+    }
+    const courseId = t.getAttribute("data-remove-course");
+    if (courseId) {
+      if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedCourse(courseId);
+            await refreshHostedCurriculumCascadeState();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove course.");
+          }
+        })();
+        return;
+      }
+      removeCourse(courseId);
+      saveState();
+      renderAll();
+      return;
+    }
     const gradeTypeId = t.getAttribute("data-remove-grade-type");
     if (gradeTypeId) {
       if (!ensureAdminAction()) return;
@@ -7336,10 +8329,93 @@ function bindEvents() {
       renderGradeTypes();
       return;
     }
-    const enrollmentId = t.getAttribute("data-remove-student-enrollment"); if (enrollmentId) { if (!ensureAdminAction()) return; state.enrollments = state.enrollments.filter((x)=>x.id!==enrollmentId); saveState(); renderAll(); return; }
-    const dailyBreakId = t.getAttribute("data-remove-daily-break"); if (dailyBreakId) { if (!ensureAdminAction()) return; state.settings.dailyBreaks = state.settings.dailyBreaks.filter((x)=>x.id!==dailyBreakId); if (editingDailyBreakId === dailyBreakId) editingDailyBreakId = ""; resetDailyBreakForm(); saveState(); renderAll(); return; }
-    const holidayId = t.getAttribute("data-remove-holiday"); if (holidayId) { if (!ensureAdminAction()) return; state.settings.holidays = state.settings.holidays.filter((x)=>x.id!==holidayId); if (editingHolidayId === holidayId) editingHolidayId = ""; saveState(); renderAll(); return; }
-    const planId = t.getAttribute("data-remove-plan"); if (planId) { if (!ensureAdminAction()) return; state.plans = state.plans.filter((x)=>x.id!==planId); if (editingPlanId === planId) editingPlanId = ""; saveState(); renderAll(); }
+    const enrollmentId = t.getAttribute("data-remove-student-enrollment");
+    if (enrollmentId) {
+      if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedEnrollment(enrollmentId);
+            await refreshHostedEnrollments();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove enrollment.");
+          }
+        })();
+        return;
+      }
+      state.enrollments = state.enrollments.filter((x)=>x.id!==enrollmentId);
+      saveState();
+      renderAll();
+      return;
+    }
+    const dailyBreakId = t.getAttribute("data-remove-daily-break");
+    if (dailyBreakId) {
+      if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedDailyBreak(dailyBreakId);
+            if (editingDailyBreakId === dailyBreakId) editingDailyBreakId = "";
+            resetDailyBreakForm();
+            await refreshHostedDailyBreaks();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove daily break.");
+          }
+        })();
+        return;
+      }
+      state.settings.dailyBreaks = state.settings.dailyBreaks.filter((x)=>x.id!==dailyBreakId);
+      if (editingDailyBreakId === dailyBreakId) editingDailyBreakId = "";
+      resetDailyBreakForm();
+      saveState();
+      renderAll();
+      return;
+    }
+    const holidayId = t.getAttribute("data-remove-holiday");
+    if (holidayId) {
+      if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedHoliday(holidayId);
+            if (editingHolidayId === holidayId) editingHolidayId = "";
+            await refreshHostedHolidays();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove holiday.");
+          }
+        })();
+        return;
+      }
+      state.settings.holidays = state.settings.holidays.filter((x)=>x.id!==holidayId);
+      if (editingHolidayId === holidayId) editingHolidayId = "";
+      saveState();
+      renderAll();
+      return;
+    }
+    const planId = t.getAttribute("data-remove-plan");
+    if (planId) {
+      if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedPlan(planId);
+            if (editingPlanId === planId) editingPlanId = "";
+            await refreshHostedPlans();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove plan.");
+          }
+        })();
+        return;
+      }
+      state.plans = state.plans.filter((x)=>x.id!==planId);
+      if (editingPlanId === planId) editingPlanId = "";
+      saveState();
+      renderAll();
+    }
   });
 }
 

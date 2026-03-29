@@ -1,0 +1,16 @@
+{
+  "name": "home-school-management-control-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Operator control-plane API for Home School Management",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "db:migrate": "node src/scripts/migrate-postgres.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "pg": "^8.13.3"
+  }
+}

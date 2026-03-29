@@ -37,15 +37,17 @@
   - `NOTES/milestone-1-production-plan.md`
   - `NOTES/postgresql-schema-v1.md`
   - `NOTES/backend-auth-api-refactor-plan.md`
+  - `NOTES/postgres-repository-transition-plan.md`
 - Workstreams:
   - [x] Define target architecture and deployment topology
   - [x] Define Milestone 1 scope, sequencing, and acceptance criteria
   - [x] Define PostgreSQL schema direction for hosted runtime
   - [x] Choose backend session/auth approach and document endpoint contract
-  - [ ] Design first domain APIs to replace full-state sync in production
+  - [x] Design first hosted domain-read APIs to replace more of full-state sync in production
   - [ ] Refactor backend toward PostgreSQL-backed repositories
   - [x] Refactor frontend login/bootstrap to use backend auth
   - [x] Create Debian/Apache deployment assets and runbooks
+  - [x] Define PostgreSQL repository transition plan for hosted runtime
   - [ ] Run production readiness smoke checks
 
 ## Milestone 5: Multi-Tenant SaaS Foundation (Planned)
@@ -53,10 +55,16 @@
 - Goal: Introduce tenant-aware backend architecture and a control plane
 - Dependencies: Milestone 4
 - Workstreams:
-  - [ ] Add control-plane data model for tenants, domains, plans, and provisioning jobs
-  - [ ] Add tenant resolution and tenant database routing
-  - [ ] Add tenant bootstrap/provisioning workflow
-  - [ ] Add operator-facing tenant management interface
+  - [x] Add control-plane data model for tenants, domains, plans, and provisioning jobs
+  - [x] Add tenant resolution and tenant database routing
+  - [x] Add tenant bootstrap/provisioning workflow
+  - [x] Define operator authentication/session contract separately from tenant auth
+  - [x] Add operator-facing tenant management interface
+  - [x] Add initial `control-api/` service scaffold and first route groups
+  - [x] Implement first platform-admin mutation paths and operator bootstrap flow in `control-api/`
+  - [x] Implement first queued-job execution and event logging in `control-api`
+  - [x] Run tenant runtime migration/setup-token automation from queued jobs
+  - [x] Propagate tenant setup completion back into control-plane environment state
 
 ## Parallel Workstreams (Current)
 
@@ -73,7 +81,7 @@
 
 ## Active Next Actions
 
-1. Verify hosted login/session bootstrap behavior end-to-end in the browser after the frontend auth refactor.
-2. Expand the first domain APIs beyond `GET /api/users` and `GET /api/students`.
-3. Define the initial PostgreSQL migration/repository strategy for the hosted runtime.
-4. Flesh out the control-plane schema and provisioning workflow behind the new `admin/` and `control-api/` scaffolds.
+1. Replace the remaining local-only worker steps with real host/web deployment automation instead of only schema/bootstrap artifacts on `APP001`.
+2. Add a secure internal runtime-auth mechanism for setup-state and health synchronization so control-plane polling no longer depends on the public setup-status endpoint.
+3. Keep hosted browser smoke validation as the regression gate after each major backend-boundary slice.
+4. Add deeper operator drill-down only where the next runtime-execution slice exposes new operational states worth surfacing.

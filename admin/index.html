@@ -6,34 +6,189 @@
   <title>Home School Management Control Plane</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-api-base="/control-api">
   <main class="admin-shell">
     <header class="hero">
       <p class="eyebrow">Control Plane</p>
       <h1>Home School Management Operator Console</h1>
-      <p class="lead">The hosted single-tenant platform is live. This shell is the first operator-facing entry point for tenant lifecycle work, provisioning visibility, and support operations.</p>
+      <p class="lead">Bootstrap operators, review tenant environments, and queue provisioning work from a backend-owned control surface that stays separate from tenant runtime auth.</p>
     </header>
 
-    <section class="panel-grid">
-      <article class="panel">
-        <h2>Current Stage</h2>
-        <p>Hosted runtime is active on Apache, Node.js, and PostgreSQL. The next phase is introducing tenant and operator boundaries without destabilizing the customer-facing app.</p>
+    <section class="banner-grid">
+      <article class="status-banner">
+        <span class="status-kicker">API Base</span>
+        <strong id="api-base-label">same-origin</strong>
+        <p>All operator actions use the `control-api` backend with credentialed requests.</p>
+      </article>
+      <article class="status-banner">
+        <span class="status-kicker">Session</span>
+        <strong id="session-state-label">Checking</strong>
+        <p id="session-state-detail">Determining whether control-plane bootstrap, login, or operator session should be shown.</p>
+      </article>
+    </section>
+
+    <section id="auth-section" class="auth-grid">
+      <article id="bootstrap-card" class="panel hidden">
+        <h2>First Operator Bootstrap</h2>
+        <p class="panel-copy">Use this one-time path only when the control plane has no operators yet. It creates the first <code>platform_admin</code> and starts a normal operator session.</p>
+        <form id="bootstrap-form" class="stack-form">
+          <label>
+            <span>Username</span>
+            <input id="bootstrap-username" name="username" autocomplete="username" required>
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="bootstrap-password" name="password" type="password" autocomplete="new-password" required>
+          </label>
+          <button type="submit" class="primary-btn">Create First Operator</button>
+        </form>
       </article>
 
-      <article class="panel">
-        <h2>Next Control-Plane Work</h2>
-        <ul>
-          <li>Tenant registry and status model</li>
-          <li>Provisioning workflow and audit trail</li>
-          <li>Operator authentication</li>
-          <li>Per-tenant database lifecycle controls</li>
-        </ul>
+      <article id="login-card" class="panel hidden">
+        <h2>Operator Login</h2>
+        <p class="panel-copy">Sign in with your control-plane operator account. Operator cookies stay distinct from tenant-app sessions.</p>
+        <form id="login-form" class="stack-form">
+          <label>
+            <span>Username</span>
+            <input id="login-username" name="username" autocomplete="username" required>
+          </label>
+          <label>
+            <span>Password</span>
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <button type="submit" class="primary-btn">Sign In</button>
+        </form>
       </article>
+    </section>
 
-      <article class="panel">
-        <h2>Tracked Assets</h2>
-        <ul id="asset-list"></ul>
-      </article>
+    <p id="flash-message" class="flash hidden"></p>
+
+    <section id="console-section" class="hidden">
+      <section class="operator-bar panel">
+        <div>
+          <p class="status-kicker">Signed In</p>
+          <h2 id="operator-name">Operator</h2>
+          <p id="operator-meta" class="panel-copy"></p>
+        </div>
+        <div class="operator-actions">
+          <button id="refresh-btn" class="secondary-btn" type="button">Refresh Data</button>
+          <button id="logout-btn" class="secondary-btn" type="button">Sign Out</button>
+        </div>
+      </section>
+
+      <section class="panel-grid metrics-grid">
+        <article class="metric-card panel">
+          <span class="status-kicker">Tenants</span>
+          <strong id="tenant-count">0</strong>
+          <p id="tenant-summary" class="metric-copy">No tenant records loaded.</p>
+        </article>
+        <article class="metric-card panel">
+          <span class="status-kicker">Environments</span>
+          <strong id="environment-count">0</strong>
+          <p id="environment-summary" class="metric-copy">No environment records loaded.</p>
+        </article>
+        <article class="metric-card panel">
+          <span class="status-kicker">Queued Jobs</span>
+          <strong id="job-count">0</strong>
+          <p id="job-summary" class="metric-copy">No provisioning work queued.</p>
+        </article>
+      </section>
+
+      <section class="workspace-grid">
+        <article class="panel tall-panel">
+          <div class="panel-head">
+            <div>
+              <h2>Tenant Registry</h2>
+              <p class="panel-copy">Create and update tenant records before binding runtime infrastructure.</p>
+            </div>
+          </div>
+          <form id="tenant-form" class="stack-form action-form hidden">
+            <input id="tenant-edit-id" type="hidden">
+            <label><span>Slug</span><input id="tenant-slug" required></label>
+            <label><span>Display Name</span><input id="tenant-display-name" required></label>
+            <label><span>Primary Domain</span><input id="tenant-primary-domain" required></label>
+            <label><span>Domain Type</span>
+              <select id="tenant-domain-type">
+                <option value="platform_subdomain">Platform Subdomain</option>
+                <option value="custom_domain">Custom Domain</option>
+              </select>
+            </label>
+            <label><span>Plan Code</span><input id="tenant-plan-code" value="standard"></label>
+            <label><span>Status</span>
+              <select id="tenant-status">
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+              </select>
+            </label>
+            <label><span>Primary Contact</span><input id="tenant-contact-name"></label>
+            <label><span>Contact Email</span><input id="tenant-contact-email" type="email"></label>
+            <label><span>Notes</span><textarea id="tenant-notes"></textarea></label>
+            <div class="operator-actions">
+              <button id="tenant-submit-btn" type="submit" class="primary-btn">Create Tenant</button>
+              <button id="tenant-reset-btn" type="button" class="secondary-btn hidden">Cancel Edit</button>
+            </div>
+          </form>
+          <div id="tenant-list" class="record-list"></div>
+        </article>
+
+        <article class="panel tall-panel">
+          <div class="panel-head">
+            <div>
+              <h2>Environments</h2>
+              <p class="panel-copy">Attach deployable environments to tenants and queue provisioning work.</p>
+            </div>
+          </div>
+          <form id="environment-form" class="stack-form action-form hidden">
+            <label><span>Tenant</span><select id="environment-tenant-id"></select></label>
+            <label><span>Environment Key</span><input id="environment-key" required></label>
+            <label><span>Display Name</span><input id="environment-display-name" required></label>
+            <label><span>App Base URL</span><input id="environment-app-base-url"></label>
+            <label><span>App Host</span><input id="environment-app-host"></label>
+            <label><span>Web Host</span><input id="environment-web-host"></label>
+            <label><span>Database Host</span><input id="environment-db-host"></label>
+            <label><span>Database Name</span><input id="environment-db-name"></label>
+            <label><span>Database Schema</span><input id="environment-db-schema"></label>
+            <button type="submit" class="primary-btn">Create Environment</button>
+          </form>
+          <div id="environment-list" class="record-list"></div>
+          <div id="environment-detail" class="detail-card hidden"></div>
+        </article>
+
+        <article class="panel tall-panel">
+          <div class="panel-head">
+            <div>
+              <h2>Provisioning Queue</h2>
+              <p class="panel-copy">Queue environment provisioning and setup-token issuance as durable control-plane jobs.</p>
+            </div>
+          </div>
+          <form id="job-form" class="stack-form action-form hidden">
+            <label><span>Environment</span><select id="job-environment-id"></select></label>
+            <label><span>Tenant</span><select id="job-tenant-id"></select></label>
+            <label><span>Job Type</span>
+              <select id="job-type">
+                <option value="provision_environment">Provision Environment</option>
+                <option value="issue_setup_token">Issue Setup Token</option>
+              </select>
+            </label>
+            <div id="provision-fields" class="inline-fields">
+              <label><span>Release Version</span><input id="job-release-version"></label>
+              <label><span>App Host</span><input id="job-app-host"></label>
+              <label><span>Web Host</span><input id="job-web-host"></label>
+              <label><span>DB Host</span><input id="job-db-host"></label>
+              <label><span>DB Name</span><input id="job-db-name"></label>
+            </div>
+            <div id="setup-fields" class="inline-fields hidden">
+              <label><span>TTL Hours</span><input id="job-ttl-hours" type="number" min="1" max="48" value="2"></label>
+              <label><span>Delivered Via</span><input id="job-delivered-via" value="operator_console"></label>
+              <label><span>Notes</span><input id="job-notes"></label>
+            </div>
+            <label><span>Idempotency Key</span><input id="job-idempotency-key"></label>
+            <button type="submit" class="primary-btn">Queue Job</button>
+          </form>
+          <div id="job-list" class="record-list"></div>
+          <div id="job-detail" class="detail-card hidden"></div>
+        </article>
+      </section>
     </section>
   </main>
   <script src="app.js"></script>

@@ -9,7 +9,7 @@
     "db:migrate": "node src/scripts/migrate.js",
     "db:import-state": "node src/scripts/import-state.js",
     "db:migrate:pg": "node src/scripts/migrate-postgres.js",
-    "db:seed:pg-admin": "node src/scripts/seed-postgres-admin.js"
+    "db:create-setup-token": "node src/scripts/create-setup-token.js"
   },
   "dependencies": {
     "dotenv": "^16.6.1",

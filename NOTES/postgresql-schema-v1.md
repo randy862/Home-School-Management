@@ -23,6 +23,9 @@ Define the target production data model for the first hosted single-tenant relea
   - `created_at`
   - `updated_at`
   - `last_login_at`
+- `user_sessions`
+- `setup_tokens`
+- `app_runtime_state`
 
 ### Academic Structure
 - `students`
@@ -95,6 +98,15 @@ Define the target production data model for the first hosted single-tenant relea
 - Stores application users and role assignments.
 - Must become backend-owned for security.
 
+### `user_sessions`
+- Stores server-owned session records for hosted auth.
+
+### `setup_tokens`
+- Stores one-time hashed setup tokens for first-run admin initialization.
+
+### `app_runtime_state`
+- Stores singleton runtime flags such as hosted setup completion state.
+
 ## Migration Guidance
 - Preserve current string IDs during Phase 1 to reduce migration friction.
 - Prefer additive migration steps over one-time destructive conversions.
@@ -103,6 +115,7 @@ Define the target production data model for the first hosted single-tenant relea
 
 ## API Mapping Direction
 - `users` <-> auth, admin user management
+- `setup_tokens`, `app_runtime_state` <-> first-run hosted initialization
 - `students` <-> student management and reporting
 - `subjects`, `courses`, `enrollments` <-> curriculum and roster management
 - `school_years`, `quarters`, `holidays`, `daily_breaks`, `plans` <-> scheduling/calendar
