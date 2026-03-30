@@ -7,7 +7,10 @@ async function main() {
       SELECT
         id,
         username,
+        first_name AS "firstName",
+        last_name AS "lastName",
         role,
+        permissions_json AS permissions,
         is_active AS "isActive",
         created_at AS "createdAt",
         last_login_at AS "lastLoginAt"

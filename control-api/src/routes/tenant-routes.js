@@ -1,5 +1,5 @@
 const { randomUUID } = require("crypto");
-const { ensureAuthenticated, ensurePlatformAdmin } = require("./route-auth");
+const { ensureAuthenticated, ensurePermission } = require("./route-auth");
 
 function registerTenantRoutes(app, deps) {
   const {
@@ -20,7 +20,7 @@ function registerTenantRoutes(app, deps) {
   });
 
   app.post("/api/control/tenants", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageCustomers", "Manage Customers permission required")) return;
 
     try {
       const tenant = await createTenant(normalizeCreateTenantPayload(req.body), {
@@ -48,7 +48,7 @@ function registerTenantRoutes(app, deps) {
   });
 
   app.patch("/api/control/tenants/:id", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageCustomers", "Manage Customers permission required")) return;
 
     try {
       const tenant = await updateTenant(req.params.id, normalizeUpdateTenantPayload(req.body), {

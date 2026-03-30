@@ -1,18 +1,26 @@
 const { getPostgresPool } = require("./postgres-db");
 const { randomUUID } = require("crypto");
+const { normalizeOperatorPermissions, deriveOperatorAccountType } = require("./auth-service");
 
 function mapOperatorRow(row) {
   if (!row) return null;
+  const permissions = normalizeOperatorPermissions(row.permissions ?? row.permissions_json ?? {}, row.role);
   return {
     id: row.id,
     username: row.username,
+    firstName: row.firstName ?? row.first_name ?? "",
+    lastName: row.lastName ?? row.last_name ?? "",
     role: row.role,
-    isActive: row.is_active,
+    permissions,
+    accountType: deriveOperatorAccountType(permissions),
+    isActive: row.isActive ?? row.is_active,
     passwordHash: row.password_hash,
     passwordSalt: row.password_salt,
     passwordAlgorithm: row.password_algorithm,
     passwordIterations: row.password_iterations,
-    lastLoginAt: row.last_login_at
+    lastLoginAt: row.lastLoginAt ?? row.last_login_at,
+    createdAt: row.createdAt ?? row.created_at ?? null,
+    updatedAt: row.updatedAt ?? row.updated_at ?? null
   };
 }
 
@@ -81,13 +89,18 @@ async function getOperatorByUsername(username) {
     SELECT
       id,
       username,
+      first_name,
+      last_name,
       role,
+      permissions_json,
       is_active,
       password_hash,
       password_salt,
       password_algorithm,
       password_iterations,
-      last_login_at
+      last_login_at,
+      created_at,
+      updated_at
     FROM operator_users
     WHERE lower(username) = lower($1)
       AND is_active = TRUE
@@ -115,34 +128,45 @@ async function createBootstrapOperator(user) {
       INSERT INTO operator_users (
         id,
         username,
+        first_name,
+        last_name,
         password_hash,
         password_salt,
         password_algorithm,
         password_iterations,
         role,
+        permissions_json,
         is_active,
         created_at,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, TRUE, NOW(), NOW())
       RETURNING
         id,
         username,
+        first_name,
+        last_name,
         role,
+        permissions_json,
         is_active,
         password_hash,
         password_salt,
         password_algorithm,
         password_iterations,
-        last_login_at
+        last_login_at,
+        created_at,
+        updated_at
     `, [
       user.id,
       user.username,
+      user.firstName || null,
+      user.lastName || null,
       user.passwordHash,
       user.passwordSalt,
       user.passwordAlgorithm,
       user.passwordIterations,
-      user.role
+      user.role,
+      JSON.stringify(normalizeOperatorPermissions(user.permissions, user.role))
     ]);
 
     await client.query(`
@@ -177,13 +201,18 @@ async function getOperatorSessionByTokenHash(tokenHash) {
       s.expires_at,
       u.id,
       u.username,
+      u.first_name,
+      u.last_name,
       u.role,
+      u.permissions_json,
       u.is_active,
       u.password_hash,
       u.password_salt,
       u.password_algorithm,
       u.password_iterations,
-      u.last_login_at
+      u.last_login_at,
+      u.created_at,
+      u.updated_at
     FROM operator_sessions s
     JOIN operator_users u ON u.id = s.operator_user_id
     WHERE s.session_token_hash = $1
@@ -220,6 +249,198 @@ async function updateOperatorLastLogin(userId) {
         updated_at = NOW()
     WHERE id = $1
   `, [userId]);
+}
+
+async function listOperators() {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      username,
+      first_name,
+      last_name,
+      role,
+      permissions_json,
+      is_active,
+      last_login_at,
+      created_at,
+      updated_at
+    FROM operator_users
+    ORDER BY created_at ASC
+  `);
+  return result.rows.map(mapOperatorRow);
+}
+
+async function getOperatorById(id) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      username,
+      first_name,
+      last_name,
+      role,
+      permissions_json,
+      is_active,
+      password_hash,
+      password_salt,
+      password_algorithm,
+      password_iterations,
+      last_login_at,
+      created_at,
+      updated_at
+    FROM operator_users
+    WHERE id = $1
+    LIMIT 1
+  `, [id]);
+  return mapOperatorRow(result.rows[0]);
+}
+
+async function createOperatorUser(user, context = {}) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    INSERT INTO operator_users (
+      id,
+      username,
+      first_name,
+      last_name,
+      password_hash,
+      password_salt,
+      password_algorithm,
+      password_iterations,
+      role,
+      permissions_json,
+      is_active,
+      created_at,
+      updated_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, NOW(), NOW())
+    RETURNING
+      id,
+      username,
+      first_name,
+      last_name,
+      role,
+      permissions_json,
+      is_active,
+      last_login_at,
+      created_at,
+      updated_at
+  `, [
+    user.id,
+    user.username,
+    user.firstName || null,
+    user.lastName || null,
+    user.passwordHash,
+    user.passwordSalt,
+    user.passwordAlgorithm,
+    user.passwordIterations,
+    user.role || "support_operator",
+    JSON.stringify(normalizeOperatorPermissions(user.permissions, user.role || "support_operator")),
+    user.isActive !== false
+  ]);
+
+  const created = mapOperatorRow(result.rows[0]);
+  await pool.query(`
+    INSERT INTO operator_audit_log (operator_user_id, action_type, target_type, target_id, details_json)
+    VALUES ($1, 'create_operator_user', 'operator_user', $2, $3::jsonb)
+  `, [
+    context.operatorUserId || null,
+    created.id,
+    JSON.stringify({
+      username: created.username,
+      firstName: created.firstName,
+      lastName: created.lastName,
+      accountType: created.accountType,
+      permissions: created.permissions,
+      isActive: created.isActive
+    })
+  ]);
+
+  return created;
+}
+
+async function updateOperatorUser(id, updates, context = {}) {
+  const pool = getPostgresPool();
+  const existing = await getOperatorById(id);
+  if (!existing) return null;
+
+  const role = updates.role || existing.role || "support_operator";
+  const permissions = normalizeOperatorPermissions(
+    updates.permissions != null ? updates.permissions : existing.permissions,
+    role
+  );
+  const passwordUpdates = updates.passwordHash
+    ? {
+        passwordHash: updates.passwordHash,
+        passwordSalt: updates.passwordSalt,
+        passwordAlgorithm: updates.passwordAlgorithm,
+        passwordIterations: updates.passwordIterations
+      }
+    : {
+        passwordHash: existing.passwordHash,
+        passwordSalt: existing.passwordSalt,
+        passwordAlgorithm: existing.passwordAlgorithm,
+        passwordIterations: existing.passwordIterations
+      };
+
+  const result = await pool.query(`
+    UPDATE operator_users
+    SET username = $2,
+        first_name = $3,
+        last_name = $4,
+        password_hash = $5,
+        password_salt = $6,
+        password_algorithm = $7,
+        password_iterations = $8,
+        role = $9,
+        permissions_json = $10::jsonb,
+        is_active = $11,
+        updated_at = NOW()
+    WHERE id = $1
+    RETURNING
+      id,
+      username,
+      first_name,
+      last_name,
+      role,
+      permissions_json,
+      is_active,
+      last_login_at,
+      created_at,
+      updated_at
+  `, [
+    id,
+    updates.username || existing.username,
+    updates.firstName != null ? updates.firstName : existing.firstName,
+    updates.lastName != null ? updates.lastName : existing.lastName,
+    passwordUpdates.passwordHash,
+    passwordUpdates.passwordSalt,
+    passwordUpdates.passwordAlgorithm,
+    passwordUpdates.passwordIterations,
+    role,
+    JSON.stringify(permissions),
+    updates.isActive != null ? !!updates.isActive : existing.isActive
+  ]);
+
+  const updated = mapOperatorRow(result.rows[0]);
+  await pool.query(`
+    INSERT INTO operator_audit_log (operator_user_id, action_type, target_type, target_id, details_json)
+    VALUES ($1, 'update_operator_user', 'operator_user', $2, $3::jsonb)
+  `, [
+    context.operatorUserId || null,
+    updated.id,
+    JSON.stringify({
+      username: updated.username,
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+      accountType: updated.accountType,
+      permissions: updated.permissions,
+      isActive: updated.isActive
+    })
+  ]);
+
+  return updated;
 }
 
 async function listTenants() {
@@ -1971,14 +2192,17 @@ module.exports = {
   completeTenantLifecycleJob,
   countOperators,
   createBootstrapOperator,
+  createOperatorUser,
   createOperatorSession,
   createTenant,
   createTenantEnvironment,
+  getOperatorById,
   getOperatorByUsername,
   getOperatorSessionByTokenHash,
   getProvisioningJobById,
   getTenantById,
   getTenantEnvironmentById,
+  listOperators,
   listOperatorAuditLog,
   listSetupSyncCandidates,
   listProvisioningJobEvents,
@@ -1993,5 +2217,6 @@ module.exports = {
   revokeOperatorSessionByTokenHash,
   scheduleProvisioningJobRetry,
   updateOperatorLastLogin,
+  updateOperatorUser,
   updateTenant
 };

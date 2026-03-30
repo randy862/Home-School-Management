@@ -3,13 +3,15 @@ const state = {
   apiBase: DEFAULT_API_BASE,
   setupInitialized: null,
   operator: null,
+  users: [],
   tenants: [],
   environments: [],
   jobs: [],
   activeWorkspace: "tenants",
   selectedTenantId: "",
   selectedEnvironmentId: "",
-  selectedJobId: ""
+  selectedJobId: "",
+  selectedUserId: ""
 };
 
 const refs = {
@@ -23,9 +25,11 @@ const refs = {
   tabTenants: document.getElementById("tab-tenants"),
   tabEnvironments: document.getElementById("tab-environments"),
   tabJobs: document.getElementById("tab-jobs"),
+  tabUsers: document.getElementById("tab-users"),
   workspaceTenants: document.getElementById("workspace-tenants"),
   workspaceEnvironments: document.getElementById("workspace-environments"),
   workspaceJobs: document.getElementById("workspace-jobs"),
+  workspaceUsers: document.getElementById("workspace-users"),
   customerCount: document.getElementById("customer-count"),
   customerSummary: document.getElementById("customer-summary"),
   activeCustomerCount: document.getElementById("active-customer-count"),
@@ -42,15 +46,22 @@ const refs = {
   environmentList: document.getElementById("environment-list"),
   jobPanelHead: document.getElementById("job-panel-head"),
   jobList: document.getElementById("job-list"),
+  userPanelHead: document.getElementById("user-panel-head"),
+  userList: document.getElementById("user-list"),
   environmentFormShell: document.getElementById("environment-form-shell"),
   environmentDetail: document.getElementById("environment-detail"),
   jobFormShell: document.getElementById("job-form-shell"),
   jobDetail: document.getElementById("job-detail"),
+  userDetailShell: document.getElementById("user-detail-shell"),
+  userDetailBody: document.getElementById("user-detail-body"),
+  userFormShell: document.getElementById("user-form-shell"),
   tenantFormShell: document.getElementById("tenant-form-shell"),
   tenantFormTitle: document.getElementById("tenant-form-title"),
   tenantForm: document.getElementById("tenant-form"),
   environmentForm: document.getElementById("environment-form"),
   jobForm: document.getElementById("job-form"),
+  userFormTitle: document.getElementById("user-form-title"),
+  userForm: document.getElementById("user-form"),
   bootstrapForm: document.getElementById("bootstrap-form"),
   loginForm: document.getElementById("login-form"),
   refreshBtn: document.getElementById("refresh-btn"),
@@ -71,6 +82,16 @@ const refs = {
   tenantContactName: document.getElementById("tenant-contact-name"),
   tenantContactEmail: document.getElementById("tenant-contact-email"),
   tenantNotes: document.getElementById("tenant-notes"),
+  userEditId: document.getElementById("user-edit-id"),
+  userUsername: document.getElementById("user-username"),
+  userFirstName: document.getElementById("user-first-name"),
+  userLastName: document.getElementById("user-last-name"),
+  userPassword: document.getElementById("user-password"),
+  userIsActive: document.getElementById("user-is-active"),
+  userPermissionCustomers: document.getElementById("user-permission-customers"),
+  userPermissionEnvironments: document.getElementById("user-permission-environments"),
+  userPermissionOperations: document.getElementById("user-permission-operations"),
+  userPermissionUsers: document.getElementById("user-permission-users"),
   tenantSubmitBtn: document.getElementById("tenant-submit-btn"),
   tenantResetBtn: document.getElementById("tenant-reset-btn"),
   tenantOpenCreateBtn: document.getElementById("tenant-open-create-btn"),
@@ -79,7 +100,12 @@ const refs = {
   environmentOpenCreateBtn: document.getElementById("environment-open-create-btn"),
   environmentResetBtn: document.getElementById("environment-reset-btn"),
   jobOpenCreateBtn: document.getElementById("job-open-create-btn"),
-  jobResetBtn: document.getElementById("job-reset-btn")
+  jobResetBtn: document.getElementById("job-reset-btn"),
+  userSubmitBtn: document.getElementById("user-submit-btn"),
+  userResetBtn: document.getElementById("user-reset-btn"),
+  userOpenCreateBtn: document.getElementById("user-open-create-btn"),
+  userDetailEditBtn: document.getElementById("user-detail-edit-btn"),
+  userDetailCloseBtn: document.getElementById("user-detail-close-btn")
 };
 
 function apiUrl(path) {
@@ -122,6 +148,16 @@ function setSessionState(title, detail) {
   if (refs.operatorMeta && !state.operator) refs.operatorMeta.textContent = detail;
 }
 
+function operatorPermissions() {
+  return state.operator?.permissions || {};
+}
+
+function canManage(permission) {
+  if (!state.operator) return false;
+  if (state.operator.role === "platform_admin") return true;
+  return !!operatorPermissions()[permission];
+}
+
 function renderAuthState() {
   const initialized = state.setupInitialized;
   const operator = state.operator;
@@ -144,12 +180,16 @@ function renderAuthState() {
 function renderOperator() {
   if (!state.operator) return;
   refs.operatorName.textContent = state.operator.username;
-  refs.operatorMeta.textContent = `${state.operator.role} | ${state.operator.isActive ? "active" : "inactive"}`;
+  refs.operatorMeta.textContent = `${state.operator.accountType || state.operator.role} | ${state.operator.isActive ? "active" : "inactive"}`;
   refs.operatorSessionBadge.textContent = state.operator.isActive ? "Signed In" : "Inactive";
-  const isPlatformAdmin = state.operator.role === "platform_admin";
-  refs.tenantForm.classList.toggle("hidden", !isPlatformAdmin);
-  refs.environmentForm.classList.toggle("hidden", !isPlatformAdmin);
-  refs.jobForm.classList.toggle("hidden", !isPlatformAdmin);
+  refs.tenantForm.classList.toggle("hidden", !canManage("manageCustomers"));
+  refs.environmentForm.classList.toggle("hidden", !canManage("manageEnvironments"));
+  refs.jobForm.classList.toggle("hidden", !canManage("manageOperations"));
+  refs.userForm.classList.toggle("hidden", !canManage("manageUsers"));
+  refs.userOpenCreateBtn?.classList.toggle("hidden", !canManage("manageUsers"));
+  refs.tenantOpenCreateBtn?.classList.toggle("hidden", !canManage("manageCustomers"));
+  refs.environmentOpenCreateBtn?.classList.toggle("hidden", !canManage("manageEnvironments"));
+  refs.jobOpenCreateBtn?.classList.toggle("hidden", !canManage("manageOperations"));
   renderWorkspaceTabs();
 }
 
@@ -174,6 +214,7 @@ function renderLists() {
   refs.tenantList.innerHTML = renderTenantTable(state.tenants);
   refs.environmentList.innerHTML = renderEnvironmentTable(state.environments);
   refs.jobList.innerHTML = renderJobTable(state.jobs);
+  refs.userList.innerHTML = renderUserTable(state.users);
 
   populateSelect(refs.environmentTenantId, state.tenants, "id", (tenant) => `${tenant.displayName} (${tenant.slug})`);
   populateSelect(refs.jobTenantId, state.tenants, "id", (tenant) => `${tenant.displayName} (${tenant.slug})`, true);
@@ -339,6 +380,68 @@ function renderJobTable(jobs) {
   `;
 }
 
+function renderUserTable(users) {
+  if (!users.length) return '<div class="empty-state">No operator accounts recorded yet.</div>';
+  return `
+    <div class="table-shell">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Account Type</th>
+            <th>Status</th>
+            <th>Last Login</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${users.map((user) => `
+            <tr class="${user.id === state.selectedUserId ? "selected-row" : ""}">
+              <td>
+                <button type="button" class="text-link-btn" data-user-detail-id="${escapeHtml(user.id)}">${escapeHtml(user.username)}</button>
+              </td>
+              <td>${escapeHtml(user.firstName || "Not recorded")}</td>
+              <td>${escapeHtml(user.lastName || "Not recorded")}</td>
+              <td>${escapeHtml(user.accountType || "Read Only")}</td>
+              <td>${renderStatusTag(user.isActive ? "active" : "inactive", "tenant")}</td>
+              <td>${escapeHtml(formatDateTime(user.lastLoginAt) || "Never")}</td>
+              <td>
+                <div class="table-actions">
+                  <button type="button" class="secondary-btn table-action-btn" data-user-detail-id="${escapeHtml(user.id)}">Details</button>
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderUserDetail(user) {
+  refs.userDetailShell.classList.remove("hidden");
+  syncUserWorkspaceFocus();
+  refs.userDetailBody.innerHTML = `
+    <div class="compact-details">
+      ${renderDetailField("Username", user.username || "Not recorded")}
+      ${renderDetailField("First Name", user.firstName || "Not recorded")}
+      ${renderDetailField("Last Name", user.lastName || "Not recorded")}
+      ${renderDetailField("Account Type", user.accountType || "Read Only")}
+      ${renderDetailField("Status", user.isActive ? "Active" : "Inactive")}
+      ${renderDetailField("Last Login", formatDateTime(user.lastLoginAt) || "Never")}
+      ${renderDetailField("Created", formatDateTime(user.createdAt))}
+      ${renderDetailField("Updated", formatDateTime(user.updatedAt))}
+      ${renderDetailField("Manage Customers", user.permissions?.manageCustomers ? "Yes" : "No")}
+      ${renderDetailField("Manage Environments", user.permissions?.manageEnvironments ? "Yes" : "No")}
+      ${renderDetailField("Manage Operations", user.permissions?.manageOperations ? "Yes" : "No")}
+      ${renderDetailField("Manage Users", user.permissions?.manageUsers ? "Yes" : "No")}
+    </div>
+  `;
+  refs.userDetailEditBtn?.classList.toggle("hidden", !canManage("manageUsers"));
+}
+
 function renderEnvironmentDetail(environment) {
   if (!environment) {
     refs.environmentDetail.classList.add("hidden");
@@ -494,9 +597,11 @@ function renderWorkspaceTabs() {
   refs.tabTenants?.classList.toggle("active", active === "tenants");
   refs.tabEnvironments?.classList.toggle("active", active === "environments");
   refs.tabJobs?.classList.toggle("active", active === "jobs");
+  refs.tabUsers?.classList.toggle("active", active === "users");
   refs.workspaceTenants?.classList.toggle("hidden", active !== "tenants");
   refs.workspaceEnvironments?.classList.toggle("hidden", active !== "environments");
   refs.workspaceJobs?.classList.toggle("hidden", active !== "jobs");
+  refs.workspaceUsers?.classList.toggle("hidden", active !== "users");
 }
 
 function setActiveWorkspace(workspace) {
@@ -523,6 +628,11 @@ function bindRecordClicks() {
   refs.jobList.querySelectorAll("[data-job-detail-id]").forEach((element) => {
     element.addEventListener("click", async () => {
       await loadJobDetail(element.getAttribute("data-job-detail-id"));
+    });
+  });
+  refs.userList.querySelectorAll("[data-user-detail-id]").forEach((element) => {
+    element.addEventListener("click", async () => {
+      await loadUserDetail(element.getAttribute("data-user-detail-id"));
     });
   });
 }
@@ -630,6 +740,13 @@ function syncJobWorkspaceFocus() {
   refs.jobList.classList.toggle("hidden", detailOpen || formOpen);
 }
 
+function syncUserWorkspaceFocus() {
+  const detailOpen = !refs.userDetailShell.classList.contains("hidden");
+  const formOpen = !refs.userFormShell.classList.contains("hidden");
+  refs.userPanelHead.classList.toggle("hidden", detailOpen || formOpen);
+  refs.userList.classList.toggle("hidden", detailOpen || formOpen);
+}
+
 function resetEnvironmentForm() {
   refs.environmentForm.reset();
   refs.environmentFormShell.classList.add("hidden");
@@ -666,6 +783,66 @@ function openCreateJobForm() {
   refs.jobFormShell.classList.remove("hidden");
   refs.jobForm.classList.remove("hidden");
   syncJobWorkspaceFocus();
+}
+
+function fillUserFormForEdit(user) {
+  refs.userFormShell.classList.remove("hidden");
+  refs.userForm.classList.remove("hidden");
+  refs.userDetailShell.classList.add("hidden");
+  refs.userDetailBody.innerHTML = "";
+  refs.userFormTitle.textContent = "Edit User";
+  refs.userEditId.value = user.id;
+  refs.userUsername.value = user.username || "";
+  refs.userFirstName.value = user.firstName || "";
+  refs.userLastName.value = user.lastName || "";
+  refs.userPassword.value = "";
+  refs.userPassword.placeholder = "Leave blank to keep current password";
+  refs.userIsActive.checked = user.isActive !== false;
+  refs.userPermissionCustomers.checked = !!user.permissions?.manageCustomers;
+  refs.userPermissionEnvironments.checked = !!user.permissions?.manageEnvironments;
+  refs.userPermissionOperations.checked = !!user.permissions?.manageOperations;
+  refs.userPermissionUsers.checked = !!user.permissions?.manageUsers;
+  refs.userSubmitBtn.textContent = "Save User";
+  syncUserWorkspaceFocus();
+}
+
+function resetUserForm() {
+  refs.userForm.reset();
+  refs.userDetailShell.classList.add("hidden");
+  refs.userDetailBody.innerHTML = "";
+  refs.userFormShell.classList.add("hidden");
+  refs.userForm.classList.add("hidden");
+  refs.userFormTitle.textContent = "New User";
+  refs.userEditId.value = "";
+  refs.userPassword.placeholder = "";
+  refs.userIsActive.checked = true;
+  refs.userSubmitBtn.textContent = "Create User";
+  state.selectedUserId = "";
+  syncUserWorkspaceFocus();
+  renderLists();
+}
+
+function openCreateUserForm() {
+  resetUserForm();
+  refs.userFormShell.classList.remove("hidden");
+  refs.userForm.classList.remove("hidden");
+  refs.userFormTitle.textContent = "New User";
+  syncUserWorkspaceFocus();
+}
+
+async function loadUserDetail(userId, silent = false) {
+  state.selectedUserId = userId;
+  renderLists();
+  refs.userFormShell.classList.add("hidden");
+  refs.userForm.classList.add("hidden");
+  syncUserWorkspaceFocus();
+  try {
+    const user = await apiFetch(`/api/control/operators/${encodeURIComponent(userId)}`);
+    renderUserDetail(user);
+    if (!silent) setFlash("info", `Loaded user ${user.username}.`);
+  } catch (error) {
+    setFlash("error", error.message);
+  }
 }
 
 async function loadEnvironmentDetail(environmentId, silent = false) {
@@ -715,6 +892,7 @@ async function bootstrap() {
   bindEvents();
   syncJobFormMode();
   resetTenantForm();
+  resetUserForm();
   renderWorkspaceTabs();
   await refreshSession();
 }
@@ -753,13 +931,21 @@ async function refreshData(showFlash = true) {
   if (!state.operator) return;
   if (showFlash) setFlash("info", "Refreshing control-plane data...");
   const results = await Promise.allSettled([
+    apiFetch("/api/control/operators"),
     apiFetch("/api/control/tenants"),
     apiFetch("/api/control/environments"),
     apiFetch("/api/control/jobs")
   ]);
 
-  const [tenantResult, environmentResult, jobResult] = results;
+  const [userResult, tenantResult, environmentResult, jobResult] = results;
   const failures = [];
+
+  if (userResult.status === "fulfilled") {
+    state.users = Array.isArray(userResult.value) ? userResult.value : [];
+  } else {
+    state.users = [];
+    failures.push(`users: ${userResult.reason.message}`);
+  }
 
   if (tenantResult.status === "fulfilled") {
     state.tenants = Array.isArray(tenantResult.value) ? tenantResult.value : [];
@@ -787,6 +973,7 @@ async function refreshData(showFlash = true) {
   syncJobFormMode();
   if (state.selectedEnvironmentId) await loadEnvironmentDetail(state.selectedEnvironmentId, true);
   if (state.selectedJobId) await loadJobDetail(state.selectedJobId, true);
+  if (state.selectedUserId) await loadUserDetail(state.selectedUserId, true);
 
   if (failures.length) {
     setFlash("error", `Some data could not be loaded: ${failures.join("; ")}`);
@@ -842,15 +1029,18 @@ function bindEvents() {
     try {
       await apiFetch("/api/operator/auth/logout", { method: "POST", body: JSON.stringify({}) });
       state.operator = null;
+      state.users = [];
       state.tenants = [];
       state.environments = [];
       state.jobs = [];
       state.selectedTenantId = "";
       state.selectedEnvironmentId = "";
       state.selectedJobId = "";
+      state.selectedUserId = "";
       renderEnvironmentDetail(null);
       renderJobDetail(null);
       resetTenantForm();
+      resetUserForm();
       renderLists();
       renderAuthState();
       setFlash("success", "Signed out.");
@@ -866,6 +1056,7 @@ function bindEvents() {
   refs.tabTenants?.addEventListener("click", () => setActiveWorkspace("tenants"));
   refs.tabEnvironments?.addEventListener("click", () => setActiveWorkspace("environments"));
   refs.tabJobs?.addEventListener("click", () => setActiveWorkspace("jobs"));
+  refs.tabUsers?.addEventListener("click", () => setActiveWorkspace("users"));
 
   refs.tenantResetBtn?.addEventListener("click", () => {
     resetTenantForm();
@@ -897,6 +1088,16 @@ function bindEvents() {
     setFlash("info", "Job form closed.");
   });
 
+  refs.userOpenCreateBtn?.addEventListener("click", () => {
+    openCreateUserForm();
+    setFlash(null, "");
+  });
+
+  refs.userResetBtn?.addEventListener("click", () => {
+    resetUserForm();
+    setFlash(null, "");
+  });
+
   refs.tenantDetailEditBtn?.addEventListener("click", async () => {
     if (!state.selectedTenantId) return;
     await selectTenant(state.selectedTenantId);
@@ -907,6 +1108,21 @@ function bindEvents() {
     refs.tenantDetailBody.innerHTML = "";
     state.selectedTenantId = "";
     syncTenantWorkspaceFocus();
+    renderLists();
+    setFlash(null, "");
+  });
+
+  refs.userDetailEditBtn?.addEventListener("click", async () => {
+    if (!state.selectedUserId) return;
+    const user = await apiFetch(`/api/control/operators/${encodeURIComponent(state.selectedUserId)}`);
+    fillUserFormForEdit(user);
+  });
+
+  refs.userDetailCloseBtn?.addEventListener("click", () => {
+    refs.userDetailShell.classList.add("hidden");
+    refs.userDetailBody.innerHTML = "";
+    state.selectedUserId = "";
+    syncUserWorkspaceFocus();
     renderLists();
     setFlash(null, "");
   });
@@ -1009,6 +1225,32 @@ function bindEvents() {
     }
   });
 
+  refs.userForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const editId = refs.userEditId.value.trim();
+    const creating = !editId;
+    try {
+      const body = {
+        username: refs.userUsername.value.trim(),
+        firstName: refs.userFirstName.value.trim(),
+        lastName: refs.userLastName.value.trim(),
+        password: refs.userPassword.value,
+        isActive: refs.userIsActive.checked,
+        permissions: collectUserPermissions()
+      };
+      if (creating) {
+        await apiFetch("/api/control/operators", { method: "POST", body: JSON.stringify(body) });
+      } else {
+        await apiFetch(`/api/control/operators/${encodeURIComponent(editId)}`, { method: "PATCH", body: JSON.stringify(body) });
+      }
+      resetUserForm();
+      setActiveWorkspace("users");
+      await refreshData(false);
+    } catch (error) {
+      setFlash("error", error.message);
+    }
+  });
+
   refs.jobType?.addEventListener("change", syncJobFormMode);
 }
 
@@ -1016,6 +1258,15 @@ function syncJobFormMode() {
   const isSetup = refs.jobType?.value === "issue_setup_token";
   refs.provisionFields?.classList.toggle("hidden", isSetup);
   refs.setupFields?.classList.toggle("hidden", !isSetup);
+}
+
+function collectUserPermissions() {
+  return {
+    manageCustomers: !!refs.userPermissionCustomers?.checked,
+    manageEnvironments: !!refs.userPermissionEnvironments?.checked,
+    manageOperations: !!refs.userPermissionOperations?.checked,
+    manageUsers: !!refs.userPermissionUsers?.checked
+  };
 }
 
 function renderStatusTag(value, kind = "neutral") {

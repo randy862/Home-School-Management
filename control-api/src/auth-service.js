@@ -76,12 +76,57 @@ function clearSessionCookie(name, options = {}) {
   return serializeSessionCookie(name, "", { ...options, maxAge: 0 });
 }
 
+function normalizeOperatorPermissions(input, role = "support_operator") {
+  const source = input && typeof input === "object" ? input : {};
+  const normalized = {
+    manageCustomers: !!source.manageCustomers,
+    manageEnvironments: !!source.manageEnvironments,
+    manageOperations: !!source.manageOperations,
+    manageUsers: !!source.manageUsers
+  };
+
+  if (role === "platform_admin" && !Object.values(normalized).some(Boolean)) {
+    return {
+      manageCustomers: true,
+      manageEnvironments: true,
+      manageOperations: true,
+      manageUsers: true
+    };
+  }
+  return normalized;
+}
+
+function deriveOperatorAccountType(permissions = {}) {
+  const normalized = normalizeOperatorPermissions(permissions);
+  const enabled = Object.entries(normalized)
+    .filter(([, value]) => value)
+    .map(([key]) => key);
+  if (enabled.length === 4) return "Super Admin";
+  if (!enabled.length) return "Read Only";
+  if (normalized.manageUsers && enabled.length === 1) return "User Admin";
+  if (normalized.manageCustomers && normalized.manageEnvironments && !normalized.manageOperations && !normalized.manageUsers) {
+    return "Customer and Environment Admin";
+  }
+  if (normalized.manageCustomers && !normalized.manageEnvironments && !normalized.manageOperations && !normalized.manageUsers) return "Customer Admin";
+  if (normalized.manageEnvironments && !normalized.manageCustomers && !normalized.manageOperations && !normalized.manageUsers) return "Environment Admin";
+  if (normalized.manageOperations && !normalized.manageCustomers && !normalized.manageEnvironments && !normalized.manageUsers) return "Operations Admin";
+  return enabled
+    .map((key) => key.replace(/^manage/, ""))
+    .map((value) => value.replace(/([A-Z])/g, " $1").trim())
+    .join(" + ");
+}
+
 function mapOperatorSummary(user) {
   if (!user) return null;
+  const permissions = normalizeOperatorPermissions(user.permissions, user.role);
   return {
     id: user.id,
     username: user.username,
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
     role: user.role,
+    permissions,
+    accountType: deriveOperatorAccountType(permissions),
     isActive: !!user.isActive
   };
 }
@@ -91,7 +136,9 @@ module.exports = {
   createSessionToken,
   hashPassword,
   hashSessionToken,
+  deriveOperatorAccountType,
   mapOperatorSummary,
+  normalizeOperatorPermissions,
   parseCookies,
   serializeSessionCookie,
   verifyPassword

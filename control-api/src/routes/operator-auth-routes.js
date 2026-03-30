@@ -1,6 +1,7 @@
 const {
   clearSessionCookie,
   createSessionToken,
+  normalizeOperatorPermissions,
   hashPassword,
   hashSessionToken,
   mapOperatorSummary,
@@ -120,7 +121,10 @@ async function normalizeBootstrapPayload(input) {
     user: {
       id: `operator-${createSessionToken()}`,
       username,
+      firstName: "",
+      lastName: "",
       role: "platform_admin",
+      permissions: normalizeOperatorPermissions({}, "platform_admin"),
       ...credentials
     }
   };

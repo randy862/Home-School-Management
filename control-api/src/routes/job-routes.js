@@ -1,4 +1,4 @@
-const { ensureAuthenticated, ensurePlatformAdmin } = require("./route-auth");
+const { ensureAuthenticated, ensurePermission } = require("./route-auth");
 
 function registerJobRoutes(app, deps) {
   const { getProvisioningJobById, listProvisioningJobEvents, listProvisioningJobs, retryProvisioningJob } = deps;
@@ -32,7 +32,7 @@ function registerJobRoutes(app, deps) {
   });
 
   app.post("/api/control/jobs/:id/retry", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
       const job = await retryProvisioningJob(req.params.id, {

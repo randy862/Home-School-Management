@@ -92,6 +92,7 @@
               <button id="tab-tenants" class="tab-btn active" type="button">Customers</button>
               <button id="tab-environments" class="tab-btn" type="button">Environments</button>
               <button id="tab-jobs" class="tab-btn" type="button">Operations</button>
+              <button id="tab-users" class="tab-btn" type="button">User Management</button>
             </nav>
           </div>
         </aside>
@@ -236,10 +237,61 @@
           <div id="job-list"></div>
           <div id="job-detail" class="detail-card hidden"></div>
           </article>
+
+          <article id="workspace-users" class="panel tall-panel workspace-panel hidden">
+          <div id="user-panel-head" class="panel-head">
+            <div>
+              <h2>User Management</h2>
+              <p class="panel-copy">Manage authorized administrators, assign permissions, and keep every control-plane action tied to an individual account.</p>
+            </div>
+            <button id="user-open-create-btn" type="button" class="primary-btn">New User</button>
+          </div>
+          <div id="user-detail-shell" class="detail-card hidden">
+            <div class="detail-toolbar">
+              <div>
+                <strong>User Details</strong>
+                <p class="detail-copy">Review the selected operator account and its assigned control-plane privileges.</p>
+              </div>
+              <div class="operator-actions">
+                <button id="user-detail-edit-btn" type="button" class="secondary-btn">Edit</button>
+                <button id="user-detail-close-btn" type="button" class="secondary-btn">Close</button>
+              </div>
+            </div>
+            <div id="user-detail-body"></div>
+          </div>
+          <div id="user-form-shell" class="detail-card hidden">
+            <div class="detail-toolbar">
+              <div>
+                <strong id="user-form-title">New User</strong>
+                <p class="detail-copy">Create an individual administrator account and assign the permissions it should have in the control center.</p>
+              </div>
+            </div>
+            <form id="user-form" class="stack-form action-form hidden">
+              <input id="user-edit-id" type="hidden">
+              <label><span>Username</span><input id="user-username" required></label>
+              <label><span>First Name</span><input id="user-first-name"></label>
+              <label><span>Last Name</span><input id="user-last-name"></label>
+              <label><span>Password</span><input id="user-password" type="password" autocomplete="new-password"></label>
+              <label class="checkbox-field"><input id="user-is-active" type="checkbox" checked><span>Account is active</span></label>
+              <fieldset class="permissions-fieldset">
+                <legend>Privileges</legend>
+                <label class="checkbox-field"><input id="user-permission-customers" type="checkbox"><span>Create and modify customers</span></label>
+                <label class="checkbox-field"><input id="user-permission-environments" type="checkbox"><span>Create and modify environments</span></label>
+                <label class="checkbox-field"><input id="user-permission-operations" type="checkbox"><span>Queue and manage operations</span></label>
+                <label class="checkbox-field"><input id="user-permission-users" type="checkbox"><span>Create and modify admin users</span></label>
+              </fieldset>
+              <div class="operator-actions">
+                <button id="user-submit-btn" type="submit" class="primary-btn">Create User</button>
+                <button id="user-reset-btn" type="button" class="secondary-btn">Close</button>
+              </div>
+            </form>
+          </div>
+          <div id="user-list"></div>
+          </article>
         </section>
       </section>
     </section>
   </main>
-  <script src="app.js?v=202603290305"></script>
+  <script src="app.js?v=202603291130"></script>
 </body>
 </html>

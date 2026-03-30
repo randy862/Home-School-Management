@@ -1,5 +1,5 @@
 const { randomUUID } = require("crypto");
-const { ensureAuthenticated, ensurePlatformAdmin } = require("./route-auth");
+const { ensureAuthenticated, ensurePermission } = require("./route-auth");
 
 function registerEnvironmentRoutes(app, deps) {
   const {
@@ -36,7 +36,7 @@ function registerEnvironmentRoutes(app, deps) {
   });
 
   app.post("/api/control/tenants/:id/environments", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageEnvironments", "Manage Environments permission required")) return;
 
     try {
       const environment = await createTenantEnvironment(normalizeCreateEnvironmentPayload(req.body, req.params.id), {
@@ -49,7 +49,7 @@ function registerEnvironmentRoutes(app, deps) {
   });
 
   app.post("/api/control/environments/:id/provision", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
       const job = await queueProvisioningJob(normalizeProvisionJobPayload(req.body, req.params.id), {
@@ -62,7 +62,7 @@ function registerEnvironmentRoutes(app, deps) {
   });
 
   app.post("/api/control/environments/:id/deploy-release", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
       const job = await queueProvisioningJob(normalizeDeployReleaseJobPayload(req.body, req.params.id), {
@@ -75,7 +75,7 @@ function registerEnvironmentRoutes(app, deps) {
   });
 
   app.post("/api/control/environments/:id/setup-token", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
       const job = await queueProvisioningJob(normalizeSetupTokenJobPayload(req.body, req.params.id), {
@@ -88,7 +88,7 @@ function registerEnvironmentRoutes(app, deps) {
   });
 
   app.post("/api/control/environments/:id/suspend", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
       const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, req.params.id, "suspend_tenant", "Suspend tenant queued"), {
@@ -101,7 +101,7 @@ function registerEnvironmentRoutes(app, deps) {
   });
 
   app.post("/api/control/environments/:id/resume", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
       const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, req.params.id, "resume_tenant", "Resume tenant queued"), {
@@ -114,7 +114,7 @@ function registerEnvironmentRoutes(app, deps) {
   });
 
   app.post("/api/control/environments/:id/decommission", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
       const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, req.params.id, "decommission_tenant", "Decommission tenant queued"), {
@@ -127,7 +127,7 @@ function registerEnvironmentRoutes(app, deps) {
   });
 
   app.post("/api/control/environments/:id/sync-setup", async (req, res) => {
-    if (!ensurePlatformAdmin(req, res)) return;
+    if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
       const environment = await getTenantEnvironmentById(req.params.id);

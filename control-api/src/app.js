@@ -9,14 +9,17 @@ const {
   completeTenantLifecycleJob,
   countOperators,
   createBootstrapOperator,
+  createOperatorUser,
   createOperatorSession,
   createTenant,
   createTenantEnvironment,
+  getOperatorById,
   getOperatorByUsername,
   getOperatorSessionByTokenHash,
   getProvisioningJobById,
   getTenantById,
   getTenantEnvironmentById,
+  listOperators,
   listOperatorAuditLog,
   listSetupSyncCandidates,
   listProvisioningJobEvents,
@@ -31,6 +34,7 @@ const {
   resolveTenantRuntimeByHost,
   revokeOperatorSessionByTokenHash,
   updateOperatorLastLogin,
+  updateOperatorUser,
   updateTenant
 } = require("./postgres-operator-store");
 const { applyCors, createOperatorAuthContextMiddleware } = require("./middleware/auth-context");
@@ -40,6 +44,7 @@ const { registerEnvironmentRoutes } = require("./routes/environment-routes");
 const { registerInfraRoutes } = require("./routes/infra-routes");
 const { registerJobRoutes } = require("./routes/job-routes");
 const { registerOperatorAuthRoutes } = require("./routes/operator-auth-routes");
+const { registerOperatorUserRoutes } = require("./routes/operator-user-routes");
 const { registerRuntimeRoutes } = require("./routes/runtime-routes");
 const { registerTenantRoutes } = require("./routes/tenant-routes");
 const { startProvisioningWorker } = require("./provisioning-worker");
@@ -74,6 +79,12 @@ registerOperatorAuthRoutes(app, {
   revokeOperatorSessionByTokenHash,
   sessionConfig,
   updateOperatorLastLogin
+});
+registerOperatorUserRoutes(app, {
+  createOperatorUser,
+  getOperatorById,
+  listOperators,
+  updateOperatorUser
 });
 registerRuntimeRoutes(app, {
   internalConfig,
