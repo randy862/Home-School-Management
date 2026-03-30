@@ -139,6 +139,11 @@ Define how Home School Management moves from the current mixed bridge architectu
 - Move legacy `api/state` bridge into an isolated module.
 - Remove hosted transition code that is no longer needed.
 
+### Slice E Progress
+- `server/src/legacy/local-state-bridge.js` now owns the `readState` / `writeState` handoff for the transitional bridge.
+- `server/src/routes/state-routes.js` now presents `/api/state` explicitly as a legacy full-state path.
+- `web/app.js` now treats the bridge helpers as local-only synchronization utilities instead of generic hosted API bootstrap/save paths.
+
 ## Exit Criteria
 - `server/src/app.js` is primarily bootstrap and route registration.
 - Hosted production paths no longer rely on `readState()` or `writeState()`.

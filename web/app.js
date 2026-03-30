@@ -1,7 +1,7 @@
 const STORAGE_KEY = "hsm_state_v2";
 const IS_LOCAL_DEV_HOST = ["localhost", "127.0.0.1"].includes(window.location.hostname) && (window.location.port === "5500" || window.location.port === "");
 const API_BASE_URL = window.HSM_API_BASE_URL || (IS_LOCAL_DEV_HOST ? "http://localhost:3000" : window.location.origin);
-const API_STATE_ENDPOINT = `${API_BASE_URL}/api/state`;
+const LEGACY_STATE_BRIDGE_ENDPOINT = `${API_BASE_URL}/api/state`;
 const API_AUTH_LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login`;
 const API_AUTH_LOGOUT_ENDPOINT = `${API_BASE_URL}/api/auth/logout`;
 const API_ME_ENDPOINT = `${API_BASE_URL}/api/me`;
@@ -35,10 +35,14 @@ const DEFAULT_LETTER_GRADE_SCALE = [
   { label: "D", start: 60, end: 69 },
   { label: "F", start: 0, end: 59 }
 ];
-const DEFAULT_ADMIN_USERNAME = "admin";
-const DEFAULT_ADMIN_PASSWORD = "ChangeMe123!";
+const LEGACY_BOOTSTRAP_ADMIN_USERNAME = "admin";
+const LEGACY_BOOTSTRAP_ADMIN_PASSWORD = "ChangeMe123!";
 const STUDENT_ALLOWED_TABS = new Set(["dashboard", "calendar", "attendance", "grades"]);
 const HOSTED_MODE_STORAGE_KEY = "hsm_hosted_mode_v1";
+
+function isLegacyBridgeMode() {
+  return !hostedModeEnabled;
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -108,17 +112,17 @@ async function createUserRecord({ username, role, password, studentId = "", must
   };
 }
 
-function createBootstrapAdmin() {
+function createLegacyBootstrapAdmin() {
   return {
     id: "default-admin-user",
-    username: DEFAULT_ADMIN_USERNAME,
+    username: LEGACY_BOOTSTRAP_ADMIN_USERNAME,
     role: "admin",
     studentId: "",
     mustChangePassword: true,
     createdAt: todayISO(),
     updatedAt: todayISO(),
     passwordSalt: "",
-    passwordHash: createLegacyPasswordHash(DEFAULT_ADMIN_PASSWORD)
+    passwordHash: createLegacyPasswordHash(LEGACY_BOOTSTRAP_ADMIN_PASSWORD)
   };
 }
 
@@ -127,7 +131,7 @@ function normalizeUsersShape(inputState) {
   const studentIds = new Set((s.students || []).map((student) => student.id));
   let repairedDefaultAdmin = false;
   if (!Array.isArray(s.users) || !s.users.length) {
-    s.users = [createBootstrapAdmin()];
+    s.users = [createLegacyBootstrapAdmin()];
   } else {
     const seen = new Set();
     s.users = s.users
@@ -144,9 +148,9 @@ function normalizeUsersShape(inputState) {
           passwordSalt: user.passwordSalt || "",
           passwordHash: user.passwordHash || createLegacyPasswordHash("")
         };
-        if (normalized.id === "default-admin-user"
-          && normalized.username.toLowerCase() === DEFAULT_ADMIN_USERNAME
-          && normalized.passwordHash === createLegacyPasswordHash(DEFAULT_ADMIN_PASSWORD)
+        if (isLegacyBootstrapAdminUser(normalized)
+          && normalized.username.toLowerCase() === LEGACY_BOOTSTRAP_ADMIN_USERNAME
+          && normalized.passwordHash === createLegacyPasswordHash(LEGACY_BOOTSTRAP_ADMIN_PASSWORD)
           && normalized.passwordSalt) {
           normalized.passwordSalt = "";
           repairedDefaultAdmin = true;
@@ -157,10 +161,10 @@ function normalizeUsersShape(inputState) {
         return normalized;
       })
       .filter(Boolean);
-    if (!s.users.length) s.users = [createBootstrapAdmin()];
+    if (!s.users.length) s.users = [createLegacyBootstrapAdmin()];
   }
   if (!s.users.some((user) => user.role === "admin")) {
-    s.users.unshift(createBootstrapAdmin());
+    s.users.unshift(createLegacyBootstrapAdmin());
   }
   return repairedDefaultAdmin;
 }
@@ -219,7 +223,7 @@ function defaultState() {
     { id: uid(), schoolYearId, name: "Q4", startDate: `${y}-10-01`, endDate: `${y}-12-31` }
   ];
   return {
-    students: [], subjects: [], courses: [], enrollments: [], plans: [], attendance: [], tests: [], users: [createBootstrapAdmin()],
+    students: [], subjects: [], courses: [], enrollments: [], plans: [], attendance: [], tests: [], users: [createLegacyBootstrapAdmin()],
     settings: {
       schoolYear: { ...schoolYear },
       schoolYears: [schoolYear],
@@ -277,7 +281,7 @@ function normalizeEnrollmentsShape(inputState) {
     });
 }
 
-function mergeCoursesWithLocalState(remoteState, localState) {
+function mergeLegacyBridgeCoursesWithLocalState(remoteState, localState) {
   if (!remoteState || !Array.isArray(remoteState.courses) || !localState || !Array.isArray(localState.courses)) return false;
   let changed = false;
   const localCoursesById = new Map(
@@ -300,7 +304,7 @@ function mergeCoursesWithLocalState(remoteState, localState) {
   return changed;
 }
 
-function mergeEnrollmentsWithLocalState(remoteState, localState) {
+function mergeLegacyBridgeEnrollmentsWithLocalState(remoteState, localState) {
   if (!remoteState || !Array.isArray(remoteState.enrollments) || !localState || !Array.isArray(localState.enrollments)) return false;
   let changed = false;
   const localEnrollmentsById = new Map(
@@ -320,7 +324,7 @@ function mergeEnrollmentsWithLocalState(remoteState, localState) {
   return changed;
 }
 
-function mergeDailyBreaksWithLocalState(remoteState, localState) {
+function mergeLegacyBridgeDailyBreaksWithLocalState(remoteState, localState) {
   if (!remoteState?.settings || !localState?.settings) return false;
   const remoteDailyBreaks = Array.isArray(remoteState.settings.dailyBreaks) ? remoteState.settings.dailyBreaks : [];
   const localDailyBreaks = Array.isArray(localState.settings.dailyBreaks) ? localState.settings.dailyBreaks : [];
@@ -357,7 +361,7 @@ function mergeDailyBreaksWithLocalState(remoteState, localState) {
   return changed;
 }
 
-function mergeSchoolYearsWithLocalState(remoteState, localState) {
+function mergeLegacyBridgeSchoolYearsWithLocalState(remoteState, localState) {
   if (!remoteState?.settings || !localState?.settings) return false;
   const remoteSchoolYears = Array.isArray(remoteState.settings.schoolYears) ? remoteState.settings.schoolYears : [];
   const localSchoolYears = Array.isArray(localState.settings.schoolYears) ? localState.settings.schoolYears : [];
@@ -392,7 +396,7 @@ function mergeSchoolYearsWithLocalState(remoteState, localState) {
   return changed;
 }
 
-function mergeQuartersWithLocalState(remoteState, localState) {
+function mergeLegacyBridgeQuartersWithLocalState(remoteState, localState) {
   if (!remoteState?.settings || !localState?.settings) return false;
   const remoteQuarters = Array.isArray(remoteState.settings.allQuarters)
     ? remoteState.settings.allQuarters
@@ -424,7 +428,7 @@ function mergeQuartersWithLocalState(remoteState, localState) {
   return changed;
 }
 
-function mergeGradingCriteriaWithLocalState(remoteState, localState) {
+function mergeLegacyBridgeGradingCriteriaWithLocalState(remoteState, localState) {
   if (!remoteState?.settings || !localState?.settings?.gradingCriteria) return false;
   const remoteCriteria = remoteState.settings.gradingCriteria || {};
   const localCriteria = localState.settings.gradingCriteria;
@@ -612,20 +616,20 @@ function loadState() {
   }
 }
 
-async function fetchStateFromApi() {
-  const response = await fetch(API_STATE_ENDPOINT, { method: "GET", headers: { "Accept": "application/json" } });
-  if (!response.ok) throw new Error(`State fetch failed (${response.status})`);
+async function fetchLegacyBridgeState() {
+  const response = await fetch(LEGACY_STATE_BRIDGE_ENDPOINT, { method: "GET", headers: { "Accept": "application/json" } });
+  if (!response.ok) throw new Error(`Legacy bridge state fetch failed (${response.status})`);
   return response.json();
 }
 
-async function pushStateToApi(snapshot) {
-  const response = await fetch(API_STATE_ENDPOINT, {
+async function pushLegacyBridgeState(snapshot) {
+  const response = await fetch(LEGACY_STATE_BRIDGE_ENDPOINT, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(snapshot)
   });
   if (!response.ok) {
-    let message = `State save failed (${response.status})`;
+    let message = `Legacy bridge state save failed (${response.status})`;
     try {
       const payload = await response.json();
       if (payload && payload.error) message = payload.error;
@@ -636,16 +640,68 @@ async function pushStateToApi(snapshot) {
   }
 }
 
+function mergeLegacyBridgeRemoteState(remoteState, localState) {
+  const beforeUsers = JSON.stringify(remoteState.users || []);
+  normalizeSettingsShape(remoteState);
+  const schoolYearsChanged = mergeLegacyBridgeSchoolYearsWithLocalState(remoteState, localState);
+  const quartersChanged = mergeLegacyBridgeQuartersWithLocalState(remoteState, localState);
+  const coursesChanged = mergeLegacyBridgeCoursesWithLocalState(remoteState, localState);
+  const enrollmentsChanged = mergeLegacyBridgeEnrollmentsWithLocalState(remoteState, localState);
+  const dailyBreaksChanged = mergeLegacyBridgeDailyBreaksWithLocalState(remoteState, localState);
+  const gradingCriteriaChanged = mergeLegacyBridgeGradingCriteriaWithLocalState(remoteState, localState);
+  normalizeSettingsShape(remoteState);
+
+  return {
+    usersChanged: beforeUsers !== JSON.stringify(remoteState.users || []),
+    needsResave: schoolYearsChanged
+      || quartersChanged
+      || coursesChanged
+      || enrollmentsChanged
+      || dailyBreaksChanged
+      || gradingCriteriaChanged
+  };
+}
+
+function isLegacyBootstrapAdminUser(user) {
+  return !!user && user.id === "default-admin-user";
+}
+
+async function bootstrapFromLegacyBridge() {
+  const localState = state;
+  const remoteState = await fetchLegacyBridgeState();
+  if (!validState(remoteState)) return;
+
+  const mergeResult = mergeLegacyBridgeRemoteState(remoteState, localState);
+  state = remoteState;
+  if (!state.users.some((user) => user.id === currentUserId)) {
+    currentUserId = "";
+    saveSession();
+  }
+  setCurrentSchoolYear(state.settings.currentSchoolYearId);
+  if (backfillAttendanceToToday() || mergeResult.usersChanged || mergeResult.needsResave) saveState();
+  gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+  renderAll();
+}
+
+function runLegacyLocalStartupMaintenance() {
+  if (!isLegacyBridgeMode()) return false;
+  return backfillAttendanceToToday();
+}
+
+function shouldShowLegacyBootstrapAdminMessaging() {
+  return isLegacyBridgeMode() && state.users.some((entry) => isLegacyBootstrapAdminUser(entry));
+}
+
 let currentUserId = "";
 let currentTab = "dashboard";
 let state = loadState();
 loadSession();
 if (!state.users.some((user) => user.id === currentUserId)) currentUserId = "";
 setCurrentSchoolYear(state.settings.currentSchoolYearId);
-const startupBackfillChanged = backfillAttendanceToToday();
-let apiSaveInFlight = false;
-let apiSavePending = false;
-let apiSyncReady = false;
+const startupBackfillChanged = runLegacyLocalStartupMaintenance();
+let legacyBridgeSaveInFlight = false;
+let legacyBridgeSavePending = false;
+let legacyBridgeSyncReady = false;
 let selectedStudentId = "";
 let editingAttendanceId = "";
 let editingUserId = "";
@@ -1515,7 +1571,7 @@ function renderSessionChrome() {
   if (appShell) appShell.classList.toggle("hidden", !signedIn);
   if (loginCard) loginCard.classList.toggle("hidden", showHostedSetup);
   if (setupCard) setupCard.classList.toggle("hidden", !showHostedSetup);
-  const showBootstrapAdminMessaging = !hostedModeEnabled && state.users.some((entry) => entry.id === "default-admin-user");
+  const showBootstrapAdminMessaging = shouldShowLegacyBootstrapAdminMessaging();
   if (defaultAdminNote) defaultAdminNote.classList.toggle("hidden", signedIn || !showBootstrapAdminMessaging);
   if (userBanner) userBanner.classList.toggle("hidden", !signedIn || !isAdminUser(user) || !showBootstrapAdminMessaging);
 
@@ -1546,37 +1602,37 @@ async function logout() {
   resetLoginMessage();
   renderSessionChrome();
 }
-function scheduleApiSave() {
+function scheduleLegacyBridgeSave() {
   if (hostedModeEnabled) return;
-  if (!apiSyncReady) return;
-  if (apiSaveInFlight) {
-    apiSavePending = true;
+  if (!legacyBridgeSyncReady) return;
+  if (legacyBridgeSaveInFlight) {
+    legacyBridgeSavePending = true;
     return;
   }
 
-  apiSaveInFlight = true;
+  legacyBridgeSaveInFlight = true;
   const snapshot = JSON.parse(JSON.stringify(state));
-  pushStateToApi(snapshot)
+  pushLegacyBridgeState(snapshot)
     .catch((error) => {
-      console.warn("API save skipped:", error.message);
+      console.warn("Legacy bridge save skipped:", error.message);
     })
     .finally(() => {
-      apiSaveInFlight = false;
-      if (apiSavePending) {
-        apiSavePending = false;
-        scheduleApiSave();
+      legacyBridgeSaveInFlight = false;
+      if (legacyBridgeSavePending) {
+        legacyBridgeSavePending = false;
+        scheduleLegacyBridgeSave();
       }
     });
 }
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  scheduleApiSave();
+  scheduleLegacyBridgeSave();
 }
 
-async function bootstrapStateFromApi() {
+async function bootstrapApplicationState() {
   if (hostedModeEnabled) {
-    apiSyncReady = false;
+    legacyBridgeSyncReady = false;
     try {
       const initialized = await fetchHostedSetupStatus();
       if (!initialized) {
@@ -1594,46 +1650,25 @@ async function bootstrapStateFromApi() {
       console.warn("Hosted session bootstrap skipped:", error.message);
       if (IS_LOCAL_DEV_HOST) {
         setHostedModeEnabled(false);
-        apiSyncReady = true;
-        await bootstrapStateFromApi();
+        legacyBridgeSyncReady = true;
+        await bootstrapApplicationState();
         return;
       }
       setLoginMessage("error", "Unable to reach the hosted session service.");
       currentUserId = "";
       renderAll();
     } finally {
-      apiSyncReady = true;
+      legacyBridgeSyncReady = true;
     }
     return;
   }
 
   try {
-    const localState = state;
-    const remoteState = await fetchStateFromApi();
-    if (!validState(remoteState)) return;
-    const before = JSON.stringify(remoteState.users || []);
-    normalizeSettingsShape(remoteState);
-    const schoolYearsChanged = mergeSchoolYearsWithLocalState(remoteState, localState);
-    const quartersChanged = mergeQuartersWithLocalState(remoteState, localState);
-    const coursesChanged = mergeCoursesWithLocalState(remoteState, localState);
-    const enrollmentsChanged = mergeEnrollmentsWithLocalState(remoteState, localState);
-    const dailyBreaksChanged = mergeDailyBreaksWithLocalState(remoteState, localState);
-    const gradingCriteriaChanged = mergeGradingCriteriaWithLocalState(remoteState, localState);
-    normalizeSettingsShape(remoteState);
-    state = remoteState;
-    if (!state.users.some((user) => user.id === currentUserId)) {
-      currentUserId = "";
-      saveSession();
-    }
-    setCurrentSchoolYear(state.settings.currentSchoolYearId);
-    const usersChanged = before !== JSON.stringify(state.users || []);
-    if (backfillAttendanceToToday() || usersChanged || schoolYearsChanged || quartersChanged || coursesChanged || enrollmentsChanged || dailyBreaksChanged || gradingCriteriaChanged) saveState();
-    gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
-    renderAll();
+    await bootstrapFromLegacyBridge();
   } catch (error) {
-    console.warn("API bootstrap skipped:", error.message);
+    console.warn("Legacy bridge bootstrap skipped:", error.message);
   } finally {
-    apiSyncReady = true;
+    legacyBridgeSyncReady = true;
   }
 }
 
@@ -6461,6 +6496,93 @@ function cancelPlanEdit() {
   renderPlans();
 }
 
+function updateLegacyLocalPlan(existingPlan, payload) {
+  if (!existingPlan) return;
+  existingPlan.planType = payload.planType;
+  existingPlan.studentId = payload.studentId;
+  existingPlan.courseId = payload.courseId;
+  existingPlan.startDate = payload.startDate;
+  existingPlan.endDate = payload.endDate;
+  existingPlan.weekdays = payload.weekdays;
+  if (payload.quarterName) existingPlan.quarterName = payload.quarterName;
+  else delete existingPlan.quarterName;
+}
+
+function createLegacyLocalPlans(planPayloads) {
+  planPayloads.forEach((payload) => {
+    state.plans.push({ ...payload });
+  });
+}
+
+function updateLegacyLocalSchoolYear(existingSchoolYear, payload) {
+  if (!existingSchoolYear) return;
+  existingSchoolYear.label = payload.label;
+  existingSchoolYear.startDate = payload.startDate;
+  existingSchoolYear.endDate = payload.endDate;
+  existingSchoolYear.requiredInstructionalDays = payload.requiredInstructionalDays;
+  existingSchoolYear.requiredInstructionalHours = payload.requiredInstructionalHours;
+}
+
+function createLegacyLocalSchoolYear(payload) {
+  const schoolYear = { id: uid(), ...payload };
+  state.settings.schoolYears.push(schoolYear);
+  return schoolYear;
+}
+
+function replaceLegacyLocalQuarters(schoolYearId, quarters) {
+  state.settings.allQuarters = state.settings.allQuarters.filter((quarter) => quarter.schoolYearId !== schoolYearId);
+  state.settings.allQuarters.push(...quarters);
+}
+
+function updateLegacyLocalDailyBreak(existingEntry, payload) {
+  if (!existingEntry) return;
+  Object.assign(existingEntry, payload);
+}
+
+function createLegacyLocalDailyBreak(payload) {
+  state.settings.dailyBreaks.push({ id: uid(), ...payload });
+}
+
+function deleteLegacyLocalDailyBreak(dailyBreakId) {
+  state.settings.dailyBreaks = state.settings.dailyBreaks.filter((entry) => entry.id !== dailyBreakId);
+}
+
+function updateLegacyLocalHoliday(existingHoliday, payload) {
+  if (!existingHoliday) return;
+  existingHoliday.name = payload.name;
+  existingHoliday.type = payload.type;
+  existingHoliday.startDate = payload.startDate;
+  existingHoliday.endDate = payload.endDate;
+}
+
+function createLegacyLocalHoliday(payload) {
+  state.settings.holidays.push({ id: uid(), ...payload });
+}
+
+function deleteLegacyLocalHoliday(holidayId) {
+  state.settings.holidays = state.settings.holidays.filter((entry) => entry.id !== holidayId);
+}
+
+function removeLegacyLocalStudent(studentId) {
+  removeStudent(studentId);
+}
+
+function removeLegacyLocalSubject(subjectId) {
+  removeSubject(subjectId);
+}
+
+function removeLegacyLocalCourse(courseId) {
+  removeCourse(courseId);
+}
+
+function removeLegacyLocalEnrollment(enrollmentId) {
+  state.enrollments = state.enrollments.filter((entry) => entry.id !== enrollmentId);
+}
+
+function removeLegacyLocalUser(userId) {
+  state.users = state.users.filter((entry) => entry.id !== userId);
+}
+
 function bindEvents() {
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
     setActiveTab(btn.dataset.tab || "dashboard");
@@ -6584,7 +6706,7 @@ function bindEvents() {
       existing.username = username;
       existing.role = role === "student" ? "student" : "admin";
       existing.studentId = role === "student" ? studentId : "";
-      existing.mustChangePassword = existing.id === "default-admin-user" ? !password : existing.mustChangePassword;
+      existing.mustChangePassword = isLegacyBootstrapAdminUser(existing) ? !password : existing.mustChangePassword;
       existing.updatedAt = todayISO();
       if (password) {
         const credentials = await buildPasswordCredentials(password);
@@ -6956,11 +7078,13 @@ function bindEvents() {
     const previousStartDate = existing?.startDate || "";
     const previousEndDate = existing?.endDate || "";
     if (existing) {
-      existing.label = label;
-      existing.startDate = startDate;
-      existing.endDate = endDate;
-      existing.requiredInstructionalDays = requiredInstructionalDays;
-      existing.requiredInstructionalHours = requiredInstructionalHours;
+      updateLegacyLocalSchoolYear(existing, {
+        label,
+        startDate,
+        endDate,
+        requiredInstructionalDays,
+        requiredInstructionalHours
+      });
       syncAnnualPlansForSchoolYear(previousStartDate, previousEndDate, startDate, endDate);
     } else {
       const duplicate = state.settings.schoolYears.find((year) =>
@@ -6968,7 +7092,7 @@ function bindEvents() {
         && year.startDate === startDate
         && year.endDate === endDate);
       if (duplicate) { alert("That school year already exists."); return; }
-      state.settings.schoolYears.push({ id: uid(), label, startDate, endDate, requiredInstructionalDays, requiredInstructionalHours });
+      createLegacyLocalSchoolYear({ label, startDate, endDate, requiredInstructionalDays, requiredInstructionalHours });
     }
     const schoolYearId = existing ? existing.id : state.settings.schoolYears[state.settings.schoolYears.length - 1].id;
     setCurrentSchoolYear(schoolYearId);
@@ -7011,8 +7135,7 @@ function bindEvents() {
       })();
       return;
     }
-    state.settings.allQuarters = state.settings.allQuarters.filter((quarter) => quarter.schoolYearId !== schoolYearId);
-    state.settings.allQuarters.push(...q);
+    replaceLegacyLocalQuarters(schoolYearId, q);
     syncQuarterlyPlansForSchoolYear(schoolYearId, previousQuarterByName, q);
     if (schoolYearId === state.settings.currentSchoolYearId) setCurrentSchoolYear(schoolYearId);
     editingQuarterSchoolYearId = "";
@@ -7077,11 +7200,10 @@ function bindEvents() {
       return;
     }
     if (editingDailyBreakId) {
-      const existing = state.settings.dailyBreaks.find((entry) => entry.id === editingDailyBreakId);
-      if (existing) Object.assign(existing, payload);
+      updateLegacyLocalDailyBreak(state.settings.dailyBreaks.find((entry) => entry.id === editingDailyBreakId), payload);
       editingDailyBreakId = "";
     } else {
-      state.settings.dailyBreaks.push({ id: uid(), ...payload });
+      createLegacyLocalDailyBreak(payload);
     }
     resetDailyBreakForm();
     saveState();
@@ -7124,16 +7246,10 @@ function bindEvents() {
       return;
     }
     if (editingHolidayId) {
-      const existing = state.settings.holidays.find((h) => h.id === editingHolidayId);
-      if (existing) {
-        existing.name = name;
-        existing.type = type;
-        existing.startDate = startDate;
-        existing.endDate = endDate;
-      }
+      updateLegacyLocalHoliday(state.settings.holidays.find((h) => h.id === editingHolidayId), payload);
       editingHolidayId = "";
     } else {
-      state.settings.holidays.push({ id: uid(), name, type, startDate, endDate });
+      createLegacyLocalHoliday(payload);
     }
     e.target.reset();
     saveState();
@@ -7164,22 +7280,11 @@ function bindEvents() {
       if (!validRange(startDate, endDate)) { alert("Current school year range is invalid."); return; }
       hostedCreatePayloads = courseIds.map((courseId) => ({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays }));
       hostedUpdatePayload = { planType, studentId, courseId: editCourseId, startDate, endDate, weekdays };
-      if (!hostedModeEnabled && activePlanId) {
-        const existing = state.plans.find((p) => p.id === editingPlanId);
-        if (existing) {
-          existing.planType = planType;
-          existing.studentId = studentId;
-          existing.courseId = editCourseId;
-          existing.startDate = startDate;
-          existing.endDate = endDate;
-          existing.weekdays = weekdays;
-          delete existing.quarterName;
-        }
+      if (isLegacyBridgeMode() && activePlanId) {
+        updateLegacyLocalPlan(state.plans.find((p) => p.id === editingPlanId), hostedUpdatePayload);
         editingPlanId = "";
-      } else if (!hostedModeEnabled) {
-        courseIds.forEach((courseId) => {
-          state.plans.push({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays });
-        });
+      } else if (isLegacyBridgeMode()) {
+        createLegacyLocalPlans(hostedCreatePayloads);
       }
     } else if (planType === "quarterly") {
       const selectedQuarterNames = getSelectedPlanQuarters();
@@ -7216,34 +7321,12 @@ function bindEvents() {
           weekdays,
           quarterName: targetQuarter.name
         };
-        if (!hostedModeEnabled) {
-          const existing = state.plans.find((p) => p.id === editingPlanId);
-          if (existing) {
-            existing.planType = planType;
-            existing.studentId = studentId;
-            existing.courseId = editCourseId;
-            existing.startDate = targetQuarter.startDate;
-            existing.endDate = targetQuarter.endDate;
-            existing.weekdays = weekdays;
-            existing.quarterName = targetQuarter.name;
-          }
+        if (isLegacyBridgeMode()) {
+          updateLegacyLocalPlan(state.plans.find((p) => p.id === editingPlanId), hostedUpdatePayload);
           editingPlanId = "";
         }
-      } else if (!hostedModeEnabled) {
-        selectedQuarters.forEach((quarter) => {
-          courseIds.forEach((courseId) => {
-            state.plans.push({
-              id: uid(),
-              planType,
-              studentId,
-              courseId,
-              startDate: quarter.startDate,
-              endDate: quarter.endDate,
-              weekdays,
-              quarterName: quarter.name
-            });
-          });
-        });
+      } else if (isLegacyBridgeMode()) {
+        createLegacyLocalPlans(hostedCreatePayloads);
       }
     } else {
       const startDate = document.getElementById("plan-start").value;
@@ -7251,22 +7334,11 @@ function bindEvents() {
       if (!validRange(startDate, endDate)) { alert("Provide a valid weekly start/end range."); return; }
       hostedCreatePayloads = courseIds.map((courseId) => ({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays }));
       hostedUpdatePayload = { planType, studentId, courseId: editCourseId, startDate, endDate, weekdays };
-      if (!hostedModeEnabled && activePlanId) {
-        const existing = state.plans.find((p) => p.id === editingPlanId);
-        if (existing) {
-          existing.planType = planType;
-          existing.studentId = studentId;
-          existing.courseId = editCourseId;
-          existing.startDate = startDate;
-          existing.endDate = endDate;
-          existing.weekdays = weekdays;
-          delete existing.quarterName;
-        }
+      if (isLegacyBridgeMode() && activePlanId) {
+        updateLegacyLocalPlan(state.plans.find((p) => p.id === editingPlanId), hostedUpdatePayload);
         editingPlanId = "";
-      } else if (!hostedModeEnabled) {
-        courseIds.forEach((courseId) => {
-          state.plans.push({ id: uid(), planType, studentId, courseId, startDate, endDate, weekdays });
-        });
+      } else if (isLegacyBridgeMode()) {
+        createLegacyLocalPlans(hostedCreatePayloads);
       }
     }
     if (hostedModeEnabled) {
@@ -8252,7 +8324,7 @@ function bindEvents() {
         })();
         return;
       }
-      state.users = state.users.filter((entry) => entry.id !== removeUserId);
+      removeLegacyLocalUser(removeUserId);
       if (editingUserId === removeUserId) resetUserForm();
       if (currentUserId === removeUserId) logout();
       saveState();
@@ -8275,7 +8347,7 @@ function bindEvents() {
         })();
         return;
       }
-      removeStudent(studentId);
+      removeLegacyLocalStudent(studentId);
       saveState();
       renderAll();
       return;
@@ -8295,7 +8367,7 @@ function bindEvents() {
         })();
         return;
       }
-      removeSubject(subjectId);
+      removeLegacyLocalSubject(subjectId);
       saveState();
       renderAll();
       return;
@@ -8315,7 +8387,7 @@ function bindEvents() {
         })();
         return;
       }
-      removeCourse(courseId);
+      removeLegacyLocalCourse(courseId);
       saveState();
       renderAll();
       return;
@@ -8344,7 +8416,7 @@ function bindEvents() {
         })();
         return;
       }
-      state.enrollments = state.enrollments.filter((x)=>x.id!==enrollmentId);
+      removeLegacyLocalEnrollment(enrollmentId);
       saveState();
       renderAll();
       return;
@@ -8366,7 +8438,7 @@ function bindEvents() {
         })();
         return;
       }
-      state.settings.dailyBreaks = state.settings.dailyBreaks.filter((x)=>x.id!==dailyBreakId);
+      deleteLegacyLocalDailyBreak(dailyBreakId);
       if (editingDailyBreakId === dailyBreakId) editingDailyBreakId = "";
       resetDailyBreakForm();
       saveState();
@@ -8389,7 +8461,7 @@ function bindEvents() {
         })();
         return;
       }
-      state.settings.holidays = state.settings.holidays.filter((x)=>x.id!==holidayId);
+      deleteLegacyLocalHoliday(holidayId);
       if (editingHolidayId === holidayId) editingHolidayId = "";
       saveState();
       renderAll();
@@ -8462,4 +8534,4 @@ function renderAll() {
 bindEvents();
 renderAll();
 if (startupBackfillChanged) saveState();
-bootstrapStateFromApi();
+bootstrapApplicationState();

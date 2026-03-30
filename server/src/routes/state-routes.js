@@ -1,18 +1,18 @@
 function registerStateRoutes(app, deps) {
   const {
     isPostgresMode,
-    readState,
-    writeState
+    readLegacyBridgeState,
+    writeLegacyBridgeState
   } = deps;
 
   app.get("/api/state", async (_req, res) => {
     if (isPostgresMode) {
-      res.status(410).json({ error: "Full-state sync is disabled in postgres mode." });
+      res.status(410).json({ error: "Legacy full-state sync is disabled in postgres mode." });
       return;
     }
 
     try {
-      const state = await readState();
+      const state = await readLegacyBridgeState();
       res.json(state);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -21,7 +21,7 @@ function registerStateRoutes(app, deps) {
 
   app.put("/api/state", async (req, res) => {
     if (isPostgresMode) {
-      res.status(410).json({ error: "Full-state sync is disabled in postgres mode." });
+      res.status(410).json({ error: "Legacy full-state sync is disabled in postgres mode." });
       return;
     }
 
@@ -32,7 +32,7 @@ function registerStateRoutes(app, deps) {
         return;
       }
 
-      await writeState(payload);
+      await writeLegacyBridgeState(payload);
       res.json({ ok: true });
     } catch (error) {
       res.status(500).json({ error: error.message });

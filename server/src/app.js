@@ -4,7 +4,7 @@ const { getPool } = require("./db");
 const { getPostgresPool } = require("./postgres-db");
 const { applyCors, createAuthContextMiddleware } = require("./middleware/auth-context");
 const { errorHandler } = require("./middleware/error-handler");
-const { readState, writeState } = require("./state-store");
+const { readLegacyBridgeState, writeLegacyBridgeState } = require("./legacy/local-state-bridge");
 const {
   countAdmins,
   createSession,
@@ -166,8 +166,8 @@ const recordsRouteDeps = {
 };
 const stateRouteDeps = {
   isPostgresMode,
-  readState,
-  writeState
+  readLegacyBridgeState,
+  writeLegacyBridgeState
 };
 const infraRouteDeps = {
   getPool,

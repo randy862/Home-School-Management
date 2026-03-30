@@ -344,6 +344,19 @@ Date: 2026-03-27
     - `GET /api/setup/status` now returns `{\"initialized\":true}`
     - `tenant_admin_20260330 / TempHosted!20260330` can log in successfully
     - `GET /api/me`, `GET /api/students`, and `GET /api/subjects` all succeed on the intended tenant schema
+- Started item 4 backend/platform hardening with an explicit legacy-bridge isolation slice:
+  - moved transitional full-state bridge ownership behind `server/src/legacy/local-state-bridge.js`
+  - updated `/api/state` route wiring and messages so the path is explicitly treated as legacy-only in PostgreSQL-hosted mode
+  - renamed the frontend bridge helpers in `web/app.js` so hosted bootstrap/save flows no longer read as generic API synchronization paths
+  - kept local/MSSQL behavior unchanged while making the hosted boundary easier to reason about
+  - wrapped the remaining bridge-era merge/backfill bootstrap logic behind dedicated legacy-bridge helpers in `web/app.js` so hosted session/bootstrap flow is cleaner and the local-only reconciliation path is easier to retire later
+  - gated startup attendance backfill behind a local-only helper so hosted mode no longer mutates bridge-era state before its backend session/bootstrap flow runs
+  - centralized legacy bootstrap-admin detection/messaging helpers in `web/app.js` so default-admin behavior is explicitly local/bridge-only instead of being scattered through hosted-capable UI code
+  - renamed the old frontend bootstrap-admin constants and factory to `LEGACY_BOOTSTRAP_*` / `createLegacyBootstrapAdmin()` so the local bridge model no longer reads like part of the hosted runtime design
+  - extracted local-only plan create/update mutations behind `updateLegacyLocalPlan(...)` and `createLegacyLocalPlans(...)` so the plan submit flow now separates hosted writes from legacy bridge writes more clearly
+  - extracted local-only school-year and quarter mutations behind dedicated helpers in `web/app.js` so schedule-configuration forms separate hosted writes from legacy bridge writes more clearly
+  - extracted local-only daily-break and holiday create/update/delete mutations behind dedicated helpers in `web/app.js` so more schedule admin flows separate hosted writes from legacy bridge writes clearly
+  - standardized remaining local delete paths for users, students, subjects, courses, and enrollments behind explicit legacy helper names in `web/app.js` so more admin actions read consistently as hosted vs legacy flows
 
 ## Blocked
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.
@@ -352,7 +365,7 @@ Date: 2026-03-27
 ## Next
 1. Recheck the latest `/control/` sidebar, focused-detail, and user-management flows on desktop and mobile.
 2. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
-3. Decide whether to rotate or formalize the temporary staged tenant admin created during runtime recovery.
+3. Continue item 4 by removing more hosted-era bridge merge/backfill code that is no longer needed now that hosted mode runs through domain APIs.
 
 ## Current Assessment
 - The app is a strong functional product foundation.

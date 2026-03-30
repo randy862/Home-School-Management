@@ -97,3 +97,14 @@
    - [x] Run a broader staged hosted-app smoke pass against the currently served runtime.
    - [x] Fix smoke-discovered hosted create-route and calendar export regressions on `APP001`.
    - [x] Correct the staged tenant-app runtime so the served app actually loads tenant `PGOPTIONS` and the intended tenant schema instead of PostgreSQL `public`.
+5. Continue backend/platform hardening and legacy bridge retirement.
+   - [x] Isolate the transitional `/api/state` bridge behind explicit legacy module naming in the server and frontend.
+   - [x] Wrap the remaining local-only merge/backfill bootstrap logic behind explicit legacy-bridge helpers in `web/app.js`.
+   - [x] Stop running startup legacy attendance backfill in hosted mode.
+   - [x] Centralize legacy bootstrap-admin checks so hosted-capable UI code no longer carries scattered default-admin logic.
+   - [x] Rename bootstrap-admin frontend helpers/constants so they are explicitly marked as legacy/local-only.
+   - [x] Extract local-only plan mutation helpers so plan submit flow separates hosted writes from legacy bridge writes.
+   - [x] Extract local-only school-year and quarter mutation helpers so schedule settings forms separate hosted writes from legacy bridge writes.
+   - [x] Extract local-only daily-break and holiday mutation helpers so schedule admin flows separate hosted writes from legacy bridge writes.
+   - [x] Standardize remaining local delete paths behind explicit legacy helper names for admin actions.
+   - [ ] Remove more hosted-era merge/backfill code that no longer applies once hosted mode uses domain APIs end to end.
