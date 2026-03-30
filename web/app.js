@@ -6583,6 +6583,88 @@ function removeLegacyLocalUser(userId) {
   state.users = state.users.filter((entry) => entry.id !== userId);
 }
 
+async function createLegacyLocalUser(payload) {
+  const user = await createUserRecord(payload);
+  state.users.push(user);
+  return user;
+}
+
+async function updateLegacyLocalUser(existingUser, payload) {
+  if (!existingUser) return;
+  existingUser.username = payload.username;
+  existingUser.role = payload.role === "student" ? "student" : "admin";
+  existingUser.studentId = payload.role === "student" ? payload.studentId : "";
+  existingUser.mustChangePassword = isLegacyBootstrapAdminUser(existingUser)
+    ? !payload.password
+    : existingUser.mustChangePassword;
+  existingUser.updatedAt = todayISO();
+  if (payload.password) {
+    const credentials = await buildPasswordCredentials(payload.password);
+    existingUser.passwordSalt = credentials.passwordSalt;
+    existingUser.passwordHash = credentials.passwordHash;
+    existingUser.mustChangePassword = false;
+  }
+}
+
+function createLegacyLocalStudent(payload) {
+  state.students.push({ id: uid(), ...payload });
+}
+
+function createLegacyLocalSubject(payload) {
+  state.subjects.push({ id: uid(), ...payload });
+}
+
+function updateLegacyLocalCourse(existingCourse, payload) {
+  if (!existingCourse) return;
+  existingCourse.name = payload.name;
+  existingCourse.subjectId = payload.subjectId;
+  existingCourse.hoursPerDay = payload.hoursPerDay;
+  existingCourse.exclusiveResource = payload.exclusiveResource;
+}
+
+function createLegacyLocalCourse(payload) {
+  state.courses.push({ id: uid(), ...payload });
+}
+
+function createLegacyLocalEnrollment(payload) {
+  state.enrollments.push({ id: uid(), ...payload });
+}
+
+function updateLegacyLocalAttendance(existingAttendance, payload) {
+  if (!existingAttendance) return;
+  existingAttendance.studentId = payload.studentId;
+  existingAttendance.date = payload.date;
+  existingAttendance.present = payload.present;
+}
+
+function createLegacyLocalAttendance(payload) {
+  state.attendance.push({ id: uid(), ...payload });
+}
+
+function deleteLegacyLocalAttendance(attendanceId) {
+  state.attendance = state.attendance.filter((entry) => entry.id !== attendanceId);
+}
+
+function updateLegacyLocalGrade(existingGrade, payload) {
+  if (!existingGrade) return;
+  existingGrade.date = payload.date;
+  existingGrade.studentId = payload.studentId;
+  existingGrade.subjectId = payload.subjectId;
+  existingGrade.courseId = payload.courseId;
+  existingGrade.gradeType = payload.gradeType;
+  existingGrade.testName = payload.testName;
+  existingGrade.score = payload.score;
+  existingGrade.maxScore = payload.maxScore;
+}
+
+function createLegacyLocalGrade(payload) {
+  state.tests.push({ id: uid(), ...payload });
+}
+
+function deleteLegacyLocalGrade(gradeId) {
+  state.tests = state.tests.filter((entry) => entry.id !== gradeId);
+}
+
 function bindEvents() {
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
     setActiveTab(btn.dataset.tab || "dashboard");
@@ -6703,25 +6785,20 @@ function bindEvents() {
       return;
     }
     if (existing) {
-      existing.username = username;
-      existing.role = role === "student" ? "student" : "admin";
-      existing.studentId = role === "student" ? studentId : "";
-      existing.mustChangePassword = isLegacyBootstrapAdminUser(existing) ? !password : existing.mustChangePassword;
-      existing.updatedAt = todayISO();
-      if (password) {
-        const credentials = await buildPasswordCredentials(password);
-        existing.passwordSalt = credentials.passwordSalt;
-        existing.passwordHash = credentials.passwordHash;
-        existing.mustChangePassword = false;
-      }
+      await updateLegacyLocalUser(existing, {
+        username,
+        role,
+        password,
+        studentId
+      });
     } else {
-      state.users.push(await createUserRecord({
+      await createLegacyLocalUser({
         username,
         role,
         password,
         studentId,
         mustChangePassword: false
-      }));
+      });
     }
     resetUserForm();
     setUserFormMessage("success", existing ? "User account updated." : "User account created.");
@@ -6767,7 +6844,7 @@ function bindEvents() {
       })();
       return;
     }
-    state.students.push({ id: uid(), firstName, lastName, birthdate, grade, ageRecorded: calculateAge(birthdate), createdAt: todayISO() });
+    createLegacyLocalStudent({ firstName, lastName, birthdate, grade, ageRecorded: calculateAge(birthdate), createdAt: todayISO() });
     e.target.reset(); saveState(); renderAll();
   });
 
@@ -6790,7 +6867,7 @@ function bindEvents() {
       })();
       return;
     }
-    state.subjects.push({ id: uid(), name }); e.target.reset(); saveState(); renderAll();
+    createLegacyLocalSubject({ name }); e.target.reset(); saveState(); renderAll();
   });
 
   document.getElementById("course-form").addEventListener("submit", (e) => {
@@ -6822,16 +6899,10 @@ function bindEvents() {
       return;
     }
     if (editingCourseId) {
-      const existing = state.courses.find((c) => c.id === editingCourseId);
-      if (existing) {
-        existing.name = name;
-        existing.subjectId = subjectId;
-        existing.hoursPerDay = hoursPerDay;
-        existing.exclusiveResource = exclusiveResource;
-      }
+      updateLegacyLocalCourse(state.courses.find((c) => c.id === editingCourseId), payload);
       editingCourseId = "";
     } else {
-      state.courses.push({ id: uid(), name, subjectId, hoursPerDay, exclusiveResource });
+      createLegacyLocalCourse(payload);
     }
     e.target.reset();
     document.getElementById("course-exclusive-resource").checked = false;
@@ -7020,7 +7091,7 @@ function bindEvents() {
       })();
       return;
     }
-    state.enrollments.push({ id: uid(), studentId, courseId, scheduleOrder: null }); saveState(); renderAll();
+    createLegacyLocalEnrollment({ studentId, courseId, scheduleOrder: null }); saveState(); renderAll();
   });
 
   document.getElementById("reports-form").addEventListener("submit", (e) => {
@@ -7521,14 +7592,16 @@ function bindEvents() {
       const studentId = studentIds[0];
       const target = state.attendance.find((a) => a.id === editingAttendanceId);
       if (target) {
-        target.studentId = studentId;
-        target.date = date;
-        target.present = status === "present";
+        updateLegacyLocalAttendance(target, {
+          studentId,
+          date,
+          present: status === "present"
+        });
       }
       const duplicate = state.attendance.find((a) => a.id !== editingAttendanceId && a.studentId === studentId && a.date === date);
       if (duplicate) {
         duplicate.present = status === "present";
-        state.attendance = state.attendance.filter((a) => a.id !== editingAttendanceId);
+        deleteLegacyLocalAttendance(editingAttendanceId);
       }
     } else {
       const duplicates = studentIds
@@ -7555,7 +7628,7 @@ function bindEvents() {
       studentIds.forEach((studentId) => {
         const existing = state.attendance.find((a)=>a.studentId===studentId && a.date===date);
         if (existing) existing.present = status === "present";
-        else state.attendance.push({ id: uid(), studentId, date, present: status === "present" });
+        else createLegacyLocalAttendance({ studentId, date, present: status === "present" });
       });
     }
     resetAttendanceEditMode();
@@ -8128,7 +8201,7 @@ function bindEvents() {
         })();
         return;
       }
-      state.attendance = state.attendance.filter((a) => a.id !== removeAttendanceId);
+      deleteLegacyLocalAttendance(removeAttendanceId);
       if (editingAttendanceId === removeAttendanceId) resetAttendanceEditMode();
       saveState();
       renderAll();
@@ -8181,17 +8254,16 @@ function bindEvents() {
           })();
           return;
         }
-        const existing = state.tests.find((x) => x.id === editGradeId);
-        if (existing) {
-          existing.date = date;
-          existing.studentId = studentId;
-          existing.subjectId = subjectId;
-          existing.courseId = courseId;
-          existing.gradeType = gradeType;
-          existing.testName = gradeType;
-          existing.score = gradeValue;
-          existing.maxScore = 100;
-        }
+        updateLegacyLocalGrade(state.tests.find((x) => x.id === editGradeId), {
+          date,
+          studentId,
+          subjectId,
+          courseId,
+          gradeType,
+          testName: gradeType,
+          score: gradeValue,
+          maxScore: 100
+        });
       } else {
         if (hostedModeEnabled) {
           (async () => {
@@ -8217,8 +8289,7 @@ function bindEvents() {
           })();
           return;
         }
-        state.tests.push({
-          id: uid(),
+        createLegacyLocalGrade({
           date,
           studentId,
           subjectId,
@@ -8282,7 +8353,7 @@ function bindEvents() {
         })();
         return;
       }
-      state.tests = state.tests.filter((entry) => entry.id !== removeGradeId);
+      deleteLegacyLocalGrade(removeGradeId);
       const editingRow = document.querySelector(`tr[data-edit-grade-id="${removeGradeId}"]`);
       if (editingRow) {
         editingRow.remove();

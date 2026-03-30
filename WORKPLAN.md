@@ -107,4 +107,6 @@
    - [x] Extract local-only school-year and quarter mutation helpers so schedule settings forms separate hosted writes from legacy bridge writes.
    - [x] Extract local-only daily-break and holiday mutation helpers so schedule admin flows separate hosted writes from legacy bridge writes.
    - [x] Standardize remaining local delete paths behind explicit legacy helper names for admin actions.
+   - [x] Extract local-only create/update helpers for core admin forms so hosted and legacy mutation paths read consistently.
+   - [x] Extract local-only attendance and grade mutation helpers so instructional record flows read consistently too.
    - [ ] Remove more hosted-era merge/backfill code that no longer applies once hosted mode uses domain APIs end to end.
