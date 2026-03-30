@@ -365,6 +365,11 @@ Date: 2026-03-27
   - continued server-side hardening by adding `server/src/services/calendar-service.js` and moving calendar payload normalization/orchestration out of `server/src/routes/calendar-routes.js`
   - continued server-side hardening again by adding `server/src/services/curriculum-service.js` and moving subject/course/enrollment payload normalization/orchestration out of `server/src/routes/curriculum-routes.js`
   - continued server-side hardening again by adding `server/src/services/records-service.js` and moving attendance/test payload normalization/orchestration out of `server/src/routes/records-routes.js`
+  - began Phase 4 repository extraction by adding `server/src/repositories/postgres/grading-repository.js` and rewiring `server/src/services/grading-service.js` to depend on repository-owned persistence instead of broad `postgres-academics-store` function injection
+  - continued Phase 4 repository extraction by adding `server/src/repositories/postgres/records-repository.js` and rewiring `server/src/services/records-service.js` to depend on repository-owned persistence instead of broad `postgres-academics-store` function injection
+  - staged validation passed for the new grading/records repository boundaries after deploying the updated backend files to `APP001`, restarting `home-school-management.service`, and rechecking the hosted public path on `http://192.168.1.210/`
+  - live hosted smoke checks succeeded for `POST /api/auth/login`, `GET /api/grade-types`, `GET /api/grading-criteria`, `GET /api/attendance`, and `GET /api/tests` against the staged tenant runtime after the repository extraction
+  - one rollout-only issue surfaced and was corrected during validation: the first repository-boundary smoke failure came from restarting `home-school-management.service` before the corrected remote `services/` files had fully copied, so a clean sequential restart was required after the file sync completed
 
 ## Blocked
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.
@@ -373,7 +378,7 @@ Date: 2026-03-27
 ## Next
 1. Recheck the latest `/control/` sidebar, focused-detail, and user-management flows on desktop and mobile.
 2. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
-3. Continue item 4 by reviewing whether the next best slice is repository extraction or a staged smoke pass against the new service-boundary backend shape.
+3. Continue item 4 with the next repository extraction slice, likely `calendar`, now that both `grading` and `records` have repository boundaries in place.
 
 ## Current Assessment
 - The app is a strong functional product foundation.

@@ -150,6 +150,12 @@ Define how Home School Management moves from the current mixed bridge architectu
 - `server/src/services/curriculum-service.js` now owns subject, course, and enrollment payload normalization plus service-level orchestration instead of leaving those concerns inside the HTTP route file.
 - `server/src/services/records-service.js` now owns attendance and test payload normalization plus service-level orchestration instead of leaving those concerns inside the HTTP route file.
 
+### First Repository Boundary Progress
+- `server/src/repositories/postgres/grading-repository.js` now owns PostgreSQL persistence for grade types and grading criteria.
+- `server/src/services/grading-service.js` now depends on the grading repository instead of depending on broad `postgres-academics-store` functions directly.
+- `server/src/repositories/postgres/records-repository.js` now owns PostgreSQL persistence for attendance and tests.
+- `server/src/services/records-service.js` now depends on the records repository instead of depending on broad `postgres-academics-store` functions directly.
+
 ## Exit Criteria
 - `server/src/app.js` is primarily bootstrap and route registration.
 - Hosted production paths no longer rely on `readState()` or `writeState()`.

@@ -116,3 +116,8 @@
    - [x] Continue server-side repository/service hardening with a curriculum service boundary.
    - [x] Continue server-side repository/service hardening with the records domain after grading, calendar, and curriculum.
    - [ ] Decide whether the next item 4 slice should be repository extraction or staged smoke validation of the new service-boundary backend shape.
+   - [x] Decide that repository extraction is the next item 4 slice after the service-boundary smoke pass.
+   - [x] Start Phase 4 repository extraction with a grading repository boundary.
+   - [x] Continue Phase 4 repository extraction with a records repository boundary.
+   - [x] Validate the new grading/records repository boundaries on staged hosted runtime after deployment.
+   - [ ] Continue Phase 4 repository extraction with the next stable domain, likely calendar.

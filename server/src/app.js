@@ -36,6 +36,8 @@ const { registerInfraRoutes } = require("./routes/infra-routes");
 const { registerRecordsRoutes } = require("./routes/records-routes");
 const { registerSetupRoutes } = require("./routes/setup-routes");
 const { registerStateRoutes } = require("./routes/state-routes");
+const { createGradingRepository } = require("./repositories/postgres/grading-repository");
+const { createRecordsRepository } = require("./repositories/postgres/records-repository");
 const { createCalendarService } = require("./services/calendar-service");
 const { createCurriculumService } = require("./services/curriculum-service");
 const { createGradingService } = require("./services/grading-service");
@@ -45,13 +47,9 @@ const {
   createHoliday,
   createPlans,
   createSchoolYear,
-  createAttendance,
   createCourse,
   createEnrollment,
   createSubject,
-  createTest,
-  deleteAttendance,
-  deleteTest,
   deleteSchoolYear,
   deleteCourse,
   deleteDailyBreak,
@@ -59,31 +57,24 @@ const {
   deleteHoliday,
   deletePlan,
   deleteSubject,
-  getGradingCriteria,
   listAttendanceForUser,
   listCoursesForUser,
   listDailyBreaksForUser,
   listEnrollmentsForUser,
-  listGradeTypes,
   listHolidays,
   listPlansForUser,
   listQuarters,
-  replaceQuartersForSchoolYear,
-  replaceGradeTypes,
-  saveGradingCriteria,
-  setCurrentSchoolYear,
   listSchoolYears,
   listSubjectsForUser,
-  listTestsForUser,
+  replaceQuartersForSchoolYear,
+  setCurrentSchoolYear,
   updateDailyBreak,
-  updateAttendance,
   updateCourse,
   updateEnrollment,
   updateHoliday,
   updatePlan,
   updateSchoolYear,
-  updateSubject,
-  updateTest
+  updateSubject
 } = require("./postgres-academics-store");
 
 const app = express();
@@ -156,24 +147,18 @@ const calendarRouteDeps = {
 };
 const gradingRouteDeps = {
   gradingService: createGradingService({
-    getGradingCriteria,
-    listGradeTypes,
-    replaceGradeTypes,
-    saveGradingCriteria
+    gradingRepository: createGradingRepository({
+      getPostgresPool
+    })
   }),
   isPostgresMode,
 };
 const recordsRouteDeps = {
   isPostgresMode,
   recordsService: createRecordsService({
-    createAttendance,
-    createTest,
-    deleteAttendance,
-    deleteTest,
-    listAttendanceForUser,
-    listTestsForUser,
-    updateAttendance,
-    updateTest
+    recordsRepository: createRecordsRepository({
+      getPostgresPool
+    })
   })
 };
 const stateRouteDeps = {

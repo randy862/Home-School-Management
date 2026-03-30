@@ -1,18 +1,13 @@
 const { randomUUID } = require("crypto");
 
 function createGradingService(deps) {
-  const {
-    getGradingCriteria,
-    listGradeTypes,
-    replaceGradeTypes,
-    saveGradingCriteria
-  } = deps;
+  const { gradingRepository } = deps;
 
   return {
-    getGradingCriteria,
-    listGradeTypes,
-    replaceGradeTypes: async (payload) => replaceGradeTypes(normalizeGradeTypesPayload(payload)),
-    saveGradingCriteria: async (payload) => saveGradingCriteria(normalizeGradingCriteriaPayload(payload))
+    getGradingCriteria: () => gradingRepository.getGradingCriteria(),
+    listGradeTypes: () => gradingRepository.listGradeTypes(),
+    replaceGradeTypes: async (payload) => gradingRepository.replaceGradeTypes(normalizeGradeTypesPayload(payload)),
+    saveGradingCriteria: async (payload) => gradingRepository.saveGradingCriteria(normalizeGradingCriteriaPayload(payload))
   };
 }
 

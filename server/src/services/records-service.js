@@ -1,26 +1,17 @@
 const { randomUUID } = require("crypto");
 
 function createRecordsService(deps) {
-  const {
-    createAttendance,
-    createTest,
-    deleteAttendance,
-    deleteTest,
-    listAttendanceForUser,
-    listTestsForUser,
-    updateAttendance,
-    updateTest
-  } = deps;
+  const { recordsRepository } = deps;
 
   return {
-    createAttendance: async (payload) => createAttendance(normalizeAttendancePayload(payload)),
-    createTest: async (payload) => createTest(normalizeTestPayload(payload)),
-    deleteAttendance,
-    deleteTest,
-    listAttendanceForUser,
-    listTestsForUser,
-    updateAttendance: async (id, payload) => updateAttendance(id, normalizeAttendancePayload({ ...payload, id })),
-    updateTest: async (id, payload) => updateTest(id, normalizeTestPayload({ ...payload, id }))
+    createAttendance: async (payload) => recordsRepository.createAttendance(normalizeAttendancePayload(payload)),
+    createTest: async (payload) => recordsRepository.createTest(normalizeTestPayload(payload)),
+    deleteAttendance: (id) => recordsRepository.deleteAttendance(id),
+    deleteTest: (id) => recordsRepository.deleteTest(id),
+    listAttendanceForUser: (user) => recordsRepository.listAttendanceForUser(user),
+    listTestsForUser: (user) => recordsRepository.listTestsForUser(user),
+    updateAttendance: async (id, payload) => recordsRepository.updateAttendance(id, normalizeAttendancePayload({ ...payload, id })),
+    updateTest: async (id, payload) => recordsRepository.updateTest(id, normalizeTestPayload({ ...payload, id }))
   };
 }
 
