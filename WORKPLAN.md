@@ -94,3 +94,6 @@
    - [x] Hide `User Management` for operators without `manageUsers` in both the UI and backend reads, then revalidate staging.
 3. Consider a broader support/operations history view on top of the new audit API after the main UI pass.
 4. Keep hosted browser smoke validation as the regression gate after each major backend-boundary slice.
+   - [x] Run a broader staged hosted-app smoke pass against the currently served runtime.
+   - [x] Fix smoke-discovered hosted create-route and calendar export regressions on `APP001`.
+   - [x] Correct the staged tenant-app runtime so the served app actually loads tenant `PGOPTIONS` and the intended tenant schema instead of PostgreSQL `public`.

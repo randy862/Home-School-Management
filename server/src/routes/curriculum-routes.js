@@ -1,3 +1,5 @@
+const { randomUUID } = require("crypto");
+
 function registerCurriculumRoutes(app, deps) {
   const {
     createCourse,
@@ -198,7 +200,7 @@ function ensureAdmin(req, res) {
 }
 
 function normalizeSubjectPayload(input) {
-  const id = String(input?.id || "").trim();
+  const id = String(input?.id || "").trim() || randomUUID();
   const name = String(input?.name || "").trim();
   if (!name) {
     const error = new Error("Subject name is required.");
@@ -209,7 +211,7 @@ function normalizeSubjectPayload(input) {
 }
 
 function normalizeCoursePayload(input) {
-  const id = String(input?.id || "").trim();
+  const id = String(input?.id || "").trim() || randomUUID();
   const name = String(input?.name || "").trim();
   const subjectId = String(input?.subjectId || "").trim();
   const hoursPerDay = Number(input?.hoursPerDay);
@@ -223,7 +225,7 @@ function normalizeCoursePayload(input) {
 }
 
 function normalizeEnrollmentPayload(input) {
-  const id = String(input?.id || "").trim();
+  const id = String(input?.id || "").trim() || randomUUID();
   const studentId = String(input?.studentId || "").trim();
   const courseId = String(input?.courseId || "").trim();
   const scheduleOrder = input?.scheduleOrder === "" || input?.scheduleOrder == null ? null : Number(input.scheduleOrder);

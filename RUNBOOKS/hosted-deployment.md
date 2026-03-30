@@ -11,13 +11,15 @@ Stand up the first hosted single-tenant deployment across `APP001`, `WEB001`, an
 5. Enable and start the service with:
    - `systemctl --user daemon-reload`
    - `systemctl --user enable --now home-school-management.service`
-6. Generate a one-time hosted setup token with:
+6. For tenant-targeted staged/runtime deployments, ensure `/home/debian/apps/home-school-management/server/.env.runtime` exists because the service now loads it with `EnvironmentFile=` and uses it to override `PGOPTIONS`, tenant identity, and runtime URL values.
+7. Generate a one-time hosted setup token with:
    - `npm run db:create-setup-token`
-7. Complete first-run admin setup through the hosted web UI using that token.
-8. Verify with:
+8. Complete first-run admin setup through the hosted web UI using that token.
+9. Verify with:
    - `systemctl --user status home-school-management.service`
    - `curl http://127.0.0.1:3000/health`
    - `curl http://127.0.0.1:3000/api/setup/status`
+   - `systemctl --user show home-school-management.service --property=EnvironmentFiles --property=Environment | grep PGOPTIONS`
 
 ### Existing Deployment Note
 - Existing initialized deployments do not use the first-run setup flow again.

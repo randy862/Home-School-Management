@@ -210,7 +210,7 @@ function ensureAdmin(req, res) {
 }
 
 function normalizeStudentPayload(input) {
-  const id = String(input?.id || "").trim();
+  const id = String(input?.id || "").trim() || createSessionToken();
   const firstName = String(input?.firstName || "").trim();
   const lastName = String(input?.lastName || "").trim();
   const birthdate = String(input?.birthdate || "").trim();

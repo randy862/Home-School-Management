@@ -1147,6 +1147,7 @@ function mapPlanRow(row) {
 module.exports = {
   createAttendance,
   createCourse,
+  createSchoolYear,
   createEnrollment,
   createSubject,
   createHoliday,
@@ -1155,6 +1156,7 @@ module.exports = {
   createTest,
   deleteAttendance,
   deleteTest,
+  deleteSchoolYear,
   deleteCourse,
   deleteEnrollment,
   deleteDailyBreak,
@@ -1173,14 +1175,17 @@ module.exports = {
   listSchoolYears,
   listSubjectsForUser,
   listTestsForUser,
+  replaceQuartersForSchoolYear,
   replaceGradeTypes,
   saveGradingCriteria,
+  setCurrentSchoolYear,
   updateAttendance,
   updateCourse,
   updateDailyBreak,
   updateEnrollment,
   updateHoliday,
   updatePlan,
+  updateSchoolYear,
   updateSubject,
   updateTest
 };

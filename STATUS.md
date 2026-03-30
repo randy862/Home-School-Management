@@ -319,15 +319,40 @@ Date: 2026-03-27
   - confirmed self-service `POST /api/operator/auth/change-password` works for each scoped account regardless of admin privileges
   - confirmed an inactive staged operator account returns `401` on login
   - follow-up decision implemented: non-user-admin operators no longer see `User Management` in `/control/`, and staged operator list/detail reads now return `403` unless `manageUsers` is present
+- Completed a broader hosted-app smoke pass against the currently served staging runtime:
+  - confirmed the live app on `http://192.168.1.210/` is healthy, requires auth on `GET /api/me`, and still accepts the staged `admin / ChangeMe123!` login on the runtime it is actually serving
+  - discovered deployment drift on `APP001`: the running `home-school-management.service` is not loading tenant `PGOPTIONS` from `.env.runtime`, so the public hosted app is currently serving the PostgreSQL `public` schema instead of the staged tenant schema `tenant_auto_20260328200130`
+  - discovered and fixed hosted PostgreSQL create-route regressions where new `students`, `subjects`, `courses`, and `enrollments` did not generate IDs before insert
+  - discovered and fixed a calendar export regression where `createSchoolYear`, `updateSchoolYear`, `deleteSchoolYear`, `setCurrentSchoolYear`, and `replaceQuartersForSchoolYear` were implemented in `postgres-academics-store.js` but not exported, which caused empty `500` errors on staged school-year writes
+  - redeployed the hosted server route/store fixes to `APP001` and restarted `home-school-management.service`
+  - revalidated the served hosted runtime end to end after those fixes:
+    - admin login/logout succeeded
+    - authenticated reads for users, students, curriculum, calendar, grading, attendance, and tests succeeded
+    - staged CRUD succeeded for student, linked student user, subject, course, enrollment, school year, holiday, attendance, and test records
+    - grade-type and grading-criteria writes succeeded and were restored afterward
+    - student-session validation succeeded, including a `403` on admin-only subject creation
+    - smoke-created records were cleaned up after validation
+- Fixed the staged tenant-runtime deployment drift on `APP001`:
+  - updated `infra/systemd/home-school-management.service` so the tenant app loads `/home/debian/apps/home-school-management/server/.env.runtime` via `EnvironmentFile=`
+  - updated `control-api/src/tenant-runtime-automation.js` so future `.env.runtime` bundles quote `PGOPTIONS` safely for `systemd` consumption
+  - aligned the repo systemd unit with the staged internal-auth env vars already present on `APP001`
+  - patched the live `.env.runtime` on `APP001` so `PGOPTIONS` is written as `PGOPTIONS=\"-c search_path=...\"`
+  - redeployed the corrected unit to `APP001`, reloaded `systemd`, and restarted `home-school-management.service`
+  - verified the public hosted app switched off PostgreSQL `public` and onto the intended tenant runtime because `GET /api/setup/status` changed from the old public-admin state to `{\"initialized\":false}` immediately after the service fix
+  - generated and redeemed a fresh setup token against the corrected tenant runtime, creating hosted admin `tenant_admin_20260330`
+  - reverified the corrected runtime end to end:
+    - `GET /api/setup/status` now returns `{\"initialized\":true}`
+    - `tenant_admin_20260330 / TempHosted!20260330` can log in successfully
+    - `GET /api/me`, `GET /api/students`, and `GET /api/subjects` all succeed on the intended tenant schema
 
 ## Blocked
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.
 - Direct SSH validation to `SQL001` from this PC still needs to be confirmed separately; current confirmed database path remains through `APP001`.
 
 ## Next
-1. Decide whether non-user-admin operators should keep read-only visibility into `User Management` and other sensitive control-plane lists or have some workspaces hidden entirely.
-2. Recheck the latest `/control/` sidebar, focused-detail, and user-management flows on desktop and mobile.
-3. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
+1. Recheck the latest `/control/` sidebar, focused-detail, and user-management flows on desktop and mobile.
+2. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
+3. Decide whether to rotate or formalize the temporary staged tenant admin created during runtime recovery.
 
 ## Current Assessment
 - The app is a strong functional product foundation.

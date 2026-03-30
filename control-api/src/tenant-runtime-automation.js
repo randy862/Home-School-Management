@@ -135,7 +135,7 @@ function buildRuntimeBundle(environment, dbConfig, payload) {
     `PGDATABASE=${dbConfig.database}`,
     `PGUSER=${dbConfig.user}`,
     `PGPASSWORD=${dbConfig.password}`,
-    `PGOPTIONS=-c search_path=${dbConfig.schema}`,
+    `PGOPTIONS="-c search_path=${dbConfig.schema}"`,
     `TENANT_ID=${environment.tenantId}`,
     `TENANT_ENVIRONMENT_ID=${environment.id}`,
     `TENANT_ENVIRONMENT_KEY=${environment.environmentKey}`,
