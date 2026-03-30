@@ -15,9 +15,11 @@ function registerOperatorAuthRoutes(app, deps) {
     countOperators,
     createBootstrapOperator,
     createOperatorSession,
+    getOperatorById,
     getOperatorByUsername,
     revokeOperatorSessionByTokenHash,
     sessionConfig,
+    updateOperatorUser,
     updateOperatorLastLogin
   } = deps;
 
@@ -104,6 +106,58 @@ function registerOperatorAuthRoutes(app, deps) {
       return;
     }
     res.json({ user: mapOperatorSummary(req.auth.user) });
+  });
+
+  app.post("/api/operator/auth/change-password", async (req, res) => {
+    if (!req.auth?.user?.id) {
+      res.status(401).json({ error: "Authentication required." });
+      return;
+    }
+
+    try {
+      const currentPassword = String(req.body?.currentPassword || "");
+      const newPassword = String(req.body?.newPassword || "");
+      const confirmPassword = String(req.body?.confirmPassword || "");
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        res.status(400).json({ error: "Current password, new password, and confirmation are required." });
+        return;
+      }
+      if (newPassword.length < 10) {
+        res.status(400).json({ error: "New password must be at least 10 characters." });
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        res.status(400).json({ error: "New password and confirmation must match." });
+        return;
+      }
+
+      const operator = await getOperatorById(req.auth.user.id);
+      if (!operator) {
+        res.status(404).json({ error: "Operator not found." });
+        return;
+      }
+      if (!await verifyPassword(operator, currentPassword)) {
+        res.status(401).json({ error: "Current password is incorrect." });
+        return;
+      }
+
+      const credentials = await hashPassword(newPassword);
+      const updated = await updateOperatorUser(req.auth.user.id, {
+        username: operator.username,
+        firstName: operator.firstName,
+        lastName: operator.lastName,
+        role: operator.role,
+        permissions: operator.permissions,
+        isActive: operator.isActive,
+        ...credentials
+      }, {
+        operatorUserId: req.auth.user.id
+      });
+
+      res.json({ ok: true, user: mapOperatorSummary(updated) });
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
   });
 }
 

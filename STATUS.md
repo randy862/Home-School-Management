@@ -300,6 +300,15 @@ Date: 2026-03-27
   - redeployed `control-api/` to `APP001` and refreshed `/control/` assets on `WEB001`
   - staged validation confirmed `GET /api/control/audit?limit=5` returns recent operator actions including Session 3 lifecycle events with actor, target, tenant, and structured details
   - staged validation confirmed the deployed `/control/app.js` now includes the new audit-trail and job-diagnostics rendering code paths
+- Added control-plane user management and permission-aware operator accounts:
+  - added a new `User Management` workspace to `/control/` with the same focused list/detail/edit flow as `Customers`, `Environments`, and `Operations`
+  - added operator list/detail/create/update API endpoints under `GET/POST/PATCH /api/control/operators`
+  - expanded operator records to include `first_name`, `last_name`, and explicit `permissions_json`
+  - introduced derived account types such as `Super Admin`, `User Admin`, and `Read Only` from the underlying permission set
+  - upgraded control-plane route authorization from coarse role checks to explicit permissions for customers, environments, operations, and users
+  - migrated existing staged `platform_admin` accounts to full permissions and existing `support_operator` accounts to read-only defaults
+  - added a safeguard that prevents the last active full-access admin from being downgraded or deactivated without another active `Super Admin` already in place
+  - redeployed `control-api/` to `APP001`, applied `003_operator_user_permissions.sql` in the staged control schema, and refreshed `/control/` assets on `WEB001`
 
 ## Blocked
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.

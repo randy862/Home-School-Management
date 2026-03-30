@@ -71,8 +71,14 @@ function registerOperatorUserRoutes(app, deps) {
 async function normalizeCreateOperatorPayload(input) {
   const username = normalizeUsername(input?.username);
   const password = String(input?.password || "");
+  const confirmPassword = String(input?.confirmPassword || "");
   if (!password || password.length < 10) {
     const error = new Error("Password must be at least 10 characters.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (password !== confirmPassword) {
+    const error = new Error("Password and confirmation must match.");
     error.statusCode = 400;
     throw error;
   }
@@ -100,9 +106,15 @@ async function normalizeUpdateOperatorPayload(input) {
   };
 
   const password = String(input?.password || "");
+  const confirmPassword = String(input?.confirmPassword || "");
   if (password) {
     if (password.length < 10) {
       const error = new Error("Password must be at least 10 characters.");
+      error.statusCode = 400;
+      throw error;
+    }
+    if (password !== confirmPassword) {
+      const error = new Error("Password and confirmation must match.");
       error.statusCode = 400;
       throw error;
     }

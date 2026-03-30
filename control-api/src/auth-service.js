@@ -116,6 +116,14 @@ function deriveOperatorAccountType(permissions = {}) {
     .join(" + ");
 }
 
+function isFullAccessPermissionSet(permissions = {}) {
+  const normalized = normalizeOperatorPermissions(permissions);
+  return normalized.manageCustomers
+    && normalized.manageEnvironments
+    && normalized.manageOperations
+    && normalized.manageUsers;
+}
+
 function mapOperatorSummary(user) {
   if (!user) return null;
   const permissions = normalizeOperatorPermissions(user.permissions, user.role);
@@ -137,6 +145,7 @@ module.exports = {
   hashPassword,
   hashSessionToken,
   deriveOperatorAccountType,
+  isFullAccessPermissionSet,
   mapOperatorSummary,
   normalizeOperatorPermissions,
   parseCookies,

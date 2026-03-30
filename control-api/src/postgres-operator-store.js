@@ -1,6 +1,6 @@
 const { getPostgresPool } = require("./postgres-db");
 const { randomUUID } = require("crypto");
-const { normalizeOperatorPermissions, deriveOperatorAccountType } = require("./auth-service");
+const { normalizeOperatorPermissions, deriveOperatorAccountType, isFullAccessPermissionSet } = require("./auth-service");
 
 function mapOperatorRow(row) {
   if (!row) return null;
@@ -383,6 +383,19 @@ async function updateOperatorUser(id, updates, context = {}) {
         passwordAlgorithm: existing.passwordAlgorithm,
         passwordIterations: existing.passwordIterations
       };
+
+  const existingIsFullAccess = !!existing.isActive && isFullAccessPermissionSet(existing.permissions);
+  const updatedIsActive = updates.isActive != null ? !!updates.isActive : existing.isActive;
+  const updatedIsFullAccess = updatedIsActive && isFullAccessPermissionSet(permissions);
+  if (existingIsFullAccess && !updatedIsFullAccess) {
+    const activeOperators = await listOperators();
+    const activeFullAccessCount = activeOperators.filter((operator) => operator.id !== id && operator.isActive && isFullAccessPermissionSet(operator.permissions)).length;
+    if (activeFullAccessCount === 0) {
+      const error = new Error("At least one active Super Admin must keep full access. Create or upgrade another Super Admin before removing this account's full access or deactivating it.");
+      error.statusCode = 400;
+      throw error;
+    }
+  }
 
   const result = await pool.query(`
     UPDATE operator_users

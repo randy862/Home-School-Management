@@ -19,6 +19,8 @@ const refs = {
   loginCard: document.getElementById("login-card"),
   flash: document.getElementById("flash-message"),
   consoleSection: document.getElementById("console-section"),
+  accountPanel: document.getElementById("account-panel"),
+  accountSummary: document.getElementById("account-summary"),
   operatorName: document.getElementById("operator-name"),
   operatorSessionBadge: document.getElementById("operator-session-badge"),
   operatorMeta: document.getElementById("operator-meta"),
@@ -66,6 +68,12 @@ const refs = {
   loginForm: document.getElementById("login-form"),
   refreshBtn: document.getElementById("refresh-btn"),
   logoutBtn: document.getElementById("logout-btn"),
+  myAccountBtn: document.getElementById("my-account-btn"),
+  accountPanelCloseBtn: document.getElementById("account-panel-close-btn"),
+  accountPasswordForm: document.getElementById("account-password-form"),
+  accountCurrentPassword: document.getElementById("account-current-password"),
+  accountNewPassword: document.getElementById("account-new-password"),
+  accountConfirmPassword: document.getElementById("account-confirm-password"),
   environmentTenantId: document.getElementById("environment-tenant-id"),
   jobEnvironmentId: document.getElementById("job-environment-id"),
   jobTenantId: document.getElementById("job-tenant-id"),
@@ -87,6 +95,7 @@ const refs = {
   userFirstName: document.getElementById("user-first-name"),
   userLastName: document.getElementById("user-last-name"),
   userPassword: document.getElementById("user-password"),
+  userConfirmPassword: document.getElementById("user-confirm-password"),
   userIsActive: document.getElementById("user-is-active"),
   userPermissionCustomers: document.getElementById("user-permission-customers"),
   userPermissionEnvironments: document.getElementById("user-permission-environments"),
@@ -190,7 +199,19 @@ function renderOperator() {
   refs.tenantOpenCreateBtn?.classList.toggle("hidden", !canManage("manageCustomers"));
   refs.environmentOpenCreateBtn?.classList.toggle("hidden", !canManage("manageEnvironments"));
   refs.jobOpenCreateBtn?.classList.toggle("hidden", !canManage("manageOperations"));
+  renderMyAccountSummary();
   renderWorkspaceTabs();
+}
+
+function renderMyAccountSummary() {
+  if (!state.operator || !refs.accountSummary) return;
+  refs.accountSummary.innerHTML = `
+    ${renderDetailField("Username", state.operator.username || "Not recorded")}
+    ${renderDetailField("First Name", state.operator.firstName || "Not recorded")}
+    ${renderDetailField("Last Name", state.operator.lastName || "Not recorded")}
+    ${renderDetailField("Account Type", state.operator.accountType || state.operator.role || "Not recorded")}
+    ${renderDetailField("Status", state.operator.isActive ? "Active" : "Inactive")}
+  `;
 }
 
 function renderLists() {
@@ -785,6 +806,17 @@ function openCreateJobForm() {
   syncJobWorkspaceFocus();
 }
 
+function resetAccountPanel() {
+  refs.accountPasswordForm?.reset();
+  refs.accountPanel?.classList.add("hidden");
+}
+
+function openAccountPanel() {
+  renderMyAccountSummary();
+  refs.accountPasswordForm?.reset();
+  refs.accountPanel?.classList.remove("hidden");
+}
+
 function fillUserFormForEdit(user) {
   refs.userFormShell.classList.remove("hidden");
   refs.userForm.classList.remove("hidden");
@@ -796,7 +828,9 @@ function fillUserFormForEdit(user) {
   refs.userFirstName.value = user.firstName || "";
   refs.userLastName.value = user.lastName || "";
   refs.userPassword.value = "";
+  refs.userConfirmPassword.value = "";
   refs.userPassword.placeholder = "Leave blank to keep current password";
+  refs.userConfirmPassword.placeholder = "Leave blank to keep current password";
   refs.userIsActive.checked = user.isActive !== false;
   refs.userPermissionCustomers.checked = !!user.permissions?.manageCustomers;
   refs.userPermissionEnvironments.checked = !!user.permissions?.manageEnvironments;
@@ -815,6 +849,7 @@ function resetUserForm() {
   refs.userFormTitle.textContent = "New User";
   refs.userEditId.value = "";
   refs.userPassword.placeholder = "";
+  refs.userConfirmPassword.placeholder = "";
   refs.userIsActive.checked = true;
   refs.userSubmitBtn.textContent = "Create User";
   state.selectedUserId = "";
@@ -1037,6 +1072,7 @@ function bindEvents() {
       state.selectedEnvironmentId = "";
       state.selectedJobId = "";
       state.selectedUserId = "";
+      resetAccountPanel();
       renderEnvironmentDetail(null);
       renderJobDetail(null);
       resetTenantForm();
@@ -1051,6 +1087,16 @@ function bindEvents() {
 
   refs.refreshBtn?.addEventListener("click", async () => {
     await refreshData(true);
+  });
+
+  refs.myAccountBtn?.addEventListener("click", () => {
+    openAccountPanel();
+    setFlash(null, "");
+  });
+
+  refs.accountPanelCloseBtn?.addEventListener("click", () => {
+    resetAccountPanel();
+    setFlash(null, "");
   });
 
   refs.tabTenants?.addEventListener("click", () => setActiveWorkspace("tenants"));
@@ -1230,11 +1276,15 @@ function bindEvents() {
     const editId = refs.userEditId.value.trim();
     const creating = !editId;
     try {
+      if (refs.userPassword.value && refs.userPassword.value !== refs.userConfirmPassword.value) {
+        throw new Error("Password and confirmation must match.");
+      }
       const body = {
         username: refs.userUsername.value.trim(),
         firstName: refs.userFirstName.value.trim(),
         lastName: refs.userLastName.value.trim(),
         password: refs.userPassword.value,
+        confirmPassword: refs.userConfirmPassword.value,
         isActive: refs.userIsActive.checked,
         permissions: collectUserPermissions()
       };
@@ -1246,6 +1296,30 @@ function bindEvents() {
       resetUserForm();
       setActiveWorkspace("users");
       await refreshData(false);
+    } catch (error) {
+      setFlash("error", error.message);
+    }
+  });
+
+  refs.accountPasswordForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      if (refs.accountNewPassword.value !== refs.accountConfirmPassword.value) {
+        throw new Error("New password and confirmation must match.");
+      }
+      const result = await apiFetch("/api/operator/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({
+          currentPassword: refs.accountCurrentPassword.value,
+          newPassword: refs.accountNewPassword.value,
+          confirmPassword: refs.accountConfirmPassword.value
+        })
+      });
+      if (result?.user) {
+        state.operator = result.user;
+        renderOperator();
+      }
+      resetAccountPanel();
     } catch (error) {
       setFlash("error", error.message);
     }

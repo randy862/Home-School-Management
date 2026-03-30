@@ -75,9 +75,11 @@ registerOperatorAuthRoutes(app, {
   countOperators,
   createBootstrapOperator,
   createOperatorSession,
+  getOperatorById,
   getOperatorByUsername,
   revokeOperatorSessionByTokenHash,
   sessionConfig,
+  updateOperatorUser,
   updateOperatorLastLogin
 });
 registerOperatorUserRoutes(app, {

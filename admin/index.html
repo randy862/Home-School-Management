@@ -57,9 +57,31 @@
           <strong id="operator-name">Operator</strong>
           <span id="operator-meta" class="operator-inline-meta"></span>
         </div>
+        <button id="my-account-btn" class="secondary-btn" type="button">My Account</button>
         <button id="refresh-btn" class="secondary-btn" type="button">Refresh Data</button>
         <button id="logout-btn" class="secondary-btn" type="button">Sign Out</button>
       </div>
+
+      <section id="account-panel" class="detail-card hidden">
+        <div class="detail-toolbar">
+          <div>
+            <strong>My Account</strong>
+            <p class="detail-copy">Review your operator profile and change your password.</p>
+          </div>
+          <div class="operator-actions">
+            <button id="account-panel-close-btn" type="button" class="secondary-btn">Close</button>
+          </div>
+        </div>
+        <div id="account-summary" class="compact-details"></div>
+        <form id="account-password-form" class="stack-form action-form">
+          <label><span>Current Password</span><input id="account-current-password" type="password" autocomplete="current-password" required></label>
+          <label><span>New Password</span><input id="account-new-password" type="password" autocomplete="new-password" required></label>
+          <label><span>Confirm New Password</span><input id="account-confirm-password" type="password" autocomplete="new-password" required></label>
+          <div class="operator-actions">
+            <button id="account-password-submit-btn" type="submit" class="primary-btn">Change Password</button>
+          </div>
+        </form>
+      </section>
 
       <section class="panel-grid metrics-grid">
         <article class="metric-card panel">
@@ -272,9 +294,11 @@
               <label><span>First Name</span><input id="user-first-name"></label>
               <label><span>Last Name</span><input id="user-last-name"></label>
               <label><span>Password</span><input id="user-password" type="password" autocomplete="new-password"></label>
+              <label><span>Confirm Password</span><input id="user-confirm-password" type="password" autocomplete="new-password"></label>
               <label class="checkbox-field"><input id="user-is-active" type="checkbox" checked><span>Account is active</span></label>
               <fieldset class="permissions-fieldset">
                 <legend>Privileges</legend>
+                <p class="fieldset-copy">Leave every box unchecked to create a read-only account.</p>
                 <label class="checkbox-field"><input id="user-permission-customers" type="checkbox"><span>Create and modify customers</span></label>
                 <label class="checkbox-field"><input id="user-permission-environments" type="checkbox"><span>Create and modify environments</span></label>
                 <label class="checkbox-field"><input id="user-permission-operations" type="checkbox"><span>Queue and manage operations</span></label>

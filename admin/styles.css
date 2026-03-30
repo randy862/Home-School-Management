@@ -293,6 +293,11 @@ h2 {
   margin-bottom: 1rem;
 }
 
+#account-panel {
+  margin-top: 0;
+  margin-bottom: 0.9rem;
+}
+
 .operator-inline-status {
   display: inline-flex;
   align-items: center;
@@ -422,6 +427,12 @@ h2 {
   padding: 0 0.35rem;
   font-size: 0.9rem;
   color: var(--ink);
+}
+
+.fieldset-copy {
+  margin: -0.1rem 0 0.15rem;
+  font-size: 0.84rem;
+  color: var(--muted);
 }
 
 label {
