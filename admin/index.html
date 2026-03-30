@@ -12,10 +12,6 @@
       <img class="brand-photo" src="/assets/MitchellFamily.png" alt="The Mitchell Family crest">
       <img class="title-logo" src="/assets/Logo2.png" alt="The Mitchell Family Home School Management System">
       <p class="subtitle">Home School Management Control Center</p>
-      <div class="control-intro panel">
-        <p class="eyebrow">Platform Operations</p>
-        <p class="lead">Manage hosted customers, monitor environment readiness, and review operational history from the same branded Home School Management interface.</p>
-      </div>
     </header>
 
     <section id="auth-section" class="auth-grid">
@@ -55,20 +51,15 @@
     <p id="flash-message" class="flash hidden"></p>
 
     <section id="console-section" class="hidden">
-      <section class="operator-bar">
-        <div class="operator-summary">
-          <p class="status-kicker">Signed In</p>
-          <div class="operator-identity">
-            <h2 id="operator-name">Operator</h2>
-            <span id="operator-session-badge" class="session-badge">Checking</span>
-          </div>
-          <p id="operator-meta" class="panel-copy"></p>
+      <div class="operator-actions console-actions">
+        <div class="operator-inline-status">
+          <span id="operator-session-badge" class="session-badge">Checking</span>
+          <strong id="operator-name">Operator</strong>
+          <span id="operator-meta" class="operator-inline-meta"></span>
         </div>
-        <div class="operator-actions">
-          <button id="refresh-btn" class="secondary-btn" type="button">Refresh Data</button>
-          <button id="logout-btn" class="secondary-btn" type="button">Sign Out</button>
-        </div>
-      </section>
+        <button id="refresh-btn" class="secondary-btn" type="button">Refresh Data</button>
+        <button id="logout-btn" class="secondary-btn" type="button">Sign Out</button>
+      </div>
 
       <section class="panel-grid metrics-grid">
         <article class="metric-card panel">
@@ -93,15 +84,21 @@
         </article>
       </section>
 
-      <nav class="workspace-tabs panel" aria-label="Control sections">
-        <button id="tab-tenants" class="tab-btn active" type="button">Customers</button>
-        <button id="tab-environments" class="tab-btn" type="button">Environments</button>
-        <button id="tab-jobs" class="tab-btn" type="button">Operations</button>
-      </nav>
+      <section class="console-layout">
+        <aside class="console-sidebar panel">
+          <div class="sidebar-section">
+            <p class="status-kicker">Navigation</p>
+            <nav class="workspace-tabs sidebar-tabs" aria-label="Control sections">
+              <button id="tab-tenants" class="tab-btn active" type="button">Customers</button>
+              <button id="tab-environments" class="tab-btn" type="button">Environments</button>
+              <button id="tab-jobs" class="tab-btn" type="button">Operations</button>
+            </nav>
+          </div>
+        </aside>
 
-      <section class="workspace-grid">
-        <article id="workspace-tenants" class="panel tall-panel workspace-panel">
-          <div class="panel-head">
+        <section class="workspace-grid">
+          <article id="workspace-tenants" class="panel tall-panel workspace-panel">
+          <div id="tenant-panel-head" class="panel-head">
             <div>
               <h2>Customers</h2>
               <p class="panel-copy">Manage customer organizations, contacts, plan details, and the URLs they use to access the platform.</p>
@@ -115,7 +112,7 @@
                 <p class="detail-copy">Review the selected customer record before editing or creating environments.</p>
               </div>
               <div class="operator-actions">
-                <button id="tenant-detail-edit-btn" type="button" class="secondary-btn">View / Edit</button>
+                <button id="tenant-detail-edit-btn" type="button" class="secondary-btn">Edit</button>
                 <button id="tenant-detail-close-btn" type="button" class="secondary-btn">Close</button>
               </div>
             </div>
@@ -156,10 +153,10 @@
             </form>
           </div>
           <div id="tenant-list"></div>
-        </article>
+          </article>
 
-        <article id="workspace-environments" class="panel tall-panel workspace-panel hidden">
-          <div class="panel-head">
+          <article id="workspace-environments" class="panel tall-panel workspace-panel hidden">
+          <div id="environment-panel-head" class="panel-head">
             <div>
               <h2>Environments</h2>
               <p class="panel-copy">Track where each customer runs, which hosts are assigned, and whether the environment is healthy and ready.</p>
@@ -191,10 +188,10 @@
           </div>
           <div id="environment-list"></div>
           <div id="environment-detail" class="detail-card hidden"></div>
-        </article>
+          </article>
 
-        <article id="workspace-jobs" class="panel tall-panel workspace-panel hidden">
-          <div class="panel-head">
+          <article id="workspace-jobs" class="panel tall-panel workspace-panel hidden">
+          <div id="job-panel-head" class="panel-head">
             <div>
               <h2>Operations</h2>
               <p class="panel-copy">Track provisioning, setup, deployment, and lifecycle actions as durable customer operations with history.</p>
@@ -238,10 +235,11 @@
           </div>
           <div id="job-list"></div>
           <div id="job-detail" class="detail-card hidden"></div>
-        </article>
+          </article>
+        </section>
       </section>
     </section>
   </main>
-  <script src="app.js"></script>
+  <script src="app.js?v=202603290305"></script>
 </body>
 </html>

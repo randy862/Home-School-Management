@@ -17,15 +17,15 @@ const refs = {
   loginCard: document.getElementById("login-card"),
   flash: document.getElementById("flash-message"),
   consoleSection: document.getElementById("console-section"),
+  operatorName: document.getElementById("operator-name"),
+  operatorSessionBadge: document.getElementById("operator-session-badge"),
+  operatorMeta: document.getElementById("operator-meta"),
   tabTenants: document.getElementById("tab-tenants"),
   tabEnvironments: document.getElementById("tab-environments"),
   tabJobs: document.getElementById("tab-jobs"),
   workspaceTenants: document.getElementById("workspace-tenants"),
   workspaceEnvironments: document.getElementById("workspace-environments"),
   workspaceJobs: document.getElementById("workspace-jobs"),
-  operatorName: document.getElementById("operator-name"),
-  operatorSessionBadge: document.getElementById("operator-session-badge"),
-  operatorMeta: document.getElementById("operator-meta"),
   customerCount: document.getElementById("customer-count"),
   customerSummary: document.getElementById("customer-summary"),
   activeCustomerCount: document.getElementById("active-customer-count"),
@@ -35,9 +35,12 @@ const refs = {
   attentionCount: document.getElementById("attention-count"),
   attentionSummary: document.getElementById("attention-summary"),
   tenantList: document.getElementById("tenant-list"),
+  tenantPanelHead: document.getElementById("tenant-panel-head"),
   tenantDetailShell: document.getElementById("tenant-detail-shell"),
   tenantDetailBody: document.getElementById("tenant-detail-body"),
+  environmentPanelHead: document.getElementById("environment-panel-head"),
   environmentList: document.getElementById("environment-list"),
+  jobPanelHead: document.getElementById("job-panel-head"),
   jobList: document.getElementById("job-list"),
   environmentFormShell: document.getElementById("environment-form-shell"),
   environmentDetail: document.getElementById("environment-detail"),
@@ -105,7 +108,7 @@ async function apiFetch(path, options = {}) {
 }
 
 function setFlash(kind, message) {
-  if (!message) {
+  if (!message || (kind && kind !== "error")) {
     refs.flash.className = "flash hidden";
     refs.flash.textContent = "";
     return;
@@ -128,13 +131,13 @@ function renderAuthState() {
   refs.consoleSection.classList.toggle("hidden", !operator);
 
   if (!operator && initialized === false) {
-    setSessionState("Bootstrap Required", "No control-plane operators exist yet. Create the first platform administrator.");
+    setSessionState("Bootstrap Required", "No operators yet");
   } else if (!operator && initialized === true) {
-    setSessionState("Login Required", "Control-plane bootstrap is complete. Sign in with an operator account.");
+    setSessionState("Login Required", "Sign in required");
   } else if (operator) {
-    setSessionState("Authenticated", `${operator.username} is signed in as ${operator.role}.`);
+    setSessionState("Authenticated", `${operator.username} signed in`);
   } else {
-    setSessionState("Checking", "Determining control-plane setup and session state.");
+    setSessionState("Checking", "Checking session");
   }
 }
 
@@ -223,7 +226,6 @@ function renderTenantTable(tenants) {
               <td>
                 <div class="table-actions">
                   <button type="button" class="secondary-btn table-action-btn" data-tenant-detail-id="${escapeHtml(tenant.id)}">Details</button>
-                  <button type="button" class="secondary-btn table-action-btn" data-tenant-id="${escapeHtml(tenant.id)}">View / Edit</button>
                 </div>
               </td>
             </tr>
@@ -236,6 +238,7 @@ function renderTenantTable(tenants) {
 
 function renderTenantDetail(tenant) {
   refs.tenantDetailShell.classList.remove("hidden");
+  syncTenantWorkspaceFocus();
   refs.tenantDetailBody.innerHTML = `
     <div class="compact-details">
       ${renderDetailField("Organization Name", tenant.displayName || "Not recorded")}
@@ -340,9 +343,11 @@ function renderEnvironmentDetail(environment) {
   if (!environment) {
     refs.environmentDetail.classList.add("hidden");
     refs.environmentDetail.innerHTML = "";
+    syncEnvironmentWorkspaceFocus();
     return;
   }
   refs.environmentDetail.classList.remove("hidden");
+  syncEnvironmentWorkspaceFocus();
   const relatedJobs = state.jobs
     .filter((job) => job.tenantEnvironmentId === environment.id)
     .sort((left, right) => compareDatesDesc(left.requestedAt, right.requestedAt));
@@ -352,7 +357,10 @@ function renderEnvironmentDetail(environment) {
         <strong>Environment Overview</strong>
         <p class="detail-copy">${escapeHtml(environment.tenantDisplayName || environment.tenantId || "Unknown tenant")} / ${escapeHtml(environment.environmentKey || "environment")}</p>
       </div>
-      <button id="environment-detail-refresh" type="button" class="secondary-btn">Refresh Detail</button>
+      <div class="operator-actions">
+        <button id="environment-detail-refresh" type="button" class="secondary-btn">Refresh Detail</button>
+        <button id="environment-detail-close" type="button" class="secondary-btn">Close</button>
+      </div>
     </div>
     <div class="detail-badges">
       ${renderStatusTag(environment.status, "environment")}
@@ -394,6 +402,12 @@ function renderEnvironmentDetail(environment) {
   document.getElementById("environment-detail-refresh")?.addEventListener("click", async () => {
     if (state.selectedEnvironmentId) await loadEnvironmentDetail(state.selectedEnvironmentId, true);
   });
+  document.getElementById("environment-detail-close")?.addEventListener("click", () => {
+    state.selectedEnvironmentId = "";
+    renderEnvironmentDetail(null);
+    renderLists();
+    setFlash(null, "");
+  });
   refs.environmentDetail.querySelectorAll("[data-job-id]").forEach((element) => {
     element.addEventListener("click", async () => {
       await loadJobDetail(element.getAttribute("data-job-id"));
@@ -405,9 +419,11 @@ function renderJobDetail(job) {
   if (!job) {
     refs.jobDetail.classList.add("hidden");
     refs.jobDetail.innerHTML = "";
+    syncJobWorkspaceFocus();
     return;
   }
   refs.jobDetail.classList.remove("hidden");
+  syncJobWorkspaceFocus();
   const deployment = job.result?.deployment || null;
   refs.jobDetail.innerHTML = `
     <div class="detail-toolbar">
@@ -415,7 +431,10 @@ function renderJobDetail(job) {
         <strong>Operation Detail</strong>
         <p class="detail-copy">${escapeHtml(formatJobType(job.jobType))}</p>
       </div>
-      <button id="job-detail-refresh" type="button" class="secondary-btn">Refresh Detail</button>
+      <div class="operator-actions">
+        <button id="job-detail-refresh" type="button" class="secondary-btn">Refresh Detail</button>
+        <button id="job-detail-close" type="button" class="secondary-btn">Close</button>
+      </div>
     </div>
     <div class="detail-badges">
       ${renderStatusTag(job.status, "job")}
@@ -462,6 +481,12 @@ function renderJobDetail(job) {
   document.getElementById("job-detail-refresh")?.addEventListener("click", async () => {
     if (state.selectedJobId) await loadJobDetail(state.selectedJobId, true);
   });
+  document.getElementById("job-detail-close")?.addEventListener("click", () => {
+    state.selectedJobId = "";
+    renderJobDetail(null);
+    renderLists();
+    setFlash(null, "");
+  });
 }
 
 function renderWorkspaceTabs() {
@@ -507,6 +532,7 @@ async function loadTenantDetail(tenantId, silent = false) {
   renderLists();
   refs.tenantFormShell.classList.add("hidden");
   refs.tenantForm.classList.add("hidden");
+  syncTenantWorkspaceFocus();
   try {
     const [tenant, auditEntries] = await Promise.all([
       apiFetch(`/api/control/tenants/${encodeURIComponent(tenantId)}`),
@@ -528,7 +554,7 @@ async function selectTenant(tenantId) {
     refs.tenantDetailShell.classList.add("hidden");
     refs.tenantDetailBody.innerHTML = "";
     fillTenantFormForEdit(tenant);
-    setFlash("info", `Loaded tenant ${tenant.displayName} for editing.`);
+    setFlash("info", `Loaded customer ${tenant.displayName} for editing.`);
   } catch (error) {
     setFlash("error", error.message);
   }
@@ -537,6 +563,7 @@ async function selectTenant(tenantId) {
 function fillTenantFormForEdit(tenant) {
   refs.tenantFormShell.classList.remove("hidden");
   refs.tenantForm.classList.remove("hidden");
+  syncTenantWorkspaceFocus();
   refs.tenantFormTitle.textContent = "Edit Customer";
   refs.tenantEditId.value = tenant.id;
   refs.tenantSlug.value = tenant.slug || "";
@@ -570,6 +597,7 @@ function resetTenantForm() {
   refs.tenantStatus.value = "draft";
   refs.tenantSubmitBtn.textContent = "Create Customer";
   state.selectedTenantId = "";
+  syncTenantWorkspaceFocus();
   renderLists();
 }
 
@@ -578,18 +606,45 @@ function openCreateTenantForm() {
   refs.tenantFormShell.classList.remove("hidden");
   refs.tenantForm.classList.remove("hidden");
   refs.tenantFormTitle.textContent = "Create Customer";
+  syncTenantWorkspaceFocus();
+}
+
+function syncTenantWorkspaceFocus() {
+  const detailOpen = !refs.tenantDetailShell.classList.contains("hidden");
+  const formOpen = !refs.tenantFormShell.classList.contains("hidden");
+  refs.tenantPanelHead.classList.toggle("hidden", detailOpen || formOpen);
+  refs.tenantList.classList.toggle("hidden", detailOpen || formOpen);
+}
+
+function syncEnvironmentWorkspaceFocus() {
+  const detailOpen = !refs.environmentDetail.classList.contains("hidden");
+  const formOpen = !refs.environmentFormShell.classList.contains("hidden");
+  refs.environmentPanelHead.classList.toggle("hidden", detailOpen || formOpen);
+  refs.environmentList.classList.toggle("hidden", detailOpen || formOpen);
+}
+
+function syncJobWorkspaceFocus() {
+  const detailOpen = !refs.jobDetail.classList.contains("hidden");
+  const formOpen = !refs.jobFormShell.classList.contains("hidden");
+  refs.jobPanelHead.classList.toggle("hidden", detailOpen || formOpen);
+  refs.jobList.classList.toggle("hidden", detailOpen || formOpen);
 }
 
 function resetEnvironmentForm() {
   refs.environmentForm.reset();
   refs.environmentFormShell.classList.add("hidden");
   refs.environmentForm.classList.add("hidden");
+  refs.environmentDetail.classList.add("hidden");
+  refs.environmentDetail.innerHTML = "";
+  state.selectedEnvironmentId = "";
+  syncEnvironmentWorkspaceFocus();
 }
 
 function openCreateEnvironmentForm() {
   resetEnvironmentForm();
   refs.environmentFormShell.classList.remove("hidden");
   refs.environmentForm.classList.remove("hidden");
+  syncEnvironmentWorkspaceFocus();
 }
 
 function resetJobForm() {
@@ -600,12 +655,17 @@ function resetJobForm() {
   syncJobFormMode();
   refs.jobFormShell.classList.add("hidden");
   refs.jobForm.classList.add("hidden");
+  refs.jobDetail.classList.add("hidden");
+  refs.jobDetail.innerHTML = "";
+  state.selectedJobId = "";
+  syncJobWorkspaceFocus();
 }
 
 function openCreateJobForm() {
   resetJobForm();
   refs.jobFormShell.classList.remove("hidden");
   refs.jobForm.classList.remove("hidden");
+  syncJobWorkspaceFocus();
 }
 
 async function loadEnvironmentDetail(environmentId, silent = false) {
@@ -613,6 +673,7 @@ async function loadEnvironmentDetail(environmentId, silent = false) {
   renderLists();
   refs.environmentFormShell.classList.add("hidden");
   refs.environmentForm.classList.add("hidden");
+  syncEnvironmentWorkspaceFocus();
   try {
     const environment = await apiFetch(`/api/control/environments/${encodeURIComponent(environmentId)}`);
     environment.auditEntries = await fetchAuditEntries({
@@ -633,6 +694,7 @@ async function loadJobDetail(jobId, silent = false) {
   renderLists();
   refs.jobFormShell.classList.add("hidden");
   refs.jobForm.classList.add("hidden");
+  syncJobWorkspaceFocus();
   try {
     const job = await apiFetch(`/api/control/jobs/${encodeURIComponent(jobId)}`);
     job.auditEntries = await fetchAuditEntries({
@@ -658,7 +720,7 @@ async function bootstrap() {
 }
 
 async function refreshSession() {
-  setFlash("info", "Loading control-plane status...");
+  setFlash(null, "");
   try {
     const status = await apiFetch("/api/operator/setup/status");
     state.setupInitialized = !!status.initialized;
@@ -677,7 +739,7 @@ async function refreshSession() {
     if (state.operator) {
       renderOperator();
       await refreshData(false);
-      setFlash("success", "Control-plane session ready.");
+      setFlash(null, "");
     } else {
       setFlash(null, "");
     }
@@ -844,6 +906,7 @@ function bindEvents() {
     refs.tenantDetailShell.classList.add("hidden");
     refs.tenantDetailBody.innerHTML = "";
     state.selectedTenantId = "";
+    syncTenantWorkspaceFocus();
     renderLists();
     setFlash(null, "");
   });

@@ -178,6 +178,27 @@ h2 {
   align-items: start;
 }
 
+.console-layout {
+  display: grid;
+  grid-template-columns: fit-content(180px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.console-sidebar {
+  position: sticky;
+  top: 1rem;
+  display: grid;
+  gap: 1rem;
+  padding: 0.85rem;
+  width: fit-content;
+}
+
+.sidebar-section {
+  display: grid;
+  gap: 0.7rem;
+}
+
 .panel {
   padding: 1.15rem;
   background: var(--panel);
@@ -221,6 +242,17 @@ h2 {
   border-radius: 14px;
 }
 
+.sidebar-tabs {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  width: 100%;
+}
+
 .tab-btn {
   background: #fff8ed;
   color: var(--ink);
@@ -229,6 +261,13 @@ h2 {
   min-width: 150px;
   border-radius: 10px;
   padding: 0.45rem 0.75rem;
+}
+
+.sidebar-tabs .tab-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+  min-width: 140px;
 }
 
 .tab-btn.active {
@@ -248,19 +287,50 @@ h2 {
   flex-wrap: wrap;
 }
 
+.console-actions {
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.operator-inline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-right: auto;
+  color: var(--muted);
+}
+
+.operator-inline-status strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.operator-inline-meta {
+  font-size: 0.9rem;
+}
+
 .metric-card {
   min-height: 0;
-  padding: 0.95rem 1rem 1rem;
-  border-radius: 12px;
+  padding: 0.48rem 0.62rem 0.58rem;
+  border-radius: 8px;
   background: linear-gradient(150deg, #fff8ee, #f6e8d4);
   border-color: #e1cfad;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 0.5rem;
+  row-gap: 0.15rem;
 }
 
 .metric-card strong {
   display: block;
-  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  grid-column: 2;
+  grid-row: 1;
+  font-size: clamp(0.95rem, 1.5vw, 1.2rem);
   line-height: 1;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.08rem;
+  white-space: nowrap;
 }
 
 .session-badge {
@@ -278,20 +348,24 @@ h2 {
 }
 
 .metric-copy {
-  margin: 0.1rem 0 0;
-  font-size: 0.92rem;
-  line-height: 1.45;
+  grid-column: 1 / -1;
+  margin: 0.02rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.25;
 }
 
 .metrics-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  margin-bottom: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  margin-bottom: 0.6rem;
+  gap: 0.7rem;
 }
 
 .metrics-grid .status-kicker {
-  margin-bottom: 0.35rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
+  grid-column: 1;
+  grid-row: 1;
+  margin-bottom: 0.12rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
 }
 
 .tall-panel {
@@ -411,7 +485,8 @@ button:hover {
 }
 
 .table-shell {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid var(--line);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.8);
@@ -421,15 +496,18 @@ button:hover {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 840px;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .data-table th,
 .data-table td {
-  padding: 0.95rem 1rem;
+  padding: 0.8rem 0.85rem;
   text-align: left;
   border-bottom: 1px solid rgba(31, 41, 51, 0.08);
   vertical-align: top;
+  font-size: 0.94rem;
+  overflow-wrap: anywhere;
 }
 
 .data-table th {
@@ -438,6 +516,11 @@ button:hover {
   letter-spacing: 0.08em;
   color: var(--muted);
   background: rgba(34, 95, 105, 0.05);
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+  width: 150px;
 }
 
 .data-table tbody tr:hover,
@@ -477,7 +560,8 @@ button:hover {
 }
 
 .table-action-btn {
-  padding: 0.55rem 0.8rem;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.88rem;
 }
 
 .record-item {
@@ -796,9 +880,29 @@ code {
       "intro";
   }
 
+  .console-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .console-sidebar {
+    position: static;
+    width: 100%;
+  }
+
   .operator-bar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .console-actions {
+    justify-content: flex-start;
+  }
+
+  .operator-inline-status {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 0.35rem;
+    flex-wrap: wrap;
   }
 
   .title-logo,
@@ -814,6 +918,10 @@ code {
   .control-intro {
     max-width: 100%;
     width: 100%;
+  }
+
+  .sidebar-tabs .tab-btn {
+    width: auto;
   }
 
   .detail-toolbar,
