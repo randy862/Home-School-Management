@@ -1,16 +1,7 @@
-const { randomUUID } = require("crypto");
-
 function registerRecordsRoutes(app, deps) {
   const {
-    createAttendance,
-    createTest,
-    deleteAttendance,
-    deleteTest,
     isPostgresMode,
-    listAttendanceForUser,
-    listTestsForUser,
-    updateAttendance,
-    updateTest
+    recordsService
   } = deps;
 
   app.get("/api/attendance", async (req, res) => {
@@ -18,7 +9,7 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAuthenticated(req, res)) return;
 
     try {
-      res.json(await listAttendanceForUser(req.auth.user));
+      res.json(await recordsService.listAttendanceForUser(req.auth.user));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -29,7 +20,7 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      res.status(201).json(await createAttendance(normalizeAttendancePayload(req.body)));
+      res.status(201).json(await recordsService.createAttendance(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
@@ -40,7 +31,7 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      const updated = await updateAttendance(req.params.id, normalizeAttendancePayload({ ...req.body, id: req.params.id }));
+      const updated = await recordsService.updateAttendance(req.params.id, req.body);
       if (!updated) {
         res.status(404).json({ error: "Attendance record not found." });
         return;
@@ -56,7 +47,7 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      const deleted = await deleteAttendance(req.params.id);
+      const deleted = await recordsService.deleteAttendance(req.params.id);
       if (!deleted) {
         res.status(404).json({ error: "Attendance record not found." });
         return;
@@ -72,7 +63,7 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAuthenticated(req, res)) return;
 
     try {
-      res.json(await listTestsForUser(req.auth.user));
+      res.json(await recordsService.listTestsForUser(req.auth.user));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -83,7 +74,7 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      res.status(201).json(await createTest(normalizeTestPayload(req.body)));
+      res.status(201).json(await recordsService.createTest(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
@@ -94,7 +85,7 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      const updated = await updateTest(req.params.id, normalizeTestPayload({ ...req.body, id: req.params.id }));
+      const updated = await recordsService.updateTest(req.params.id, req.body);
       if (!updated) {
         res.status(404).json({ error: "Test not found." });
         return;
@@ -110,7 +101,7 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      const deleted = await deleteTest(req.params.id);
+      const deleted = await recordsService.deleteTest(req.params.id);
       if (!deleted) {
         res.status(404).json({ error: "Test not found." });
         return;
@@ -139,45 +130,6 @@ function ensureAdmin(req, res) {
   if (req.auth.user.role === "admin") return true;
   res.status(403).json({ error: "Admin access required." });
   return false;
-}
-
-function normalizeAttendancePayload(input) {
-  const id = String(input?.id || "").trim() || randomUUID();
-  const studentId = String(input?.studentId || "").trim();
-  const date = String(input?.date || "").trim();
-  const present = Boolean(input?.present);
-  if (!studentId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    const error = new Error("Provide valid attendance values.");
-    error.statusCode = 400;
-    throw error;
-  }
-  return { id, studentId, date, present };
-}
-
-function normalizeTestPayload(input) {
-  const id = String(input?.id || "").trim() || randomUUID();
-  const date = String(input?.date || "").trim();
-  const studentId = String(input?.studentId || "").trim();
-  const subjectId = String(input?.subjectId || "").trim();
-  const courseId = String(input?.courseId || "").trim();
-  const gradeType = String(input?.gradeType || "").trim();
-  const testName = String(input?.testName || gradeType).trim();
-  const score = Number(input?.score);
-  const maxScore = input?.maxScore == null ? 100 : Number(input.maxScore);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
-    || !studentId
-    || !subjectId
-    || !courseId
-    || !gradeType
-    || !testName
-    || !Number.isFinite(score)
-    || !Number.isFinite(maxScore)
-    || maxScore <= 0) {
-    const error = new Error("Provide valid grade values.");
-    error.statusCode = 400;
-    throw error;
-  }
-  return { id, date, studentId, subjectId, courseId, gradeType, testName, score, maxScore };
 }
 
 module.exports = {

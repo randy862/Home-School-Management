@@ -1,20 +1,7 @@
-const { randomUUID } = require("crypto");
-
 function registerCurriculumRoutes(app, deps) {
   const {
-    createCourse,
-    createEnrollment,
-    createSubject,
-    deleteCourse,
-    deleteEnrollment,
-    deleteSubject,
+    curriculumService,
     isPostgresMode,
-    listCoursesForUser,
-    listEnrollmentsForUser,
-    listSubjectsForUser,
-    updateCourse,
-    updateEnrollment,
-    updateSubject
   } = deps;
 
   app.get("/api/subjects", async (req, res) => {
@@ -22,7 +9,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAuthenticated(req, res)) return;
 
     try {
-      res.json(await listSubjectsForUser(req.auth.user));
+      res.json(await curriculumService.listSubjectsForUser(req.auth.user));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -33,7 +20,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      res.status(201).json(await createSubject(normalizeSubjectPayload(req.body)));
+      res.status(201).json(await curriculumService.createSubject(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
@@ -44,7 +31,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      const updated = await updateSubject(req.params.id, normalizeSubjectPayload({ ...req.body, id: req.params.id }));
+      const updated = await curriculumService.updateSubject(req.params.id, req.body);
       if (!updated) {
         res.status(404).json({ error: "Subject not found." });
         return;
@@ -60,7 +47,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      const deleted = await deleteSubject(req.params.id);
+      const deleted = await curriculumService.deleteSubject(req.params.id);
       if (!deleted) {
         res.status(404).json({ error: "Subject not found." });
         return;
@@ -76,7 +63,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAuthenticated(req, res)) return;
 
     try {
-      res.json(await listCoursesForUser(req.auth.user));
+      res.json(await curriculumService.listCoursesForUser(req.auth.user));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -87,7 +74,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      res.status(201).json(await createCourse(normalizeCoursePayload(req.body)));
+      res.status(201).json(await curriculumService.createCourse(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
@@ -98,7 +85,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      const updated = await updateCourse(req.params.id, normalizeCoursePayload({ ...req.body, id: req.params.id }));
+      const updated = await curriculumService.updateCourse(req.params.id, req.body);
       if (!updated) {
         res.status(404).json({ error: "Course not found." });
         return;
@@ -114,7 +101,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      const deleted = await deleteCourse(req.params.id);
+      const deleted = await curriculumService.deleteCourse(req.params.id);
       if (!deleted) {
         res.status(404).json({ error: "Course not found." });
         return;
@@ -130,7 +117,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAuthenticated(req, res)) return;
 
     try {
-      res.json(await listEnrollmentsForUser(req.auth.user));
+      res.json(await curriculumService.listEnrollmentsForUser(req.auth.user));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -141,7 +128,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      res.status(201).json(await createEnrollment(normalizeEnrollmentPayload(req.body)));
+      res.status(201).json(await curriculumService.createEnrollment(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
@@ -152,7 +139,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      const updated = await updateEnrollment(req.params.id, normalizeEnrollmentPayload({ ...req.body, id: req.params.id }));
+      const updated = await curriculumService.updateEnrollment(req.params.id, req.body);
       if (!updated) {
         res.status(404).json({ error: "Enrollment not found." });
         return;
@@ -168,7 +155,7 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
-      const deleted = await deleteEnrollment(req.params.id);
+      const deleted = await curriculumService.deleteEnrollment(req.params.id);
       if (!deleted) {
         res.status(404).json({ error: "Enrollment not found." });
         return;
@@ -197,44 +184,6 @@ function ensureAdmin(req, res) {
   if (req.auth.user.role === "admin") return true;
   res.status(403).json({ error: "Admin access required." });
   return false;
-}
-
-function normalizeSubjectPayload(input) {
-  const id = String(input?.id || "").trim() || randomUUID();
-  const name = String(input?.name || "").trim();
-  if (!name) {
-    const error = new Error("Subject name is required.");
-    error.statusCode = 400;
-    throw error;
-  }
-  return { ...(id ? { id } : {}), name };
-}
-
-function normalizeCoursePayload(input) {
-  const id = String(input?.id || "").trim() || randomUUID();
-  const name = String(input?.name || "").trim();
-  const subjectId = String(input?.subjectId || "").trim();
-  const hoursPerDay = Number(input?.hoursPerDay);
-  const exclusiveResource = !!input?.exclusiveResource;
-  if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) {
-    const error = new Error("Provide course name, subject, and hours/day.");
-    error.statusCode = 400;
-    throw error;
-  }
-  return { ...(id ? { id } : {}), name, subjectId, hoursPerDay, exclusiveResource };
-}
-
-function normalizeEnrollmentPayload(input) {
-  const id = String(input?.id || "").trim() || randomUUID();
-  const studentId = String(input?.studentId || "").trim();
-  const courseId = String(input?.courseId || "").trim();
-  const scheduleOrder = input?.scheduleOrder === "" || input?.scheduleOrder == null ? null : Number(input.scheduleOrder);
-  if (!studentId || !courseId || (scheduleOrder != null && (!Number.isInteger(scheduleOrder) || scheduleOrder <= 0))) {
-    const error = new Error("Provide valid enrollment values.");
-    error.statusCode = 400;
-    throw error;
-  }
-  return { ...(id ? { id } : {}), studentId, courseId, scheduleOrder };
 }
 
 module.exports = {

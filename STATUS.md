@@ -361,6 +361,10 @@ Date: 2026-03-27
   - extracted local-only attendance and grade create/update/delete mutations behind dedicated helpers in `web/app.js` so instructional record flows now follow the same hosted-vs-legacy split
   - extracted local-only grade-type and grading-criteria helpers in `web/app.js` so the remaining grading-settings flows now follow the same hosted-vs-legacy split
   - standardized the remaining local plan delete path behind `removeLegacyLocalPlan(...)` so another raw legacy mutation is out of the shared click handler
+  - started the next server-side hardening slice by adding `server/src/services/grading-service.js` and moving grading payload normalization/orchestration out of `server/src/routes/grading-routes.js`
+  - continued server-side hardening by adding `server/src/services/calendar-service.js` and moving calendar payload normalization/orchestration out of `server/src/routes/calendar-routes.js`
+  - continued server-side hardening again by adding `server/src/services/curriculum-service.js` and moving subject/course/enrollment payload normalization/orchestration out of `server/src/routes/curriculum-routes.js`
+  - continued server-side hardening again by adding `server/src/services/records-service.js` and moving attendance/test payload normalization/orchestration out of `server/src/routes/records-routes.js`
 
 ## Blocked
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.
@@ -369,7 +373,7 @@ Date: 2026-03-27
 ## Next
 1. Recheck the latest `/control/` sidebar, focused-detail, and user-management flows on desktop and mobile.
 2. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
-3. Continue item 4 by removing more hosted-era bridge merge/backfill code that is no longer needed now that hosted mode runs through domain APIs.
+3. Continue item 4 by reviewing whether the next best slice is repository extraction or a staged smoke pass against the new service-boundary backend shape.
 
 ## Current Assessment
 - The app is a strong functional product foundation.

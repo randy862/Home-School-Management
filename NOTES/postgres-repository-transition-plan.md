@@ -144,6 +144,12 @@ Define how Home School Management moves from the current mixed bridge architectu
 - `server/src/routes/state-routes.js` now presents `/api/state` explicitly as a legacy full-state path.
 - `web/app.js` now treats the bridge helpers as local-only synchronization utilities instead of generic hosted API bootstrap/save paths.
 
+### Next Service Boundary Progress
+- `server/src/services/grading-service.js` now owns grade-type and grading-criteria payload normalization plus service-level orchestration instead of leaving those concerns inside the HTTP route file.
+- `server/src/services/calendar-service.js` now owns school year, quarter, holiday, daily-break, and plan payload normalization plus service-level orchestration instead of leaving those concerns inside the HTTP route file.
+- `server/src/services/curriculum-service.js` now owns subject, course, and enrollment payload normalization plus service-level orchestration instead of leaving those concerns inside the HTTP route file.
+- `server/src/services/records-service.js` now owns attendance and test payload normalization plus service-level orchestration instead of leaving those concerns inside the HTTP route file.
+
 ## Exit Criteria
 - `server/src/app.js` is primarily bootstrap and route registration.
 - Hosted production paths no longer rely on `readState()` or `writeState()`.

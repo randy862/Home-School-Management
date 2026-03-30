@@ -36,6 +36,10 @@ const { registerInfraRoutes } = require("./routes/infra-routes");
 const { registerRecordsRoutes } = require("./routes/records-routes");
 const { registerSetupRoutes } = require("./routes/setup-routes");
 const { registerStateRoutes } = require("./routes/state-routes");
+const { createCalendarService } = require("./services/calendar-service");
+const { createCurriculumService } = require("./services/curriculum-service");
+const { createGradingService } = require("./services/grading-service");
+const { createRecordsService } = require("./services/records-service");
 const {
   createDailyBreak,
   createHoliday,
@@ -110,59 +114,67 @@ const adminRouteDeps = {
   createStudent
 };
 const curriculumRouteDeps = {
-  createCourse,
-  createEnrollment,
-  createSubject,
-  deleteCourse,
-  deleteEnrollment,
-  deleteSubject,
+  curriculumService: createCurriculumService({
+    createCourse,
+    createEnrollment,
+    createSubject,
+    deleteCourse,
+    deleteEnrollment,
+    deleteSubject,
+    listCoursesForUser,
+    listEnrollmentsForUser,
+    listSubjectsForUser,
+    updateCourse,
+    updateEnrollment,
+    updateSubject
+  }),
   isPostgresMode,
-  listCoursesForUser,
-  listEnrollmentsForUser,
-  listSubjectsForUser,
-  updateCourse,
-  updateEnrollment,
-  updateSubject
 };
 const calendarRouteDeps = {
-  createSchoolYear,
+  calendarService: createCalendarService({
+    createDailyBreak,
+    createHoliday,
+    createPlans,
+    createSchoolYear,
+    deleteDailyBreak,
+    deleteHoliday,
+    deletePlan,
+    deleteSchoolYear,
+    listDailyBreaksForUser,
+    listHolidays,
+    listPlansForUser,
+    listQuarters,
+    listSchoolYears,
+    replaceQuartersForSchoolYear,
+    setCurrentSchoolYear,
+    updateDailyBreak,
+    updateHoliday,
+    updatePlan,
+    updateSchoolYear
+  }),
   isPostgresMode,
-  deleteSchoolYear,
-  createDailyBreak,
-  createHoliday,
-  createPlans,
-  deleteDailyBreak,
-  deleteHoliday,
-  deletePlan,
-  listDailyBreaksForUser,
-  listHolidays,
-  listPlansForUser,
-  listQuarters,
-  listSchoolYears,
-  replaceQuartersForSchoolYear,
-  setCurrentSchoolYear,
-  updateDailyBreak,
-  updateHoliday,
-  updatePlan,
-  updateSchoolYear
 };
 const gradingRouteDeps = {
-  getGradingCriteria,
+  gradingService: createGradingService({
+    getGradingCriteria,
+    listGradeTypes,
+    replaceGradeTypes,
+    saveGradingCriteria
+  }),
   isPostgresMode,
-  listGradeTypes,
-  replaceGradeTypes,
-  saveGradingCriteria
 };
 const recordsRouteDeps = {
-  createAttendance,
-  createTest,
-  deleteAttendance,
-  deleteTest,
   isPostgresMode,
-  listAttendanceForUser,
-  listTestsForUser,
-  updateAttendance,
-  updateTest
+  recordsService: createRecordsService({
+    createAttendance,
+    createTest,
+    deleteAttendance,
+    deleteTest,
+    listAttendanceForUser,
+    listTestsForUser,
+    updateAttendance,
+    updateTest
+  })
 };
 const stateRouteDeps = {
   isPostgresMode,

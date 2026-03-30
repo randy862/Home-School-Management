@@ -111,4 +111,8 @@
    - [x] Extract local-only attendance and grade mutation helpers so instructional record flows read consistently too.
    - [x] Extract local-only grade-settings helpers so grading settings read consistently too.
    - [x] Standardize the remaining local plan delete path behind an explicit legacy helper.
-   - [ ] Remove more hosted-era merge/backfill code that no longer applies once hosted mode uses domain APIs end to end.
+   - [x] Start server-side repository/service hardening with a grading service boundary.
+   - [x] Continue server-side repository/service hardening with a calendar service boundary.
+   - [x] Continue server-side repository/service hardening with a curriculum service boundary.
+   - [x] Continue server-side repository/service hardening with the records domain after grading, calendar, and curriculum.
+   - [ ] Decide whether the next item 4 slice should be repository extraction or staged smoke validation of the new service-boundary backend shape.
