@@ -1,6 +1,6 @@
 const { randomUUID } = require("crypto");
 const { hashPassword } = require("../auth-service");
-const { ensureAuthenticated, ensurePermission } = require("./route-auth");
+const { ensurePermission } = require("./route-auth");
 
 function registerOperatorUserRoutes(app, deps) {
   const {
@@ -11,7 +11,7 @@ function registerOperatorUserRoutes(app, deps) {
   } = deps;
 
   app.get("/api/control/operators", async (req, res) => {
-    if (!ensureAuthenticated(req, res)) return;
+    if (!ensurePermission(req, res, "manageUsers", "Manage Users permission required")) return;
 
     try {
       res.json(await listOperators());
@@ -21,7 +21,7 @@ function registerOperatorUserRoutes(app, deps) {
   });
 
   app.get("/api/control/operators/:id", async (req, res) => {
-    if (!ensureAuthenticated(req, res)) return;
+    if (!ensurePermission(req, res, "manageUsers", "Manage Users permission required")) return;
 
     try {
       const operator = await getOperatorById(req.params.id);

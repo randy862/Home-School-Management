@@ -309,15 +309,25 @@ Date: 2026-03-27
   - migrated existing staged `platform_admin` accounts to full permissions and existing `support_operator` accounts to read-only defaults
   - added a safeguard that prevents the last active full-access admin from being downgraded or deactivated without another active `Super Admin` already in place
   - redeployed `control-api/` to `APP001`, applied `003_operator_user_permissions.sql` in the staged control schema, and refreshed `/control/` assets on `WEB001`
+- Completed a live staged permission-validation pass against the new operator model:
+  - created and exercised fresh `Read Only`, `Customer and Environment Admin`, `Operations Admin`, and `User Admin` accounts through the real staged control API
+  - confirmed authenticated reads succeed for those scoped accounts while mutation routes still enforce the intended capability boundaries
+  - confirmed `Read Only` was blocked from customer, environment, operations, and user mutations with `403` responses
+  - confirmed `Customer and Environment Admin` could create a validation tenant and environment once rerun with valid slug/environment-key identifiers
+  - confirmed `Operations Admin` could execute `POST /api/control/environments/:id/sync-setup` while customer, environment, and user mutations remained blocked
+  - confirmed `User Admin` could create operator accounts while customer, environment, and operations mutations remained blocked
+  - confirmed self-service `POST /api/operator/auth/change-password` works for each scoped account regardless of admin privileges
+  - confirmed an inactive staged operator account returns `401` on login
+  - follow-up decision implemented: non-user-admin operators no longer see `User Management` in `/control/`, and staged operator list/detail reads now return `403` unless `manageUsers` is present
 
 ## Blocked
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.
 - Direct SSH validation to `SQL001` from this PC still needs to be confirmed separately; current confirmed database path remains through `APP001`.
 
 ## Next
-1. Start Session 5 UI polish to make the control plane feel like a finished SaaS admin product rather than a technical console.
-2. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
-3. Consider whether the new audit trail should expand into a broader support view or searchable operations history after the main UI pass.
+1. Decide whether non-user-admin operators should keep read-only visibility into `User Management` and other sensitive control-plane lists or have some workspaces hidden entirely.
+2. Recheck the latest `/control/` sidebar, focused-detail, and user-management flows on desktop and mobile.
+3. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
 
 ## Current Assessment
 - The app is a strong functional product foundation.

@@ -167,6 +167,10 @@ function canManage(permission) {
   return !!operatorPermissions()[permission];
 }
 
+function canViewUserManagement() {
+  return canManage("manageUsers");
+}
+
 function renderAuthState() {
   const initialized = state.setupInitialized;
   const operator = state.operator;
@@ -195,7 +199,12 @@ function renderOperator() {
   refs.environmentForm.classList.toggle("hidden", !canManage("manageEnvironments"));
   refs.jobForm.classList.toggle("hidden", !canManage("manageOperations"));
   refs.userForm.classList.toggle("hidden", !canManage("manageUsers"));
+  refs.tabUsers?.classList.toggle("hidden", !canViewUserManagement());
   refs.userOpenCreateBtn?.classList.toggle("hidden", !canManage("manageUsers"));
+  if (!canViewUserManagement() && state.activeWorkspace === "users") {
+    state.activeWorkspace = "tenants";
+    state.selectedUserId = "";
+  }
   refs.tenantOpenCreateBtn?.classList.toggle("hidden", !canManage("manageCustomers"));
   refs.environmentOpenCreateBtn?.classList.toggle("hidden", !canManage("manageEnvironments"));
   refs.jobOpenCreateBtn?.classList.toggle("hidden", !canManage("manageOperations"));
@@ -614,18 +623,26 @@ function renderJobDetail(job) {
 }
 
 function renderWorkspaceTabs() {
+  const allowUsers = canViewUserManagement();
+  if (!allowUsers && state.activeWorkspace === "users") {
+    state.activeWorkspace = "tenants";
+  }
   const active = state.activeWorkspace || "tenants";
   refs.tabTenants?.classList.toggle("active", active === "tenants");
   refs.tabEnvironments?.classList.toggle("active", active === "environments");
   refs.tabJobs?.classList.toggle("active", active === "jobs");
-  refs.tabUsers?.classList.toggle("active", active === "users");
+  refs.tabUsers?.classList.toggle("active", allowUsers && active === "users");
+  refs.tabUsers?.classList.toggle("hidden", !allowUsers);
   refs.workspaceTenants?.classList.toggle("hidden", active !== "tenants");
   refs.workspaceEnvironments?.classList.toggle("hidden", active !== "environments");
   refs.workspaceJobs?.classList.toggle("hidden", active !== "jobs");
-  refs.workspaceUsers?.classList.toggle("hidden", active !== "users");
+  refs.workspaceUsers?.classList.toggle("hidden", !allowUsers || active !== "users");
 }
 
 function setActiveWorkspace(workspace) {
+  if (workspace === "users" && !canViewUserManagement()) {
+    workspace = "tenants";
+  }
   state.activeWorkspace = workspace;
   renderWorkspaceTabs();
 }
@@ -858,6 +875,7 @@ function resetUserForm() {
 }
 
 function openCreateUserForm() {
+  if (!canViewUserManagement()) return;
   resetUserForm();
   refs.userFormShell.classList.remove("hidden");
   refs.userForm.classList.remove("hidden");
@@ -866,6 +884,7 @@ function openCreateUserForm() {
 }
 
 async function loadUserDetail(userId, silent = false) {
+  if (!canViewUserManagement()) return;
   state.selectedUserId = userId;
   renderLists();
   refs.userFormShell.classList.add("hidden");
@@ -966,7 +985,7 @@ async function refreshData(showFlash = true) {
   if (!state.operator) return;
   if (showFlash) setFlash("info", "Refreshing control-plane data...");
   const results = await Promise.allSettled([
-    apiFetch("/api/control/operators"),
+    canViewUserManagement() ? apiFetch("/api/control/operators") : Promise.resolve([]),
     apiFetch("/api/control/tenants"),
     apiFetch("/api/control/environments"),
     apiFetch("/api/control/jobs")

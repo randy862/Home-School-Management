@@ -88,7 +88,9 @@
 2. Complete the new operator-permission model end to end.
    - [x] Add operator profiles, explicit permissions, and a user-management workspace in `/control/`.
    - [x] Replace coarse control-plane mutation guards with permission-aware route checks.
-   - [ ] Add more operator safeguards and recovery ergonomics.
-   - [ ] Decide whether non-user-admin operators should see the `User Management` workspace in read-only mode or have it hidden entirely.
+   - [x] Add more operator safeguards and recovery ergonomics.
+   - [x] Run a live staged permission-validation matrix across read-only, customer/environment, operations, and user-admin accounts, including self-service password changes.
+   - [x] Decide whether non-user-admin operators should see the `User Management` workspace in read-only mode or have it hidden entirely.
+   - [x] Hide `User Management` for operators without `manageUsers` in both the UI and backend reads, then revalidate staging.
 3. Consider a broader support/operations history view on top of the new audit API after the main UI pass.
 4. Keep hosted browser smoke validation as the regression gate after each major backend-boundary slice.
