@@ -360,6 +360,7 @@ Date: 2026-03-27
   - extracted local-only create/update mutations for users, students, subjects, courses, and enrollments behind dedicated helpers in `web/app.js` so the core admin forms now follow the same hosted-vs-legacy split
   - extracted local-only attendance and grade create/update/delete mutations behind dedicated helpers in `web/app.js` so instructional record flows now follow the same hosted-vs-legacy split
   - extracted local-only grade-type and grading-criteria helpers in `web/app.js` so the remaining grading-settings flows now follow the same hosted-vs-legacy split
+  - standardized the remaining local plan delete path behind `removeLegacyLocalPlan(...)` so another raw legacy mutation is out of the shared click handler
 
 ## Blocked
 - Future deployment validation will require access to Debian hosts and PostgreSQL infrastructure.

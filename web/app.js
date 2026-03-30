@@ -6583,6 +6583,10 @@ function removeLegacyLocalUser(userId) {
   state.users = state.users.filter((entry) => entry.id !== userId);
 }
 
+function removeLegacyLocalPlan(planId) {
+  state.plans = state.plans.filter((entry) => entry.id !== planId);
+}
+
 async function createLegacyLocalUser(payload) {
   const user = await createUserRecord(payload);
   state.users.push(user);
@@ -8577,7 +8581,7 @@ function bindEvents() {
         })();
         return;
       }
-      state.plans = state.plans.filter((x)=>x.id!==planId);
+      removeLegacyLocalPlan(planId);
       if (editingPlanId === planId) editingPlanId = "";
       saveState();
       renderAll();

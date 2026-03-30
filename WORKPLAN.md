@@ -110,4 +110,5 @@
    - [x] Extract local-only create/update helpers for core admin forms so hosted and legacy mutation paths read consistently.
    - [x] Extract local-only attendance and grade mutation helpers so instructional record flows read consistently too.
    - [x] Extract local-only grade-settings helpers so grading settings read consistently too.
+   - [x] Standardize the remaining local plan delete path behind an explicit legacy helper.
    - [ ] Remove more hosted-era merge/backfill code that no longer applies once hosted mode uses domain APIs end to end.
