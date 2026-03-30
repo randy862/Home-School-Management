@@ -6665,6 +6665,33 @@ function deleteLegacyLocalGrade(gradeId) {
   state.tests = state.tests.filter((entry) => entry.id !== gradeId);
 }
 
+function updateLegacyLocalDraftGradeType(existingGradeType, payload) {
+  if (!existingGradeType) return;
+  existingGradeType.name = payload.name;
+  existingGradeType.weight = payload.weight;
+}
+
+function createLegacyLocalDraftGradeType(payload) {
+  gradeTypesDraft.push({ id: uid(), ...payload });
+}
+
+function applyLegacyLocalGradeTypes(gradeTypes) {
+  state.settings.gradeTypes = cloneGradeTypes(gradeTypes);
+  gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+}
+
+function removeLegacyLocalDraftGradeType(gradeTypeId) {
+  gradeTypesDraft = draftGradeTypes().filter((gt) => gt.id !== gradeTypeId);
+}
+
+function saveLegacyLocalGradingCriteria(criteria) {
+  state.settings.gradingCriteria = {
+    letterScale: criteria.letterScale.map((entry) => ({ ...entry })),
+    gpaScaleOption: criteria.gpaScaleOption,
+    gpaMax: criteria.gpaMax
+  };
+}
+
 function bindEvents() {
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
     setActiveTab(btn.dataset.tab || "dashboard");
@@ -6938,14 +6965,10 @@ function bindEvents() {
       weight = parsed;
     }
     if (editingGradeTypeId) {
-      const existing = draftGradeTypes().find((gt) => gt.id === editingGradeTypeId);
-      if (existing) {
-        existing.name = name;
-        existing.weight = weight;
-      }
+      updateLegacyLocalDraftGradeType(draftGradeTypes().find((gt) => gt.id === editingGradeTypeId), { name, weight });
       editingGradeTypeId = "";
     } else {
-      gradeTypesDraft.push({ id: uid(), name, weight });
+      createLegacyLocalDraftGradeType({ name, weight });
     }
     gradeTypeDraftDirty = true;
     e.target.reset();
@@ -6979,7 +7002,7 @@ function bindEvents() {
         })();
         return;
       }
-      state.settings.gradeTypes = cloneGradeTypes(draftGradeTypes());
+      applyLegacyLocalGradeTypes(draftGradeTypes());
       gradeTypeDraftDirty = false;
       editingGradeTypeId = "";
       saveState();
@@ -7036,11 +7059,11 @@ function bindEvents() {
       })();
       return;
     }
-    state.settings.gradingCriteria = {
-      letterScale: validation.scale.map((entry) => ({ ...entry })),
+    saveLegacyLocalGradingCriteria({
+      letterScale: validation.scale,
       gpaScaleOption,
       gpaMax
-    };
+    });
     gradingCriteriaEditMode = false;
     setGradingCriteriaMessage("success", "Grading Criteria saved.");
     saveState();
@@ -8466,7 +8489,7 @@ function bindEvents() {
     const gradeTypeId = t.getAttribute("data-remove-grade-type");
     if (gradeTypeId) {
       if (!ensureAdminAction()) return;
-      gradeTypesDraft = draftGradeTypes().filter((gt) => gt.id !== gradeTypeId);
+      removeLegacyLocalDraftGradeType(gradeTypeId);
       if (editingGradeTypeId === gradeTypeId) editingGradeTypeId = "";
       gradeTypeDraftDirty = true;
       renderGradeTypes();
