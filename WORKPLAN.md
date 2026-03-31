@@ -136,3 +136,7 @@
    - [x] Add repeatable workstation validation hooks for the hosted smoke pass and combined release gate.
    - [x] Run the new staged release gate end to end against the live hosted app and control plane.
    - [x] Rehearse one real staged rollback path and revalidate the environment through the same scripted release gate.
+7. Final staged readiness assessment.
+   - [x] Run the current validation hooks as written without relying on ad hoc memory.
+   - [x] Confirm app/control services are healthy and review recent journals for unresolved blockers.
+   - [x] Produce a current staged go/no-go call with residual risks.

@@ -380,9 +380,9 @@ Date: 2026-03-27
 - Direct SSH validation to `SQL001` from this PC still needs to be confirmed separately; current confirmed database path remains through `APP001`.
 
 ## Next
-1. Recheck the latest `/control/` sidebar, focused-detail, and user-management flows on desktop and mobile.
-2. Keep the hosted tenant-app browser smoke pass as the regression gate after major backend-boundary changes.
-3. Reassess whether any high-value shared repository helpers should be extracted before moving to item 5 runbooks/release recovery hardening.
+1. Keep `scripts/Invoke-HostedReleaseGate.ps1` and `scripts/Test-HostedWorkflow.ps1` as the required staged regression gate after meaningful backend, deployment, or control-plane changes.
+2. If a broader rollout is planned, define the exact production cutover prerequisites beyond the current staged go/no-go call.
+3. Return to targeted UI or backend hardening only when the gate exposes a real issue or a new rollout requirement appears.
 
 ## Current Assessment
 - The app is a strong functional product foundation.
@@ -421,3 +421,17 @@ Date: 2026-03-27
 - The issues exposed during this slice were in the validation harness and staging preconditions, not product regressions:
   - the workflow validator needed to create a temporary school year because the staged tenant had none
   - the workflow validator needed explicit grade-type payload normalization when the staged tenant began with no grade types configured
+- Completed a final staged readiness assessment using the current validation hooks and live service checks:
+  - `scripts/Invoke-HostedReleaseGate.ps1` passed end to end
+  - `scripts/Test-HostedWorkflow.ps1` passed end to end
+  - `home-school-management.service` and `home-school-management-control-api.service` were both active on `APP001`
+  - recent `journalctl` review found no unresolved current startup/runtime failures blocking staged use
+  - the only app-journal failure in the reviewed window was a historical recovered `MODULE_NOT_FOUND` rollout incident that matches an already documented resolved deploy issue
+- Current staged go/no-go call: **go**
+- The staged hosted app, control plane, scripted release gate, rollback rehearsal, and broader workflow validation now all pass together.
+- Remaining risk is operational maturity and rollout discipline, not an identified current product blocker.
+
+## Residual Risks
+- This is still a staged single-tenant hosted deployment, not a broadly exercised production rollout across multiple tenants.
+- Direct workstation-to-`SQL001` validation is still not part of the normal regression gate; current database confidence still routes through `APP001` plus app/control validation.
+- The control-center desktop/mobile review is good enough for current use, but later polish and edge-case UX cleanup may still be worthwhile.
