@@ -2,6 +2,21 @@ function createRecordsRepository(deps) {
   const { getPostgresPool } = deps;
 
   return {
+    createActualInstructionMinutes: async (record) => {
+      const pool = getPostgresPool();
+      const result = await pool.query(`
+        INSERT INTO actual_instruction_minutes (id, student_id, course_id, instruction_date, actual_minutes)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING
+          id,
+          student_id AS "studentId",
+          course_id AS "courseId",
+          instruction_date AS "date",
+          actual_minutes AS "actualMinutes"
+      `, [record.id, record.studentId, record.courseId, record.date, record.actualMinutes]);
+      return mapActualInstructionRow(result.rows[0]);
+    },
+
     createAttendance: async (attendance) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
@@ -41,6 +56,12 @@ function createRecordsRepository(deps) {
       return result.rowCount > 0;
     },
 
+    deleteActualInstructionMinutes: async (id) => {
+      const pool = getPostgresPool();
+      const result = await pool.query("DELETE FROM actual_instruction_minutes WHERE id = $1", [id]);
+      return result.rowCount > 0;
+    },
+
     deleteTest: async (id) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
@@ -77,6 +98,36 @@ function createRecordsRepository(deps) {
         ORDER BY attendance_date
       `);
       return result.rows.map(mapAttendanceRow);
+    },
+
+    listActualInstructionMinutesForUser: async (user) => {
+      const pool = getPostgresPool();
+      if (user?.role === "student") {
+        const result = await pool.query(`
+          SELECT
+            id,
+            student_id AS "studentId",
+            course_id AS "courseId",
+            instruction_date AS "date",
+            actual_minutes AS "actualMinutes"
+          FROM actual_instruction_minutes
+          WHERE student_id = $1
+          ORDER BY instruction_date, course_id
+        `, [user.studentId || ""]);
+        return result.rows.map(mapActualInstructionRow);
+      }
+
+      const result = await pool.query(`
+        SELECT
+          id,
+          student_id AS "studentId",
+          course_id AS "courseId",
+          instruction_date AS "date",
+          actual_minutes AS "actualMinutes"
+        FROM actual_instruction_minutes
+        ORDER BY instruction_date, student_id, course_id
+      `);
+      return result.rows.map(mapActualInstructionRow);
     },
 
     listTestsForUser: async (user) => {
@@ -135,6 +186,26 @@ function createRecordsRepository(deps) {
       return result.rows[0] ? mapAttendanceRow(result.rows[0]) : null;
     },
 
+    updateActualInstructionMinutes: async (id, record) => {
+      const pool = getPostgresPool();
+      const result = await pool.query(`
+        UPDATE actual_instruction_minutes
+        SET
+          student_id = $2,
+          course_id = $3,
+          instruction_date = $4,
+          actual_minutes = $5
+        WHERE id = $1
+        RETURNING
+          id,
+          student_id AS "studentId",
+          course_id AS "courseId",
+          instruction_date AS "date",
+          actual_minutes AS "actualMinutes"
+      `, [id, record.studentId, record.courseId, record.date, record.actualMinutes]);
+      return result.rows[0] ? mapActualInstructionRow(result.rows[0]) : null;
+    },
+
     updateTest: async (id, test) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
@@ -169,6 +240,13 @@ function mapAttendanceRow(row) {
   return {
     ...row,
     present: !!row.present
+  };
+}
+
+function mapActualInstructionRow(row) {
+  return {
+    ...row,
+    actualMinutes: Number(row.actualMinutes || 0)
   };
 }
 

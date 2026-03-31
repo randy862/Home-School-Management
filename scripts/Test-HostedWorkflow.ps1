@@ -96,6 +96,7 @@ $temporaryGradeTypesSeeded = $false
 
 $created = [ordered]@{
   Test = $null
+  InstructionActual = $null
   Attendance = $null
   Plan = $null
   DailyBreak = $null
@@ -256,6 +257,14 @@ try {
     present = $true
   }
 
+  Write-Step "Creating actual instructional minutes override"
+  $created.InstructionActual = Invoke-AppJson -Session $adminSession -Method "POST" -Path "/api/instruction-actuals" -Body @{
+    studentId = $created.Student.id
+    courseId = $created.Course.id
+    date = "2026-04-13"
+    actualMinutes = 80
+  }
+
   Write-Step "Creating test record"
   $gradeTypeName = if ($gradeTypes.Count) { $gradeTypes[0].name } else { "Quiz" }
   $created.Test = Invoke-AppJson -Session $adminSession -Method "POST" -Path "/api/tests" -Body @{
@@ -321,6 +330,12 @@ try {
     date = "2026-04-13"
     present = $false
   }
+  $null = Invoke-AppJson -Session $adminSession -Method "PATCH" -Path "/api/instruction-actuals/$($created.InstructionActual.id)" -Body @{
+    studentId = $created.Student.id
+    courseId = $created.Course.id
+    date = "2026-04-13"
+    actualMinutes = 95
+  }
   $null = Invoke-AppJson -Session $adminSession -Method "PATCH" -Path "/api/tests/$($created.Test.id)" -Body @{
     date = "2026-04-14"
     studentId = $created.Student.id
@@ -355,12 +370,18 @@ try {
     name = "Student Forbidden Subject"
   }
 
+  $studentInstructionActuals = @(Invoke-AppJson -Session $studentSession -Method "GET" -Path "/api/instruction-actuals")
+  if ($studentInstructionActuals.Count -ne 1 -or $studentInstructionActuals[0].id -ne $created.InstructionActual.id) {
+    throw "Student session did not return only the linked student's actual instructional minute override."
+  }
+
   Write-Step "Hosted workflow validation succeeded."
 }
 finally {
   Write-Step "Cleaning up temporary workflow records"
   foreach ($target in @(
     @{ Path = "/api/tests"; Record = $created.Test },
+    @{ Path = "/api/instruction-actuals"; Record = $created.InstructionActual },
     @{ Path = "/api/attendance"; Record = $created.Attendance },
     @{ Path = "/api/plans"; Record = $created.Plan },
     @{ Path = "/api/daily-breaks"; Record = $created.DailyBreak },

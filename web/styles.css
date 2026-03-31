@@ -769,6 +769,11 @@ td {
   width: 1%;
 }
 
+.schedule-actions-cell {
+  white-space: nowrap;
+  width: 1%;
+}
+
 .student-avg-toggle {
   width: 1.5rem;
   height: 1.5rem;

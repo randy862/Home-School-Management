@@ -15,6 +15,7 @@ const API_ENROLLMENTS_ENDPOINT = `${API_BASE_URL}/api/enrollments`;
 const API_SCHOOL_YEARS_ENDPOINT = `${API_BASE_URL}/api/school-years`;
 const API_QUARTERS_ENDPOINT = `${API_BASE_URL}/api/quarters`;
 const API_ATTENDANCE_ENDPOINT = `${API_BASE_URL}/api/attendance`;
+const API_INSTRUCTION_ACTUALS_ENDPOINT = `${API_BASE_URL}/api/instruction-actuals`;
 const API_DAILY_BREAKS_ENDPOINT = `${API_BASE_URL}/api/daily-breaks`;
 const API_HOLIDAYS_ENDPOINT = `${API_BASE_URL}/api/holidays`;
 const API_PLANS_ENDPOINT = `${API_BASE_URL}/api/plans`;
@@ -202,6 +203,28 @@ function toISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart
 function todayISO() { return toISO(new Date()); }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 
+function normalizeApiDate(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return toISO(value);
+  }
+  const source = String(value ?? "").trim();
+  if (!source) return "";
+  const isoDateMatch = source.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoDateMatch) return isoDateMatch[1];
+  const parsed = toDate(source);
+  if (!Number.isNaN(parsed.getTime())) {
+    return toISO(parsed);
+  }
+  return source;
+}
+
+function formatDisplayDate(value) {
+  const normalized = normalizeApiDate(value);
+  const match = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return normalized;
+  return `${match[2]}/${match[3]}/${match[1]}`;
+}
+
 function calculateAge(birthdate, ref = new Date()) {
   const b = toDate(birthdate);
   if (Number.isNaN(b.getTime())) return 0;
@@ -223,7 +246,7 @@ function defaultState() {
     { id: uid(), schoolYearId, name: "Q4", startDate: `${y}-10-01`, endDate: `${y}-12-31` }
   ];
   return {
-    students: [], subjects: [], courses: [], enrollments: [], plans: [], attendance: [], tests: [], users: [createLegacyBootstrapAdmin()],
+    students: [], subjects: [], courses: [], enrollments: [], plans: [], attendance: [], instructionActuals: [], tests: [], users: [createLegacyBootstrapAdmin()],
     settings: {
       schoolYear: { ...schoolYear },
       schoolYears: [schoolYear],
@@ -247,6 +270,38 @@ function validState(s) {
     && Array.isArray(s.enrollments) && Array.isArray(s.plans) && Array.isArray(s.attendance)
     && Array.isArray(s.tests) && Array.isArray(s.users) && s.settings && s.settings.schoolYear
     && Array.isArray(s.settings.quarters) && Array.isArray(s.settings.holidays);
+}
+
+function normalizeInstructionActualsShape(inputState) {
+  const s = inputState;
+  const validStudentIds = new Set((s.students || []).map((student) => student.id));
+  const validCourseIds = new Set((s.courses || []).map((course) => course.id));
+  if (!Array.isArray(s.instructionActuals)) {
+    s.instructionActuals = [];
+    return;
+  }
+  const seen = new Set();
+  s.instructionActuals = s.instructionActuals
+    .filter((entry) => entry)
+    .map((entry) => ({
+      id: entry.id || uid(),
+      studentId: String(entry.studentId || "").trim(),
+      courseId: String(entry.courseId || "").trim(),
+      date: String(entry.date || "").trim(),
+      actualMinutes: Number(entry.actualMinutes)
+    }))
+    .filter((entry) =>
+      validStudentIds.has(entry.studentId)
+      && validCourseIds.has(entry.courseId)
+      && /^\d{4}-\d{2}-\d{2}$/.test(entry.date)
+      && Number.isInteger(entry.actualMinutes)
+      && entry.actualMinutes > 0)
+    .filter((entry) => {
+      const key = `${entry.studentId}||${entry.courseId}||${entry.date}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function normalizeCoursesShape(inputState) {
@@ -596,6 +651,7 @@ function normalizeSettingsShape(inputState) {
   normalizeUsersShape(s);
   normalizeCoursesShape(s);
   normalizeEnrollmentsShape(s);
+  normalizeInstructionActualsShape(s);
 }
 
 function loadState() {
@@ -695,6 +751,10 @@ function shouldShowLegacyBootstrapAdminMessaging() {
 let currentUserId = "";
 let currentTab = "dashboard";
 let state = loadState();
+let hostedModeEnabled = loadHostedModePreference();
+if (!IS_LOCAL_DEV_HOST) {
+  hostedModeEnabled = true;
+}
 loadSession();
 if (!state.users.some((user) => user.id === currentUserId)) currentUserId = "";
 setCurrentSchoolYear(state.settings.currentSchoolYearId);
@@ -704,6 +764,7 @@ let legacyBridgeSavePending = false;
 let legacyBridgeSyncReady = false;
 let selectedStudentId = "";
 let editingAttendanceId = "";
+let editingInstructionActualKey = "";
 let editingUserId = "";
 const expandedStudentAverageRows = new Set();
 const expandedSubjectAverageRows = new Set();
@@ -795,11 +856,6 @@ function saveHostedModePreference(value) {
   } catch {
     // Ignore storage write failures and keep runtime behavior in memory only.
   }
-}
-
-let hostedModeEnabled = loadHostedModePreference();
-if (!IS_LOCAL_DEV_HOST) {
-  hostedModeEnabled = true;
 }
 
 function setHostedModeEnabled(value) {
@@ -922,6 +978,8 @@ async function refreshHostedSchoolYears() {
 
   const normalized = schoolYears.map((schoolYear) => ({
     ...schoolYear,
+    startDate: normalizeApiDate(schoolYear.startDate),
+    endDate: normalizeApiDate(schoolYear.endDate),
     requiredInstructionalDays: schoolYear.requiredInstructionalDays == null ? null : Number(schoolYear.requiredInstructionalDays),
     requiredInstructionalHours: schoolYear.requiredInstructionalHours == null ? null : Number(schoolYear.requiredInstructionalHours)
   }));
@@ -945,8 +1003,12 @@ async function refreshHostedQuarters() {
   const quarters = await response.json();
   if (!Array.isArray(quarters)) return;
 
-  state.settings.allQuarters = quarters;
-  state.settings.quarters = quarters.filter((quarter) => quarter.schoolYearId === state.settings.currentSchoolYearId);
+  state.settings.allQuarters = quarters.map((quarter) => ({
+    ...quarter,
+    startDate: normalizeApiDate(quarter.startDate),
+    endDate: normalizeApiDate(quarter.endDate)
+  }));
+  state.settings.quarters = state.settings.allQuarters.filter((quarter) => quarter.schoolYearId === state.settings.currentSchoolYearId);
 }
 
 async function refreshHostedAttendance() {
@@ -956,7 +1018,21 @@ async function refreshHostedAttendance() {
   if (Array.isArray(attendance)) {
     state.attendance = attendance.map((row) => ({
       ...row,
+      date: normalizeApiDate(row.date),
       present: !!row.present
+    }));
+  }
+}
+
+async function refreshHostedInstructionActuals() {
+  const response = await authFetch(API_INSTRUCTION_ACTUALS_ENDPOINT);
+  if (!response.ok) throw new Error(`Actual instructional minutes fetch failed (${response.status})`);
+  const instructionActuals = await response.json();
+  if (Array.isArray(instructionActuals)) {
+    state.instructionActuals = instructionActuals.map((row) => ({
+      ...row,
+      date: normalizeApiDate(row.date),
+      actualMinutes: Number(row.actualMinutes || 0)
     }));
   }
 }
@@ -980,7 +1056,11 @@ async function refreshHostedHolidays() {
   if (!response.ok) throw new Error(`Holidays fetch failed (${response.status})`);
   const holidays = await response.json();
   if (Array.isArray(holidays)) {
-    state.settings.holidays = holidays;
+    state.settings.holidays = holidays.map((holiday) => ({
+      ...holiday,
+      startDate: normalizeApiDate(holiday.startDate),
+      endDate: normalizeApiDate(holiday.endDate)
+    }));
   }
 }
 
@@ -991,6 +1071,8 @@ async function refreshHostedPlans() {
   if (Array.isArray(plans)) {
     state.plans = plans.map((plan) => ({
       ...plan,
+      startDate: normalizeApiDate(plan.startDate),
+      endDate: normalizeApiDate(plan.endDate),
       weekdays: Array.isArray(plan.weekdays) ? plan.weekdays.map((day) => Number(day)).filter(Number.isInteger) : []
     }));
   }
@@ -1098,6 +1180,31 @@ async function createHostedAttendance(payload) {
     body: JSON.stringify(payload)
   });
   return parseApiResponse(response, `Attendance save failed (${response.status})`);
+}
+
+async function createHostedInstructionActual(payload) {
+  const response = await authFetch(API_INSTRUCTION_ACTUALS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Actual instructional minutes save failed (${response.status})`);
+}
+
+async function updateHostedInstructionActual(id, payload) {
+  const response = await authFetch(`${API_INSTRUCTION_ACTUALS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Actual instructional minutes update failed (${response.status})`);
+}
+
+async function deleteHostedInstructionActual(id) {
+  const response = await authFetch(`${API_INSTRUCTION_ACTUALS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Actual instructional minutes delete failed (${response.status})`);
 }
 
 async function updateHostedAttendance(id, payload) {
@@ -1319,6 +1426,7 @@ async function refreshHostedTests() {
   if (Array.isArray(tests)) {
     state.tests = tests.map((row) => ({
       ...row,
+      date: normalizeApiDate(row.date),
       score: Number(row.score || 0),
       maxScore: Number(row.maxScore || 0)
     }));
@@ -1334,6 +1442,7 @@ async function hydrateHostedDomainState() {
   await refreshHostedSchoolYears();
   await refreshHostedQuarters();
   await refreshHostedAttendance();
+  await refreshHostedInstructionActuals();
   await refreshHostedDailyBreaks();
   await refreshHostedHolidays();
   await refreshHostedPlans();
@@ -1356,6 +1465,7 @@ async function refreshHostedCurriculumState() {
 async function refreshHostedCurriculumCascadeState() {
   await refreshHostedCurriculumState();
   await refreshHostedPlans();
+  await refreshHostedInstructionActuals();
   await refreshHostedTests();
 }
 
@@ -1364,6 +1474,7 @@ async function refreshHostedStudentCascadeState() {
   await refreshHostedCurriculumState();
   await refreshHostedPlans();
   await refreshHostedAttendance();
+  await refreshHostedInstructionActuals();
   await refreshHostedTests();
   await refreshHostedDailyBreaks();
   if (isAdminUser()) {
@@ -2176,17 +2287,17 @@ function buildInstructionalHoursSnapshot(studentIds = null) {
   const cursor = new Date(yearStart);
   while (cursor <= yearEnd) {
     const dateKey = toISO(cursor);
-    const events = calendarEventsForDate(dateKey, Array.from(targetStudentIds));
-    events.forEach((event) => {
-      if (!targetStudentIds.has(event.studentId)) return;
-      const course = getCourse(event.courseId);
+    const blocksByStudent = dailyScheduledBlocks(dateKey, Array.from(targetStudentIds));
+    Array.from(blocksByStudent.values()).flat().forEach((block) => {
+      if (block.type !== "instruction" || !targetStudentIds.has(block.studentId)) return;
+      const course = getCourse(block.courseId);
       if (!course) return;
-      const hours = Number(course.hoursPerDay || 0);
+      const hours = Number(block.actualMinutes || 0) / 60;
       if (!(hours > 0)) return;
 
-      const studentSummary = ensureStudentSummary(event.studentId);
+      const studentSummary = ensureStudentSummary(block.studentId);
       const subjectSummary = ensureSubjectSummary(studentSummary, course.subjectId || "__unknown_subject__");
-      const earned = dateKey <= todayKey && attendanceByStudentDate.get(`${event.studentId}||${dateKey}`) === true;
+      const earned = dateKey <= todayKey && attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) === true;
 
       addHours(studentSummary.buckets.total, hours, earned);
       addHours(subjectSummary.buckets.total, hours, earned);
@@ -2873,46 +2984,18 @@ function reportInstructionalHoursByStudent(studentIds, schoolYearId, range) {
     else if (attendanceByStudentDate.get(key) && !record.present) attendanceByStudentDate.set(key, false);
   });
 
-  studentIds.forEach((studentId) => {
-    const enrollmentCourseIds = state.enrollments.filter((entry) => entry.studentId === studentId).map((entry) => entry.courseId);
-    const seenCourseDates = new Set();
-    enrollmentCourseIds.forEach((courseId) => {
-      const course = getCourse(courseId);
-      if (!course) return;
-      const hours = Number(course.hoursPerDay || 0);
+  reportDates.forEach((dateKey) => {
+    const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
+    Array.from(blocksByStudent.values()).flat().forEach((block) => {
+      if (block.type !== "instruction" || !studentIds.includes(block.studentId)) return;
+      const metrics = results.get(block.studentId);
+      if (!metrics) return;
+      const hours = Number(block.actualMinutes || 0) / 60;
       if (!(hours > 0)) return;
-      const matchingPlans = state.plans.filter((plan) => plan.studentId === studentId && plan.courseId === courseId);
-      const applicablePlans = matchingPlans
-        .map((plan) => ({ plan, range: resolvedPlanRangeForSchoolYear(plan, schoolYearId, schoolYear) }))
-        .filter((entry) => entry.range.startDate && entry.range.endDate && entry.range.endDate >= range.startDate && entry.range.startDate <= range.endDate);
-      const dateKeys = new Set();
-
-      if (applicablePlans.length) {
-        applicablePlans.forEach(({ plan, range: planRange }) => {
-          const effectiveStart = planRange.startDate > range.startDate ? planRange.startDate : range.startDate;
-          const effectiveEnd = planRange.endDate < range.endDate ? planRange.endDate : range.endDate;
-          instructionalDatesByRangeForSchoolYear(schoolYear, effectiveStart, effectiveEnd).forEach((dateKey) => {
-            const weekday = toDate(dateKey).getDay();
-            const weekdays = Array.isArray(plan.weekdays) ? plan.weekdays.map(Number) : [];
-            if (!weekdays.includes(weekday)) return;
-            dateKeys.add(dateKey);
-          });
-        });
-      } else {
-        reportDates.forEach((dateKey) => dateKeys.add(dateKey));
+      metrics.projected += hours;
+      if (dateKey <= today && attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) === true) {
+        metrics.earned += hours;
       }
-
-      dateKeys.forEach((dateKey) => {
-        const dedupeKey = `${studentId}||${courseId}||${dateKey}`;
-        if (seenCourseDates.has(dedupeKey)) return;
-        seenCourseDates.add(dedupeKey);
-        const metrics = results.get(studentId);
-        if (!metrics) return;
-        metrics.projected += hours;
-        if (dateKey <= today && attendanceByStudentDate.get(`${studentId}||${dateKey}`) === true) {
-          metrics.earned += hours;
-        }
-      });
     });
   });
   return results;
@@ -2932,57 +3015,25 @@ function reportInstructionalHourRows(studentIds, range) {
     else if (attendanceByStudentDate.get(key) && !record.present) attendanceByStudentDate.set(key, false);
   });
 
-  const rows = [];
-  studentIds.forEach((studentId) => {
-    const enrollmentCourseIds = state.enrollments
-      .filter((entry) => entry.studentId === studentId)
-      .map((entry) => entry.courseId);
-    enrollmentCourseIds.forEach((courseId) => {
-      const course = getCourse(courseId);
-      if (!course) return;
-      const hours = Number(course.hoursPerDay || 0);
-      if (!(hours > 0)) return;
-      const matchingPlans = state.plans.filter((plan) => plan.studentId === studentId && plan.courseId === courseId);
-      const applicablePlans = matchingPlans
-        .map((plan) => ({ plan, range: resolvedPlanRangeForSchoolYear(plan, range.schoolYear.id, schoolYear) }))
-        .filter((entry) => entry.range.startDate && entry.range.endDate && entry.range.endDate >= range.startDate && entry.range.startDate <= range.endDate);
-      const dateKeys = new Set();
-
-      if (applicablePlans.length) {
-        applicablePlans.forEach(({ plan, range: planRange }) => {
-          const effectiveStart = planRange.startDate > range.startDate ? planRange.startDate : range.startDate;
-          const effectiveEnd = planRange.endDate < range.endDate ? planRange.endDate : range.endDate;
-          instructionalDatesByRangeForSchoolYear(schoolYear, effectiveStart, effectiveEnd).forEach((dateKey) => {
-            const weekday = toDate(dateKey).getDay();
-            const weekdays = Array.isArray(plan.weekdays) ? plan.weekdays.map(Number) : [];
-            if (!weekdays.includes(weekday)) return;
-            dateKeys.add(dateKey);
-          });
+  const rowsByStudentCourse = new Map();
+  reportDates.forEach((dateKey) => {
+    const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
+    Array.from(blocksByStudent.values()).flat().forEach((block) => {
+      if (block.type !== "instruction" || !studentIds.includes(block.studentId)) return;
+      if (!(dateKey <= today && attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) === true)) return;
+      const key = `${block.studentId}||${block.courseId}`;
+      if (!rowsByStudentCourse.has(key)) {
+        rowsByStudentCourse.set(key, {
+          student: getStudentName(block.studentId),
+          course: getCourseName(block.courseId),
+          instructionalHours: 0
         });
-      } else {
-        reportDates.forEach((dateKey) => dateKeys.add(dateKey));
       }
-
-      let earned = 0;
-      const seenCourseDates = new Set();
-      dateKeys.forEach((dateKey) => {
-        const dedupeKey = `${studentId}||${courseId}||${dateKey}`;
-        if (seenCourseDates.has(dedupeKey)) return;
-        seenCourseDates.add(dedupeKey);
-        if (dateKey <= today && attendanceByStudentDate.get(`${studentId}||${dateKey}`) === true) {
-          earned += hours;
-        }
-      });
-
-      rows.push({
-        student: getStudentName(studentId),
-        course: getCourseName(courseId),
-        instructionalHours: earned
-      });
+      rowsByStudentCourse.get(key).instructionalHours += Number(block.actualMinutes || 0) / 60;
     });
   });
 
-  return rows.sort((a, b) =>
+  return Array.from(rowsByStudentCourse.values()).sort((a, b) =>
     a.student.localeCompare(b.student)
     || a.course.localeCompare(b.course));
 }
@@ -3962,7 +4013,7 @@ function renderHolidays() {
   if (!tableBody) return;
   const rows = [...state.settings.holidays].sort((a,b)=>a.startDate.localeCompare(b.startDate));
   const htmlRows = rows
-    .map((h) => `<tr><td>${h.name}</td><td>${h.type}</td><td>${h.startDate}</td><td>${h.endDate}</td><td><button data-edit-holiday='${h.id}' type='button'>Edit</button> <button data-remove-holiday='${h.id}' type='button'>Remove</button></td></tr>`);
+    .map((h) => `<tr><td>${h.name}</td><td>${h.type}</td><td>${formatDisplayDate(h.startDate)}</td><td>${formatDisplayDate(h.endDate)}</td><td class="schedule-actions-cell"><div class="table-action-row"><button data-edit-holiday='${h.id}' type='button'>Edit</button><button data-remove-holiday='${h.id}' type='button'>Remove</button></div></td></tr>`);
   rowOrEmpty(tableBody, htmlRows, "No holidays/breaks defined.", 5);
   const submitBtn = document.getElementById("holiday-submit-btn");
   const cancelBtn = document.getElementById("holiday-cancel-edit-btn");
@@ -3998,7 +4049,7 @@ function renderPlanningSettings() {
   if (schoolYearCurrent) {
     const daysText = schoolYear.requiredInstructionalDays == null ? "not set" : String(schoolYear.requiredInstructionalDays);
     const hoursText = schoolYear.requiredInstructionalHours == null ? "not set" : Number(schoolYear.requiredInstructionalHours).toFixed(1);
-    schoolYearCurrent.textContent = `Current School Year: ${schoolYear.label} (${schoolYear.startDate} to ${schoolYear.endDate}) | Required Days: ${daysText} | Required Hours: ${hoursText}`;
+    schoolYearCurrent.textContent = `Current School Year: ${schoolYear.label} (${formatDisplayDate(schoolYear.startDate)} to ${formatDisplayDate(schoolYear.endDate)}) | Required Days: ${daysText} | Required Hours: ${hoursText}`;
   }
 
   const schoolYearRows = state.settings.schoolYears
@@ -4012,7 +4063,7 @@ function renderPlanningSettings() {
       const status = belowDaysRequirement
         ? `<span class="warning-text">Below required days by ${year.requiredInstructionalDays - instructionalDays}</span>`
         : "OK";
-      return `<tr${belowDaysRequirement ? " class='warning-row'" : ""}><td>${year.label}${year.id === state.settings.currentSchoolYearId ? " (Current)" : ""}</td><td>${year.startDate}</td><td>${year.endDate}</td><td>${requiredDays}</td><td>${requiredHours}</td><td>${instructionalDays}</td><td>${status}</td><td><button type="button" data-set-current-school-year="${year.id}">Set Current</button> <button type="button" data-edit-school-year="${year.id}">Edit</button> <button type="button" data-remove-school-year="${year.id}">Delete</button></td></tr>`;
+      return `<tr${belowDaysRequirement ? " class='warning-row'" : ""}><td>${year.label}${year.id === state.settings.currentSchoolYearId ? " (Current)" : ""}</td><td>${formatDisplayDate(year.startDate)}</td><td>${formatDisplayDate(year.endDate)}</td><td>${requiredDays}</td><td>${requiredHours}</td><td>${instructionalDays}</td><td>${status}</td><td class="schedule-actions-cell"><div class="table-action-row"><button type="button" data-set-current-school-year="${year.id}">Set Current</button><button type="button" data-edit-school-year="${year.id}">Edit</button><button type="button" data-remove-school-year="${year.id}">Delete</button></div></td></tr>`;
     });
   rowOrEmpty(document.getElementById("school-year-summary-table"), schoolYearRows, "No school years saved yet.", 8);
 
@@ -4025,7 +4076,7 @@ function renderPlanningSettings() {
         .sort((a, b) => toDate(a.startDate) - toDate(b.startDate));
       const rows = yearQuarters.map((quarter) => {
         const instructionalDays = instructionalDaysCountForRange(quarter.startDate, quarter.endDate);
-        return `<tr><td>${year.label}</td><td>${quarter.name}</td><td>${quarter.startDate}</td><td>${quarter.endDate}</td><td>${instructionalDays}</td><td><button type="button" data-edit-quarters-year="${quarter.schoolYearId}">Edit</button></td></tr>`;
+        return `<tr><td>${year.label}</td><td>${quarter.name}</td><td>${formatDisplayDate(quarter.startDate)}</td><td>${formatDisplayDate(quarter.endDate)}</td><td>${instructionalDays}</td><td class="schedule-actions-cell"><div class="table-action-row"><button type="button" data-edit-quarters-year="${quarter.schoolYearId}">Edit</button></div></td></tr>`;
       });
       if (rows.length) {
         const totalInstructionalDays = yearQuarters.reduce((sum, quarter) =>
@@ -4091,7 +4142,7 @@ function renderPlans() {
     const weekdays = (Array.isArray(p.weekdays) ? p.weekdays : []).map((w) => DAY_NAMES[w]).join(", ");
     const range = resolvedPlanRange(p);
     const actions = isAdminUser() ? `<button data-edit-plan='${p.id}' type='button'>Edit</button> <button data-remove-plan='${p.id}' type='button'>Remove</button>` : "View only";
-    return `<tr><td>${p.planType.toUpperCase()}${periodLabel}</td><td>${getStudentName(p.studentId)}</td><td>${getCourseName(p.courseId)}</td><td>${range.startDate} to ${range.endDate}</td><td>${weekdays}</td><td>${actions}</td></tr>`;
+    return `<tr><td>${p.planType.toUpperCase()}${periodLabel}</td><td>${getStudentName(p.studentId)}</td><td>${getCourseName(p.courseId)}</td><td>${formatDisplayDate(range.startDate)} to ${formatDisplayDate(range.endDate)}</td><td>${weekdays}</td><td class="schedule-actions-cell">${typeof actions === "string" && actions.includes("<button") ? `<div class="table-action-row">${actions}</div>` : actions}</td></tr>`;
   });
   rowOrEmpty(tableBody, htmlRows, "No instruction plans defined.", 6);
   const submitBtn = document.getElementById("plan-submit-btn");
@@ -4124,7 +4175,7 @@ function renderAttendance() {
       const actions = isAdminUser()
         ? `<button type='button' data-edit-attendance='${a.id}'>Edit</button> <button type='button' data-remove-attendance='${a.id}'>Remove</button>`
         : "View only";
-      return `<tr><td>${a.date}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td>${actions}</td></tr>`;
+      return `<tr><td>${formatDisplayDate(a.date)}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td>${typeof actions === "string" && actions.includes("<button") ? `<div class="table-action-row">${actions}</div>` : actions}</td></tr>`;
     });
   rowOrEmpty(document.getElementById("attendance-table"), rows, "No attendance recorded yet.", 4);
 }
@@ -4183,7 +4234,7 @@ function renderTests() {
       const actions = isAdminUser()
         ? `<button type='button' data-edit-grade='${t.id}'>Edit</button> <button type='button' data-remove-grade='${t.id}'>Remove</button>`
         : "View only";
-      return `<tr><td>${t.date}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${gradeType}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td><td>${actions}</td></tr>`;
+      return `<tr><td>${formatDisplayDate(t.date)}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${gradeType}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td><td>${typeof actions === "string" && actions.includes("<button") ? `<div class="table-action-row">${actions}</div>` : actions}</td></tr>`;
     });
   const avgGrade = weightedAverageForTests(filtered, { quarterScoped: quarterFilter !== "all" });
   if (rows.length) {
@@ -5917,8 +5968,11 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           student: studentName,
           studentId,
           label: nextBreak.label,
+          plannedStart: nextBreak.start,
+          plannedEnd: nextBreak.end,
           start: nextBreak.start,
           end: nextBreak.end,
+          durationMinutes: nextBreak.durationMinutes,
           type: nextBreak.type
         });
         slot = Math.max(slot, nextBreak.end);
@@ -5977,8 +6031,11 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         studentId,
         courseId: chosen.event.courseId,
         label: `${chosen.course.name} (${getSubjectName(chosen.course.subjectId)})`,
+        plannedStart: startMin,
+        plannedEnd: endMin,
         start: startMin,
         end: endMin,
+        durationMinutes: chosen.durationMinutes,
         type: "instruction"
       });
       if (chosen.course.exclusiveResource) {
@@ -5993,7 +6050,29 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       if (remaining.length && slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
     }
 
-    blocksByStudent.set(studentId, blocks);
+    const adjustedBlocks = [];
+    let actualCursor = null;
+    blocks.forEach((block) => {
+      const plannedStart = Number.isFinite(block.plannedStart) ? block.plannedStart : block.start;
+      const plannedEnd = Number.isFinite(block.plannedEnd) ? block.plannedEnd : block.end;
+      const plannedDuration = Math.max(1, plannedEnd - plannedStart);
+      const actualDuration = block.type === "instruction"
+        ? effectiveInstructionMinutes(block.studentId, block.courseId, dateKey)
+        : plannedDuration;
+      const actualStart = actualCursor == null ? plannedStart : Math.max(plannedStart, actualCursor);
+      const actualEnd = Math.min(24 * 60, actualStart + actualDuration);
+      adjustedBlocks.push({
+        ...block,
+        plannedStart,
+        plannedEnd,
+        start: actualStart,
+        end: actualEnd,
+        actualMinutes: actualDuration
+      });
+      actualCursor = actualEnd;
+    });
+
+    blocksByStudent.set(studentId, adjustedBlocks);
   });
 
   return blocksByStudent;
@@ -6027,7 +6106,7 @@ function calendarDateStudentRows(rangeStart, rangeEnd, studentFilterIds = [], su
           const subjectName = getSubjectName(course.subjectId);
           const current = entry.subjects.get(subjectName) || { hours: 0, courses: new Set() };
           if (!entry.subjects.has(subjectName)) entry.subjectOrder.push(subjectName);
-          current.hours += Number(course.hoursPerDay || 0);
+          current.hours += Number(block.actualMinutes || 0) / 60;
           current.courses.add(course.name);
           entry.subjects.set(subjectName, current);
         });
@@ -6148,50 +6227,31 @@ function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds
   const dateKey = toISO(ref);
 
   const blocksByStudent = dailyScheduledBlocks(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
-  const scheduledByHour = new Map();
-  const studentIdsInOrder = Array.from(blocksByStudent.keys())
-    .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
-  const addBlock = (student, label, startMin, endMin) => {
-    if (endMin <= startMin) return;
-    const hour = Math.floor(startMin / 60);
-    if (hour < 0 || hour > 23) return;
-    if (!scheduledByHour.has(hour)) scheduledByHour.set(hour, []);
-    scheduledByHour.get(hour).push({
-      student,
-      label,
-      start: startMin,
-      end: endMin
-    });
-  };
+  const rows = Array.from(blocksByStudent.values())
+    .flat()
+    .sort((a, b) => a.start - b.start || a.student.localeCompare(b.student) || a.label.localeCompare(b.label))
+    .map((block) => {
+      const actualRange = `${formatClockTime(block.start)} - ${formatClockTime(block.end)}`;
+      const plannedRange = `${formatClockTime(block.plannedStart)} - ${formatClockTime(block.plannedEnd)}`;
+      if (block.type !== "instruction") {
+        return `<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td>${Number(block.actualMinutes || 0)} min</td><td></td></tr>`;
+      }
 
-  studentIdsInOrder.forEach((studentId) => {
-    (blocksByStudent.get(studentId) || []).forEach((block) => {
-      addBlock(block.student, block.label, block.start, block.end);
+      const existing = findInstructionActualRecord(block.studentId, block.courseId, dateKey);
+      const editKey = instructionActualEditKey(block.studentId, block.courseId, dateKey);
+      const isEditing = editingInstructionActualKey === editKey;
+      const canEditActualMinutes = isAdminUser();
+      const minutesCell = isEditing
+        ? `<input type="number" min="1" step="1" value="${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))}" data-instruction-actual-input="${editKey}">`
+        : `${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))} min`;
+      const actionsCell = !canEditActualMinutes
+        ? ""
+        : (isEditing
+          ? `<button type="button" data-save-instruction-actual="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button> <button type="button" data-cancel-instruction-actual="${editKey}">Cancel</button>`
+          : `<button type="button" data-edit-instruction-actual="${editKey}">Edit</button>${existing ? ` <button type="button" data-reset-instruction-actual="${existing.id}">Use Planned</button>` : ""}`);
+      return `<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td>${minutesCell}</td><td>${actionsCell}</td></tr>`;
     });
-  });
-
-  const instructionalBlocks = Array.from(scheduledByHour.values()).flat();
-  const minHour = instructionalBlocks.length
-    ? Math.max(0, Math.floor(Math.min(...instructionalBlocks.map((item) => item.start)) / 60))
-    : 0;
-  const maxHour = instructionalBlocks.length
-    ? Math.min(23, Math.floor((Math.max(...instructionalBlocks.map((item) => item.end)) - 1) / 60))
-    : 23;
-
-  const rows = [];
-  for (let hour = minHour; hour <= maxHour; hour += 1) {
-    const label = `${String(hour).padStart(2, "0")}:00`;
-    const items = (scheduledByHour.get(hour) || []).sort((a, b) =>
-      a.start - b.start || a.student.localeCompare(b.student) || a.label.localeCompare(b.label));
-    if (!items.length) {
-      rows.push(`<tr><td>${label}</td><td></td><td></td></tr>`);
-      continue;
-    }
-    items.forEach((item, idx) => {
-      rows.push(`<tr><td>${idx === 0 ? label : ""}</td><td>${item.student}</td><td>${item.label} (${formatClockTime(item.start)} - ${formatClockTime(item.end)})</td></tr>`);
-    });
-  }
-  rowOrEmpty(document.getElementById("calendar-day-table"), rows, "No scheduled instruction for this day.", 3);
+  rowOrEmpty(document.getElementById("calendar-day-table"), rows, "No scheduled instruction for this day.", 5);
   return { dateKey };
 }
 
@@ -6376,6 +6436,7 @@ function removeStudent(id) {
   state.enrollments = state.enrollments.filter((e)=>e.studentId!==id);
   state.plans = state.plans.filter((p)=>p.studentId!==id);
   state.attendance = state.attendance.filter((a)=>a.studentId!==id);
+  state.instructionActuals = state.instructionActuals.filter((entry) => entry.studentId !== id);
   state.tests = state.tests.filter((t)=>t.studentId!==id);
   state.settings.dailyBreaks = (state.settings.dailyBreaks || [])
     .map((entry) => ({ ...entry, studentIds: (entry.studentIds || []).filter((studentId) => studentId !== id) }))
@@ -6395,8 +6456,87 @@ function removeCourse(id) {
   state.courses = state.courses.filter((c)=>c.id!==id);
   state.enrollments = state.enrollments.filter((e)=>e.courseId!==id);
   state.plans = state.plans.filter((p)=>p.courseId!==id);
+  state.instructionActuals = state.instructionActuals.filter((entry) => entry.courseId !== id);
   state.tests = state.tests.filter((t)=>t.courseId!==id);
   if (editingCourseId === id) editingCourseId = "";
+}
+
+function findInstructionActualRecord(studentId, courseId, date) {
+  return state.instructionActuals.find((entry) =>
+    entry.studentId === studentId
+    && entry.courseId === courseId
+    && entry.date === date);
+}
+
+function plannedInstructionMinutesForCourse(courseId) {
+  const course = getCourse(courseId);
+  return Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
+}
+
+function effectiveInstructionMinutes(studentId, courseId, date) {
+  const existing = findInstructionActualRecord(studentId, courseId, date);
+  if (existing && Number.isInteger(existing.actualMinutes) && existing.actualMinutes > 0) {
+    return existing.actualMinutes;
+  }
+  return plannedInstructionMinutesForCourse(courseId);
+}
+
+function instructionActualEditKey(studentId, courseId, date) {
+  return `${studentId}||${courseId}||${date}`;
+}
+
+function createLegacyLocalInstructionActual(payload) {
+  state.instructionActuals.push({
+    id: payload.id || uid(),
+    studentId: payload.studentId,
+    courseId: payload.courseId,
+    date: payload.date,
+    actualMinutes: payload.actualMinutes
+  });
+}
+
+function updateLegacyLocalInstructionActual(existing, payload) {
+  if (!existing) return;
+  existing.studentId = payload.studentId;
+  existing.courseId = payload.courseId;
+  existing.date = payload.date;
+  existing.actualMinutes = payload.actualMinutes;
+}
+
+function deleteLegacyLocalInstructionActual(id) {
+  state.instructionActuals = state.instructionActuals.filter((entry) => entry.id !== id);
+}
+
+async function saveInstructionActualMinutes({ studentId, courseId, date, actualMinutes }) {
+  const existing = findInstructionActualRecord(studentId, courseId, date);
+  const payload = { studentId, courseId, date, actualMinutes };
+  if (hostedModeEnabled) {
+    if (existing) {
+      await updateHostedInstructionActual(existing.id, payload);
+    } else {
+      await createHostedInstructionActual({ id: uid(), ...payload });
+    }
+    await refreshHostedInstructionActuals();
+    return;
+  }
+
+  if (existing) {
+    updateLegacyLocalInstructionActual(existing, payload);
+  } else {
+    createLegacyLocalInstructionActual({ id: uid(), ...payload });
+  }
+  saveState();
+}
+
+async function resetInstructionActualMinutes(recordId) {
+  if (!recordId) return;
+  if (hostedModeEnabled) {
+    await deleteHostedInstructionActual(recordId);
+    await refreshHostedInstructionActuals();
+    return;
+  }
+  deleteLegacyLocalInstructionActual(recordId);
+  saveState();
 }
 
 function beginCourseEdit(courseId) {
@@ -8187,6 +8327,57 @@ function bindEvents() {
       if (expandedStudentInstructionalHourRows.has(toggleStudentInstructionalHoursId)) expandedStudentInstructionalHourRows.delete(toggleStudentInstructionalHoursId);
       else expandedStudentInstructionalHourRows.add(toggleStudentInstructionalHoursId);
       renderDashboard();
+      return;
+    }
+
+    const editInstructionActualKey = t.getAttribute("data-edit-instruction-actual");
+    if (editInstructionActualKey) {
+      if (!ensureAdminAction()) return;
+      editingInstructionActualKey = editInstructionActualKey;
+      renderCalendar();
+      return;
+    }
+    const cancelInstructionActualKey = t.getAttribute("data-cancel-instruction-actual");
+    if (cancelInstructionActualKey) {
+      editingInstructionActualKey = "";
+      renderCalendar();
+      return;
+    }
+    const saveInstructionActualKey = t.getAttribute("data-save-instruction-actual");
+    if (saveInstructionActualKey) {
+      if (!ensureAdminAction()) return;
+      const studentId = t.getAttribute("data-student-id") || "";
+      const courseId = t.getAttribute("data-course-id") || "";
+      const date = t.getAttribute("data-date") || "";
+      const input = document.querySelector(`[data-instruction-actual-input="${saveInstructionActualKey}"]`);
+      const actualMinutes = Number(input?.value);
+      if (!studentId || !courseId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isInteger(actualMinutes) || actualMinutes <= 0) {
+        alert("Enter a whole number of minutes greater than 0.");
+        return;
+      }
+      (async () => {
+        try {
+          await saveInstructionActualMinutes({ studentId, courseId, date, actualMinutes });
+          editingInstructionActualKey = "";
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save actual instructional minutes.");
+        }
+      })();
+      return;
+    }
+    const resetInstructionActualId = t.getAttribute("data-reset-instruction-actual");
+    if (resetInstructionActualId) {
+      if (!ensureAdminAction()) return;
+      (async () => {
+        try {
+          await resetInstructionActualMinutes(resetInstructionActualId);
+          editingInstructionActualKey = "";
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to reset to planned minutes.");
+        }
+      })();
       return;
     }
 

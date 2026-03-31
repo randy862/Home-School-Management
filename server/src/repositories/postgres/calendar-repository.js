@@ -364,12 +364,12 @@ function createCalendarRepository(deps) {
             if (!nextQuarter) continue;
             await client.query(`
               UPDATE plans
-              SET start_date = $3, end_date = $4
+              SET start_date = $2::date, end_date = $3::date
               WHERE plan_type = 'quarterly'
                 AND quarter_name = $1
-                AND start_date = $5
-                AND end_date = $6
-            `, [name, schoolYearId, nextQuarter.startDate, nextQuarter.endDate, previousQuarter.startDate, previousQuarter.endDate]);
+                AND start_date = $4::date
+                AND end_date = $5::date
+            `, [name, nextQuarter.startDate, nextQuarter.endDate, previousQuarter.startDate, previousQuarter.endDate]);
           }
         }
         await client.query("COMMIT");

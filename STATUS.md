@@ -440,9 +440,24 @@ Date: 2026-03-27
   - kept all unresolved live-rollout specifics as `TBD` instead of inventing values not yet confirmed
 - Filled the named owner assignments for the first production-cutover worksheet:
   - `Randal Mitchell` is currently assigned as cutover lead, deployment operator, rollback owner, communications owner, backup deployment operator, and go/no-go authority
+- Started the next pre-production user-application slice for instructional-hour accuracy:
+  - added `NOTES/actual-daily-instruction-minutes.md` to define actual daily instructional minutes, keep attendance as present/absent, and document same-day schedule cascading
+  - added PostgreSQL migration `server/migrations/postgres/003_actual_instruction_minutes.sql`
+  - added backend CRUD/read support for `GET/POST/PATCH/DELETE /api/instruction-actuals`
+  - updated the calendar daily view to show editable instructional minutes in whole minutes and recalculate later same-day displayed times for that student
+  - updated instructional-hour summaries and reports to use actual-minute overrides when present and planned course duration otherwise
+- Validated the instructional-hour accuracy slice on staging:
+  - copied the updated hosted backend files to `APP001` and web assets to `WEB001`
+  - applied `server/migrations/postgres/003_actual_instruction_minutes.sql` successfully on `APP001`
+  - restarted `home-school-management.service` and confirmed local `127.0.0.1:3000/health` recovered after normal startup lag
+  - reran `scripts/Invoke-HostedReleaseGate.ps1` successfully after deployment
+  - extended `scripts/Test-HostedWorkflow.ps1` to cover `POST/PATCH/GET/DELETE /api/instruction-actuals`
+  - reran the broader hosted workflow validation successfully with the new actual instructional minute override path included
+  - updated `web/index.html` with a versioned `app.js` reference so the staged browser path loads the new calendar behavior without relying on a manual cache clear
 
 ## Residual Risks
 - This is still a staged single-tenant hosted deployment, not a broadly exercised production rollout across multiple tenants.
 - Direct workstation-to-`SQL001` validation is still not part of the normal regression gate; current database confidence still routes through `APP001` plus app/control validation.
 - The control-center desktop/mobile review is good enough for current use, but later polish and edge-case UX cleanup may still be worthwhile.
 - Production cutover is now structurally documented, but the first live window still depends on real owner assignments, hostname/TLS choices, and secret/config confirmations that are not yet filled in.
+- The new actual instructional minute workflow now passes staged deploy/API/workflow validation, but a hands-on browser review of the day-view editing experience and downstream hour displays is still worth doing before production cutover resumes.

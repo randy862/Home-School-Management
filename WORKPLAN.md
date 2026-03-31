@@ -146,3 +146,11 @@
    - [x] Add an explicit production-cutover worksheet for owners, target host/path/TLS decisions, secrets/config confirmation, and the first cutover window.
    - [x] Fill in the named owner assignments for the first cutover window.
    - [ ] Fill in real owner assignments, target hostname/TLS details, and production secret/config confirmations for the first actual cutover window.
+9. Pre-production instructional-hour accuracy update.
+   - [x] Decide to keep attendance as present/absent instead of adding partial-day attendance.
+   - [x] Define actual daily instructional minutes as a per-student, per-course, per-date override model.
+   - [x] Define same-day schedule cascading that updates later displayed times without mutating the recurring plan.
+   - [x] Add backend persistence and API support for actual instructional minutes.
+   - [x] Add daily calendar editing for actual instructional minutes in whole minutes.
+   - [x] Validate the staged deploy path, release gate, and hosted workflow including actual instructional minute CRUD.
+   - [ ] Do a hands-on staged browser review of the day-view editing UX and downstream hour displays before resuming production cutover work.

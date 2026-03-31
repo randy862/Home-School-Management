@@ -4,15 +4,37 @@ function createRecordsService(deps) {
   const { recordsRepository } = deps;
 
   return {
+    createActualInstructionMinutes: async (payload) => recordsRepository.createActualInstructionMinutes(normalizeActualInstructionPayload(payload)),
     createAttendance: async (payload) => recordsRepository.createAttendance(normalizeAttendancePayload(payload)),
     createTest: async (payload) => recordsRepository.createTest(normalizeTestPayload(payload)),
+    deleteActualInstructionMinutes: (id) => recordsRepository.deleteActualInstructionMinutes(id),
     deleteAttendance: (id) => recordsRepository.deleteAttendance(id),
     deleteTest: (id) => recordsRepository.deleteTest(id),
+    listActualInstructionMinutesForUser: (user) => recordsRepository.listActualInstructionMinutesForUser(user),
     listAttendanceForUser: (user) => recordsRepository.listAttendanceForUser(user),
     listTestsForUser: (user) => recordsRepository.listTestsForUser(user),
+    updateActualInstructionMinutes: async (id, payload) => recordsRepository.updateActualInstructionMinutes(id, normalizeActualInstructionPayload({ ...payload, id })),
     updateAttendance: async (id, payload) => recordsRepository.updateAttendance(id, normalizeAttendancePayload({ ...payload, id })),
     updateTest: async (id, payload) => recordsRepository.updateTest(id, normalizeTestPayload({ ...payload, id }))
   };
+}
+
+function normalizeActualInstructionPayload(input) {
+  const id = String(input?.id || "").trim() || randomUUID();
+  const studentId = String(input?.studentId || "").trim();
+  const courseId = String(input?.courseId || "").trim();
+  const date = String(input?.date || "").trim();
+  const actualMinutes = Number(input?.actualMinutes);
+  if (!studentId
+    || !courseId
+    || !/^\d{4}-\d{2}-\d{2}$/.test(date)
+    || !Number.isInteger(actualMinutes)
+    || actualMinutes <= 0) {
+    const error = new Error("Provide valid actual instructional minute values.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return { id, studentId, courseId, date, actualMinutes };
 }
 
 function normalizeAttendancePayload(input) {

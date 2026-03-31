@@ -15,12 +15,34 @@ function registerRecordsRoutes(app, deps) {
     }
   });
 
+  app.get("/api/instruction-actuals", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Actual instructional minutes")) return;
+    if (!ensureAuthenticated(req, res)) return;
+
+    try {
+      res.json(await recordsService.listActualInstructionMinutesForUser(req.auth.user));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/attendance", async (req, res) => {
     if (!ensurePostgresMode(res, isPostgresMode, "Attendance")) return;
     if (!ensureAdmin(req, res)) return;
 
     try {
       res.status(201).json(await recordsService.createAttendance(req.body));
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/instruction-actuals", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Actual instructional minutes")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      res.status(201).json(await recordsService.createActualInstructionMinutes(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
@@ -55,6 +77,38 @@ function registerRecordsRoutes(app, deps) {
       res.json({ ok: true });
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/instruction-actuals/:id", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Actual instructional minutes")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const updated = await recordsService.updateActualInstructionMinutes(req.params.id, req.body);
+      if (!updated) {
+        res.status(404).json({ error: "Actual instructional minute record not found." });
+        return;
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/instruction-actuals/:id", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Actual instructional minutes")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const deleted = await recordsService.deleteActualInstructionMinutes(req.params.id);
+      if (!deleted) {
+        res.status(404).json({ error: "Actual instructional minute record not found." });
+        return;
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 
