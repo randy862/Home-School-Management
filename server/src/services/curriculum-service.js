@@ -1,34 +1,21 @@
 const { randomUUID } = require("crypto");
 
 function createCurriculumService(deps) {
-  const {
-    createCourse,
-    createEnrollment,
-    createSubject,
-    deleteCourse,
-    deleteEnrollment,
-    deleteSubject,
-    listCoursesForUser,
-    listEnrollmentsForUser,
-    listSubjectsForUser,
-    updateCourse,
-    updateEnrollment,
-    updateSubject
-  } = deps;
+  const { curriculumRepository } = deps;
 
   return {
-    createCourse: async (payload) => createCourse(normalizeCoursePayload(payload)),
-    createEnrollment: async (payload) => createEnrollment(normalizeEnrollmentPayload(payload)),
-    createSubject: async (payload) => createSubject(normalizeSubjectPayload(payload)),
-    deleteCourse,
-    deleteEnrollment,
-    deleteSubject,
-    listCoursesForUser,
-    listEnrollmentsForUser,
-    listSubjectsForUser,
-    updateCourse: async (id, payload) => updateCourse(id, normalizeCoursePayload({ ...payload, id })),
-    updateEnrollment: async (id, payload) => updateEnrollment(id, normalizeEnrollmentPayload({ ...payload, id })),
-    updateSubject: async (id, payload) => updateSubject(id, normalizeSubjectPayload({ ...payload, id }))
+    createCourse: async (payload) => curriculumRepository.createCourse(normalizeCoursePayload(payload)),
+    createEnrollment: async (payload) => curriculumRepository.createEnrollment(normalizeEnrollmentPayload(payload)),
+    createSubject: async (payload) => curriculumRepository.createSubject(normalizeSubjectPayload(payload)),
+    deleteCourse: (id) => curriculumRepository.deleteCourse(id),
+    deleteEnrollment: (id) => curriculumRepository.deleteEnrollment(id),
+    deleteSubject: (id) => curriculumRepository.deleteSubject(id),
+    listCoursesForUser: (user) => curriculumRepository.listCoursesForUser(user),
+    listEnrollmentsForUser: (user) => curriculumRepository.listEnrollmentsForUser(user),
+    listSubjectsForUser: (user) => curriculumRepository.listSubjectsForUser(user),
+    updateCourse: async (id, payload) => curriculumRepository.updateCourse(id, normalizeCoursePayload({ ...payload, id })),
+    updateEnrollment: async (id, payload) => curriculumRepository.updateEnrollment(id, normalizeEnrollmentPayload({ ...payload, id })),
+    updateSubject: async (id, payload) => curriculumRepository.updateSubject(id, normalizeSubjectPayload({ ...payload, id }))
   };
 }
 

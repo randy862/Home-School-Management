@@ -36,46 +36,14 @@ const { registerInfraRoutes } = require("./routes/infra-routes");
 const { registerRecordsRoutes } = require("./routes/records-routes");
 const { registerSetupRoutes } = require("./routes/setup-routes");
 const { registerStateRoutes } = require("./routes/state-routes");
+const { createCalendarRepository } = require("./repositories/postgres/calendar-repository");
+const { createCurriculumRepository } = require("./repositories/postgres/curriculum-repository");
 const { createGradingRepository } = require("./repositories/postgres/grading-repository");
 const { createRecordsRepository } = require("./repositories/postgres/records-repository");
 const { createCalendarService } = require("./services/calendar-service");
 const { createCurriculumService } = require("./services/curriculum-service");
 const { createGradingService } = require("./services/grading-service");
 const { createRecordsService } = require("./services/records-service");
-const {
-  createDailyBreak,
-  createHoliday,
-  createPlans,
-  createSchoolYear,
-  createCourse,
-  createEnrollment,
-  createSubject,
-  deleteSchoolYear,
-  deleteCourse,
-  deleteDailyBreak,
-  deleteEnrollment,
-  deleteHoliday,
-  deletePlan,
-  deleteSubject,
-  listAttendanceForUser,
-  listCoursesForUser,
-  listDailyBreaksForUser,
-  listEnrollmentsForUser,
-  listHolidays,
-  listPlansForUser,
-  listQuarters,
-  listSchoolYears,
-  listSubjectsForUser,
-  replaceQuartersForSchoolYear,
-  setCurrentSchoolYear,
-  updateDailyBreak,
-  updateCourse,
-  updateEnrollment,
-  updateHoliday,
-  updatePlan,
-  updateSchoolYear,
-  updateSubject
-} = require("./postgres-academics-store");
 
 const app = express();
 const isPostgresMode = appConfig.dbClient === "postgres";
@@ -106,42 +74,17 @@ const adminRouteDeps = {
 };
 const curriculumRouteDeps = {
   curriculumService: createCurriculumService({
-    createCourse,
-    createEnrollment,
-    createSubject,
-    deleteCourse,
-    deleteEnrollment,
-    deleteSubject,
-    listCoursesForUser,
-    listEnrollmentsForUser,
-    listSubjectsForUser,
-    updateCourse,
-    updateEnrollment,
-    updateSubject
+    curriculumRepository: createCurriculumRepository({
+      getPostgresPool
+    })
   }),
   isPostgresMode,
 };
 const calendarRouteDeps = {
   calendarService: createCalendarService({
-    createDailyBreak,
-    createHoliday,
-    createPlans,
-    createSchoolYear,
-    deleteDailyBreak,
-    deleteHoliday,
-    deletePlan,
-    deleteSchoolYear,
-    listDailyBreaksForUser,
-    listHolidays,
-    listPlansForUser,
-    listQuarters,
-    listSchoolYears,
-    replaceQuartersForSchoolYear,
-    setCurrentSchoolYear,
-    updateDailyBreak,
-    updateHoliday,
-    updatePlan,
-    updateSchoolYear
+    calendarRepository: createCalendarRepository({
+      getPostgresPool
+    })
   }),
   isPostgresMode,
 };

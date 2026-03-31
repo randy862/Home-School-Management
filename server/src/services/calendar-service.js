@@ -1,31 +1,11 @@
 const { randomUUID } = require("crypto");
 
 function createCalendarService(deps) {
-  const {
-    createDailyBreak,
-    createHoliday,
-    createPlans,
-    createSchoolYear,
-    deleteDailyBreak,
-    deleteHoliday,
-    deletePlan,
-    deleteSchoolYear,
-    listDailyBreaksForUser,
-    listHolidays,
-    listPlansForUser,
-    listQuarters,
-    listSchoolYears,
-    replaceQuartersForSchoolYear,
-    setCurrentSchoolYear,
-    updateDailyBreak,
-    updateHoliday,
-    updatePlan,
-    updateSchoolYear
-  } = deps;
+  const { calendarRepository } = deps;
 
   return {
-    createDailyBreak: async (payload) => createDailyBreak(normalizeDailyBreakPayload(payload)),
-    createHoliday: async (payload) => createHoliday(normalizeHolidayPayload(payload)),
+    createDailyBreak: async (payload) => calendarRepository.createDailyBreak(normalizeDailyBreakPayload(payload)),
+    createHoliday: async (payload) => calendarRepository.createHoliday(normalizeHolidayPayload(payload)),
     createPlans: async (payload) => {
       const plansPayload = Array.isArray(payload?.plans) ? payload.plans : [payload];
       const plans = plansPayload.map(normalizePlanPayload);
@@ -34,29 +14,29 @@ function createCalendarService(deps) {
         error.statusCode = 400;
         throw error;
       }
-      return createPlans(plans);
+      return calendarRepository.createPlans(plans);
     },
-    createSchoolYear: async (payload) => createSchoolYear(normalizeSchoolYearPayload(payload)),
-    deleteDailyBreak,
-    deleteHoliday,
-    deletePlan,
-    deleteSchoolYear,
-    listDailyBreaksForUser,
-    listHolidays,
-    listPlansForUser,
-    listQuarters,
-    listSchoolYears,
+    createSchoolYear: async (payload) => calendarRepository.createSchoolYear(normalizeSchoolYearPayload(payload)),
+    deleteDailyBreak: (id) => calendarRepository.deleteDailyBreak(id),
+    deleteHoliday: (id) => calendarRepository.deleteHoliday(id),
+    deletePlan: (id) => calendarRepository.deletePlan(id),
+    deleteSchoolYear: (id) => calendarRepository.deleteSchoolYear(id),
+    listDailyBreaksForUser: (user) => calendarRepository.listDailyBreaksForUser(user),
+    listHolidays: () => calendarRepository.listHolidays(),
+    listPlansForUser: (user) => calendarRepository.listPlansForUser(user),
+    listQuarters: () => calendarRepository.listQuarters(),
+    listSchoolYears: () => calendarRepository.listSchoolYears(),
     replaceQuartersForSchoolYear: async (schoolYearId, payload) => {
       const quarters = Array.isArray(payload?.quarters)
         ? payload.quarters.map((quarter) => normalizeQuarterPayload(quarter, schoolYearId))
         : [];
-      return replaceQuartersForSchoolYear(schoolYearId, quarters);
+      return calendarRepository.replaceQuartersForSchoolYear(schoolYearId, quarters);
     },
-    setCurrentSchoolYear,
-    updateDailyBreak: async (id, payload) => updateDailyBreak(id, normalizeDailyBreakPayload({ ...payload, id })),
-    updateHoliday: async (id, payload) => updateHoliday(id, normalizeHolidayPayload({ ...payload, id })),
-    updatePlan: async (id, payload) => updatePlan(id, normalizePlanPayload({ ...payload, id })),
-    updateSchoolYear: async (id, payload) => updateSchoolYear(id, normalizeSchoolYearPayload({ ...payload, id }))
+    setCurrentSchoolYear: (id) => calendarRepository.setCurrentSchoolYear(id),
+    updateDailyBreak: async (id, payload) => calendarRepository.updateDailyBreak(id, normalizeDailyBreakPayload({ ...payload, id })),
+    updateHoliday: async (id, payload) => calendarRepository.updateHoliday(id, normalizeHolidayPayload({ ...payload, id })),
+    updatePlan: async (id, payload) => calendarRepository.updatePlan(id, normalizePlanPayload({ ...payload, id })),
+    updateSchoolYear: async (id, payload) => calendarRepository.updateSchoolYear(id, normalizeSchoolYearPayload({ ...payload, id }))
   };
 }
 

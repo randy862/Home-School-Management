@@ -120,4 +120,7 @@
    - [x] Start Phase 4 repository extraction with a grading repository boundary.
    - [x] Continue Phase 4 repository extraction with a records repository boundary.
    - [x] Validate the new grading/records repository boundaries on staged hosted runtime after deployment.
-   - [ ] Continue Phase 4 repository extraction with the next stable domain, likely calendar.
+   - [x] Continue Phase 4 repository extraction with a calendar repository boundary.
+   - [x] Continue Phase 4 repository extraction with a curriculum repository boundary.
+   - [x] Validate the new calendar/curriculum repository boundaries on staged hosted runtime after deployment.
+   - [ ] Reassess whether additional shared repository cleanup is worth doing before moving to item 5.

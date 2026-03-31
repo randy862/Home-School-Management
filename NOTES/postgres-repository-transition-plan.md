@@ -155,6 +155,10 @@ Define how Home School Management moves from the current mixed bridge architectu
 - `server/src/services/grading-service.js` now depends on the grading repository instead of depending on broad `postgres-academics-store` functions directly.
 - `server/src/repositories/postgres/records-repository.js` now owns PostgreSQL persistence for attendance and tests.
 - `server/src/services/records-service.js` now depends on the records repository instead of depending on broad `postgres-academics-store` functions directly.
+- `server/src/repositories/postgres/calendar-repository.js` now owns PostgreSQL persistence for school years, quarters, holidays, daily breaks, and plans.
+- `server/src/services/calendar-service.js` now depends on the calendar repository instead of depending on broad `postgres-academics-store` functions directly.
+- `server/src/repositories/postgres/curriculum-repository.js` now owns PostgreSQL persistence for subjects, courses, and enrollments.
+- `server/src/services/curriculum-service.js` now depends on the curriculum repository instead of depending on broad `postgres-academics-store` functions directly.
 
 ## Exit Criteria
 - `server/src/app.js` is primarily bootstrap and route registration.
