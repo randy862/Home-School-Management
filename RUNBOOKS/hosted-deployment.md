@@ -241,6 +241,19 @@ Optional parameters:
 - `-ControlUsername`
 - `-ControlPassword`
 
+## Rehearsed Release / Rollback Drill
+The current release path has been exercised on staging with a controlled backend-only control-api change:
+- deployed a tiny `control-api` health-route change to `APP001`
+- restarted `home-school-management-control-api.service`
+- ran `scripts\Invoke-HostedReleaseGate.ps1` successfully against the live staged app and control plane
+- restored the previously committed control-api route file to `APP001`
+- restarted `home-school-management-control-api.service` again
+- reran `scripts\Invoke-HostedReleaseGate.ps1` successfully after rollback
+
+This means the staged operator path is no longer just theoretical:
+- small backend deploys can be validated through the scripted gate
+- rollback to the prior committed file set can be revalidated through the same scripted gate
+
 ## Current Staged URLs
 - Public app: `http://192.168.1.210/`
 - Public health: `http://192.168.1.210/health`

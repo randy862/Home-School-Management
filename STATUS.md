@@ -402,3 +402,10 @@ Date: 2026-03-27
   - tenant hosted login plus authenticated smoke reads for curriculum, calendar, planning, grading, attendance, and tests succeeded
   - control-plane operator login plus `/api/operator/me` session validation succeeded
 - Reassessed backend cleanup priority after the new repository boundaries and decided not to continue extracting shared persistence helpers for their own sake right now; release confidence and operational repeatability are the higher-value next step unless a concrete backend risk surfaces.
+- Completed a real staged release and rollback rehearsal using the new validation hooks:
+  - deployed a tiny backend-only control-api change to `APP001`
+  - restarted `home-school-management-control-api.service`
+  - confirmed the full scripted release gate still passed
+  - rolled the route file back to the previously committed version on `APP001`
+  - restarted `home-school-management-control-api.service` again
+  - confirmed the full scripted release gate still passed after rollback

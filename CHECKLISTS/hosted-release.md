@@ -41,6 +41,8 @@
 - Restart `home-school-management.service`
 - Recheck local health and public `/health`
 - Re-run the hosted smoke pass on the previous known-good version
+- Prefer to rerun the full staged gate:
+  - `powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -HostedUsername <tenant-user> -HostedPassword <tenant-password>`
 
 ## Special Checks
 - If runtime/schema behavior looks wrong, inspect `.env.runtime` and `PGOPTIONS`

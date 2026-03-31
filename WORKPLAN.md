@@ -133,3 +133,4 @@
    - [x] Decide that the current runbooks and checklists are sufficient for the first item 5 checkpoint.
    - [x] Add repeatable workstation validation hooks for the hosted smoke pass and combined release gate.
    - [x] Run the new staged release gate end to end against the live hosted app and control plane.
+   - [x] Rehearse one real staged rollback path and revalidate the environment through the same scripted release gate.
