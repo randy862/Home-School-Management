@@ -433,8 +433,14 @@ Date: 2026-03-27
 - Started production-cutover planning on top of the staged go/no-go result:
   - added `RUNBOOKS/production-cutover.md` to define production prerequisites, owner roles, cutover sequence, rollback rules, and communications expectations
   - added `CHECKLISTS/production-cutover.md` as the short-form operational checklist for a real production cutover window
+- Tightened the production-cutover package from generic guidance into an explicit fill-in worksheet:
+  - added named-owner placeholders for cutover lead, deployment operator, rollback owner, communications owner, backup operator, and go/no-go authority
+  - added production-target placeholders for hostname, `/control/` path/host, TLS termination, cookie security, and runtime identity
+  - added production secrets/config confirmation placeholders and the first actual cutover-window fields
+  - kept all unresolved live-rollout specifics as `TBD` instead of inventing values not yet confirmed
 
 ## Residual Risks
 - This is still a staged single-tenant hosted deployment, not a broadly exercised production rollout across multiple tenants.
 - Direct workstation-to-`SQL001` validation is still not part of the normal regression gate; current database confidence still routes through `APP001` plus app/control validation.
 - The control-center desktop/mobile review is good enough for current use, but later polish and edge-case UX cleanup may still be worthwhile.
+- Production cutover is now structurally documented, but the first live window still depends on real owner assignments, hostname/TLS choices, and secret/config confirmations that are not yet filled in.

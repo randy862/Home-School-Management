@@ -143,4 +143,5 @@
 8. Production cutover planning and checklist hardening.
    - [x] Add a production-specific cutover runbook on top of the staged deployment guide.
    - [x] Add a short-form production cutover checklist.
+   - [x] Add an explicit production-cutover worksheet for owners, target host/path/TLS decisions, secrets/config confirmation, and the first cutover window.
    - [ ] Fill in real owner assignments, target hostname/TLS details, and production secret/config confirmations for the first actual cutover window.

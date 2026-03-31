@@ -1,5 +1,20 @@
 # Production Cutover Checklist
 
+## Worksheet
+- [ ] Record named cutover lead
+- [ ] Record named deployment operator
+- [ ] Record named rollback owner
+- [ ] Record named communications owner
+- [ ] Record named backup deployment operator
+- [ ] Record named go/no-go authority
+- [ ] Record primary public hostname
+- [ ] Record Control Center public hostname/path
+- [ ] Record TLS termination point and cookie-secure expectation
+- [ ] Record intended release commit
+- [ ] Record previous known-good rollback commit
+- [ ] Record cutover date/time and rollback decision deadline
+- [ ] Record stakeholder communications channel
+
 ## Prerequisites
 - Assign cutover lead
 - Assign deployment operator
@@ -43,3 +58,9 @@
 - Record final go/no-go result
 - Record final deployed commit
 - Record any residual risks or follow-up actions
+
+## Pending Human Confirmations
+- [ ] Real owner names are filled in
+- [ ] Real production hostname/TLS details are filled in
+- [ ] Real production secrets/config confirmations are filled in
+- [ ] Real first cutover window details are filled in

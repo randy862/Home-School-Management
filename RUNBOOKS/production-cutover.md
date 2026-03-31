@@ -14,6 +14,41 @@ This cutover plan assumes:
   - `scripts\Invoke-HostedReleaseGate.ps1`
   - `scripts\Test-HostedWorkflow.ps1`
 
+## Cutover Worksheet
+
+### Named Owners
+- Cutover lead: `TBD`
+- Deployment operator: `TBD`
+- Rollback owner: `TBD`
+- Communications owner: `TBD`
+- Backup deployment operator: `TBD`
+- Go/no-go authority: `TBD`
+
+### Production Target
+- Primary public hostname: `TBD`
+- Control Center public hostname/path: `TBD`
+- TLS termination point: `TBD`
+- Cookie secure setting confirmed for production hostnames: `TBD`
+- Apache site/proxy configuration target: `TBD`
+- Production tenant runtime identity/environment name: `TBD`
+
+### Secrets / Configuration Confirmation
+- Tenant app session/auth secret confirmed: `TBD`
+- Control-plane session secret confirmed: `TBD`
+- Internal service-auth secret confirmed: `TBD`
+- PostgreSQL production credentials confirmed: `TBD`
+- Runtime `.env.runtime` generation rules confirmed: `TBD`
+- Secret storage location and access procedure confirmed: `TBD`
+
+### First Cutover Window
+- Intended release commit: `TBD`
+- Previous known-good rollback commit: `TBD`
+- Cutover date: `TBD`
+- Cutover start time and timezone: `TBD`
+- Expected validation duration: `TBD`
+- Rollback decision deadline/threshold: `TBD`
+- Stakeholder communications channel: `TBD`
+
 ## Production Prerequisites
 
 ### Product / Platform
@@ -148,3 +183,9 @@ Production cutover is considered complete only when:
 - any required workflow validation passes
 - rollback path remains available
 - the final go/no-go outcome is recorded in repo docs or operational notes
+
+## Open Production Decisions
+- The real owner names are still pending and must be filled into the cutover worksheet before the first live window.
+- The production hostname/TLS/cookie configuration is still pending and must be confirmed before production validation.
+- The production secrets/config package is still pending explicit confirmation and storage-location signoff.
+- The first actual cutover window is still pending a named release commit, rollback commit, and decision deadline.
