@@ -31,6 +31,8 @@ This runbook reflects the current staged production-like shape, not the original
 
 ### 1. Pre-Deploy Checks
 - Confirm repo is at the intended commit.
+- Preferred quick gate from this workstation:
+  - `powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -HostedUsername <tenant-user> -HostedPassword <tenant-password>`
 - Confirm `APP001` app health before touching anything:
   - `ssh debian@192.168.1.200 "curl -s http://127.0.0.1:3000/health"`
 - Confirm public hosted health:
@@ -97,12 +99,16 @@ Do not restart midway through a partial copy. One real staged failure came from 
   - `/api/grading-criteria`
   - `/api/attendance`
   - `/api/tests`
+- Preferred smoke command from this workstation:
+  - `powershell -ExecutionPolicy Bypass -File .\scripts\Test-HostedSmoke.ps1 -Username <tenant-user> -Password <tenant-password>`
 
 ### Control Plane Checks When Included
 - `curl http://192.168.1.210/control-api/health`
 - Login to `/control/`
 - Verify expected operator workspace loads
 - If deployment touched provisioning/release execution, verify the latest job detail renders cleanly
+- Preferred combined gate when control-plane changes are included:
+  - `powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -HostedUsername <tenant-user> -HostedPassword <tenant-password> -IncludeControlPlane -ControlUsername <operator-user> -ControlPassword <operator-password>`
 
 ## Tenant Runtime Checks
 
@@ -201,6 +207,39 @@ Treat a hosted release as acceptable only when:
 - domain smoke reads pass for the touched surfaces
 - control plane still works if included in the release
 - no unresolved service restart or module-load errors remain in journal output
+
+## Validation Hooks
+
+### `scripts\Test-HostedSmoke.ps1`
+Runs the tenant-app login plus authenticated smoke reads for the currently served hosted runtime.
+
+Required parameters:
+- `-Username`
+- `-Password`
+
+Optional parameters:
+- `-BaseUrl`
+- `-Endpoints`
+
+### `scripts\Invoke-HostedReleaseGate.ps1`
+Runs the staged release gate in one command:
+- APP001 local health over SSH
+- public `/health`
+- tenant-app smoke login and domain reads
+- optional control-plane health and operator login/session validation
+
+Required parameters:
+- `-HostedUsername`
+- `-HostedPassword`
+
+Optional parameters:
+- `-PublicBaseUrl`
+- `-ControlBaseUrl`
+- `-AppHost`
+- `-AppPort`
+- `-IncludeControlPlane`
+- `-ControlUsername`
+- `-ControlPassword`
 
 ## Current Staged URLs
 - Public app: `http://192.168.1.210/`

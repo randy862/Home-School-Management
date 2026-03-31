@@ -84,7 +84,7 @@
 1. Complete Session 5 control-plane UI polish and naming cleanup.
    - [x] Review remaining technical labels and replace them with more business-facing language where appropriate.
    - [x] Improve hierarchy, spacing, and detail layout so audit, jobs, lifecycle views, and user management feel cohesive.
-   - [ ] Recheck the main `/control/` flows on desktop and mobile after the latest sidebar and user-management pass using `CHECKLISTS/control-ui-smoke.md`.
+   - [ ] Recheck the main `/control/` flows on desktop and mobile after the latest sidebar and user-management pass using `CHECKLISTS/control-ui-smoke.md`, including the new stacked mobile table layout.
 2. Complete the new operator-permission model end to end.
    - [x] Add operator profiles, explicit permissions, and a user-management workspace in `/control/`.
    - [x] Replace coarse control-plane mutation guards with permission-aware route checks.
@@ -115,7 +115,7 @@
    - [x] Continue server-side repository/service hardening with a calendar service boundary.
    - [x] Continue server-side repository/service hardening with a curriculum service boundary.
    - [x] Continue server-side repository/service hardening with the records domain after grading, calendar, and curriculum.
-   - [ ] Decide whether the next item 4 slice should be repository extraction or staged smoke validation of the new service-boundary backend shape.
+   - [x] Decide whether the next item 4 slice should be repository extraction or staged smoke validation of the new service-boundary backend shape.
    - [x] Decide that repository extraction is the next item 4 slice after the service-boundary smoke pass.
    - [x] Start Phase 4 repository extraction with a grading repository boundary.
    - [x] Continue Phase 4 repository extraction with a records repository boundary.
@@ -123,10 +123,13 @@
    - [x] Continue Phase 4 repository extraction with a calendar repository boundary.
    - [x] Continue Phase 4 repository extraction with a curriculum repository boundary.
    - [x] Validate the new calendar/curriculum repository boundaries on staged hosted runtime after deployment.
-   - [ ] Reassess whether additional shared repository cleanup is worth doing before moving to item 5.
+   - [x] Reassess whether additional shared repository cleanup is worth doing before moving to item 5.
+   - [x] Decide that additional shared repository cleanup is lower value than release-process hardening unless a concrete backend risk appears.
 6. Start item 5 release and recovery hardening.
    - [x] Rewrite `RUNBOOKS/hosted-deployment.md` to match the actual staged deployment topology and recovery experience.
    - [x] Add a concise staged release checklist and rollback checklist derived from the new runbook.
    - [x] Add a control-plane recovery/runbook companion for queued job failures and operator-side incident response.
    - [x] Add a short-form control-plane incident checklist for faster operator triage.
    - [x] Decide that the current runbooks and checklists are sufficient for the first item 5 checkpoint.
+   - [x] Add repeatable workstation validation hooks for the hosted smoke pass and combined release gate.
+   - [x] Run the new staged release gate end to end against the live hosted app and control plane.

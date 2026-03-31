@@ -393,3 +393,12 @@ Date: 2026-03-27
 - Added `RUNBOOKS/control-plane-recovery.md` as the operator-side incident guide for queued job failures, retry decisions, deployment-step failures, and escalation from `/control/` into host-level checks.
 - Added `CHECKLISTS/control-plane-incident.md` as the short-form operator incident checklist so job triage and escalation can be followed quickly during failures.
 - Added `CHECKLISTS/control-ui-smoke.md` so the remaining desktop/mobile `/control/` verification can be executed as a concrete smoke pass instead of an open-ended reminder.
+- Updated `/control/` table rendering and mobile CSS so `Customers`, `Environments`, `Operations`, and `User Management` collapse into labeled stacked rows on narrow screens instead of forcing horizontal table scrolling, and re-bumped the static asset version token in `admin/index.html` to flush browser caches again.
+- Added `scripts/Test-HostedSmoke.ps1` and `scripts/Invoke-HostedReleaseGate.ps1` so the staged release gate can be executed as a repeatable workstation command instead of a manual curl/SSH checklist.
+- Validated the new scripted release gate end to end against staging:
+  - APP001 local tenant-app health over SSH succeeded
+  - public hosted `/health` succeeded
+  - public control-api `/health` succeeded
+  - tenant hosted login plus authenticated smoke reads for curriculum, calendar, planning, grading, attendance, and tests succeeded
+  - control-plane operator login plus `/api/operator/me` session validation succeeded
+- Reassessed backend cleanup priority after the new repository boundaries and decided not to continue extracting shared persistence helpers for their own sake right now; release confidence and operational repeatability are the higher-value next step unless a concrete backend risk surfaces.

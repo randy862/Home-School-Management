@@ -289,12 +289,12 @@ function renderTenantTable(tenants) {
               <td>
                 <button type="button" class="text-link-btn tenant-detail-link" data-tenant-detail-id="${escapeHtml(tenant.id)}">${escapeHtml(formatCustomerDisplayName(tenant.displayName))}</button>
               </td>
-              <td>${escapeHtml(tenant.primaryContactName || "Not recorded")}</td>
-              <td>${escapeHtml(tenant.primaryContactEmail || "Not recorded")}</td>
-              <td>${tenant.primaryDomain ? `<a href="http://${escapeHtml(tenant.primaryDomain)}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded"}</td>
-              <td>${renderStatusTag(tenant.status, "tenant")}</td>
-              <td>${escapeHtml(tenant.planCode || "standard")}</td>
-              <td>
+              <td data-label="Contact Name">${escapeHtml(tenant.primaryContactName || "Not recorded")}</td>
+              <td data-label="Contact Email">${escapeHtml(tenant.primaryContactEmail || "Not recorded")}</td>
+              <td data-label="Tenant URL">${tenant.primaryDomain ? `<a href="http://${escapeHtml(tenant.primaryDomain)}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded"}</td>
+              <td data-label="Status">${renderStatusTag(tenant.status, "tenant")}</td>
+              <td data-label="Plan">${escapeHtml(tenant.planCode || "standard")}</td>
+              <td data-label="Actions">
                 <div class="table-actions">
                   <button type="button" class="secondary-btn table-action-btn" data-tenant-detail-id="${escapeHtml(tenant.id)}">Details</button>
                 </div>
@@ -349,17 +349,17 @@ function renderEnvironmentTable(environments) {
         <tbody>
           ${environments.map((environment) => `
             <tr class="${environment.id === state.selectedEnvironmentId ? "selected-row" : ""}">
-              <td>
+              <td data-label="Tenant">
                 <button type="button" class="text-link-btn" data-environment-detail-id="${escapeHtml(environment.id)}">${escapeHtml(formatCustomerDisplayName(environment.tenantDisplayName || environment.tenantId || "Unknown tenant"))}</button>
               </td>
-              <td>
+              <td data-label="Environment">
                 <strong>${escapeHtml(environment.displayName || "Environment")}</strong>
                 <div class="table-subcopy">${escapeHtml(environment.environmentKey || "No key recorded")}</div>
               </td>
-              <td>${environment.appBaseUrl ? `<a href="${escapeHtml(environment.appBaseUrl)}" target="_blank" rel="noreferrer">${escapeHtml(environment.appBaseUrl)}</a>` : "Not recorded"}</td>
-              <td>${renderStatusTag(environment.status, "environment")}</td>
-              <td>${renderStateTag(environment.setupState || "uninitialized", "setup", formatSetupState(environment.setupState || "uninitialized"))}</td>
-              <td>
+              <td data-label="App URL">${environment.appBaseUrl ? `<a href="${escapeHtml(environment.appBaseUrl)}" target="_blank" rel="noreferrer">${escapeHtml(environment.appBaseUrl)}</a>` : "Not recorded"}</td>
+              <td data-label="Status">${renderStatusTag(environment.status, "environment")}</td>
+              <td data-label="Setup">${renderStateTag(environment.setupState || "uninitialized", "setup", formatSetupState(environment.setupState || "uninitialized"))}</td>
+              <td data-label="Actions">
                 <div class="table-actions">
                   <button type="button" class="secondary-btn table-action-btn" data-environment-detail-id="${escapeHtml(environment.id)}">Details</button>
                 </div>
@@ -390,14 +390,14 @@ function renderJobTable(jobs) {
         <tbody>
           ${jobs.map((job) => `
             <tr class="${job.id === state.selectedJobId ? "selected-row" : ""}">
-              <td>
+              <td data-label="Tenant">
                 <button type="button" class="text-link-btn" data-job-detail-id="${escapeHtml(job.id)}">${escapeHtml(formatCustomerDisplayName(resolveJobTenantName(job)))}</button>
               </td>
-              <td>${escapeHtml(formatJobType(job.jobType))}</td>
-              <td>${escapeHtml(resolveEnvironmentName(job.tenantEnvironmentId) || job.tenantEnvironmentId || "Not recorded")}</td>
-              <td>${escapeHtml(formatDateTime(job.requestedAt) || "Not recorded")}</td>
-              <td>${renderStatusTag(job.status, "job")}</td>
-              <td>
+              <td data-label="Operation">${escapeHtml(formatJobType(job.jobType))}</td>
+              <td data-label="Environment">${escapeHtml(resolveEnvironmentName(job.tenantEnvironmentId) || job.tenantEnvironmentId || "Not recorded")}</td>
+              <td data-label="Requested">${escapeHtml(formatDateTime(job.requestedAt) || "Not recorded")}</td>
+              <td data-label="Status">${renderStatusTag(job.status, "job")}</td>
+              <td data-label="Actions">
                 <div class="table-actions">
                   <button type="button" class="secondary-btn table-action-btn" data-job-detail-id="${escapeHtml(job.id)}">Details</button>
                 </div>
@@ -429,15 +429,15 @@ function renderUserTable(users) {
         <tbody>
           ${users.map((user) => `
             <tr class="${user.id === state.selectedUserId ? "selected-row" : ""}">
-              <td>
+              <td data-label="Username">
                 <button type="button" class="text-link-btn" data-user-detail-id="${escapeHtml(user.id)}">${escapeHtml(user.username)}</button>
               </td>
-              <td>${escapeHtml(user.firstName || "Not recorded")}</td>
-              <td>${escapeHtml(user.lastName || "Not recorded")}</td>
-              <td>${escapeHtml(user.accountType || "Read Only")}</td>
-              <td>${renderStatusTag(user.isActive ? "active" : "inactive", "tenant")}</td>
-              <td>${escapeHtml(formatDateTime(user.lastLoginAt) || "Never")}</td>
-              <td>
+              <td data-label="First Name">${escapeHtml(user.firstName || "Not recorded")}</td>
+              <td data-label="Last Name">${escapeHtml(user.lastName || "Not recorded")}</td>
+              <td data-label="Account Type">${escapeHtml(user.accountType || "Read Only")}</td>
+              <td data-label="Status">${renderStatusTag(user.isActive ? "active" : "inactive", "tenant")}</td>
+              <td data-label="Last Login">${escapeHtml(formatDateTime(user.lastLoginAt) || "Never")}</td>
+              <td data-label="Actions">
                 <div class="table-actions">
                   <button type="button" class="secondary-btn table-action-btn" data-user-detail-id="${escapeHtml(user.id)}">Details</button>
                 </div>

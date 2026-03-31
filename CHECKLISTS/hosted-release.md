@@ -2,6 +2,8 @@
 
 ## Before Deploy
 - Confirm intended commit and scope.
+- Prefer to run:
+  - `powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -HostedUsername <tenant-user> -HostedPassword <tenant-password>`
 - Confirm `APP001` local health:
   - `curl http://127.0.0.1:3000/health`
 - Confirm public hosted health:
@@ -23,6 +25,8 @@
 - Confirm public `http://192.168.1.210/health` returns `200`.
 - Confirm hosted login works.
 - Run smoke reads for the touched domains.
+- Prefer to run:
+  - `powershell -ExecutionPolicy Bypass -File .\scripts\Test-HostedSmoke.ps1 -Username <tenant-user> -Password <tenant-password>`
 - If control plane changed, confirm `/control/` login and expected workspace behavior.
 - Check `journalctl --user -u home-school-management.service -n 80 --no-pager` for startup errors.
 
