@@ -388,3 +388,7 @@ Date: 2026-03-27
 - The app is a strong functional product foundation.
 - The current architecture is not yet SaaS-ready because auth and authorization are still too browser-centric and the backend still leans on full-state synchronization.
 - The immediate objective is not multi-tenancy first; it is establishing a secure hosted single-tenant platform that multi-tenancy can safely build on.
+- Item 5 is now underway through operational runbook hardening, with the hosted deployment guide updated to reflect the actual staged release, validation, and recovery flow used on `APP001`, `WEB001`, and `SQL001`.
+- Added a short-form hosted release checklist in `CHECKLISTS/hosted-release.md` so staged deploys and rollback decisions can follow the same gates without reopening the full runbook.
+- Added `RUNBOOKS/control-plane-recovery.md` as the operator-side incident guide for queued job failures, retry decisions, deployment-step failures, and escalation from `/control/` into host-level checks.
+- Added `CHECKLISTS/control-plane-incident.md` as the short-form operator incident checklist so job triage and escalation can be followed quickly during failures.

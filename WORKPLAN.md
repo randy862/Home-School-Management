@@ -124,3 +124,9 @@
    - [x] Continue Phase 4 repository extraction with a curriculum repository boundary.
    - [x] Validate the new calendar/curriculum repository boundaries on staged hosted runtime after deployment.
    - [ ] Reassess whether additional shared repository cleanup is worth doing before moving to item 5.
+6. Start item 5 release and recovery hardening.
+   - [x] Rewrite `RUNBOOKS/hosted-deployment.md` to match the actual staged deployment topology and recovery experience.
+   - [x] Add a concise staged release checklist and rollback checklist derived from the new runbook.
+   - [x] Add a control-plane recovery/runbook companion for queued job failures and operator-side incident response.
+   - [x] Add a short-form control-plane incident checklist for faster operator triage.
+   - [x] Decide that the current runbooks and checklists are sufficient for the first item 5 checkpoint.
