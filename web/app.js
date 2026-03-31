@@ -766,6 +766,11 @@ let selectedStudentId = "";
 let editingAttendanceId = "";
 let editingInstructionActualKey = "";
 let editingUserId = "";
+let userViewMode = "list";
+let studentViewMode = "list";
+let studentEnrollmentDraftStudentId = "";
+let studentEnrollmentDraft = [];
+let studentEnrollmentDraftDirty = false;
 const expandedStudentAverageRows = new Set();
 const expandedSubjectAverageRows = new Set();
 const expandedStudentAttendanceRows = new Set();
@@ -791,11 +796,13 @@ let showManagementSubjects = false;
 let showManagementCourses = false;
 let showManagementGradeTypes = false;
 let showManagementGradingCriteria = false;
+let currentManagementTab = "subjects";
 let showScheduleSchoolYears = false;
 let showScheduleQuarters = false;
 let showScheduleDailyBreaks = false;
 let showScheduleHolidays = false;
 let showSchedulePlans = false;
+let currentScheduleTab = "school-years";
 let calendarBackToWeekContext = null;
 let calendarBackToMonthContext = null;
 let calendarSelectedStudentIds = new Set();
@@ -1655,6 +1662,72 @@ function setUserFormMessage(kind, message) {
   setStatusMessage("user-form-message", kind, message);
 }
 
+function resetUserListMessage() {
+  setStatusMessage("user-list-message", "", "");
+}
+
+function setUserListMessage(kind, message) {
+  setStatusMessage("user-list-message", kind, message);
+}
+
+function setStudentViewMode(mode) {
+  studentViewMode = mode;
+}
+
+function renderStudentViewMode() {
+  const listView = document.getElementById("students-list-view");
+  const editorView = document.getElementById("students-editor-view");
+  const detailView = document.getElementById("students-detail-view");
+  if (listView) listView.classList.toggle("hidden", studentViewMode !== "list");
+  if (editorView) editorView.classList.toggle("hidden", studentViewMode !== "create");
+  if (detailView) detailView.classList.toggle("hidden", studentViewMode !== "detail");
+}
+
+function resetStudentEnrollmentDraft() {
+  studentEnrollmentDraftStudentId = "";
+  studentEnrollmentDraft = [];
+  studentEnrollmentDraftDirty = false;
+}
+
+function primeStudentEnrollmentDraft(studentId) {
+  studentEnrollmentDraftStudentId = studentId || "";
+  studentEnrollmentDraft = state.enrollments
+    .filter((entry) => entry.studentId === studentId)
+    .map((entry) => ({ ...entry }));
+  studentEnrollmentDraftDirty = false;
+}
+
+function workingStudentEnrollments(studentId) {
+  if (studentEnrollmentDraftStudentId === studentId) {
+    return studentEnrollmentDraft.map((entry) => ({ ...entry }));
+  }
+  return state.enrollments
+    .filter((entry) => entry.studentId === studentId)
+    .map((entry) => ({ ...entry }));
+}
+
+function beginStudentCreate() {
+  selectedStudentId = "";
+  resetStudentEnrollmentDraft();
+  setStudentViewMode("create");
+  const editorTitle = document.getElementById("student-editor-title");
+  const submitBtn = document.getElementById("student-submit-btn");
+  const form = document.getElementById("student-form");
+  if (editorTitle) editorTitle.textContent = "New Student";
+  if (submitBtn) submitBtn.textContent = "Create Student";
+  if (form) form.reset();
+  renderStudentViewMode();
+}
+
+function beginStudentDetail(studentId) {
+  const student = state.students.find((entry) => entry.id === studentId);
+  if (!student) return;
+  selectedStudentId = studentId;
+  primeStudentEnrollmentDraft(studentId);
+  setStudentViewMode("detail");
+  renderStudentViewMode();
+}
+
 function setActiveTab(tabName) {
   const fallback = isAdminUser() ? "dashboard" : "dashboard";
   currentTab = canAccessTab(tabName) ? tabName : fallback;
@@ -2032,8 +2105,8 @@ function parseScheduleOrderValue(value) {
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
 }
-function sortedStudentEnrollments(studentId) {
-  const studentEnrollments = state.enrollments
+function sortedStudentEnrollments(studentId, sourceEnrollments = state.enrollments) {
+  const studentEnrollments = sourceEnrollments
     .filter((enrollment) => enrollment.studentId === studentId)
     .map((enrollment, index) => ({ ...enrollment, _sourceIndex: index }));
   const autoSorted = [...studentEnrollments].sort((a, b) => {
@@ -2084,15 +2157,24 @@ function orderedEventsForStudent(studentId, events) {
   });
 }
 function updateEnrollmentScheduleOrder(enrollmentId, rawValue) {
-  const enrollment = state.enrollments.find((entry) => entry.id === enrollmentId);
+  const source = studentViewMode === "detail" && selectedStudentId
+    ? studentEnrollmentDraft
+    : state.enrollments;
+  const enrollment = source.find((entry) => entry.id === enrollmentId);
   if (!enrollment) return;
   const nextOrder = parseScheduleOrderValue(rawValue);
-  const conflict = nextOrder != null && state.enrollments.some((entry) =>
+  const conflict = nextOrder != null && source.some((entry) =>
     entry.id !== enrollmentId
     && entry.studentId === enrollment.studentId
     && parseScheduleOrderValue(entry.scheduleOrder) === nextOrder);
   if (conflict) {
     alert("That schedule order is already assigned to another course for this student.");
+    renderStudentDetail();
+    return;
+  }
+  if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === enrollment.studentId) {
+    enrollment.scheduleOrder = nextOrder;
+    studentEnrollmentDraftDirty = true;
     renderStudentDetail();
     return;
   }
@@ -3658,34 +3740,51 @@ function resetUserForm() {
   const form = document.getElementById("user-form");
   if (form) form.reset();
   ensureStudentSelection();
+  const editorTitle = document.getElementById("user-editor-title");
   const submitBtn = document.getElementById("user-submit-btn");
-  const cancelBtn = document.getElementById("user-cancel-edit-btn");
   const passwordInput = document.getElementById("user-password");
   const confirmInput = document.getElementById("user-password-confirm");
+  if (editorTitle) editorTitle.textContent = "New User";
   if (submitBtn) submitBtn.textContent = "Create User";
-  if (cancelBtn) cancelBtn.classList.add("hidden");
   if (passwordInput) passwordInput.required = true;
   if (confirmInput) confirmInput.required = true;
+}
+
+function renderUsersViewMode() {
+  const listView = document.getElementById("users-list-view");
+  const editorView = document.getElementById("users-editor-view");
+  if (listView) listView.classList.toggle("hidden", userViewMode !== "list");
+  if (editorView) editorView.classList.toggle("hidden", userViewMode === "list");
+}
+
+function beginUserCreate() {
+  userViewMode = "create";
+  resetUserForm();
+  resetUserFormMessage();
+  renderUsersViewMode();
 }
 
 function beginUserEdit(userId) {
   const user = state.users.find((entry) => entry.id === userId);
   if (!user) return;
+  userViewMode = "edit";
   editingUserId = user.id;
   document.getElementById("user-username").value = user.username;
   document.getElementById("user-role").value = user.role;
   document.getElementById("user-student-id").value = user.studentId || "";
   document.getElementById("user-password").value = "";
   document.getElementById("user-password-confirm").value = "";
+  const editorTitle = document.getElementById("user-editor-title");
   const passwordInput = document.getElementById("user-password");
   const confirmInput = document.getElementById("user-password-confirm");
   const submitBtn = document.getElementById("user-submit-btn");
-  const cancelBtn = document.getElementById("user-cancel-edit-btn");
+  if (editorTitle) editorTitle.textContent = "Edit User";
   if (passwordInput) passwordInput.required = false;
   if (confirmInput) confirmInput.required = false;
   if (submitBtn) submitBtn.textContent = "Update User";
-  if (cancelBtn) cancelBtn.classList.remove("hidden");
   ensureStudentSelection();
+  resetUserFormMessage();
+  renderUsersViewMode();
 }
 
 function renderUsers() {
@@ -3702,7 +3801,7 @@ function renderUsers() {
       const deleteBtn = disableDelete
         ? "<button type='button' disabled>Remove</button>"
         : `<button data-remove-user='${user.id}' type='button'>Remove</button>`;
-      return `<tr><td>${escapeHtml(user.username)}</td><td>${roleLabel}</td><td>${linkedStudent}</td><td>${passwordStatus}</td><td><button data-edit-user='${user.id}' type='button'>Edit</button> ${deleteBtn}</td></tr>`;
+      return `<tr><td>${escapeHtml(user.username)}</td><td>${roleLabel}</td><td>${linkedStudent}</td><td>${passwordStatus}</td><td class="users-actions-cell"><div class="table-action-row"><button data-edit-user='${user.id}' type='button'>Edit</button>${deleteBtn}</div></td></tr>`;
     });
   rowOrEmpty(tableBody, rows, "No users configured.", 5);
 }
@@ -3713,7 +3812,7 @@ function renderStudents() {
     const ageNow = calculateAge(s.birthdate);
     const overallAvg = studentOverallAverage(s.id);
     const absences = studentAbsenceCount(s.id);
-    return `<tr><td>${s.firstName} ${s.lastName}</td><td>${s.grade}</td><td>${ageNow}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-open-student='${s.id}' type='button'>Open</button><button data-remove-student='${s.id}' type='button'>Remove</button></div></td></tr>`;
+    return `<tr><td>${s.firstName} ${s.lastName}</td><td>${s.grade}</td><td>${ageNow}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}' type='button'>Edit/Enroll</button></div></td></tr>`;
   });
   rowOrEmpty(document.getElementById("student-table"), rows, "No students added yet.", 6);
 }
@@ -3728,38 +3827,36 @@ function renderSubjects() {
 
 function renderManagementSectionVisibility() {
   const mappings = [
-    { wrapId: "management-subjects-wrap", btnId: "management-subjects-toggle-btn", shown: showManagementSubjects, expandLabel: "Expand subjects", collapseLabel: "Collapse subjects" },
-    { wrapId: "management-courses-wrap", btnId: "management-courses-toggle-btn", shown: showManagementCourses, expandLabel: "Expand courses", collapseLabel: "Collapse courses" },
-    { wrapId: "management-grade-types-wrap", btnId: "management-grade-types-toggle-btn", shown: showManagementGradeTypes, expandLabel: "Expand grade types", collapseLabel: "Collapse grade types" },
-    { wrapId: "management-grading-criteria-wrap", btnId: "management-grading-criteria-toggle-btn", shown: showManagementGradingCriteria, expandLabel: "Expand grading criteria", collapseLabel: "Collapse grading criteria" }
+    { wrapId: "management-subjects-wrap", tab: "subjects" },
+    { wrapId: "management-courses-wrap", tab: "courses" },
+    { wrapId: "management-grade-types-wrap", tab: "grade-types" },
+    { wrapId: "management-grading-criteria-wrap", tab: "grading-criteria" }
   ];
   mappings.forEach((entry) => {
     const wrap = document.getElementById(entry.wrapId);
-    const btn = document.getElementById(entry.btnId);
-    if (!wrap || !btn) return;
-    wrap.classList.toggle("hidden", !entry.shown);
-    btn.textContent = entry.shown ? "-" : "+";
-    btn.setAttribute("aria-expanded", entry.shown ? "true" : "false");
-    btn.setAttribute("aria-label", entry.shown ? entry.collapseLabel : entry.expandLabel);
+    if (!wrap) return;
+    wrap.classList.toggle("hidden", entry.tab !== currentManagementTab);
+  });
+  document.querySelectorAll("[data-management-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-management-tab") === currentManagementTab);
   });
 }
 
 function renderScheduleSectionVisibility() {
   const mappings = [
-    { wrapId: "schedule-school-years-wrap", btnId: "schedule-school-years-toggle-btn", shown: showScheduleSchoolYears, expandLabel: "Expand school years", collapseLabel: "Collapse school years" },
-    { wrapId: "schedule-quarters-wrap", btnId: "schedule-quarters-toggle-btn", shown: showScheduleQuarters, expandLabel: "Expand quarters", collapseLabel: "Collapse quarters" },
-    { wrapId: "schedule-daily-breaks-wrap", btnId: "schedule-daily-breaks-toggle-btn", shown: showScheduleDailyBreaks, expandLabel: "Expand daily lunch and breaks", collapseLabel: "Collapse daily lunch and breaks" },
-    { wrapId: "schedule-holidays-wrap", btnId: "schedule-holidays-toggle-btn", shown: showScheduleHolidays, expandLabel: "Expand holidays and breaks", collapseLabel: "Collapse holidays and breaks" },
-    { wrapId: "schedule-plans-wrap", btnId: "schedule-plans-toggle-btn", shown: showSchedulePlans, expandLabel: "Expand instruction plans", collapseLabel: "Collapse instruction plans" }
+    { wrapId: "schedule-school-years-wrap", tab: "school-years" },
+    { wrapId: "schedule-quarters-wrap", tab: "quarters" },
+    { wrapId: "schedule-daily-breaks-wrap", tab: "daily-breaks" },
+    { wrapId: "schedule-holidays-wrap", tab: "holidays" },
+    { wrapId: "schedule-plans-wrap", tab: "plans" }
   ];
   mappings.forEach((entry) => {
     const wrap = document.getElementById(entry.wrapId);
-    const btn = document.getElementById(entry.btnId);
-    if (!wrap || !btn) return;
-    wrap.classList.toggle("hidden", !entry.shown);
-    btn.textContent = entry.shown ? "-" : "+";
-    btn.setAttribute("aria-expanded", entry.shown ? "true" : "false");
-    btn.setAttribute("aria-label", entry.shown ? entry.collapseLabel : entry.expandLabel);
+    if (!wrap) return;
+    wrap.classList.toggle("hidden", entry.tab !== currentScheduleTab);
+  });
+  document.querySelectorAll("[data-schedule-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-schedule-tab") === currentScheduleTab);
   });
 }
 
@@ -3917,20 +4014,18 @@ function cancelGradeTypeEdit() {
 }
 
 function renderStudentDetail() {
-  const empty = document.getElementById("student-detail-empty");
   const panel = document.getElementById("student-detail-panel");
-  if (!empty || !panel) return;
+  if (!panel) return;
 
   const student = state.students.find((s) => s.id === selectedStudentId);
   if (!student) {
     selectedStudentId = "";
-    empty.classList.remove("hidden");
-    panel.classList.add("hidden");
+    resetStudentEnrollmentDraft();
+    setStudentViewMode("list");
+    renderStudentViewMode();
     return;
   }
 
-  empty.classList.add("hidden");
-  panel.classList.remove("hidden");
   document.getElementById("student-detail-title").textContent = `${student.firstName} ${student.lastName} | Grade ${student.grade} | Age ${calculateAge(student.birthdate)}`;
 
   const quarterSelect = document.getElementById("student-detail-quarter-filter");
@@ -3941,7 +4036,7 @@ function renderStudentDetail() {
   const rangeEnd = quarterRange ? quarterRange.endDate : state.settings.schoolYear.endDate;
   const gradeSummary = studentGradeSummary(student.id, { quarterName: selectedQuarter });
 
-  const studentEnrollments = sortedStudentEnrollments(student.id);
+  const studentEnrollments = sortedStudentEnrollments(student.id, workingStudentEnrollments(student.id));
   const enrollmentRows = studentEnrollments
     .map((e) => {
       const course = getCourse(e.courseId);
@@ -6903,6 +6998,22 @@ function bindEvents() {
   const userRoleSelect = document.getElementById("user-role");
   if (userRoleSelect) userRoleSelect.addEventListener("change", () => ensureStudentSelection());
 
+  const userNewBtn = document.getElementById("user-new-btn");
+  if (userNewBtn) {
+    userNewBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      beginUserCreate();
+    });
+  }
+
+  const studentNewBtn = document.getElementById("student-new-btn");
+  if (studentNewBtn) {
+    studentNewBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      beginStudentCreate();
+    });
+  }
+
   document.getElementById("user-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!ensureAdminAction()) return;
@@ -6948,7 +7059,9 @@ function bindEvents() {
         }
         await refreshHostedUsers();
         resetUserForm();
-        setUserFormMessage("success", existing ? "User account updated." : "User account created.");
+        userViewMode = "list";
+        renderUsersViewMode();
+        setUserListMessage("success", existing ? "User account updated." : "User account created.");
         renderAll();
       } catch (error) {
         setUserFormMessage("error", error.message || "Unable to save user account.");
@@ -6972,7 +7085,9 @@ function bindEvents() {
       });
     }
     resetUserForm();
-    setUserFormMessage("success", existing ? "User account updated." : "User account created.");
+    userViewMode = "list";
+    renderUsersViewMode();
+    setUserListMessage("success", existing ? "User account updated." : "User account created.");
     saveState();
     renderAll();
   });
@@ -6982,6 +7097,8 @@ function bindEvents() {
     userCancelEditBtn.addEventListener("click", () => {
       resetUserForm();
       resetUserFormMessage();
+      userViewMode = "list";
+      renderUsersViewMode();
       renderUsers();
     });
   }
@@ -7008,6 +7125,8 @@ function bindEvents() {
           });
           e.target.reset();
           await refreshHostedStudents();
+          setStudentViewMode("list");
+          renderStudentViewMode();
           renderAll();
         } catch (error) {
           alert(error.message || "Unable to save student.");
@@ -7016,8 +7135,22 @@ function bindEvents() {
       return;
     }
     createLegacyLocalStudent({ firstName, lastName, birthdate, grade, ageRecorded: calculateAge(birthdate), createdAt: todayISO() });
-    e.target.reset(); saveState(); renderAll();
+    e.target.reset();
+    setStudentViewMode("list");
+    renderStudentViewMode();
+    saveState();
+    renderAll();
   });
+
+  const studentCancelEditBtn = document.getElementById("student-cancel-edit-btn");
+  if (studentCancelEditBtn) {
+    studentCancelEditBtn.addEventListener("click", () => {
+      setStudentViewMode("list");
+      renderStudentViewMode();
+      const form = document.getElementById("student-form");
+      if (form) form.reset();
+    });
+  }
 
   document.getElementById("subject-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -7245,7 +7378,14 @@ function bindEvents() {
     const studentId = selectedStudentId;
     const courseId = document.getElementById("student-enroll-course").value;
     if (!studentId || !courseId) return;
-    if (state.enrollments.some((x)=>x.studentId===studentId && x.courseId===courseId)) { alert("Student already enrolled in this course."); return; }
+    const workingEnrollments = studentEnrollmentDraftStudentId === studentId ? studentEnrollmentDraft : state.enrollments;
+    if (workingEnrollments.some((x)=>x.studentId===studentId && x.courseId===courseId)) { alert("Student already enrolled in this course."); return; }
+    if (studentViewMode === "detail" && studentEnrollmentDraftStudentId === studentId) {
+      studentEnrollmentDraft.push({ id: uid(), studentId, courseId, scheduleOrder: null });
+      studentEnrollmentDraftDirty = true;
+      renderStudentDetail();
+      return;
+    }
     if (hostedModeEnabled) {
       (async () => {
         try {
@@ -7260,6 +7400,71 @@ function bindEvents() {
     }
     createLegacyLocalEnrollment({ studentId, courseId, scheduleOrder: null }); saveState(); renderAll();
   });
+
+  const studentDetailCancelBtn = document.getElementById("student-detail-cancel-btn");
+  if (studentDetailCancelBtn) {
+    studentDetailCancelBtn.addEventListener("click", () => {
+      resetStudentEnrollmentDraft();
+      selectedStudentId = "";
+      setStudentViewMode("list");
+      renderStudentViewMode();
+      renderAll();
+    });
+  }
+
+  const studentDetailApplyBtn = document.getElementById("student-detail-apply-btn");
+  if (studentDetailApplyBtn) {
+    studentDetailApplyBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      const studentId = selectedStudentId;
+      if (!studentId || studentEnrollmentDraftStudentId !== studentId) return;
+      const existingEnrollments = state.enrollments.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry }));
+      const draftEnrollments = studentEnrollmentDraft.map((entry) => ({
+        ...entry,
+        studentId,
+        scheduleOrder: parseScheduleOrderValue(entry.scheduleOrder)
+      }));
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            const existingById = new Map(existingEnrollments.map((entry) => [entry.id, entry]));
+            const draftById = new Map(draftEnrollments.map((entry) => [entry.id, entry]));
+            for (const existing of existingEnrollments) {
+              if (!draftById.has(existing.id)) {
+                await deleteHostedEnrollment(existing.id);
+              }
+            }
+            for (const draft of draftEnrollments) {
+              const existing = existingById.get(draft.id);
+              if (!existing) {
+                await createHostedEnrollment(draft);
+                continue;
+              }
+              const existingOrder = parseScheduleOrderValue(existing.scheduleOrder);
+              if (existing.courseId !== draft.courseId || existingOrder !== draft.scheduleOrder) {
+                await updateHostedEnrollment(draft.id, {
+                  studentId: draft.studentId,
+                  courseId: draft.courseId,
+                  scheduleOrder: draft.scheduleOrder
+                });
+              }
+            }
+            await refreshHostedEnrollments();
+            primeStudentEnrollmentDraft(studentId);
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to apply enrollment changes.");
+          }
+        })();
+        return;
+      }
+      state.enrollments = state.enrollments.filter((entry) => entry.studentId !== studentId);
+      state.enrollments.push(...draftEnrollments.map((entry) => ({ ...entry })));
+      saveState();
+      primeStudentEnrollmentDraft(studentId);
+      renderAll();
+    });
+  }
 
   document.getElementById("reports-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -8231,48 +8436,15 @@ function bindEvents() {
       beginCourseEdit(editCourseId);
       return;
     }
-    if (t.getAttribute("id") === "management-subjects-toggle-btn") {
-      showManagementSubjects = !showManagementSubjects;
+    const managementTab = t.getAttribute("data-management-tab");
+    if (managementTab) {
+      currentManagementTab = managementTab;
       renderManagementSectionVisibility();
       return;
     }
-    if (t.getAttribute("id") === "management-courses-toggle-btn") {
-      showManagementCourses = !showManagementCourses;
-      renderManagementSectionVisibility();
-      return;
-    }
-    if (t.getAttribute("id") === "management-grade-types-toggle-btn") {
-      showManagementGradeTypes = !showManagementGradeTypes;
-      renderManagementSectionVisibility();
-      return;
-    }
-    if (t.getAttribute("id") === "management-grading-criteria-toggle-btn") {
-      showManagementGradingCriteria = !showManagementGradingCriteria;
-      renderManagementSectionVisibility();
-      return;
-    }
-    if (t.getAttribute("id") === "schedule-school-years-toggle-btn") {
-      showScheduleSchoolYears = !showScheduleSchoolYears;
-      renderScheduleSectionVisibility();
-      return;
-    }
-    if (t.getAttribute("id") === "schedule-quarters-toggle-btn") {
-      showScheduleQuarters = !showScheduleQuarters;
-      renderScheduleSectionVisibility();
-      return;
-    }
-    if (t.getAttribute("id") === "schedule-daily-breaks-toggle-btn") {
-      showScheduleDailyBreaks = !showScheduleDailyBreaks;
-      renderScheduleSectionVisibility();
-      return;
-    }
-    if (t.getAttribute("id") === "schedule-holidays-toggle-btn") {
-      showScheduleHolidays = !showScheduleHolidays;
-      renderScheduleSectionVisibility();
-      return;
-    }
-    if (t.getAttribute("id") === "schedule-plans-toggle-btn") {
-      showSchedulePlans = !showSchedulePlans;
+    const scheduleTab = t.getAttribute("data-schedule-tab");
+    if (scheduleTab) {
+      currentScheduleTab = scheduleTab;
       renderScheduleSectionVisibility();
       return;
     }
@@ -8535,7 +8707,7 @@ function bindEvents() {
       return;
     }
 
-    const openStudentId = t.getAttribute("data-open-student"); if (openStudentId) { selectedStudentId = openStudentId; renderAll(); return; }
+    const editStudentId = t.getAttribute("data-edit-student"); if (editStudentId) { beginStudentDetail(editStudentId); renderAll(); return; }
     const editGradeId = t.getAttribute("data-edit-grade");
     if (editGradeId) {
       if (!ensureAdminAction()) return;
@@ -8693,6 +8865,12 @@ function bindEvents() {
     const enrollmentId = t.getAttribute("data-remove-student-enrollment");
     if (enrollmentId) {
       if (!ensureAdminAction()) return;
+      if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === selectedStudentId) {
+        studentEnrollmentDraft = studentEnrollmentDraft.filter((entry) => entry.id !== enrollmentId);
+        studentEnrollmentDraftDirty = true;
+        renderStudentDetail();
+        return;
+      }
       if (hostedModeEnabled) {
         (async () => {
           try {
@@ -8786,6 +8964,7 @@ function renderAll() {
   fillSettingsForms();
   updatePlanFormMode();
   renderStudents();
+  renderStudentViewMode();
   renderStudentDetail();
   renderSubjects();
   renderManagementSectionVisibility();
@@ -8800,6 +8979,7 @@ function renderAll() {
   renderAttendance();
   renderTests();
   renderUsers();
+  renderUsersViewMode();
   ensureStudentSelection();
   updateGradeEntryVisibility();
   renderDashboard();

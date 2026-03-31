@@ -62,21 +62,13 @@ body {
   grid-template-areas:
     "brand title"
     "brand subtitle"
-    "session session"
-    ". nav";
+    "session session";
   gap: 0 0.85rem;
   align-items: start;
 }
 
 .top .subtitle {
   grid-area: subtitle;
-}
-
-.top .tabs {
-  grid-area: nav;
-  grid-column: 1 / -1;
-  margin-top: 1.22rem;
-  margin-left: 0;
 }
 
 .session-bar {
@@ -127,6 +119,38 @@ body {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: minmax(170px, 210px) minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.app-sidebar {
+  padding: 0.8rem;
+  position: sticky;
+  top: 0.85rem;
+}
+
+.app-sidebar-nav {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.app-sidebar-nav .tab-btn {
+  width: 100%;
+  text-align: center;
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.app-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.9rem;
 }
 
 .panel {
@@ -1065,6 +1089,24 @@ td {
   border-color: #c6d8bf;
 }
 
+.students-toolbar,
+.students-detail-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.65rem;
+}
+
+.students-helper-text {
+  margin: 0 0 0.7rem;
+}
+
+.students-detail-toolbar {
+  width: 100%;
+  justify-content: flex-start;
+}
+
 .students-section {
   border: 1px solid #d8cfbf;
   border-radius: 10px;
@@ -1234,6 +1276,13 @@ td {
   margin: 0 0 0.35rem;
 }
 
+.users-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 0.65rem;
+}
+
 .users-section-form {
   background: #f6f1e7;
   border-color: #d2c3a8;
@@ -1244,12 +1293,50 @@ td {
   border-color: #c2d3dd;
 }
 
+.users-actions-cell {
+  white-space: nowrap;
+  width: 1%;
+}
+
+.users-section-list .table-action-row {
+  gap: 0.35rem;
+}
+
+@media (max-width: 1180px) {
+  #user-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 #tab-users .split {
   grid-template-columns: minmax(320px, 0.8fr) minmax(520px, 1.2fr);
 }
 
 .management-section + .management-section {
   margin-top: 0.6rem;
+}
+
+.subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.8rem;
+}
+
+.subtab-btn {
+  border: 1px solid #c2a676;
+  background: #fff8ed;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.subtab-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .reports-section {
@@ -1842,12 +1929,24 @@ td {
       "brand"
       "title"
       "subtitle"
-      "session"
-      "nav";
+      "session";
   }
 
   .session-bar {
     justify-content: flex-start;
+  }
+
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .app-sidebar {
+    position: static;
+    padding: 0.75rem;
+  }
+
+  .app-sidebar-nav {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   }
 
   .brand-photo {

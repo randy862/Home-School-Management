@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202603311745">
+  <link rel="stylesheet" href="styles.css?v=202603312245">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -54,19 +54,24 @@
         <p id="session-summary" class="muted">Not signed in</p>
         <button id="logout-btn" type="button">Logout</button>
       </div>
-      <nav class="tabs" aria-label="Primary">
-        <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
-        <button class="tab-btn" data-tab="students" type="button">Students</button>
-        <button class="tab-btn" data-tab="management" type="button">Cirriculum</button>
-        <button class="tab-btn" data-tab="planning" type="button">Schedule</button>
-        <button class="tab-btn" data-tab="calendar" type="button">Calendar</button>
-        <button class="tab-btn" data-tab="attendance" type="button">Attendance</button>
-        <button class="tab-btn" data-tab="grades" type="button">Grades</button>
-        <button class="tab-btn" data-tab="users" type="button">Users</button>
-        <button class="tab-btn" data-tab="reports" type="button">Reports</button>
-      </nav>
     </header>
 
+    <div class="app-layout">
+      <aside class="app-sidebar panel">
+        <nav class="tabs app-sidebar-nav" aria-label="Primary">
+          <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
+          <button class="tab-btn" data-tab="students" type="button">Students</button>
+          <button class="tab-btn" data-tab="management" type="button">Cirriculum</button>
+          <button class="tab-btn" data-tab="planning" type="button">Schedule</button>
+          <button class="tab-btn" data-tab="calendar" type="button">Calendar</button>
+          <button class="tab-btn" data-tab="attendance" type="button">Attendance</button>
+          <button class="tab-btn" data-tab="grades" type="button">Grades</button>
+          <button class="tab-btn" data-tab="users" type="button">Users</button>
+          <button class="tab-btn" data-tab="reports" type="button">Reports</button>
+        </nav>
+      </aside>
+
+      <div class="app-main">
     <section id="tab-dashboard" class="tab-panel active panel">
       <h2>Dashboard</h2>
 
@@ -282,18 +287,13 @@
     </section>
 
     <section id="tab-students" class="tab-panel panel">
-      <h2>Student Management</h2>
-      <div class="split">
+      <h2>Students</h2>
+      <div id="students-list-view">
+        <div class="students-toolbar">
+          <button id="student-new-btn" type="button">New Student</button>
+        </div>
+        <p class="muted students-helper-text">Select <strong>Edit/Enroll</strong> to manage course enrollment and review that student's schedule, attendance summary, and instructional hours.</p>
         <div class="students-section students-section-manage">
-          <h3>Add Student</h3>
-          <form id="student-form" class="grid-form">
-            <label>First Name<input id="student-first" type="text" required></label>
-            <label>Last Name<input id="student-last" type="text" required></label>
-            <label>Birthdate<input id="student-birthdate" type="date" required></label>
-            <label>Grade<input id="student-grade" type="text" placeholder="5" required></label>
-            <button type="submit">Add Student</button>
-          </form>
-
           <h3>Students</h3>
           <div class="table-wrap">
             <table>
@@ -302,11 +302,26 @@
             </table>
           </div>
         </div>
+      </div>
 
-        <div>
-          <h3>Student Detail</h3>
-          <div id="student-detail-empty" class="muted">Select a student to view enrollments and manage course enrollment.</div>
-          <div id="student-detail-panel" class="detail-panel hidden">
+      <div id="students-editor-view" class="students-section students-section-manage hidden">
+        <h3 id="student-editor-title">New Student</h3>
+        <form id="student-form" class="grid-form">
+          <label>First Name<input id="student-first" type="text" required></label>
+          <label>Last Name<input id="student-last" type="text" required></label>
+          <label>Birthdate<input id="student-birthdate" type="date" required></label>
+          <label>Grade<input id="student-grade" type="text" placeholder="5" required></label>
+          <button id="student-submit-btn" type="submit">Create Student</button>
+          <button id="student-cancel-edit-btn" type="button">Cancel</button>
+        </form>
+      </div>
+
+      <div id="students-detail-view" class="hidden">
+          <div id="student-detail-panel" class="detail-panel">
+            <div class="students-detail-toolbar">
+            <button id="student-detail-apply-btn" type="button">Apply Changes</button>
+            <button id="student-detail-cancel-btn" type="button">Cancel</button>
+          </div>
             <div class="student-detail-section student-detail-section-profile">
               <p id="student-detail-title" class="detail-title"></p>
               <h4>Course Enrollment</h4>
@@ -352,18 +367,20 @@
               </div>
             </div>
           </div>
-        </div>
       </div>
     </section>
 
     <section id="tab-management" class="tab-panel panel">
       <h2>Cirriculum</h2>
-      <div class="management-section management-section-subjects">
-        <div class="subsection-toggle-row">
-          <button id="management-subjects-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h3>Subjects</h3>
-        </div>
-        <div id="management-subjects-wrap" class="hidden">
+      <div class="subtabs management-subtabs" aria-label="Curriculum sections">
+        <button class="subtab-btn active" data-management-tab="subjects" type="button">Subjects</button>
+        <button class="subtab-btn" data-management-tab="courses" type="button">Courses</button>
+        <button class="subtab-btn" data-management-tab="grade-types" type="button">Grade Types</button>
+        <button class="subtab-btn" data-management-tab="grading-criteria" type="button">Grading Criteria</button>
+      </div>
+
+      <div id="management-subjects-wrap" class="management-tab-panel management-section management-section-subjects">
+        <h3>Subjects</h3>
           <form id="subject-form" class="inline-form">
             <input id="subject-name" type="text" placeholder="Math" required>
             <button type="submit">Add Subject</button>
@@ -375,15 +392,10 @@
               <tbody id="subject-table"></tbody>
             </table>
           </div>
-        </div>
       </div>
 
-      <div class="management-section management-section-courses">
-        <div class="subsection-toggle-row">
-          <button id="management-courses-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h3>Courses</h3>
-        </div>
-        <div id="management-courses-wrap" class="hidden">
+      <div id="management-courses-wrap" class="management-tab-panel management-section management-section-courses hidden">
+        <h3>Courses</h3>
           <form id="course-form" class="grid-form">
             <label>Course Name<input id="course-name" type="text" required></label>
             <label>Subject<select id="course-subject" required></select></label>
@@ -401,15 +413,10 @@
               <tbody id="course-table"></tbody>
             </table>
           </div>
-        </div>
       </div>
 
-      <div class="management-section management-section-grade-types">
-        <div class="subsection-toggle-row">
-          <button id="management-grade-types-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h3>Grade Types</h3>
-        </div>
-        <div id="management-grade-types-wrap" class="hidden">
+      <div id="management-grade-types-wrap" class="management-tab-panel management-section management-section-grade-types hidden">
+        <h3>Grade Types</h3>
           <div class="grade-types-apply-row">
             <button id="grade-type-apply-btn" type="button">Apply Changes</button>
             <button id="grade-type-cancel-changes-btn" type="button" class="hidden">Cancel Changes</button>
@@ -428,15 +435,10 @@
               <tbody id="grade-type-table"></tbody>
             </table>
           </div>
-        </div>
       </div>
 
-      <div class="management-section management-section-grading-criteria">
-        <div class="subsection-toggle-row">
-          <button id="management-grading-criteria-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h3>Grading Criteria</h3>
-        </div>
-        <div id="management-grading-criteria-wrap" class="hidden">
+      <div id="management-grading-criteria-wrap" class="management-tab-panel management-section management-section-grading-criteria hidden">
+        <h3>Grading Criteria</h3>
           <form id="grading-criteria-form">
             <div class="grading-criteria-grid">
               <div class="grading-criteria-card">
@@ -475,19 +477,21 @@
               <button id="grading-criteria-cancel-btn" type="button" class="hidden">Cancel Edit</button>
             </div>
           </form>
-        </div>
       </div>
     </section>
 
     <section id="tab-planning" class="tab-panel panel">
       <h2>Schedule</h2>
+      <div class="subtabs schedule-subtabs" aria-label="Schedule sections">
+        <button class="subtab-btn active" data-schedule-tab="school-years" type="button">School Years</button>
+        <button class="subtab-btn" data-schedule-tab="quarters" type="button">Quarters</button>
+        <button class="subtab-btn" data-schedule-tab="daily-breaks" type="button">Daily Lunch and Breaks</button>
+        <button class="subtab-btn" data-schedule-tab="holidays" type="button">Holidays and Breaks</button>
+        <button class="subtab-btn" data-schedule-tab="plans" type="button">Instruction Plans</button>
+      </div>
 
-      <div class="schedule-section schedule-section-school-year">
-        <div class="subsection-toggle-row">
-          <button id="schedule-school-years-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h3>School Years</h3>
-        </div>
-        <div id="schedule-school-years-wrap" class="hidden">
+      <div id="schedule-school-years-wrap" class="schedule-tab-panel schedule-section schedule-section-school-year">
+        <h3>School Years</h3>
           <form id="school-year-form" class="grid-form">
             <label>Year Label<input id="school-year-label" type="text" required></label>
             <label>Start Date<input id="school-year-start" type="date" required></label>
@@ -504,15 +508,10 @@
               <tbody id="school-year-summary-table"></tbody>
             </table>
           </div>
-        </div>
       </div>
 
-      <div class="schedule-section schedule-section-quarters">
-        <div class="subsection-toggle-row">
-          <button id="schedule-quarters-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h3>Quarters</h3>
-        </div>
-        <div id="schedule-quarters-wrap" class="hidden">
+      <div id="schedule-quarters-wrap" class="schedule-tab-panel schedule-section schedule-section-quarters hidden">
+        <h3>Quarters</h3>
           <form id="quarters-form" class="quarter-grid">
             <label>School Year<select id="quarter-school-year" required></select></label>
             <label>Q1 Start<input id="q1-start" type="date" required></label>
@@ -533,15 +532,10 @@
             </table>
           </div>
           <p id="quarter-summary-warning" class="muted hidden"></p>
-        </div>
       </div>
 
-      <div class="schedule-section schedule-section-daily-breaks">
-        <div class="subsection-toggle-row">
-          <button id="schedule-daily-breaks-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h3>Daily Lunch and Breaks</h3>
-        </div>
-        <div id="schedule-daily-breaks-wrap" class="hidden">
+      <div id="schedule-daily-breaks-wrap" class="schedule-tab-panel schedule-section schedule-section-daily-breaks hidden">
+        <h3>Daily Lunch and Breaks</h3>
           <form id="daily-break-form" class="grid-form">
             <label class="daily-break-student-field">Student
               <details id="daily-break-student-dropdown" class="multi-select-dropdown">
@@ -578,15 +572,10 @@
               <tbody id="daily-break-table"></tbody>
             </table>
           </div>
-        </div>
       </div>
 
-      <div class="schedule-section schedule-section-holidays">
-        <div class="subsection-toggle-row">
-          <button id="schedule-holidays-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h3>Holidays and Breaks</h3>
-        </div>
-        <div id="schedule-holidays-wrap" class="hidden">
+      <div id="schedule-holidays-wrap" class="schedule-tab-panel schedule-section schedule-section-holidays hidden">
+        <h3>Holidays and Breaks</h3>
           <form id="holiday-form" class="grid-form">
             <label>Name<input id="holiday-name" type="text" required></label>
             <label>Type<select id="holiday-type"><option value="holiday">Holiday</option><option value="break">Break</option></select></label>
@@ -601,15 +590,10 @@
               <tbody id="holiday-table"></tbody>
             </table>
           </div>
-        </div>
       </div>
 
-      <div class="schedule-section schedule-section-plans">
-        <div class="subsection-toggle-row">
-          <button id="schedule-plans-toggle-btn" type="button" class="subsection-toggle-btn" aria-expanded="false">+</button>
-          <h3>Instruction Plans</h3>
-        </div>
-        <div id="schedule-plans-wrap" class="hidden">
+      <div id="schedule-plans-wrap" class="schedule-tab-panel schedule-section schedule-section-plans hidden">
+        <h3>Instruction Plans</h3>
           <form id="plan-form" class="grid-form">
             <label>Plan Type
               <select id="plan-type" required>
@@ -664,7 +648,6 @@
               <tbody id="plan-table"></tbody>
             </table>
           </div>
-        </div>
       </div>
     </section>
 
@@ -885,30 +868,11 @@
     <section id="tab-users" class="tab-panel panel">
       <h2>Users</h2>
       <p class="muted">Create administrator and student accounts, assign linked students, and manage passwords.</p>
-      <div class="split">
-        <div class="users-section users-section-form">
-          <h3>User Account</h3>
-          <form id="user-form" class="grid-form">
-            <label>Username<input id="user-username" type="text" autocomplete="off" required></label>
-            <label>User Type
-              <select id="user-role" required>
-                <option value="admin">Administrator</option>
-                <option value="student">Student</option>
-              </select>
-            </label>
-            <label id="user-student-wrap">Linked Student
-              <select id="user-student-id">
-                <option value="">Select student</option>
-              </select>
-            </label>
-            <label>Password<input id="user-password" type="password" autocomplete="new-password" required></label>
-            <label>Confirm Password<input id="user-password-confirm" type="password" autocomplete="new-password" required></label>
-            <button id="user-submit-btn" type="submit">Create User</button>
-            <button id="user-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
-          </form>
-          <p id="user-form-message" class="status-text hidden"></p>
+      <div id="users-list-view">
+        <div class="users-toolbar">
+          <button id="user-new-btn" type="button">New User</button>
         </div>
-
+        <p id="user-list-message" class="status-text hidden"></p>
         <div class="users-section users-section-list">
           <h3>System Users</h3>
           <div class="table-wrap">
@@ -918,6 +882,29 @@
             </table>
           </div>
         </div>
+      </div>
+
+      <div id="users-editor-view" class="users-section users-section-form hidden">
+        <h3 id="user-editor-title">New User</h3>
+        <form id="user-form" class="grid-form">
+          <label>Username<input id="user-username" type="text" autocomplete="off" required></label>
+          <label>User Type
+            <select id="user-role" required>
+              <option value="admin">Administrator</option>
+              <option value="student">Student</option>
+            </select>
+          </label>
+          <label id="user-student-wrap">Linked Student
+            <select id="user-student-id">
+              <option value="">Select student</option>
+            </select>
+          </label>
+          <label>Password<input id="user-password" type="password" autocomplete="new-password" required></label>
+          <label>Confirm Password<input id="user-password-confirm" type="password" autocomplete="new-password" required></label>
+          <button id="user-submit-btn" type="submit">Create User</button>
+          <button id="user-cancel-edit-btn" type="button">Cancel</button>
+        </form>
+        <p id="user-form-message" class="status-text hidden"></p>
       </div>
     </section>
 
@@ -951,8 +938,10 @@
         <p id="reports-message" class="muted">Select report criteria and content to generate a printable report.</p>
       </div>
     </section>
+      </div>
+    </div>
   </main>
 
-  <script src="app.js?v=202603311745"></script>
+  <script src="app.js?v=202603312245"></script>
 </body>
 </html>
