@@ -140,3 +140,7 @@
    - [x] Run the current validation hooks as written without relying on ad hoc memory.
    - [x] Confirm app/control services are healthy and review recent journals for unresolved blockers.
    - [x] Produce a current staged go/no-go call with residual risks.
+8. Production cutover planning and checklist hardening.
+   - [x] Add a production-specific cutover runbook on top of the staged deployment guide.
+   - [x] Add a short-form production cutover checklist.
+   - [ ] Fill in real owner assignments, target hostname/TLS details, and production secret/config confirmations for the first actual cutover window.

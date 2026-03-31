@@ -381,7 +381,7 @@ Date: 2026-03-27
 
 ## Next
 1. Keep `scripts/Invoke-HostedReleaseGate.ps1` and `scripts/Test-HostedWorkflow.ps1` as the required staged regression gate after meaningful backend, deployment, or control-plane changes.
-2. If a broader rollout is planned, define the exact production cutover prerequisites beyond the current staged go/no-go call.
+2. Complete the production cutover package by filling in real owner assignments, target hostname/TLS details, and production secret/config confirmations.
 3. Return to targeted UI or backend hardening only when the gate exposes a real issue or a new rollout requirement appears.
 
 ## Current Assessment
@@ -430,6 +430,9 @@ Date: 2026-03-27
 - Current staged go/no-go call: **go**
 - The staged hosted app, control plane, scripted release gate, rollback rehearsal, and broader workflow validation now all pass together.
 - Remaining risk is operational maturity and rollout discipline, not an identified current product blocker.
+- Started production-cutover planning on top of the staged go/no-go result:
+  - added `RUNBOOKS/production-cutover.md` to define production prerequisites, owner roles, cutover sequence, rollback rules, and communications expectations
+  - added `CHECKLISTS/production-cutover.md` as the short-form operational checklist for a real production cutover window
 
 ## Residual Risks
 - This is still a staged single-tenant hosted deployment, not a broadly exercised production rollout across multiple tenants.
