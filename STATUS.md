@@ -409,3 +409,15 @@ Date: 2026-03-27
   - rolled the route file back to the previously committed version on `APP001`
   - restarted `home-school-management-control-api.service` again
   - confirmed the full scripted release gate still passed after rollback
+- Added `scripts/Test-HostedWorkflow.ps1` for broader staged hosted-product validation beyond simple smoke reads.
+- Validated the staged hosted product end to end with the new workflow script:
+  - admin login/session check succeeded
+  - temporary school-year and quarter creation succeeded
+  - temporary student, linked student user, subject, course, enrollment, holiday, daily break, plan, attendance, and test create/update/delete coverage succeeded
+  - grading-settings write validation succeeded without leaving tenant config changed
+  - student-session validation succeeded, including a `403` on admin-only subject creation
+  - all temporary workflow records were cleaned up after the run
+- Reran the standard staged release gate after the broader hosted workflow pass and it still succeeded end to end.
+- The issues exposed during this slice were in the validation harness and staging preconditions, not product regressions:
+  - the workflow validator needed to create a temporary school year because the staged tenant had none
+  - the workflow validator needed explicit grade-type payload normalization when the staged tenant began with no grade types configured

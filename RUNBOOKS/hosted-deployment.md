@@ -221,6 +221,19 @@ Optional parameters:
 - `-BaseUrl`
 - `-Endpoints`
 
+### `scripts\Test-HostedWorkflow.ps1`
+Runs a broader hosted product workflow validation against the staged tenant runtime:
+- admin login/session check
+- temporary school-year and quarter creation when needed
+- temporary student, linked student user, subject, course, enrollment, holiday, daily break, plan, attendance, and test CRUD
+- non-destructive grading-settings write validation
+- student-session permission check (`403` on admin-only subject creation)
+- cleanup of all temporary records after the run
+
+Required parameters:
+- `-AdminUsername`
+- `-AdminPassword`
+
 ### `scripts\Invoke-HostedReleaseGate.ps1`
 Runs the staged release gate in one command:
 - APP001 local health over SSH
@@ -253,6 +266,7 @@ The current release path has been exercised on staging with a controlled backend
 This means the staged operator path is no longer just theoretical:
 - small backend deploys can be validated through the scripted gate
 - rollback to the prior committed file set can be revalidated through the same scripted gate
+- broader hosted product workflows can now be revalidated through `scripts\Test-HostedWorkflow.ps1` before or after a meaningful release when confidence needs to go beyond API reachability
 
 ## Current Staged URLs
 - Public app: `http://192.168.1.210/`

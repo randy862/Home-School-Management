@@ -97,6 +97,8 @@
    - [x] Run a broader staged hosted-app smoke pass against the currently served runtime.
    - [x] Fix smoke-discovered hosted create-route and calendar export regressions on `APP001`.
    - [x] Correct the staged tenant-app runtime so the served app actually loads tenant `PGOPTIONS` and the intended tenant schema instead of PostgreSQL `public`.
+   - [x] Add and validate a broader staged hosted workflow script that exercises real admin and student flows beyond API reachability.
+   - [x] Rerun the scripted release gate after the broader hosted workflow pass.
 5. Continue backend/platform hardening and legacy bridge retirement.
    - [x] Isolate the transitional `/api/state` bridge behind explicit legacy module naming in the server and frontend.
    - [x] Wrap the remaining local-only merge/backfill bootstrap logic behind explicit legacy-bridge helpers in `web/app.js`.
