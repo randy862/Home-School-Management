@@ -392,3 +392,4 @@ Date: 2026-03-27
 - Added a short-form hosted release checklist in `CHECKLISTS/hosted-release.md` so staged deploys and rollback decisions can follow the same gates without reopening the full runbook.
 - Added `RUNBOOKS/control-plane-recovery.md` as the operator-side incident guide for queued job failures, retry decisions, deployment-step failures, and escalation from `/control/` into host-level checks.
 - Added `CHECKLISTS/control-plane-incident.md` as the short-form operator incident checklist so job triage and escalation can be followed quickly during failures.
+- Added `CHECKLISTS/control-ui-smoke.md` so the remaining desktop/mobile `/control/` verification can be executed as a concrete smoke pass instead of an open-ended reminder.

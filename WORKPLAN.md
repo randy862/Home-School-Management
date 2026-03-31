@@ -84,7 +84,7 @@
 1. Complete Session 5 control-plane UI polish and naming cleanup.
    - [x] Review remaining technical labels and replace them with more business-facing language where appropriate.
    - [x] Improve hierarchy, spacing, and detail layout so audit, jobs, lifecycle views, and user management feel cohesive.
-   - [ ] Recheck the main `/control/` flows on desktop and mobile after the latest sidebar and user-management pass.
+   - [ ] Recheck the main `/control/` flows on desktop and mobile after the latest sidebar and user-management pass using `CHECKLISTS/control-ui-smoke.md`.
 2. Complete the new operator-permission model end to end.
    - [x] Add operator profiles, explicit permissions, and a user-management workspace in `/control/`.
    - [x] Replace coarse control-plane mutation guards with permission-aware route checks.
