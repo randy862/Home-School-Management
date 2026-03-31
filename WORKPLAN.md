@@ -66,6 +66,21 @@
   - [x] Run tenant runtime migration/setup-token automation from queued jobs
   - [x] Propagate tenant setup completion back into control-plane environment state
 
+## Milestone 6: Commercial SaaS Layer (Planned)
+- Owner: Product Architect
+- Goal: Add the public product, pricing, subscription, billing, and automated customer-signup layer on top of the hosted platform and control plane
+- Dependencies: Milestone 4, Milestone 5
+- Reference Docs:
+  - `NOTES/saas-commercial-roadmap.md`
+- Workstreams:
+  - [ ] Define the commercial domain model for customers, plans, subscriptions, invoices/payment events, and billing states
+  - [ ] Choose and document the recurring billing/payment provider
+  - [ ] Build the public product and pricing pages
+  - [ ] Build the subscription and checkout flow
+  - [ ] Connect successful subscription state to automated tenant/environment provisioning
+  - [ ] Add billing visibility to the Control Center
+  - [ ] Define and implement delinquency, suspension, and payment-recovery rules
+
 ## Parallel Workstreams (Current)
 
 1. CEO Orchestrator (owner: root governance docs)
@@ -153,4 +168,8 @@
    - [x] Add backend persistence and API support for actual instructional minutes.
    - [x] Add daily calendar editing for actual instructional minutes in whole minutes.
    - [x] Validate the staged deploy path, release gate, and hosted workflow including actual instructional minute CRUD.
-   - [ ] Do a hands-on staged browser review of the day-view editing UX and downstream hour displays before resuming production cutover work.
+   - [x] Do a hands-on staged browser review of the day-view editing UX and downstream hour displays before resuming production cutover work.
+10. Prepare the next post-cutover major workstream: the commercial SaaS layer.
+   - [x] Capture the public product, pricing, checkout, automated provisioning, billing, and billing-aware control-center vision in a dedicated roadmap note.
+   - [ ] Define the first implementation-ready commercial domain model and acceptance criteria.
+   - [ ] Decide the payment provider and public-site hosting approach.

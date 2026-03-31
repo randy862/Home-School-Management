@@ -133,6 +133,21 @@ Date: 2026-03-27
 - Completed a hosted browser smoke pass against the current deployment:
   - verified login/logout plus user/student/curriculum/settings/attendance/grade CRUD flows successfully
   - confirmed the hosted backend-owned admin surface is working end to end on the current deployment
+- Completed a real staged browser validation pass for the new actual instructional minutes workflow:
+  - created and edited real subjects, courses, grade types, grading criteria, school years, quarters, lunch schedules, holidays, plans, students, enrollments, grades, and attendance in the staged app
+  - verified the daily calendar can edit actual minutes in whole minutes and that later same-day blocks shift appropriately
+  - verified dashboard and reporting views still behaved correctly after the instructional-minute changes
+  - fixed staged follow-up issues discovered during that validation:
+    - hosted app login/startup ordering bug that prevented form handlers from binding
+    - hosted date normalization/display regressions on school year and schedule views
+    - hosted school-year edit prefill regression
+    - hosted quarter update SQL typing bug in PostgreSQL
+- Captured the next major post-platform roadmap for the commercial SaaS layer in `NOTES/saas-commercial-roadmap.md`, covering:
+  - public product and pricing site
+  - subscription/checkout flow
+  - automated paid-signup-to-tenant provisioning
+  - recurring billing and delinquency handling
+  - billing-aware control-plane operations
 - Added first control-plane scaffolding:
   - `admin/` operator-console placeholder
   - `control-api/` placeholder
