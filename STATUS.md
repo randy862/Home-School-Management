@@ -438,6 +438,8 @@ Date: 2026-03-27
   - added production-target placeholders for hostname, `/control/` path/host, TLS termination, cookie security, and runtime identity
   - added production secrets/config confirmation placeholders and the first actual cutover-window fields
   - kept all unresolved live-rollout specifics as `TBD` instead of inventing values not yet confirmed
+- Filled the named owner assignments for the first production-cutover worksheet:
+  - `Randal Mitchell` is currently assigned as cutover lead, deployment operator, rollback owner, communications owner, backup deployment operator, and go/no-go authority
 
 ## Residual Risks
 - This is still a staged single-tenant hosted deployment, not a broadly exercised production rollout across multiple tenants.

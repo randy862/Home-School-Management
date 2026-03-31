@@ -17,12 +17,12 @@ This cutover plan assumes:
 ## Cutover Worksheet
 
 ### Named Owners
-- Cutover lead: `TBD`
-- Deployment operator: `TBD`
-- Rollback owner: `TBD`
-- Communications owner: `TBD`
-- Backup deployment operator: `TBD`
-- Go/no-go authority: `TBD`
+- Cutover lead: `Randal Mitchell`
+- Deployment operator: `Randal Mitchell`
+- Rollback owner: `Randal Mitchell`
+- Communications owner: `Randal Mitchell`
+- Backup deployment operator: `Randal Mitchell`
+- Go/no-go authority: `Randal Mitchell`
 
 ### Production Target
 - Primary public hostname: `TBD`
