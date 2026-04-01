@@ -3248,7 +3248,13 @@ function buildPrintableReportHtml({ studentIds, range }) {
           .join("");
         return `
           <h2>${escapeHtml(student)}</h2>
-          <table>
+          <table class="report-table report-table-course-summary">
+            <colgroup>
+              <col style="width:39%">
+              <col style="width:26%">
+              <col style="width:23%">
+              <col style="width:12%">
+            </colgroup>
             <thead><tr><th>Course</th><th>Average Score</th><th>Letter Grade</th><th>GPA</th></tr></thead>
             <tbody>${tableRows}</tbody>
           </table>`;
@@ -3275,7 +3281,11 @@ function buildPrintableReportHtml({ studentIds, range }) {
           .join("");
         return `
           <h2>${escapeHtml(student)}</h2>
-          <table>
+          <table class="report-table report-table-instruction-hours">
+            <colgroup>
+              <col style="width:74%">
+              <col style="width:26%">
+            </colgroup>
             <thead><tr><th>Course</th><th>Instructional Hours</th></tr></thead>
             <tbody>${tableRows}</tbody>
           </table>
@@ -3371,6 +3381,7 @@ function buildPrintableReportHtml({ studentIds, range }) {
     .report-subsection-grade-weighting { margin-top: 20px; }
     .report-meta { margin: 0 0 18px; color: #6c5847; }
     table { width: 100%; border-collapse: collapse; }
+    .report-table { table-layout: fixed; }
     th, td { border: 1px solid #d9cdb7; padding: 8px 10px; text-align: left; vertical-align: top; }
     th { background: #f6f1e7; }
     @media print {
@@ -3485,18 +3496,8 @@ function renderStudentPerformanceGradeMethodChecklist(preselectedMethods = []) {
   optionsWrap.innerHTML = STUDENT_PERFORMANCE_GRADE_METHODS.map((method, idx) => {
     const checked = selected.has(method) ? " checked" : "";
     const inputId = `student-performance-grade-method-${idx}`;
-    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-performance-grade-method-checkbox" value="${method}"${checked}><label for="${inputId}">${method}</label></div>`;
+    return `<label class="student-performance-grade-method-chip" for="${inputId}"><input id="${inputId}" type="checkbox" class="student-performance-grade-method-checkbox" value="${method}"${checked}><span>${method}</span></label>`;
   }).join("");
-  updateStudentPerformanceGradeMethodSummary();
-}
-
-function updateStudentPerformanceGradeMethodSummary() {
-  const summary = document.getElementById("student-performance-grade-method-summary");
-  if (!summary) return;
-  const selectedCount = document.querySelectorAll(".student-performance-grade-method-checkbox:checked").length;
-  summary.textContent = selectedCount === 0 || selectedCount === STUDENT_PERFORMANCE_GRADE_METHODS.length
-    ? "Grade Method (All)"
-    : `Grade Method (${selectedCount} selected)`;
 }
 
 function getSelectedStudentPerformanceGradeMethods() {
@@ -4584,11 +4585,7 @@ function getEligibleCoursesForStudentSubject(studentId, subjectId, includeCourse
 
   if (includeCourseId) enrolledCourseIds.add(includeCourseId);
 
-  return state.courses.filter((c) => {
-    if (!enrolledCourseIds.has(c.id)) return false;
-    if (subjectId && c.subjectId !== subjectId) return false;
-    return true;
-  });
+  return state.courses.filter((c) => enrolledCourseIds.has(c.id));
 }
 
 function buildGradeEntryRow(existingGrade) {
@@ -4752,6 +4749,16 @@ function updateGradeRowCourses(row) {
   courseSelect.innerHTML = courseOptions.length
     ? courseOptions.map((c) => `<option value="${c.id}"${c.id === currentCourseId ? " selected" : ""}>${c.name}</option>`).join("")
     : "<option value=''>No enrolled courses</option>";
+
+  const resolvedCourseId = courseOptions.some((c) => c.id === currentCourseId)
+    ? currentCourseId
+    : (courseOptions[0] ? courseOptions[0].id : "");
+  if (resolvedCourseId) courseSelect.value = resolvedCourseId;
+
+  const resolvedCourse = courseOptions.find((c) => c.id === resolvedCourseId);
+  if (resolvedCourse && eligibleSubjects.some((s) => s.id === resolvedCourse.subjectId)) {
+    subjectSelect.value = resolvedCourse.subjectId;
+  }
 }
 
 function updateGradeEntryVisibility() {
@@ -5680,17 +5687,13 @@ function renderDashboard() {
   document.getElementById("kpi-days-total").textContent = String(totalDays);
 
   const g = gradeAnalytics();
-  const topStudent = dashboardStudents
-    .map((student) => ({
-      studentId: student.id,
-      avg: studentOverallAverage(student.id),
-      count: state.tests.filter((t) => t.studentId === student.id).length
-    }))
-    .filter((entry) => entry.count > 0 && allowedStudentIds.has(entry.studentId))
-    .sort((a,b)=>b.avg-a.avg || getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)))[0];
-  document.getElementById("kpi-superstar").textContent = topStudent
-    ? `${getStudentName(topStudent.studentId)} (${topStudent.avg.toFixed(1)}%)`
-    : "No grades yet";
+  const dashboardInstructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id));
+  const instructionalTotals = Array.from(dashboardInstructionalHours.summaryByStudent.values()).reduce((totals, studentSummary) => {
+    totals.earned += Number(studentSummary.buckets.total?.earned || 0);
+    totals.projected += Number(studentSummary.buckets.total?.projected || 0);
+    return totals;
+  }, { earned: 0, projected: 0 });
+  document.getElementById("kpi-instruction-hours").textContent = `${instructionalTotals.earned.toFixed(1)} / ${instructionalTotals.projected.toFixed(1)}`;
   const runningAverage = isStudentUser() && dashboardStudents.length === 1
     ? studentOverallAverage(dashboardStudents[0].id)
     : g.running;
@@ -5698,24 +5701,16 @@ function renderDashboard() {
 
   const attendanceDatesThroughToday = dates.filter((d) => d <= todayISO());
   const totalAttendanceDays = attendanceDatesThroughToday.length;
-  const attendanceLeaders = dashboardStudents
-    .map((student) => {
-      const summary = studentAttendanceSummary(student.id);
-      const presentCount = summary.attended;
-      const attendanceAverage = totalAttendanceDays > 0 ? (presentCount / totalAttendanceDays) * 100 : 0;
-      return {
-        studentId: student.id,
-        attendanceAverage
-      };
-    })
-    .sort((a, b) => b.attendanceAverage - a.attendanceAverage || getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)));
-  const topAttendance = attendanceLeaders.length ? attendanceLeaders[0].attendanceAverage : -1;
-  const topAttendanceStudents = attendanceLeaders
-    .filter((entry) => Math.abs(entry.attendanceAverage - topAttendance) < 0.0001)
-    .map((entry) => getStudentName(entry.studentId));
-  document.getElementById("kpi-attendance-star").textContent = topAttendanceStudents.length
-    ? `${topAttendanceStudents.join(", ")} (${topAttendance.toFixed(1)}%)`
-    : "No attendance yet";
+  const attendanceTotals = dashboardStudents.reduce((totals, student) => {
+    const summary = studentAttendanceSummary(student.id);
+    totals.present += Number(summary.attended || 0);
+    return totals;
+  }, { present: 0 });
+  const totalPossibleAttendance = totalAttendanceDays * dashboardStudents.length;
+  const overallAttendanceAverage = totalPossibleAttendance > 0
+    ? (attendanceTotals.present / totalPossibleAttendance) * 100
+    : 0;
+  document.getElementById("kpi-attendance-overall").textContent = `${overallAttendanceAverage.toFixed(1)}%`;
 
   const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate);
   const q = currentQuarter(new Date());
@@ -8407,6 +8402,18 @@ function bindEvents() {
     if (t.classList.contains("grade-row-subject") || t.classList.contains("grade-row-student")) {
       const row = t.closest("tr");
       if (row) updateGradeRowCourses(row);
+      return;
+    }
+    if (t.classList.contains("grade-row-course")) {
+      const row = t.closest("tr");
+      if (!row) return;
+      const courseId = t instanceof HTMLSelectElement ? t.value : "";
+      const subjectSelect = row.querySelector(".grade-row-subject");
+      const selectedCourse = state.courses.find((course) => course.id === courseId);
+      if (selectedCourse && subjectSelect instanceof HTMLSelectElement) {
+        subjectSelect.value = selectedCourse.subjectId;
+      }
+      return;
     }
   });
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604011630">
+  <link rel="stylesheet" href="styles.css?v=202604012000">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -78,8 +78,8 @@
       <div class="dashboard-section dashboard-section-overview">
         <div class="kpi-grid">
           <article class="kpi"><p class="kpi-label">Instruction Days</p><p class="kpi-value"><span id="kpi-days-complete">0</span> / <span id="kpi-days-total">0</span></p></article>
-          <article class="kpi"><p class="kpi-label">Super Star Student</p><p class="kpi-value"><span id="kpi-superstar">No grades yet</span></p></article>
-          <article class="kpi"><p class="kpi-label">Super Attendance Star</p><p class="kpi-value"><span id="kpi-attendance-star">No attendance yet</span></p></article>
+          <article class="kpi"><p class="kpi-label">Instruction Hours</p><p class="kpi-value"><span id="kpi-instruction-hours">0.0 / 0.0</span></p></article>
+          <article class="kpi"><p class="kpi-label">Attendance</p><p class="kpi-value"><span id="kpi-attendance-overall">0%</span></p></article>
           <article class="kpi"><p class="kpi-label">Running Grade Average</p><p class="kpi-value"><span id="kpi-running-avg">0%</span></p></article>
         </div>
 
@@ -100,12 +100,10 @@
       <div class="dashboard-section dashboard-section-student-performance">
         <h3>Student Performance</h3>
         <form id="student-performance-filter-form" class="grid-form">
-          <label class="student-performance-grade-method-field">Grade Method
-            <details id="student-performance-grade-method-dropdown" class="multi-select-dropdown">
-              <summary id="student-performance-grade-method-summary">Grade Method (All)</summary>
-              <div id="student-performance-grade-method-options" class="checklist-vertical"></div>
-            </details>
-          </label>
+          <fieldset class="student-performance-grade-method-field">
+            <legend>Grade Method</legend>
+            <div id="student-performance-grade-method-options" class="student-performance-grade-method-options"></div>
+          </fieldset>
         </form>
         <div class="table-wrap">
           <table>
@@ -942,6 +940,6 @@
     </div>
   </main>
 
-  <script src="app.js?v=202604011630"></script>
+  <script src="app.js?v=202604012000"></script>
 </body>
 </html>

@@ -162,25 +162,60 @@ body {
 }
 
 .auth-shell {
-  min-height: 100vh;
+  min-height: calc(100vh - 2rem);
   align-content: start;
-  grid-template-columns: max-content 1fr;
+  justify-items: stretch;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .auth-top {
-  grid-column: 1 / -1;
+  grid-column: auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
   grid-template-areas:
-    "brand title"
-    "brand subtitle";
+    "title"
+    "subtitle";
+  gap: 0;
+  justify-items: start;
+  text-align: left;
+  padding: 0.7rem 1rem;
+}
+
+.auth-top .brand-photo {
+  display: none;
+}
+
+.auth-top .title-logo {
+  grid-area: title;
+  width: min(730px, 100%);
+  max-height: 146px;
+  height: auto;
+  margin: 0;
+  justify-self: start;
+}
+
+.auth-top .subtitle {
+  grid-area: subtitle;
+  width: min(500px, 100%);
+  margin: 0;
+  margin-top: -0.12rem;
+  margin-left: 0;
+  justify-self: start;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #5f7087;
+  text-shadow: none;
 }
 
 .auth-panel {
-  grid-column: 2;
-  max-width: 620px;
+  grid-column: auto;
+  max-width: 420px;
   justify-self: center;
-  width: min(100%, 620px);
+  width: min(100%, 420px);
+  margin-top: 0.4rem;
   margin-left: 0;
-  transform: translateX(-78px);
+  transform: none;
 }
 
 .auth-card {
@@ -188,16 +223,17 @@ body {
   gap: 0.85rem;
   justify-items: center;
   text-align: center;
-  background: #f6f1e7;
-  border: 1px solid #d2c3a8;
-  border-radius: 12px;
-  padding: 1rem 1.1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  border: 1px solid #dbe5f0;
+  border-radius: 20px;
+  padding: 1rem 1rem 1.05rem;
+  box-shadow: 0 18px 38px rgba(31, 47, 69, 0.08);
 }
 
 .auth-form {
   display: grid;
   grid-template-columns: 1fr !important;
-  width: min(100%, 360px);
+  width: min(100%, 310px);
   justify-items: center;
   margin: 0 auto;
 }
@@ -516,12 +552,42 @@ button.secondary-btn {
 
 .student-performance-grade-method-field {
   align-self: stretch;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 #student-performance-filter-form {
-  grid-template-columns: minmax(260px, 320px);
-  align-items: end;
+  grid-template-columns: 1fr;
+  align-items: start;
   margin-bottom: 0.75rem;
+}
+
+.student-performance-grade-method-field legend {
+  margin-bottom: 0.45rem;
+  padding: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.student-performance-grade-method-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.student-performance-grade-method-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.student-performance-grade-method-chip input[type="checkbox"] {
+  margin: 0;
 }
 
 #daily-break-form {
@@ -1252,27 +1318,27 @@ td {
 
 #grade-entry-wrap th:nth-child(1),
 #grade-entry-wrap td:nth-child(1) {
-  width: 12%;
+  width: 11%;
 }
 
 #grade-entry-wrap th:nth-child(2),
 #grade-entry-wrap td:nth-child(2) {
-  width: 18%;
+  width: 16%;
 }
 
 #grade-entry-wrap th:nth-child(3),
 #grade-entry-wrap td:nth-child(3) {
-  width: 14%;
+  width: 12%;
 }
 
 #grade-entry-wrap th:nth-child(4),
 #grade-entry-wrap td:nth-child(4) {
-  width: 18%;
+  width: 16%;
 }
 
 #grade-entry-wrap th:nth-child(5),
 #grade-entry-wrap td:nth-child(5) {
-  width: 14%;
+  width: 12%;
 }
 
 #grade-entry-wrap th:nth-child(6),
@@ -1282,7 +1348,7 @@ td {
 
 #grade-entry-wrap th:nth-child(7),
 #grade-entry-wrap td:nth-child(7) {
-  width: 15%;
+  width: 23%;
 }
 
 #grade-entry-wrap input,
@@ -1296,13 +1362,19 @@ td {
 }
 
 .grade-entry-actions {
+  display: grid;
+  grid-template-columns: 62px 70px 58px;
   justify-content: flex-start;
-  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.22rem;
   white-space: nowrap;
 }
 
 .grade-entry-actions button {
-  padding: 0.42rem 0.62rem;
+  padding: 0.3rem 0.34rem;
+  font-size: 0.76rem;
+  width: 100%;
+  justify-content: center;
 }
 
 .grade-calc-row td {
@@ -2364,6 +2436,27 @@ h4 {
   margin-top: 0.5rem;
   font-size: 1.55rem;
   letter-spacing: -0.03em;
+}
+
+.dashboard-section-overview .kpi-grid {
+  gap: 0.65rem;
+}
+
+.dashboard-section-overview .kpi {
+  border-radius: 18px;
+  padding: 0.62rem 0.78rem;
+  min-height: 0;
+}
+
+.dashboard-section-overview .kpi-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+}
+
+.dashboard-section-overview .kpi-value {
+  margin-top: 0.28rem;
+  font-size: 1.08rem;
+  line-height: 1.2;
 }
 
 .progress-bar {
