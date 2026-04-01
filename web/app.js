@@ -4593,6 +4593,7 @@ function getEligibleCoursesForStudentSubject(studentId, subjectId, includeCourse
 
 function buildGradeEntryRow(existingGrade) {
   const tr = document.createElement("tr");
+  tr.setAttribute("data-grade-entry-row-id", existingGrade?.id || uid());
 
   const dateValue = existingGrade ? existingGrade.date : todayISO();
   const gradeValue = existingGrade ? Number(existingGrade.score || 0) : "";
@@ -4638,10 +4639,93 @@ function buildGradeEntryRow(existingGrade) {
       </select>
     </td>
     <td><input class="grade-row-value" type="number" min="0" max="100" step="0.1" placeholder="0-100" value="${gradeValue}"></td>
-    <td><button type="button" data-grade-save="1">${existingGrade ? "Update" : "Save"}</button> <button type="button" data-grade-cancel="1">Cancel</button></td>
+    <td>
+      <div class="table-action-row grade-entry-actions">
+        <button type="button" data-grade-save="1">${existingGrade ? "Update" : "Save"}</button>
+        <button type="button" data-grade-calc-toggle="1">Calculate</button>
+        <button type="button" data-grade-cancel="1">Cancel</button>
+      </div>
+    </td>
   `;
 
   return tr;
+}
+
+function buildGradeCalculatorRow(sourceRowId) {
+  const tr = document.createElement("tr");
+  tr.className = "grade-calc-row";
+  tr.setAttribute("data-grade-calc-for", sourceRowId);
+  tr.innerHTML = `
+    <td colspan="7">
+      <div class="grade-calc-panel">
+        <label>
+          <span>Missed Items</span>
+          <input class="grade-calc-missed" type="number" min="0" step="1" value="0">
+        </label>
+        <label>
+          <span>Total Items</span>
+          <input class="grade-calc-total" type="number" min="1" step="1" value="">
+        </label>
+        <div class="table-action-row grade-calc-actions">
+          <button type="button" data-grade-calc-apply="1">Calculate Grade</button>
+          <button type="button" data-grade-calc-close="1">Cancel</button>
+        </div>
+      </div>
+    </td>
+  `;
+  return tr;
+}
+
+function removeGradeCalculatorRow(sourceRowId) {
+  const calcRow = document.querySelector(`tr[data-grade-calc-for="${sourceRowId}"]`);
+  if (calcRow) calcRow.remove();
+}
+
+function toggleGradeCalculatorRow(row) {
+  if (!row) return;
+  const rowId = row.getAttribute("data-grade-entry-row-id");
+  if (!rowId) return;
+  const existing = document.querySelector(`tr[data-grade-calc-for="${rowId}"]`);
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  removeGradeCalculatorRow(rowId);
+  const calcRow = buildGradeCalculatorRow(rowId);
+  row.insertAdjacentElement("afterend", calcRow);
+  calcRow.querySelector(".grade-calc-total")?.focus();
+}
+
+function applyGradeCalculator(calcRow) {
+  if (!calcRow) return;
+  const rowId = calcRow.getAttribute("data-grade-calc-for");
+  const sourceRow = rowId ? document.querySelector(`tr[data-grade-entry-row-id="${rowId}"]`) : null;
+  if (!sourceRow) {
+    calcRow.remove();
+    return;
+  }
+
+  const missed = Number(calcRow.querySelector(".grade-calc-missed")?.value);
+  const total = Number(calcRow.querySelector(".grade-calc-total")?.value);
+  if (!Number.isFinite(total) || total <= 0) {
+    alert("Total Items must be greater than 0.");
+    return;
+  }
+  if (!Number.isFinite(missed) || missed < 0) {
+    alert("Missed Items cannot be negative.");
+    return;
+  }
+  if (missed > total) {
+    alert("Missed Items cannot be greater than Total Items.");
+    return;
+  }
+
+  const percentage = Math.round(((total - missed) / total) * 100);
+  const gradeInput = sourceRow.querySelector(".grade-row-value");
+  if (gradeInput) {
+    gradeInput.value = String(percentage);
+  }
+  calcRow.remove();
 }
 
 function updateGradeRowCourses(row) {
@@ -8698,11 +8782,38 @@ function bindEvents() {
       return;
     }
 
+    const toggleGradeCalc = t.getAttribute("data-grade-calc-toggle");
+    if (toggleGradeCalc) {
+      if (!ensureAdminAction()) return;
+      const row = t.closest("tr");
+      toggleGradeCalculatorRow(row);
+      return;
+    }
+
+    const applyGradeCalc = t.getAttribute("data-grade-calc-apply");
+    if (applyGradeCalc) {
+      if (!ensureAdminAction()) return;
+      const calcRow = t.closest("tr");
+      applyGradeCalculator(calcRow);
+      return;
+    }
+
+    const closeGradeCalc = t.getAttribute("data-grade-calc-close");
+    if (closeGradeCalc) {
+      if (!ensureAdminAction()) return;
+      const calcRow = t.closest("tr");
+      if (calcRow) calcRow.remove();
+      return;
+    }
+
     const cancelGrade = t.getAttribute("data-grade-cancel");
     if (cancelGrade) {
       if (!ensureAdminAction()) return;
       const row = t.closest("tr");
-      if (row) row.remove();
+      if (row) {
+        removeGradeCalculatorRow(row.getAttribute("data-grade-entry-row-id"));
+        row.remove();
+      }
       updateGradeEntryVisibility();
       return;
     }

@@ -1236,6 +1236,114 @@ td {
   border-color: #d8cdbd;
 }
 
+#grade-entry-wrap {
+  overflow-x: hidden;
+}
+
+#grade-entry-wrap table {
+  table-layout: fixed;
+}
+
+#grade-entry-wrap th,
+#grade-entry-wrap td {
+  padding: 0.45rem 0.4rem;
+  vertical-align: middle;
+}
+
+#grade-entry-wrap th:nth-child(1),
+#grade-entry-wrap td:nth-child(1) {
+  width: 12%;
+}
+
+#grade-entry-wrap th:nth-child(2),
+#grade-entry-wrap td:nth-child(2) {
+  width: 18%;
+}
+
+#grade-entry-wrap th:nth-child(3),
+#grade-entry-wrap td:nth-child(3) {
+  width: 14%;
+}
+
+#grade-entry-wrap th:nth-child(4),
+#grade-entry-wrap td:nth-child(4) {
+  width: 18%;
+}
+
+#grade-entry-wrap th:nth-child(5),
+#grade-entry-wrap td:nth-child(5) {
+  width: 14%;
+}
+
+#grade-entry-wrap th:nth-child(6),
+#grade-entry-wrap td:nth-child(6) {
+  width: 9%;
+}
+
+#grade-entry-wrap th:nth-child(7),
+#grade-entry-wrap td:nth-child(7) {
+  width: 15%;
+}
+
+#grade-entry-wrap input,
+#grade-entry-wrap select {
+  width: 100%;
+  min-width: 0;
+}
+
+.grade-row-value {
+  text-align: center;
+}
+
+.grade-entry-actions {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.grade-entry-actions button {
+  padding: 0.42rem 0.62rem;
+}
+
+.grade-calc-row td {
+  padding-top: 0.15rem;
+  padding-bottom: 0.55rem;
+  background: transparent;
+}
+
+.grade-calc-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.7rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #d7e2ee;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.grade-calc-panel label {
+  display: grid;
+  gap: 0.24rem;
+  min-width: 78px;
+  max-width: 92px;
+}
+
+.grade-calc-panel label span {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #58708e;
+}
+
+.grade-calc-panel input {
+  width: 100%;
+}
+
+.grade-calc-actions {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
 .management-section {
   border: 1px solid #d8cfbf;
   border-radius: 10px;
@@ -1971,4 +2079,519 @@ td {
     grid-template-columns: 1fr;
   }
 
+}
+
+/* Reversible modern polish pass: preserves app structure, refines finish layer. */
+:root {
+  --bg: #edf3f8;
+  --panel: rgba(255, 255, 255, 0.96);
+  --panel-soft: rgba(248, 251, 255, 0.95);
+  --edge: #d9e2ee;
+  --edge-strong: #c9d5e6;
+  --text: #1f2f45;
+  --muted: #627389;
+  --accent: #9a622c;
+  --accent-strong: #7e4b1a;
+  --accent-soft: #f4e6d4;
+  --danger: #b04040;
+  --shadow-soft: 0 18px 42px rgba(31, 47, 69, 0.08);
+  --shadow-float: 0 24px 56px rgba(31, 47, 69, 0.12);
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(181, 212, 239, 0.28), transparent 34%),
+    radial-gradient(circle at top right, rgba(255, 233, 205, 0.38), transparent 28%),
+    linear-gradient(180deg, #f7fafc 0%, #edf3f8 52%, #e8eef5 100%);
+  color: var(--text);
+}
+
+.shell {
+  width: min(1280px, 96vw);
+  gap: 1rem;
+}
+
+.top {
+  gap: 0 1rem;
+  padding: 0.72rem 1rem 0.62rem;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(217, 226, 238, 0.95);
+  border-radius: 28px;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(16px);
+  align-items: center;
+}
+
+#app-shell .app-brand-lockup {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+#app-shell .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  justify-self: stretch;
+  padding: 0.7rem 1rem;
+  min-height: 0;
+  gap: 1rem;
+}
+
+#app-shell .top .subtitle {
+  grid-area: auto;
+}
+
+.brand-photo {
+  height: 172px;
+  border-radius: 18px;
+  border-color: #d8e1ec;
+  box-shadow: 0 16px 38px rgba(31, 47, 69, 0.14);
+}
+
+#app-shell .app-brand-lockup .title-logo {
+  width: min(730px, 100%);
+  max-height: 146px;
+  margin: 0;
+  filter: saturate(0.96) contrast(1.04);
+  display: block;
+}
+
+.session-bar {
+  margin-top: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  align-self: flex-end;
+  text-align: right;
+  gap: 0.55rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.session-bar .muted {
+  font-size: 0.86rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.app-layout {
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.panel,
+.calendar-filter-panel,
+.calendar-surface,
+.reports-section,
+.students-section,
+.users-section,
+.management-section,
+.schedule-section,
+.attendance-section,
+.grades-section,
+.dashboard-section,
+.detail-panel,
+.student-detail-section {
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 24px;
+  box-shadow: var(--shadow-soft);
+}
+
+.panel {
+  padding: 1.2rem 1.3rem;
+}
+
+.app-sidebar {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(217, 226, 238, 0.95);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(14px);
+}
+
+.app-sidebar-nav {
+  gap: 0.65rem;
+}
+
+.tabs,
+.subtabs {
+  gap: 0.55rem;
+}
+
+.tab-btn,
+.subtab-btn {
+  border: 1px solid var(--edge-strong);
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--text);
+  border-radius: 14px;
+  padding: 0.62rem 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.tab-btn:hover,
+.subtab-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(31, 47, 69, 0.08);
+  border-color: #bcc9dc;
+}
+
+.app-sidebar-nav .tab-btn {
+  padding: 0.78rem 0.9rem;
+  border-radius: 16px;
+}
+
+.tab-btn.active,
+.subtab-btn.active {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  border-color: transparent;
+  box-shadow: 0 16px 30px rgba(154, 98, 44, 0.24);
+  color: #fff;
+}
+
+h2 {
+  margin-bottom: 0.8rem;
+  font-size: clamp(1.7rem, 2vw, 2.15rem);
+  letter-spacing: -0.03em;
+}
+
+h3 {
+  margin-bottom: 0.55rem;
+  font-size: 1.22rem;
+  letter-spacing: -0.02em;
+}
+
+h4 {
+  letter-spacing: -0.01em;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.dashboard-section,
+.students-section,
+.users-section,
+.management-section,
+.schedule-section,
+.attendance-section,
+.grades-section,
+.reports-section,
+.student-detail-section {
+  padding: 1rem 1.05rem;
+}
+
+.dashboard-section + .dashboard-section,
+.students-section + .students-section,
+.users-section + .users-section,
+.management-section + .management-section,
+.schedule-section + .schedule-section,
+.attendance-section + .attendance-section,
+.grades-section + .grades-section,
+.student-detail-section + .student-detail-section {
+  margin-top: 0.75rem;
+}
+
+.dashboard-section-overview,
+.dashboard-section-student-performance,
+.dashboard-section-student-attendance,
+.dashboard-section-student-instructional-hours,
+.dashboard-section-trending,
+.dashboard-section-volume,
+.dashboard-section-gpa-trending,
+.dashboard-section-instruction-hours-trending,
+.dashboard-section-work-distribution,
+.management-section-subjects,
+.management-section-courses,
+.management-section-grade-types,
+.management-section-grading-criteria,
+.schedule-section-school-year,
+.schedule-section-quarters,
+.schedule-section-daily-breaks,
+.schedule-section-holidays,
+.schedule-section-plans,
+.attendance-section-tracker,
+.attendance-section-filters,
+.attendance-section-records,
+.grades-section-filters,
+.grades-section-entry,
+.grades-section-records,
+.users-section-form,
+.users-section-list,
+.students-section-manage,
+.student-detail-section-profile,
+.student-detail-section-schedule,
+.student-detail-section-attendance,
+.student-detail-section-hours,
+.reports-section,
+.calendar-filter-panel,
+.calendar-surface,
+.calendar-table-wrap {
+  background: var(--panel);
+  border-color: var(--edge);
+}
+
+.kpi-grid {
+  gap: 0.9rem;
+}
+
+.kpi {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  border: 1px solid var(--edge);
+  border-radius: 22px;
+  padding: 0.95rem 1rem;
+  text-align: left;
+  box-shadow: 0 16px 30px rgba(31, 47, 69, 0.06);
+}
+
+.kpi-label {
+  color: #73849a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.kpi-value {
+  margin-top: 0.5rem;
+  font-size: 1.55rem;
+  letter-spacing: -0.03em;
+}
+
+.progress-bar {
+  height: 12px;
+  border: 0;
+  background: #e8eef6;
+}
+
+.progress-fill {
+  background: linear-gradient(90deg, #cf8d44 0%, #9a622c 100%);
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+.multi-select-dropdown,
+.multi-select-dropdown summary {
+  border-color: var(--edge-strong);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text);
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select {
+  padding: 0.62rem 0.78rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+.multi-select-dropdown[open],
+button:focus-visible {
+  outline: none;
+  border-color: #9db4d1;
+  box-shadow: 0 0 0 4px rgba(103, 143, 196, 0.16);
+}
+
+button {
+  border-radius: 14px;
+  padding: 0.62rem 0.96rem;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  box-shadow: 0 12px 24px rgba(154, 98, 44, 0.22);
+  font-weight: 600;
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  filter: none;
+  box-shadow: 0 16px 30px rgba(154, 98, 44, 0.25);
+}
+
+button.secondary-btn {
+  background: linear-gradient(135deg, #6d7d92 0%, #55657c 100%);
+  box-shadow: 0 12px 24px rgba(85, 101, 124, 0.22);
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+th,
+td {
+  padding: 0.8rem 0.75rem;
+  border-bottom: 1px solid #e8eef5;
+  vertical-align: middle;
+}
+
+th {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6c7b8f;
+  background: #f8fbfe;
+}
+
+thead th:first-child {
+  border-top-left-radius: 14px;
+}
+
+thead th:last-child {
+  border-top-right-radius: 14px;
+}
+
+tbody tr {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+tbody tr:nth-child(even) {
+  background: rgba(247, 250, 254, 0.95);
+}
+
+tbody tr:hover {
+  background: #f3f7fc;
+}
+
+.table-wrap {
+  border: 1px solid #e5ecf5;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.table-action-row {
+  gap: 0.5rem;
+}
+
+.table-action-row button,
+.students-toolbar button,
+.users-toolbar button,
+.students-detail-toolbar button {
+  box-shadow: none;
+}
+
+.chart-wrap {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-color: #e0e9f4;
+  border-radius: 18px;
+  padding: 0.7rem 0.75rem 0.4rem;
+}
+
+.calendar-weekdays div {
+  border: 1px solid #e1e9f3;
+  background: #f7fbff;
+  color: #5c6f86;
+}
+
+.calendar-day {
+  border: 1px solid #e3eaf3;
+  border-radius: 18px;
+  background: #fff;
+  padding: 0.55rem;
+}
+
+.calendar-day.muted-day {
+  background: #f3f6fa;
+  opacity: 0.82;
+}
+
+.calendar-day-item {
+  border: 1px solid #e5ecf5;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 0.32rem 0.42rem;
+}
+
+.detail-panel {
+  padding: 0.95rem;
+}
+
+.students-toolbar,
+.students-detail-toolbar,
+.users-toolbar {
+  margin-bottom: 0.85rem;
+}
+
+.students-helper-text {
+  margin-bottom: 0.95rem;
+  padding: 0.82rem 0.95rem;
+  border: 1px solid #e4ebf4;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%);
+}
+
+.reports-filter-group,
+.grading-criteria-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%);
+  border-color: #e3eaf3;
+  border-radius: 18px;
+}
+
+.status-text,
+.callout {
+  border-radius: 16px;
+}
+
+@media (max-width: 980px) {
+  .top {
+    padding: 0.68rem 0.9rem 0.58rem;
+  }
+
+  #app-shell .top {
+    padding: 0.58rem 0.75rem;
+  }
+
+  #app-shell .app-brand-lockup .title-logo {
+    width: min(570px, 100%);
+    max-height: 114px;
+  }
+}
+
+@media (max-width: 640px) {
+  .top {
+    padding: 0.72rem 0.82rem;
+  }
+
+  #app-shell .top {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .brand-photo {
+    width: min(150px, 44vw);
+    height: auto;
+    justify-self: center;
+  }
+
+  #app-shell .app-brand-lockup .title-logo {
+    width: min(100%, 410px);
+    max-height: 82px;
+    margin: 0;
+  }
+
+  .session-bar {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+    gap: 0.45rem;
+  }
+
+  .app-sidebar {
+    backdrop-filter: none;
+  }
+
+  .panel {
+    padding: 1rem;
+  }
 }
