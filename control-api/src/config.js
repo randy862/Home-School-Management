@@ -80,6 +80,18 @@ module.exports = {
     cookieSameSite: process.env.CONTROL_SESSION_COOKIE_SAMESITE || "Lax",
     ttlHours: Number(process.env.CONTROL_SESSION_TTL_HOURS || 12)
   },
+  stripe: {
+    secretKey: String(process.env.STRIPE_SECRET_KEY || "").trim(),
+    publishableKey: String(process.env.STRIPE_PUBLISHABLE_KEY || "").trim(),
+    webhookSecret: String(process.env.STRIPE_WEBHOOK_SECRET || "").trim()
+  },
+  public: {
+    appBaseUrl: String(process.env.PUBLIC_APP_BASE_URL || process.env.CONTROL_APP_CORS_ORIGIN || "").trim(),
+    signupStatusBaseUrl: String(process.env.PUBLIC_SIGNUP_STATUS_BASE_URL || process.env.PUBLIC_APP_BASE_URL || process.env.CONTROL_APP_CORS_ORIGIN || "").trim(),
+    defaultDomainSuffix: String(process.env.PUBLIC_DEFAULT_DOMAIN_SUFFIX || "").trim(),
+    checkoutSuccessUrl: String(process.env.PUBLIC_CHECKOUT_SUCCESS_URL || "").trim(),
+    checkoutCancelUrl: String(process.env.PUBLIC_CHECKOUT_CANCEL_URL || "").trim()
+  },
   postgres: {
     host: process.env.CONTROL_PGHOST || process.env.PGHOST || "127.0.0.1",
     port: Number(process.env.CONTROL_PGPORT || process.env.PGPORT || 5432),

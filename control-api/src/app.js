@@ -1,5 +1,12 @@
 const express = require("express");
-const { app: appConfig, automation: automationConfig, internal: internalConfig, session: sessionConfig } = require("./config");
+const {
+  app: appConfig,
+  automation: automationConfig,
+  internal: internalConfig,
+  session: sessionConfig,
+  public: publicConfig,
+  stripe: stripeConfig
+} = require("./config");
 const {
   appendProvisioningJobEvent,
   claimNextProvisioningJob,
@@ -37,6 +44,22 @@ const {
   updateOperatorUser,
   updateTenant
 } = require("./postgres-operator-store");
+const {
+  createCheckoutCustomerAccount,
+  createBillingEvent,
+  createCheckoutSessionRecord,
+  createCheckoutSubscription,
+  getBillingEventByStripeEventId,
+  getCheckoutSessionByStripeSessionId,
+  getPublicCommercialPlanByCode,
+  getSubscriptionByStripeCheckoutSessionId,
+  listPublicCommercialPlans
+  ,
+  markCheckoutSessionCompleted,
+  updateBillingEventProcessing,
+  updateCustomerAccountStatus,
+  updateSubscriptionByStripeCheckoutSessionId
+} = require("./postgres-commercial-store");
 const { applyCors, createOperatorAuthContextMiddleware } = require("./middleware/auth-context");
 const { errorHandler } = require("./middleware/error-handler");
 const { registerAuditRoutes } = require("./routes/audit-routes");
@@ -45,13 +68,17 @@ const { registerInfraRoutes } = require("./routes/infra-routes");
 const { registerJobRoutes } = require("./routes/job-routes");
 const { registerOperatorAuthRoutes } = require("./routes/operator-auth-routes");
 const { registerOperatorUserRoutes } = require("./routes/operator-user-routes");
+const { registerPublicSaasRoutes } = require("./routes/public-saas-routes");
 const { registerRuntimeRoutes } = require("./routes/runtime-routes");
 const { registerTenantRoutes } = require("./routes/tenant-routes");
+const { processStripeBillingEvent } = require("./services/commercial-webhook-service");
+const { createStripeService } = require("./services/stripe-service");
 const { startProvisioningWorker } = require("./provisioning-worker");
 const { createTenantRuntimeAutomation } = require("./tenant-runtime-automation");
 const { createSetupSyncService } = require("./setup-sync");
 
 const app = express();
+const stripeService = createStripeService(stripeConfig);
 const runtimeAutomation = createTenantRuntimeAutomation(automationConfig);
 const setupSyncService = createSetupSyncService({
   internalConfig,
@@ -61,13 +88,53 @@ const setupSyncService = createSetupSyncService({
 });
 
 applyCors(app, appConfig);
-app.use(express.json({ limit: "1mb" }));
+app.use("/api/public/billing/webhook", express.raw({
+  type: "application/json",
+  limit: "1mb",
+  verify: (req, _res, buf) => {
+    req.rawBody = Buffer.from(buf);
+  }
+}));
+app.use(express.json({
+  limit: "1mb",
+  verify: (req, _res, buf) => {
+    if (req.originalUrl === "/api/public/billing/webhook") return;
+    req.rawBody = Buffer.from(buf);
+  }
+}));
 app.use(createOperatorAuthContextMiddleware({
   getOperatorSessionByTokenHash,
   sessionConfig
 }));
 
 registerInfraRoutes(app);
+registerPublicSaasRoutes(app, {
+  createBillingEvent,
+  createCheckoutCustomerAccount,
+  createCheckoutSessionRecord,
+  createCheckoutSubscription,
+  getBillingEventByStripeEventId,
+  getCheckoutSessionByStripeSessionId,
+  getPublicCommercialPlanByCode,
+  getSubscriptionByStripeCheckoutSessionId,
+  listPublicCommercialPlans,
+  markCheckoutSessionCompleted,
+  processStripeBillingEvent: (event) => processStripeBillingEvent(event, {
+    createBillingEvent,
+    getBillingEventByStripeEventId,
+    getCheckoutSessionByStripeSessionId,
+    getSubscriptionByStripeCheckoutSessionId,
+    markCheckoutSessionCompleted,
+    updateBillingEventProcessing,
+    updateCustomerAccountStatus,
+    updateSubscriptionByStripeCheckoutSessionId
+  }),
+  publicConfig: {
+    ...publicConfig,
+    publishableKey: stripeConfig.publishableKey
+  },
+  stripeService
+});
 registerAuditRoutes(app, {
   listOperatorAuditLog
 });

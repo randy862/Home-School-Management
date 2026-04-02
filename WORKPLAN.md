@@ -171,5 +171,10 @@
    - [x] Do a hands-on staged browser review of the day-view editing UX and downstream hour displays before resuming production cutover work.
 10. Prepare the next post-cutover major workstream: the commercial SaaS layer.
    - [x] Capture the public product, pricing, checkout, automated provisioning, billing, and billing-aware control-center vision in a dedicated roadmap note.
-   - [ ] Define the first implementation-ready commercial domain model and acceptance criteria.
-   - [ ] Decide the payment provider and public-site hosting approach.
+   - [x] Define the first implementation-ready commercial domain model and acceptance criteria.
+   - [x] Capture the first implementation-ready spec package for subscription lifecycle, checkout flow, provisioning handoff, and landing-page structure.
+   - [x] Decide that Stripe Checkout is the recommended first payment path for the commercial SaaS slice.
+   - [x] Define the first implementation-ready backend schema and public API contract for the commercial SaaS slice.
+   - [ ] Decide the first-release public-site hosting/runtime approach.
+   - [ ] Finalize the first public plan set, pricing, and whether launch includes monthly only or monthly plus annual billing.
+   - [ ] Implement the first control-plane commercial migration and public plan API.

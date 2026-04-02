@@ -476,3 +476,73 @@ Date: 2026-03-27
 - The control-center desktop/mobile review is good enough for current use, but later polish and edge-case UX cleanup may still be worthwhile.
 - Production cutover is now structurally documented, but the first live window still depends on real owner assignments, hostname/TLS choices, and secret/config confirmations that are not yet filled in.
 - The new actual instructional minute workflow now passes staged deploy/API/workflow validation, but a hands-on browser review of the day-view editing experience and downstream hour displays is still worth doing before production cutover resumes.
+
+## 2026-04-02
+
+- Shifted the next planning session onto the commercial SaaS layer and converted the high-level roadmap into an implementation-ready spec package in `NOTES/saas-implementation-spec-package.md`.
+- Defined the first commercial domain model and acceptance frame:
+  - `Plan`
+  - `Customer Account`
+  - `Subscription`
+  - `Billing Event`
+  - `Provisioning Request`
+  - `Access Handoff`
+- Defined the first recommended subscription lifecycle from `lead` through `checkout_started`, `active`, `provisioning`, `awaiting_customer_setup`, `ready`, `past_due`, `suspended`, and `canceled`.
+- Defined the first checkout flow around:
+  - landing page to plan selection
+  - owner/account capture before redirect
+  - Stripe Checkout session creation
+  - webhook-confirmed subscription activation
+  - customer-facing provisioning status and access handoff
+- Defined the provisioning handoff boundary so the commercial layer creates one idempotent provisioning request per successful provisionable signup and then delegates tenant/environment/job execution to the existing control plane.
+- Defined the first-page wireframe/content structure for the public product experience:
+  - hero
+  - value highlights
+  - product walkthrough
+  - pricing
+  - trust/practical details
+  - FAQ
+  - final CTA
+- Recorded the recommendation to use Stripe Checkout as the first payment path instead of building a custom payment form for the initial SaaS release.
+
+## Current SaaS Planning State
+
+- The commercial SaaS roadmap is no longer just conceptual; the first implementation-ready package now exists.
+- The next unresolved SaaS decisions are:
+  - first-release public-site hosting/runtime approach
+  - final launch plan set and pricing
+  - monthly-only vs monthly-plus-annual billing at launch
+  - whether customer subdomain selection happens during checkout or after provisioning
+  - whether first access uses setup-token onboarding or a pre-created admin invite flow
+
+- Continued the commercial SaaS planning package by defining the first implementation-ready backend/storage/API design in `NOTES/saas-backend-schema-and-api.md`.
+- Recommended using the existing `control-api/` service as the first commercial backend boundary instead of creating a separate billing service immediately.
+- Defined the first commercial storage model in the control-plane PostgreSQL database:
+  - `commercial_plans`
+  - `customer_accounts`
+  - `customer_subscriptions`
+  - `billing_events`
+  - `checkout_sessions`
+  - `provisioning_requests`
+  - `access_handoffs`
+- Defined the first public API contract for:
+  - `GET /api/public/plans`
+  - `POST /api/public/checkout/session`
+  - `POST /api/public/billing/webhook`
+  - `GET /api/public/signup-status/:token`
+- Defined the Stripe integration boundary and recommended metadata, webhook events, and raw-body signature verification requirements.
+- Defined the commercial-to-control-plane handoff so successful provisionable subscriptions create one idempotent provisioning request that then creates or links the tenant, environment, and provisioning job through the existing control-plane workflow.
+- Defined the first required Stripe and public SaaS environment variables for the upcoming implementation slice.
+
+## Current SaaS Build Hand-off
+
+- The public landing page prototype now exists in `web/saas.html` and `web/saas.css`.
+- The implementation-ready planning package now exists across:
+  - `NOTES/saas-implementation-spec-package.md`
+  - `NOTES/saas-backend-schema-and-api.md`
+- The next coding slice is now clearly defined:
+  - add the commercial SaaS migration to `control-api/migrations/postgres/`
+  - implement the public plans endpoint
+  - implement Stripe checkout-session creation
+  - implement Stripe webhook intake with idempotent event persistence
+  - implement provisioning handoff and signup-status lookup
