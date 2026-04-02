@@ -58,6 +58,12 @@ body {
   position: relative;
 }
 
+.control-top .brand-photo,
+.control-top .title-logo,
+.control-top .subtitle {
+  pointer-events: none;
+}
+
 .brand-photo {
   display: block;
   grid-area: brand;
@@ -167,6 +173,8 @@ h2 {
 .auth-grid {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
 }
 
 .panel-grid {
