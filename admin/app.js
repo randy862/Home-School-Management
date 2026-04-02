@@ -5,6 +5,7 @@ const state = {
   operator: null,
   users: [],
   tenants: [],
+  commercialRecords: [],
   environments: [],
   jobs: [],
   activeWorkspace: "tenants",
@@ -25,10 +26,12 @@ const refs = {
   operatorSessionBadge: document.getElementById("operator-session-badge"),
   operatorMeta: document.getElementById("operator-meta"),
   tabTenants: document.getElementById("tab-tenants"),
+  tabCommercial: document.getElementById("tab-commercial"),
   tabEnvironments: document.getElementById("tab-environments"),
   tabJobs: document.getElementById("tab-jobs"),
   tabUsers: document.getElementById("tab-users"),
   workspaceTenants: document.getElementById("workspace-tenants"),
+  workspaceCommercial: document.getElementById("workspace-commercial"),
   workspaceEnvironments: document.getElementById("workspace-environments"),
   workspaceJobs: document.getElementById("workspace-jobs"),
   workspaceUsers: document.getElementById("workspace-users"),
@@ -44,6 +47,9 @@ const refs = {
   tenantPanelHead: document.getElementById("tenant-panel-head"),
   tenantDetailShell: document.getElementById("tenant-detail-shell"),
   tenantDetailBody: document.getElementById("tenant-detail-body"),
+  commercialPanelHead: document.getElementById("commercial-panel-head"),
+  commercialSummary: document.getElementById("commercial-summary"),
+  commercialList: document.getElementById("commercial-list"),
   environmentPanelHead: document.getElementById("environment-panel-head"),
   environmentList: document.getElementById("environment-list"),
   jobPanelHead: document.getElementById("job-panel-head"),
@@ -226,6 +232,8 @@ function renderMyAccountSummary() {
 function renderLists() {
   const activeTenants = state.tenants.filter((tenant) => tenant.status === "active").length;
   const draftTenants = state.tenants.filter((tenant) => tenant.status !== "active").length;
+  const activeSubscriptions = state.commercialRecords.filter((record) => String(record.subscriptionStatus || "").toLowerCase() === "active").length;
+  const provisioningAttention = state.commercialRecords.filter((record) => ["failed", "pending_billing_confirmation", "queued", "provisioning", "awaiting_customer_setup"].includes(String(record.provisioningStatus || "").toLowerCase())).length;
   const setupNeeded = state.environments.filter((environment) => !["token_issued", "initialized"].includes(String(environment.setupState || "").toLowerCase())).length;
   const failedJobs = state.jobs.filter((job) => String(job.status || "").toLowerCase() === "failed").length;
   const inFlightJobs = state.jobs.filter((job) => ["queued", "running"].includes(String(job.status || "").toLowerCase())).length;
@@ -242,6 +250,8 @@ function renderLists() {
     : (inFlightJobs ? `${inFlightJobs} operation${inFlightJobs === 1 ? "" : "s"} currently in progress.` : "No failed or in-progress work needs attention.");
 
   refs.tenantList.innerHTML = renderTenantTable(state.tenants);
+  if (refs.commercialSummary) refs.commercialSummary.innerHTML = renderCommercialSummary(state.commercialRecords, activeSubscriptions, provisioningAttention);
+  if (refs.commercialList) refs.commercialList.innerHTML = renderCommercialTable(state.commercialRecords);
   refs.environmentList.innerHTML = renderEnvironmentTable(state.environments);
   refs.jobList.innerHTML = renderJobTable(state.jobs);
   refs.userList.innerHTML = renderUserTable(state.users);
@@ -328,6 +338,82 @@ function renderTenantDetail(tenant) {
       <h4>Operator Activity</h4>
       ${renderAuditTrail(tenant.auditEntries || [], "No operator activity recorded for this customer yet.")}
     </section>
+  `;
+}
+
+function renderCommercialSummary(records, activeSubscriptions, provisioningAttention) {
+  const totalAccounts = records.length;
+  const readyAccounts = records.filter((record) => ["ready", "awaiting_customer_setup"].includes(String(record.provisioningStatus || "").toLowerCase())).length;
+  const tiles = [
+    {
+      kicker: "Customer Accounts",
+      value: totalAccounts,
+      copy: totalAccounts ? `${activeSubscriptions} subscription${activeSubscriptions === 1 ? "" : "s"} currently active.` : "No SaaS customer records yet."
+    },
+    {
+      kicker: "Provisioning Queue",
+      value: provisioningAttention,
+      copy: provisioningAttention ? `${provisioningAttention} commercial signup${provisioningAttention === 1 ? "" : "s"} still need follow-up.` : "No SaaS signups currently need provisioning follow-up."
+    },
+    {
+      kicker: "Ready For Handoff",
+      value: readyAccounts,
+      copy: readyAccounts ? `${readyAccounts} account${readyAccounts === 1 ? "" : "s"} have reached customer-ready status.` : "No ready customer handoffs are recorded yet."
+    }
+  ];
+
+  return tiles.map((tile) => `
+    <article class="metric-card mini-metric-card">
+      <span class="status-kicker">${escapeHtml(tile.kicker)}</span>
+      <strong>${escapeHtml(String(tile.value))}</strong>
+      <p class="metric-copy">${escapeHtml(tile.copy)}</p>
+    </article>
+  `).join("");
+}
+
+function renderCommercialTable(records) {
+  if (!records.length) return '<div class="empty-state">No SaaS customer or subscription records have been created yet.</div>';
+  return `
+    <div class="table-shell">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Account</th>
+            <th>Owner</th>
+            <th>Plan</th>
+            <th>Subscription</th>
+            <th>Provisioning</th>
+            <th>Tenant Access</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map((record) => `
+            <tr>
+              <td data-label="Account">
+                <strong>${escapeHtml(formatCustomerDisplayName(record.accountName) || record.accountName || "Not recorded")}</strong>
+                <div class="table-subcopy">${escapeHtml(record.accountSlug || "No slug recorded")}</div>
+              </td>
+              <td data-label="Owner">
+                ${escapeHtml(record.ownerName || "Not recorded")}
+                <div class="table-subcopy">${escapeHtml(record.ownerEmail || record.billingEmail || "No email recorded")}</div>
+              </td>
+              <td data-label="Plan">
+                ${escapeHtml(record.planName || "Plan pending")}
+                <div class="table-subcopy">${escapeHtml(record.planCode || "No plan code")}</div>
+              </td>
+              <td data-label="Subscription">${record.subscriptionStatus ? renderStatusTag(record.subscriptionStatus, "tenant") : '<span class="tag">pending</span>'}</td>
+              <td data-label="Provisioning">${record.provisioningStatus ? renderStateTag(record.provisioningStatus, "setup", startCase(record.provisioningStatus)) : '<span class="tag">not queued</span>'}</td>
+              <td data-label="Tenant Access">
+                ${record.tenantUrl || record.resultAccessUrl ? `<a href="${escapeHtml(record.tenantUrl || record.resultAccessUrl)}" target="_blank" rel="noreferrer">${escapeHtml(record.tenantUrl || record.resultAccessUrl)}</a>` : "Not issued"}
+                ${record.signupStatusToken ? `<div class="table-subcopy">Status token: ${escapeHtml(record.signupStatusToken)}</div>` : ""}
+              </td>
+              <td data-label="Created">${escapeHtml(formatDateTime(record.createdAt) || "Not recorded")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -629,11 +715,13 @@ function renderWorkspaceTabs() {
   }
   const active = state.activeWorkspace || "tenants";
   refs.tabTenants?.classList.toggle("active", active === "tenants");
+  refs.tabCommercial?.classList.toggle("active", active === "commercial");
   refs.tabEnvironments?.classList.toggle("active", active === "environments");
   refs.tabJobs?.classList.toggle("active", active === "jobs");
   refs.tabUsers?.classList.toggle("active", allowUsers && active === "users");
   refs.tabUsers?.classList.toggle("hidden", !allowUsers);
   refs.workspaceTenants?.classList.toggle("hidden", active !== "tenants");
+  refs.workspaceCommercial?.classList.toggle("hidden", active !== "commercial");
   refs.workspaceEnvironments?.classList.toggle("hidden", active !== "environments");
   refs.workspaceJobs?.classList.toggle("hidden", active !== "jobs");
   refs.workspaceUsers?.classList.toggle("hidden", !allowUsers || active !== "users");
@@ -987,11 +1075,12 @@ async function refreshData(showFlash = true) {
   const results = await Promise.allSettled([
     canViewUserManagement() ? apiFetch("/api/control/operators") : Promise.resolve([]),
     apiFetch("/api/control/tenants"),
+    apiFetch("/api/control/commercial/overview"),
     apiFetch("/api/control/environments"),
     apiFetch("/api/control/jobs")
   ]);
 
-  const [userResult, tenantResult, environmentResult, jobResult] = results;
+  const [userResult, tenantResult, commercialResult, environmentResult, jobResult] = results;
   const failures = [];
 
   if (userResult.status === "fulfilled") {
@@ -1006,6 +1095,13 @@ async function refreshData(showFlash = true) {
   } else {
     state.tenants = [];
     failures.push(`tenant registry: ${tenantResult.reason.message}`);
+  }
+
+  if (commercialResult.status === "fulfilled") {
+    state.commercialRecords = Array.isArray(commercialResult.value) ? commercialResult.value : [];
+  } else {
+    state.commercialRecords = [];
+    failures.push(`commercial overview: ${commercialResult.reason.message}`);
   }
 
   if (environmentResult.status === "fulfilled") {
@@ -1085,6 +1181,7 @@ function bindEvents() {
       state.operator = null;
       state.users = [];
       state.tenants = [];
+      state.commercialRecords = [];
       state.environments = [];
       state.jobs = [];
       state.selectedTenantId = "";
@@ -1119,6 +1216,7 @@ function bindEvents() {
   });
 
   refs.tabTenants?.addEventListener("click", () => setActiveWorkspace("tenants"));
+  refs.tabCommercial?.addEventListener("click", () => setActiveWorkspace("commercial"));
   refs.tabEnvironments?.addEventListener("click", () => setActiveWorkspace("environments"));
   refs.tabJobs?.addEventListener("click", () => setActiveWorkspace("jobs"));
   refs.tabUsers?.addEventListener("click", () => setActiveWorkspace("users"));

@@ -52,7 +52,9 @@ const {
   getBillingEventByStripeEventId,
   getCheckoutSessionByStripeSessionId,
   getPublicCommercialPlanByCode,
+  getPublicSignupStatusByToken,
   getSubscriptionByStripeCheckoutSessionId,
+  listCommercialOverview,
   listPublicCommercialPlans
   ,
   markCheckoutSessionCompleted,
@@ -63,6 +65,7 @@ const {
 const { applyCors, createOperatorAuthContextMiddleware } = require("./middleware/auth-context");
 const { errorHandler } = require("./middleware/error-handler");
 const { registerAuditRoutes } = require("./routes/audit-routes");
+const { registerControlCommercialRoutes } = require("./routes/control-commercial-routes");
 const { registerEnvironmentRoutes } = require("./routes/environment-routes");
 const { registerInfraRoutes } = require("./routes/infra-routes");
 const { registerJobRoutes } = require("./routes/job-routes");
@@ -116,6 +119,7 @@ registerPublicSaasRoutes(app, {
   getBillingEventByStripeEventId,
   getCheckoutSessionByStripeSessionId,
   getPublicCommercialPlanByCode,
+  getPublicSignupStatusByToken,
   getSubscriptionByStripeCheckoutSessionId,
   listPublicCommercialPlans,
   markCheckoutSessionCompleted,
@@ -137,6 +141,9 @@ registerPublicSaasRoutes(app, {
 });
 registerAuditRoutes(app, {
   listOperatorAuditLog
+});
+registerControlCommercialRoutes(app, {
+  listCommercialOverview
 });
 registerOperatorAuthRoutes(app, {
   countOperators,

@@ -4,10 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mitchell Family Home School Management | Hosted Plans</title>
-  <link rel="stylesheet" href="saas.css?v=202604021115">
+  <link rel="stylesheet" href="saas.css?v=202604021500">
 </head>
 <body>
   <main class="landing-shell">
+    <section id="signup-status-shell" class="status-shell hidden" aria-live="polite">
+      <div class="status-card">
+        <p id="signup-status-kicker" class="eyebrow">Signup Status</p>
+        <h2 id="signup-status-title">We are preparing your hosted workspace.</h2>
+        <p id="signup-status-message" class="status-message">Your subscription flow has started. As billing and provisioning steps complete, this page will become the customer-facing handoff surface.</p>
+        <div id="signup-status-details" class="status-details hidden"></div>
+        <div class="status-actions">
+          <a class="primary-link" href="#subscribe">Review Subscription Details</a>
+          <a class="secondary-link" href="#pricing">Back To Plans</a>
+        </div>
+      </div>
+    </section>
+
     <header class="site-header">
       <a class="brand-lockup" href="#top" aria-label="Mitchell Family Home School Management">
         <img class="brand-logo" src="assets/Mitchell_Logo.png" alt="The Mitchell Family Home School Management System">
@@ -127,45 +140,14 @@
         <p>The pricing below is structured as a first-launch model and can be refined as we finalize the commercial package.</p>
       </div>
 
-      <div class="pricing-grid">
-        <article class="pricing-card">
-          <p class="plan-kicker">Starter</p>
-          <h3>For a family that wants the full hosted system without extra operational overhead.</h3>
-          <p class="price-line">$19<span>/month</span></p>
+      <div id="pricing-grid" class="pricing-grid">
+        <article class="pricing-card loading-card">
+          <p class="plan-kicker">Loading Plans</p>
+          <h3>Fetching the current public plan configuration from the live SaaS API.</h3>
+          <p class="price-line">...</p>
           <ul>
-            <li>Hosted student, curriculum, and schedule management</li>
-            <li>Attendance, grading, and reporting tools</li>
-            <li>Standard automated provisioning</li>
-            <li>Email-based access handoff</li>
+            <li>Current plans will appear here automatically.</li>
           </ul>
-          <a class="plan-cta" href="#subscribe">Choose Starter</a>
-        </article>
-
-        <article class="pricing-card featured-plan">
-          <p class="featured-badge">Most Practical</p>
-          <p class="plan-kicker">Growth</p>
-          <h3>For families or small learning groups that want more operating room and a smoother support path.</h3>
-          <p class="price-line">$39<span>/month</span></p>
-          <ul>
-            <li>Everything in Starter</li>
-            <li>Expanded support expectations</li>
-            <li>Priority provisioning review if a setup issue appears</li>
-            <li>Stronger fit for multi-student operational reporting</li>
-          </ul>
-          <a class="plan-cta" href="#subscribe">Choose Growth</a>
-        </article>
-
-        <article class="pricing-card">
-          <p class="plan-kicker">Support Plus</p>
-          <h3>For higher-touch onboarding and support when the hosted platform needs to feel more hands-on.</h3>
-          <p class="price-line">$79<span>/month</span></p>
-          <ul>
-            <li>Everything in Growth</li>
-            <li>Higher-touch onboarding expectations</li>
-            <li>Operational follow-up for provisioning and account setup</li>
-            <li>Best fit when guided rollout matters more than lowest price</li>
-          </ul>
-          <a class="plan-cta" href="#subscribe">Choose Support Plus</a>
         </article>
       </div>
     </section>
@@ -178,30 +160,35 @@
       </div>
 
       <div class="subscribe-layout">
-        <form class="checkout-card" aria-label="Subscription intake preview">
+        <form id="checkout-form" class="checkout-card" aria-label="Subscription intake">
           <div class="form-block">
             <h3>Select Your Plan</h3>
-            <label><input type="radio" name="plan" checked> Starter</label>
-            <label><input type="radio" name="plan"> Growth</label>
-            <label><input type="radio" name="plan"> Support Plus</label>
+            <div id="checkout-plan-options" class="radio-stack">
+              <label><input type="radio" name="planCode" value="starter_monthly" checked> Starter</label>
+              <label><input type="radio" name="planCode" value="growth_monthly"> Growth</label>
+              <label><input type="radio" name="planCode" value="support_plus_monthly"> Support Plus</label>
+            </div>
           </div>
 
           <div class="form-block">
             <h3>Account Owner Information</h3>
-            <label>Organization or School Name<input type="text" placeholder="Mitchell Learning Group"></label>
-            <label>Owner Full Name<input type="text" placeholder="Randal Mitchell"></label>
-            <label>Owner Email<input type="email" placeholder="owner@example.com"></label>
-            <label>Billing Email<input type="email" placeholder="billing@example.com"></label>
+            <label>Organization or School Name<input id="checkout-account-name" type="text" placeholder="Mitchell Learning Group" required></label>
+            <label>Requested Subdomain Label<input id="checkout-subdomain" type="text" placeholder="mitchell-school"></label>
+            <label>Owner First Name<input id="checkout-owner-first-name" type="text" placeholder="Randal" required></label>
+            <label>Owner Last Name<input id="checkout-owner-last-name" type="text" placeholder="Mitchell" required></label>
+            <label>Owner Email<input id="checkout-owner-email" type="email" placeholder="owner@example.com" required></label>
+            <label>Billing Email<input id="checkout-billing-email" type="email" placeholder="billing@example.com"></label>
           </div>
 
           <div class="form-block">
             <h3>Payment Information</h3>
-            <label>Cardholder Name<input type="text" placeholder="Name on card"></label>
-            <label>Card Details<input type="text" placeholder="Handled by secure Stripe Checkout in implementation"></label>
-            <p class="form-note">Implementation note: the production flow should redirect to Stripe Checkout rather than process card data directly in this page.</p>
+            <label>Cardholder Name<input type="text" placeholder="Name on card" disabled></label>
+            <label>Card Details<input type="text" placeholder="Handled by secure Stripe Checkout in implementation" disabled></label>
+            <p class="form-note">The hosted production path redirects to secure Stripe Checkout. Until Stripe price IDs and keys are loaded, this form will validate and surface readiness messages without redirecting.</p>
           </div>
 
-          <button type="button" class="disabled-submit">Continue To Secure Checkout</button>
+          <p id="checkout-form-message" class="checkout-message hidden"></p>
+          <button id="checkout-submit-btn" type="submit" class="disabled-submit">Continue To Secure Checkout</button>
         </form>
 
         <aside class="summary-card">
@@ -255,5 +242,6 @@
       </div>
     </section>
   </main>
+  <script src="saas.js?v=202604021500"></script>
 </body>
 </html>

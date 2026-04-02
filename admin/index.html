@@ -4,13 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Home School Management Control Plane</title>
-  <link rel="stylesheet" href="styles.css?v=202603310255">
+  <link rel="stylesheet" href="styles.css?v=202604020930">
 </head>
 <body data-api-base="/control-api">
   <main class="admin-shell">
     <header class="top control-top">
-      <img class="brand-photo" src="/assets/MitchellFamily.png" alt="The Mitchell Family crest">
-      <img class="title-logo" src="/assets/Logo2.png" alt="The Mitchell Family Home School Management System">
+      <img class="title-logo" src="/assets/Mitchell_Logo.png" alt="The Mitchell Family Home School Management System">
       <p class="subtitle">Home School Management Control Center</p>
     </header>
 
@@ -112,6 +111,7 @@
             <p class="status-kicker">Navigation</p>
             <nav class="workspace-tabs sidebar-tabs" aria-label="Control sections">
               <button id="tab-tenants" class="tab-btn active" type="button">Customers</button>
+              <button id="tab-commercial" class="tab-btn" type="button">Commercial</button>
               <button id="tab-environments" class="tab-btn" type="button">Environments</button>
               <button id="tab-jobs" class="tab-btn" type="button">Operations</button>
               <button id="tab-users" class="tab-btn" type="button">User Management</button>
@@ -176,6 +176,17 @@
             </form>
           </div>
           <div id="tenant-list"></div>
+          </article>
+
+          <article id="workspace-commercial" class="panel tall-panel workspace-panel hidden">
+          <div id="commercial-panel-head" class="panel-head">
+            <div>
+              <h2>Commercial</h2>
+              <p class="panel-copy">Review SaaS customer accounts, subscription state, and provisioning handoff progress from the same control center.</p>
+            </div>
+          </div>
+          <div id="commercial-summary" class="mini-metrics-grid"></div>
+          <div id="commercial-list"></div>
           </article>
 
           <article id="workspace-environments" class="panel tall-panel workspace-panel hidden">
@@ -316,6 +327,6 @@
       </section>
     </section>
   </main>
-  <script src="app.js?v=202603310255"></script>
+  <script src="app.js?v=202604021500"></script>
 </body>
 </html>

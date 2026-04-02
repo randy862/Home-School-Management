@@ -5,6 +5,7 @@ function registerPublicSaasRoutes(app, deps) {
     createCheckoutCustomerAccount,
     createCheckoutSessionRecord,
     createCheckoutSubscription,
+    getPublicSignupStatusByToken,
     processStripeBillingEvent,
     getPublicCommercialPlanByCode,
     listPublicCommercialPlans,
@@ -38,11 +39,11 @@ function registerPublicSaasRoutes(app, deps) {
       const cancelToken = randomUUID();
       const customerAccount = await createCheckoutCustomerAccount(payload);
       const successUrl = buildCheckoutUrl(
-        publicConfig.checkoutSuccessUrl || joinUrl(publicConfig.appBaseUrl, "/saas.html?checkout=success"),
+        publicConfig.checkoutSuccessUrl || joinUrl(publicConfig.appBaseUrl, "/signup-status.html?checkout=success"),
         successToken
       );
       const cancelUrl = buildCheckoutUrl(
-        publicConfig.checkoutCancelUrl || joinUrl(publicConfig.appBaseUrl, "/saas.html?checkout=cancel"),
+        publicConfig.checkoutCancelUrl || joinUrl(publicConfig.appBaseUrl, "/signup-status.html?checkout=cancel"),
         cancelToken
       );
 
@@ -85,6 +86,26 @@ function registerPublicSaasRoutes(app, deps) {
         customerSubscriptionId: subscription.id,
         publishableKeyConfigured: !!publicConfig.publishableKey
       });
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/public/signup-status/:token", async (req, res) => {
+    try {
+      const token = String(req.params?.token || "").trim();
+      if (!token) {
+        res.status(400).json({ error: "Signup status token is required." });
+        return;
+      }
+
+      const status = await getPublicSignupStatusByToken(token);
+      if (!status) {
+        res.status(404).json({ error: "Signup status was not found for that token." });
+        return;
+      }
+
+      res.json(status);
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }

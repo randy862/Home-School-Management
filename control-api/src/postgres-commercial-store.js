@@ -42,6 +42,37 @@ function mapBillingEventRow(row) {
   };
 }
 
+function mapCommercialOverviewRow(row) {
+  if (!row) return null;
+  return {
+    customerAccountId: row.customerAccountId ?? row.customer_account_id,
+    accountName: row.accountName ?? row.account_name,
+    accountSlug: row.accountSlug ?? row.account_slug,
+    accountStatus: row.accountStatus ?? row.account_status,
+    ownerName: row.ownerName ?? row.owner_name ?? "",
+    ownerEmail: row.ownerEmail ?? row.owner_email ?? "",
+    billingEmail: row.billingEmail ?? row.billing_email ?? "",
+    commercialPlanId: row.commercialPlanId ?? row.commercial_plan_id ?? null,
+    planCode: row.planCode ?? row.plan_code ?? "",
+    planName: row.planName ?? row.plan_name ?? "",
+    subscriptionId: row.subscriptionId ?? row.subscription_id ?? null,
+    subscriptionStatus: row.subscriptionStatus ?? row.subscription_status ?? "",
+    stripeSubscriptionId: row.stripeSubscriptionId ?? row.stripe_subscription_id ?? null,
+    checkoutSessionId: row.checkoutSessionId ?? row.checkout_session_id ?? null,
+    checkoutStatus: row.checkoutStatus ?? row.checkout_status ?? "",
+    provisioningRequestId: row.provisioningRequestId ?? row.provisioning_request_id ?? null,
+    provisioningStatus: row.provisioningStatus ?? row.provisioning_status ?? "",
+    requestedSubdomainLabel: row.requestedSubdomainLabel ?? row.requested_subdomain_label ?? "",
+    resultAccessUrl: row.resultAccessUrl ?? row.result_access_url ?? "",
+    tenantUrl: row.tenantUrl ?? row.tenant_url ?? "",
+    tenantId: row.tenantId ?? row.tenant_id ?? null,
+    tenantEnvironmentId: row.tenantEnvironmentId ?? row.tenant_environment_id ?? null,
+    signupStatusToken: row.signupStatusToken ?? row.signup_status_token ?? null,
+    createdAt: row.createdAt ?? row.created_at ?? null,
+    updatedAt: row.updatedAt ?? row.updated_at ?? null
+  };
+}
+
 async function listPublicCommercialPlans() {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -512,6 +543,198 @@ async function updateBillingEventProcessing(stripeEventId, updates = {}) {
   return mapBillingEventRow(result.rows[0]);
 }
 
+async function getPublicSignupStatusByToken(token) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      checkout.id AS "checkoutSessionRecordId",
+      checkout.status AS "checkoutStatus",
+      checkout.success_token AS "successToken",
+      checkout.cancel_token AS "cancelToken",
+      checkout.completed_at AS "checkoutCompletedAt",
+      checkout.created_at AS "checkoutCreatedAt",
+      checkout.requested_subdomain_label AS "requestedSubdomainLabel",
+      account.id AS "customerAccountId",
+      account.account_name AS "accountName",
+      account.account_slug AS "accountSlug",
+      account.status AS "accountStatus",
+      account.owner_first_name AS "ownerFirstName",
+      account.owner_last_name AS "ownerLastName",
+      account.owner_email AS "ownerEmail",
+      account.billing_email AS "billingEmail",
+      plan.id AS "commercialPlanId",
+      plan.code AS "planCode",
+      plan.name AS "planName",
+      subscription.id AS "subscriptionId",
+      subscription.status AS "subscriptionStatus",
+      subscription.current_period_end AS "currentPeriodEnd",
+      provisioning.id AS "provisioningRequestId",
+      provisioning.status AS "provisioningStatus",
+      provisioning.result_access_url AS "resultAccessUrl",
+      provisioning.failure_reason AS "failureReason",
+      access.id AS "accessHandoffId",
+      access.signup_status_token AS "signupStatusToken",
+      access.tenant_url AS "tenantUrl",
+      access.admin_setup_mode AS "adminSetupMode",
+      access.setup_token AS "setupToken",
+      access.setup_token_expires_at AS "setupTokenExpiresAt",
+      access.delivered_at AS "deliveredAt"
+    FROM checkout_sessions checkout
+    JOIN customer_accounts account
+      ON account.id = checkout.customer_account_id
+    JOIN commercial_plans plan
+      ON plan.id = checkout.commercial_plan_id
+    LEFT JOIN customer_subscriptions subscription
+      ON subscription.stripe_checkout_session_id = checkout.stripe_checkout_session_id
+    LEFT JOIN provisioning_requests provisioning
+      ON provisioning.customer_subscription_id = subscription.id
+    LEFT JOIN access_handoffs access
+      ON access.provisioning_request_id = provisioning.id
+    WHERE checkout.success_token = $1
+       OR checkout.cancel_token = $1
+       OR access.signup_status_token = $1
+    ORDER BY checkout.created_at DESC
+    LIMIT 1
+  `, [token]);
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  const checkoutStatus = String(row.checkoutStatus || "created").toLowerCase();
+  const provisioningStatus = String(row.provisioningStatus || "").toLowerCase();
+  const subscriptionStatus = String(row.subscriptionStatus || "").toLowerCase();
+  const isCancelToken = row.cancelToken === token && row.successToken !== token;
+  let stage = "checkout_started";
+  let headline = "Your hosted signup is in progress.";
+  let message = "We have your request and will keep this page updated as your subscription and environment move forward.";
+
+  if (isCancelToken) {
+    stage = "checkout_canceled";
+    headline = "Checkout was canceled before subscription confirmation.";
+    message = "No billing confirmation was recorded for this signup. You can return to pricing and restart whenever you are ready.";
+  } else if (provisioningStatus === "failed") {
+    stage = "provisioning_failed";
+    headline = "Subscription confirmed, but provisioning needs review.";
+    message = row.failureReason || "The customer account is recorded, but automated environment provisioning did not finish successfully.";
+  } else if (["ready", "awaiting_customer_setup"].includes(provisioningStatus)) {
+    stage = provisioningStatus;
+    headline = provisioningStatus === "ready" ? "Your environment is ready." : "Your environment is almost ready.";
+    message = provisioningStatus === "ready"
+      ? "Hosted access information is available below."
+      : "Billing is confirmed and provisioning finished. The final customer handoff is waiting on setup completion.";
+  } else if (["queued", "provisioning", "pending_billing_confirmation"].includes(provisioningStatus)) {
+    stage = provisioningStatus;
+    headline = "Provisioning is underway.";
+    message = "Billing is confirmed and the control plane is preparing the hosted tenant environment now.";
+  } else if (["active", "trialing", "past_due", "unpaid", "canceled"].includes(subscriptionStatus) || checkoutStatus === "completed") {
+    stage = "billing_confirmed";
+    headline = "Subscription confirmed.";
+    message = "Billing confirmation is recorded. Provisioning details will appear here as soon as the hosted environment handoff is created.";
+  }
+
+  return {
+    token,
+    stage,
+    headline,
+    message,
+    account: {
+      id: row.customerAccountId,
+      name: row.accountName,
+      slug: row.accountSlug,
+      status: row.accountStatus,
+      ownerName: [row.ownerFirstName, row.ownerLastName].filter(Boolean).join(" ").trim(),
+      ownerEmail: row.ownerEmail,
+      billingEmail: row.billingEmail || row.ownerEmail
+    },
+    plan: {
+      id: row.commercialPlanId,
+      code: row.planCode,
+      name: row.planName
+    },
+    checkout: {
+      status: checkoutStatus,
+      createdAt: row.checkoutCreatedAt,
+      completedAt: row.checkoutCompletedAt,
+      requestedSubdomainLabel: row.requestedSubdomainLabel || ""
+    },
+    subscription: row.subscriptionId ? {
+      id: row.subscriptionId,
+      status: row.subscriptionStatus,
+      currentPeriodEnd: row.currentPeriodEnd
+    } : null,
+    provisioning: row.provisioningRequestId ? {
+      id: row.provisioningRequestId,
+      status: row.provisioningStatus,
+      resultAccessUrl: row.resultAccessUrl || null,
+      failureReason: row.failureReason || null
+    } : null,
+    access: row.accessHandoffId ? {
+      id: row.accessHandoffId,
+      signupStatusToken: row.signupStatusToken,
+      tenantUrl: row.tenantUrl || row.resultAccessUrl || null,
+      adminSetupMode: row.adminSetupMode || "pending",
+      setupToken: row.setupToken || null,
+      setupTokenExpiresAt: row.setupTokenExpiresAt || null,
+      deliveredAt: row.deliveredAt || null
+    } : null
+  };
+}
+
+async function listCommercialOverview() {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      account.id AS "customerAccountId",
+      account.account_name AS "accountName",
+      account.account_slug AS "accountSlug",
+      account.status AS "accountStatus",
+      TRIM(CONCAT(account.owner_first_name, ' ', account.owner_last_name)) AS "ownerName",
+      account.owner_email AS "ownerEmail",
+      account.billing_email AS "billingEmail",
+      account.created_at AS "createdAt",
+      account.updated_at AS "updatedAt",
+      plan.id AS "commercialPlanId",
+      plan.code AS "planCode",
+      plan.name AS "planName",
+      subscription.id AS "subscriptionId",
+      subscription.status AS "subscriptionStatus",
+      subscription.stripe_subscription_id AS "stripeSubscriptionId",
+      checkout.stripe_checkout_session_id AS "checkoutSessionId",
+      checkout.status AS "checkoutStatus",
+      provisioning.id AS "provisioningRequestId",
+      provisioning.status AS "provisioningStatus",
+      provisioning.requested_subdomain_label AS "requestedSubdomainLabel",
+      provisioning.result_access_url AS "resultAccessUrl",
+      provisioning.tenant_id AS "tenantId",
+      provisioning.tenant_environment_id AS "tenantEnvironmentId",
+      access.tenant_url AS "tenantUrl",
+      access.signup_status_token AS "signupStatusToken"
+    FROM customer_accounts account
+    LEFT JOIN LATERAL (
+      SELECT *
+      FROM customer_subscriptions sub
+      WHERE sub.customer_account_id = account.id
+      ORDER BY sub.created_at DESC
+      LIMIT 1
+    ) subscription ON TRUE
+    LEFT JOIN commercial_plans plan
+      ON plan.id = subscription.commercial_plan_id
+    LEFT JOIN LATERAL (
+      SELECT *
+      FROM checkout_sessions cs
+      WHERE cs.customer_account_id = account.id
+      ORDER BY cs.created_at DESC
+      LIMIT 1
+    ) checkout ON TRUE
+    LEFT JOIN provisioning_requests provisioning
+      ON provisioning.customer_subscription_id = subscription.id
+    LEFT JOIN access_handoffs access
+      ON access.provisioning_request_id = provisioning.id
+    ORDER BY account.created_at DESC, account.account_name ASC
+  `);
+  return result.rows.map(mapCommercialOverviewRow);
+}
+
 module.exports = {
   createBillingEvent,
   createCheckoutCustomerAccount,
@@ -520,7 +743,9 @@ module.exports = {
   getBillingEventByStripeEventId,
   getCheckoutSessionByStripeSessionId,
   getPublicCommercialPlanByCode,
+  getPublicSignupStatusByToken,
   getSubscriptionByStripeCheckoutSessionId,
+  listCommercialOverview,
   listPublicCommercialPlans
   ,
   markCheckoutSessionCompleted,
