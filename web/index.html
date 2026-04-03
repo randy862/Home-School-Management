@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604012000">
+  <link rel="stylesheet" href="styles.css?v=202604031250">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -61,6 +61,7 @@
         <nav class="tabs app-sidebar-nav" aria-label="Primary">
           <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
           <button class="tab-btn" data-tab="students" type="button">Students</button>
+          <button class="tab-btn" data-tab="instructors" type="button">Instructors</button>
           <button class="tab-btn" data-tab="management" type="button">Cirriculum</button>
           <button class="tab-btn" data-tab="planning" type="button">Schedule</button>
           <button class="tab-btn" data-tab="calendar" type="button">Calendar</button>
@@ -104,6 +105,12 @@
             <legend>Grade Method</legend>
             <div id="student-performance-grade-method-options" class="student-performance-grade-method-options"></div>
           </fieldset>
+          <label class="trend-student-field">Instructor
+            <details id="student-performance-instructor-dropdown" class="multi-select-dropdown">
+              <summary id="student-performance-instructor-summary">Instructors (0 selected)</summary>
+              <div id="student-performance-instructor-options" class="checklist-vertical"></div>
+            </details>
+          </label>
         </form>
         <div class="table-wrap">
           <table>
@@ -126,6 +133,14 @@
       <div class="dashboard-section dashboard-section-student-instructional-hours">
         <h3>Student Instructional Hours</h3>
         <p class="muted instructional-hours-notation">Notation: <strong>Actual / Projected</strong> instructional hours.</p>
+        <form id="student-instructional-hours-filter-form" class="grid-form">
+          <label class="trend-student-field">Instructor
+            <details id="student-instructional-hours-instructor-dropdown" class="multi-select-dropdown">
+              <summary id="student-instructional-hours-instructor-summary">Instructors (0 selected)</summary>
+              <div id="student-instructional-hours-instructor-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+        </form>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Student</th><th>Total</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
@@ -151,6 +166,11 @@
           <label>Subject
             <select id="trend-filter-subject">
               <option value="all">All Subjects</option>
+            </select>
+          </label>
+          <label>Instructor
+            <select id="trend-filter-instructor">
+              <option value="all">All Instructors</option>
             </select>
           </label>
           <label>Grade Type
@@ -187,6 +207,11 @@
               <option value="all">All Subjects</option>
             </select>
           </label>
+          <label>Instructor
+            <select id="gpa-trend-filter-instructor">
+              <option value="all">All Instructors</option>
+            </select>
+          </label>
           <label>Grade Type
             <select id="gpa-trend-filter-grade-type">
               <option value="all">All Grade Types</option>
@@ -221,6 +246,11 @@
               <option value="all">All Subjects</option>
             </select>
           </label>
+          <label>Instructor
+            <select id="instruction-hours-trend-filter-instructor">
+              <option value="all">All Instructors</option>
+            </select>
+          </label>
           <button id="instruction-hours-trend-clear-filters-btn" type="button">Clear Filters</button>
         </form>
         <div id="instruction-hours-trending-chart" class="chart-wrap"></div>
@@ -243,6 +273,11 @@
           <label>Subject
             <select id="volume-filter-subject">
               <option value="all">All Subjects</option>
+            </select>
+          </label>
+          <label>Instructor
+            <select id="volume-filter-instructor">
+              <option value="all">All Instructors</option>
             </select>
           </label>
           <label>Grade Type
@@ -273,6 +308,11 @@
             <label>Quarter
               <select id="work-filter-quarter">
                 <option value="all">All Quarters</option>
+              </select>
+            </label>
+            <label>Instructor
+              <select id="work-filter-instructor">
+                <option value="all">All Instructors</option>
               </select>
             </label>
             <button id="work-clear-filters-btn" type="button">Clear Filters</button>
@@ -332,7 +372,12 @@
                 </label>
               </form>
               <form id="student-enrollment-form" class="grid-form">
-                <label>Course<select id="student-enroll-course" required></select></label>
+                <label class="student-enrollment-course-field">Course
+                  <details id="student-enroll-course-dropdown" class="multi-select-dropdown">
+                    <summary id="student-enroll-course-summary">Courses (0 selected)</summary>
+                    <div id="student-enroll-course-options" class="checklist-vertical"></div>
+                  </details>
+                </label>
                 <button type="submit">Enroll Student</button>
               </form>
             </div>
@@ -368,6 +413,47 @@
       </div>
     </section>
 
+    <section id="tab-instructors" class="tab-panel panel">
+      <h2>Instructors</h2>
+      <div id="instructors-list-view">
+        <div class="students-toolbar">
+          <button id="instructor-new-btn" type="button">New Instructor</button>
+        </div>
+        <p class="muted students-helper-text">Maintain the adults who may teach or supervise instruction. Course assignment, calendar override, and instructor reporting will build on this roster.</p>
+        <div class="students-section students-section-manage">
+          <h3>Instructors</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Category</th><th>Birthdate</th><th>Age</th><th>Actions</th></tr></thead>
+              <tbody id="instructor-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="instructors-editor-view" class="students-section students-section-manage hidden">
+        <h3 id="instructor-editor-title">New Instructor</h3>
+        <form id="instructor-form" class="grid-form">
+          <label>First Name<input id="instructor-first" type="text" required></label>
+          <label>Last Name<input id="instructor-last" type="text" required></label>
+          <label>Instructor Category
+            <select id="instructor-category" required>
+              <option value="parent">Parent</option>
+              <option value="volunteer">Volunteer</option>
+              <option value="compensated">Compensated</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>Birthdate<input id="instructor-birthdate" type="date" required></label>
+          <label>Age<input id="instructor-age" type="number" readonly tabindex="-1"></label>
+          <div class="course-form-actions">
+            <button id="instructor-submit-btn" type="submit">Create Instructor</button>
+            <button id="instructor-cancel-edit-btn" type="button">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
     <section id="tab-management" class="tab-panel panel">
       <h2>Cirriculum</h2>
       <div class="subtabs management-subtabs" aria-label="Curriculum sections">
@@ -397,6 +483,7 @@
           <form id="course-form" class="grid-form">
             <label>Course Name<input id="course-name" type="text" required></label>
             <label>Subject<select id="course-subject" required></select></label>
+            <label>Instructor<select id="course-instructor"><option value="">Unassigned</option></select></label>
             <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
             <label class="checkbox-field checkbox-field-stacked">Exclusive<input id="course-exclusive-resource" type="checkbox"></label>
             <div class="course-form-actions">
@@ -407,7 +494,7 @@
           <h4>Configured Courses</h4>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Course</th><th>Subject</th><th>Hours / Day</th><th>Exclusive Resource</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th>Hours / Day</th><th>Exclusive Resource</th><th>Actions</th></tr></thead>
               <tbody id="course-table"></tbody>
             </table>
           </div>
@@ -725,7 +812,7 @@
         <div id="calendar-day-view" class="hidden">
           <div class="table-wrap calendar-table-wrap">
             <table>
-              <thead><tr><th>Hour</th><th>Student</th><th>Planned Instruction</th><th>Minutes</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Hour</th><th>Student</th><th>Planned Instruction</th><th>Instructor</th><th>Minutes</th><th>Actions</th></tr></thead>
               <tbody id="calendar-day-table"></tbody>
             </table>
           </div>
@@ -822,6 +909,11 @@
           <label>Subject
             <select id="grades-filter-subject">
               <option value="all">All Subjects</option>
+            </select>
+          </label>
+          <label>Instructor
+            <select id="grades-filter-instructor">
+              <option value="all">All Instructors</option>
             </select>
           </label>
           <label>Course
@@ -925,6 +1017,11 @@
               <label>Quarter
                 <select id="reports-quarter" required></select>
               </label>
+              <label>Instructor
+                <select id="reports-instructor">
+                  <option value="all">All Instructors</option>
+                </select>
+              </label>
             </div>
           </section>
           <section class="reports-filter-group">
@@ -940,6 +1037,6 @@
     </div>
   </main>
 
-  <script src="app.js?v=202604012000"></script>
+  <script src="app.js?v=202604031235"></script>
 </body>
 </html>

@@ -34,6 +34,7 @@ function normalizeCoursePayload(input) {
   const id = String(input?.id || "").trim() || randomUUID();
   const name = String(input?.name || "").trim();
   const subjectId = String(input?.subjectId || "").trim();
+  const instructorId = String(input?.instructorId || "").trim();
   const hoursPerDay = Number(input?.hoursPerDay);
   const exclusiveResource = !!input?.exclusiveResource;
   if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) {
@@ -41,7 +42,7 @@ function normalizeCoursePayload(input) {
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), name, subjectId, hoursPerDay, exclusiveResource };
+  return { ...(id ? { id } : {}), name, subjectId, instructorId, hoursPerDay, exclusiveResource };
 }
 
 function normalizeEnrollmentPayload(input) {

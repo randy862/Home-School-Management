@@ -5,15 +5,16 @@ function createCurriculumRepository(deps) {
     createCourse: async (course) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
-        INSERT INTO courses (id, name, subject_id, hours_per_day, exclusive_resource)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO courses (id, name, subject_id, instructor_id, hours_per_day, exclusive_resource)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING
           id,
           name,
           subject_id AS "subjectId",
+          instructor_id AS "instructorId",
           hours_per_day AS "hoursPerDay",
           exclusive_resource AS "exclusiveResource"
-      `, [course.id, course.name, course.subjectId, course.hoursPerDay, course.exclusiveResource]);
+      `, [course.id, course.name, course.subjectId, course.instructorId || null, course.hoursPerDay, course.exclusiveResource]);
       return mapCourseRow(result.rows[0]);
     },
 
@@ -98,6 +99,7 @@ function createCurriculumRepository(deps) {
             c.id,
             c.name,
             c.subject_id AS "subjectId",
+            c.instructor_id AS "instructorId",
             c.hours_per_day AS "hoursPerDay",
             c.exclusive_resource AS "exclusiveResource"
           FROM courses c
@@ -113,6 +115,7 @@ function createCurriculumRepository(deps) {
           id,
           name,
           subject_id AS "subjectId",
+          instructor_id AS "instructorId",
           hours_per_day AS "hoursPerDay",
           exclusive_resource AS "exclusiveResource"
         FROM courses
@@ -182,16 +185,18 @@ function createCurriculumRepository(deps) {
         SET
           name = $2,
           subject_id = $3,
-          hours_per_day = $4,
-          exclusive_resource = $5
+          instructor_id = $4,
+          hours_per_day = $5,
+          exclusive_resource = $6
         WHERE id = $1
         RETURNING
           id,
           name,
           subject_id AS "subjectId",
+          instructor_id AS "instructorId",
           hours_per_day AS "hoursPerDay",
           exclusive_resource AS "exclusiveResource"
-      `, [id, course.name, course.subjectId, course.hoursPerDay, course.exclusiveResource]);
+      `, [id, course.name, course.subjectId, course.instructorId || null, course.hoursPerDay, course.exclusiveResource]);
       return result.rows[0] ? mapCourseRow(result.rows[0]) : null;
     },
 

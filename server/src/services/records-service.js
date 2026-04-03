@@ -23,6 +23,7 @@ function normalizeActualInstructionPayload(input) {
   const id = String(input?.id || "").trim() || randomUUID();
   const studentId = String(input?.studentId || "").trim();
   const courseId = String(input?.courseId || "").trim();
+  const instructorId = String(input?.instructorId || "").trim();
   const date = String(input?.date || "").trim();
   const actualMinutes = Number(input?.actualMinutes);
   if (!studentId
@@ -34,7 +35,7 @@ function normalizeActualInstructionPayload(input) {
     error.statusCode = 400;
     throw error;
   }
-  return { id, studentId, courseId, date, actualMinutes };
+  return { id, studentId, courseId, instructorId, date, actualMinutes };
 }
 
 function normalizeAttendancePayload(input) {

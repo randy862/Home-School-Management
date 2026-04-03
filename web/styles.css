@@ -558,17 +558,26 @@ button.secondary-btn {
 }
 
 #student-performance-filter-form {
-  grid-template-columns: 1fr;
-  align-items: start;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
   margin-bottom: 0.75rem;
+  column-gap: 1rem;
+  row-gap: 0.6rem;
 }
 
 .student-performance-grade-method-field legend {
-  margin-bottom: 0.45rem;
+  margin-bottom: 0;
   padding: 0;
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--muted);
+}
+
+.student-performance-grade-method-field {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
 }
 
 .student-performance-grade-method-options {
@@ -576,6 +585,31 @@ button.secondary-btn {
   flex-wrap: wrap;
   gap: 0.85rem;
   align-items: center;
+}
+
+#student-performance-filter-form > label,
+#student-instructional-hours-filter-form > label {
+  display: grid;
+  gap: 0.2rem;
+  align-items: start;
+  min-width: 0;
+}
+
+#student-performance-filter-form .multi-select-dropdown,
+#student-instructional-hours-filter-form .multi-select-dropdown {
+  min-width: 250px;
+  width: fit-content;
+}
+
+#student-performance-filter-form .multi-select-dropdown summary,
+#student-instructional-hours-filter-form .multi-select-dropdown summary {
+  min-width: 250px;
+}
+
+#student-instructional-hours-filter-form {
+  grid-template-columns: auto;
+  align-items: center;
+  margin-bottom: 0.75rem;
 }
 
 .student-performance-grade-method-chip {
@@ -763,6 +797,13 @@ button.secondary-btn {
     grid-template-columns: 1fr;
   }
 
+  #student-performance-filter-form > label,
+  #student-instructional-hours-filter-form > label,
+  .student-performance-grade-method-field {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   #trend-filter-form {
     grid-template-columns: 1fr 1fr;
   }
@@ -862,6 +903,33 @@ td {
 .schedule-actions-cell {
   white-space: nowrap;
   width: 1%;
+  min-width: 130px;
+}
+
+.schedule-actions-cell .table-action-row {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  width: max-content;
+}
+
+.schedule-actions-cell .table-action-row button {
+  white-space: nowrap;
+}
+
+.calendar-actions-cell {
+  white-space: nowrap;
+  width: 1%;
+  min-width: 160px;
+}
+
+.calendar-actions-cell .table-action-row {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  width: max-content;
+}
+
+.calendar-actions-cell .table-action-row button {
+  white-space: nowrap;
 }
 
 .student-avg-toggle {
@@ -1758,8 +1826,14 @@ td {
   min-width: 0;
 }
 
-#student-enrollment-form select {
+#student-enrollment-form .student-enrollment-course-field,
+#student-enrollment-form .multi-select-dropdown,
+#student-enrollment-form .multi-select-dropdown summary {
   width: 100%;
+}
+
+#student-enrollment-form .multi-select-dropdown[open] {
+  padding-bottom: 0.1rem;
 }
 
 .student-schedule-order-select {
@@ -2205,14 +2279,15 @@ body {
 #app-shell .top {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   justify-self: stretch;
-  padding: 0.7rem 1rem;
+  padding: 0.78rem 1rem;
   min-height: 0;
   gap: 1rem;
+  border-radius: 24px;
 }
 
 #app-shell .top .subtitle {
@@ -2227,11 +2302,12 @@ body {
 }
 
 #app-shell .app-brand-lockup .title-logo {
-  width: min(730px, 100%);
-  max-height: 146px;
+  width: min(420px, 100%);
+  max-height: 84px;
   margin: 0;
-  filter: saturate(0.96) contrast(1.04);
+  filter: none;
   display: block;
+  object-fit: contain;
 }
 
 .session-bar {
@@ -2239,7 +2315,7 @@ body {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  align-self: flex-end;
+  align-self: center;
   text-align: right;
   gap: 0.55rem;
   flex: 1 1 auto;

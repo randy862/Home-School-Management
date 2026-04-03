@@ -4,16 +4,21 @@ function registerAdminRoutes(app, deps) {
   const {
     countAdmins,
     createUser,
+    createInstructor,
     deleteUser,
     deleteStudent,
+    deleteInstructor,
     getPool,
+    getInstructorById,
     getStudentById,
     getUserById,
     isPostgresMode,
+    listInstructors,
     listStudents,
     listUsers,
     revokeSessionByTokenHash,
     sessionConfig,
+    updateInstructor,
     updateStudent,
     updateUser,
     createStudent
@@ -188,6 +193,65 @@ function registerAdminRoutes(app, deps) {
       res.status(500).json({ error: error.message });
     }
   });
+
+  app.get("/api/instructors", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Instructors")) return;
+    if (!ensureAuthenticated(req, res)) return;
+
+    try {
+      res.json(await listInstructors());
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/instructors", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Instructors")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      res.status(201).json(await createInstructor(normalizeInstructorPayload(req.body)));
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/instructors/:id", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Instructors")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const updated = await updateInstructor(req.params.id, normalizeInstructorPayload({ ...req.body, id: req.params.id }));
+      if (!updated) {
+        res.status(404).json({ error: "Instructor not found." });
+        return;
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/instructors/:id", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Instructors")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const existing = await getInstructorById(req.params.id);
+      if (!existing) {
+        res.status(404).json({ error: "Instructor not found." });
+        return;
+      }
+      const deleted = await deleteInstructor(req.params.id);
+      if (!deleted) {
+        res.status(404).json({ error: "Instructor not found." });
+        return;
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 }
 
 function ensurePostgresMode(res, isPostgresMode, label) {
@@ -227,6 +291,27 @@ function normalizeStudentPayload(input) {
     throw error;
   }
   return { ...(id ? { id } : {}), firstName, lastName, birthdate, grade, ageRecorded, createdAt };
+}
+
+function normalizeInstructorPayload(input) {
+  const id = String(input?.id || "").trim() || createSessionToken();
+  const firstName = String(input?.firstName || "").trim();
+  const lastName = String(input?.lastName || "").trim();
+  const birthdate = String(input?.birthdate || "").trim();
+  const rawCategory = String(input?.category || "").trim().toLowerCase();
+  const category = ["parent", "volunteer", "compensated", "other"].includes(rawCategory) ? rawCategory : "";
+  const ageRecorded = input?.ageRecorded === "" || input?.ageRecorded == null ? null : Number(input.ageRecorded);
+  const createdAt = String(input?.createdAt || "").trim() || birthdate;
+  if (!firstName
+    || !lastName
+    || !birthdate
+    || !category
+    || (ageRecorded != null && (!Number.isInteger(ageRecorded) || ageRecorded < 0))) {
+    const error = new Error("Provide valid instructor values.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return { ...(id ? { id } : {}), firstName, lastName, birthdate, category, ageRecorded, createdAt };
 }
 
 function normalizeUserPayload(input, options = {}) {

@@ -5,15 +5,16 @@ function createRecordsRepository(deps) {
     createActualInstructionMinutes: async (record) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
-        INSERT INTO actual_instruction_minutes (id, student_id, course_id, instruction_date, actual_minutes)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO actual_instruction_minutes (id, student_id, course_id, instructor_id, instruction_date, actual_minutes)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING
           id,
           student_id AS "studentId",
           course_id AS "courseId",
+          instructor_id AS "instructorId",
           instruction_date AS "date",
           actual_minutes AS "actualMinutes"
-      `, [record.id, record.studentId, record.courseId, record.date, record.actualMinutes]);
+      `, [record.id, record.studentId, record.courseId, record.instructorId || null, record.date, record.actualMinutes]);
       return mapActualInstructionRow(result.rows[0]);
     },
 
@@ -108,6 +109,7 @@ function createRecordsRepository(deps) {
             id,
             student_id AS "studentId",
             course_id AS "courseId",
+            instructor_id AS "instructorId",
             instruction_date AS "date",
             actual_minutes AS "actualMinutes"
           FROM actual_instruction_minutes
@@ -122,6 +124,7 @@ function createRecordsRepository(deps) {
           id,
           student_id AS "studentId",
           course_id AS "courseId",
+          instructor_id AS "instructorId",
           instruction_date AS "date",
           actual_minutes AS "actualMinutes"
         FROM actual_instruction_minutes
@@ -193,16 +196,18 @@ function createRecordsRepository(deps) {
         SET
           student_id = $2,
           course_id = $3,
-          instruction_date = $4,
-          actual_minutes = $5
+          instructor_id = $4,
+          instruction_date = $5,
+          actual_minutes = $6
         WHERE id = $1
         RETURNING
           id,
           student_id AS "studentId",
           course_id AS "courseId",
+          instructor_id AS "instructorId",
           instruction_date AS "date",
           actual_minutes AS "actualMinutes"
-      `, [id, record.studentId, record.courseId, record.date, record.actualMinutes]);
+      `, [id, record.studentId, record.courseId, record.instructorId || null, record.date, record.actualMinutes]);
       return result.rows[0] ? mapActualInstructionRow(result.rows[0]) : null;
     },
 
@@ -246,6 +251,7 @@ function mapAttendanceRow(row) {
 function mapActualInstructionRow(row) {
   return {
     ...row,
+    instructorId: row.instructorId || "",
     actualMinutes: Number(row.actualMinutes || 0)
   };
 }

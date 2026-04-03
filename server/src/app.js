@@ -27,6 +27,13 @@ const {
   listStudents,
   updateStudent
 } = require("./postgres-student-store");
+const {
+  createInstructor,
+  deleteInstructor,
+  getInstructorById,
+  listInstructors,
+  updateInstructor
+} = require("./postgres-instructor-store");
 const { registerCalendarRoutes } = require("./routes/calendar-routes");
 const { registerAdminRoutes } = require("./routes/admin-routes");
 const { registerAuthRoutes } = require("./routes/auth-routes");
@@ -58,16 +65,21 @@ const authRouteDeps = {
 const adminRouteDeps = {
   countAdmins,
   createUser,
+  createInstructor,
   deleteUser,
   deleteStudent,
+  deleteInstructor,
   getPool,
+  getInstructorById,
   getStudentById,
   getUserById,
   isPostgresMode,
+  listInstructors,
   listStudents,
   listUsers,
   revokeSessionByTokenHash,
   sessionConfig,
+  updateInstructor,
   updateStudent,
   updateUser,
   createStudent

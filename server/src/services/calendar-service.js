@@ -4,7 +4,7 @@ function createCalendarService(deps) {
   const { calendarRepository } = deps;
 
   return {
-    createDailyBreak: async (payload) => calendarRepository.createDailyBreak(normalizeDailyBreakPayload(payload)),
+    createDailyBreak: async (payload) => calendarRepository.createDailyBreak(await normalizeDailyBreakPayload(payload, calendarRepository)),
     createHoliday: async (payload) => calendarRepository.createHoliday(normalizeHolidayPayload(payload)),
     createPlans: async (payload) => {
       const plansPayload = Array.isArray(payload?.plans) ? payload.plans : [payload];
@@ -33,7 +33,7 @@ function createCalendarService(deps) {
       return calendarRepository.replaceQuartersForSchoolYear(schoolYearId, quarters);
     },
     setCurrentSchoolYear: (id) => calendarRepository.setCurrentSchoolYear(id),
-    updateDailyBreak: async (id, payload) => calendarRepository.updateDailyBreak(id, normalizeDailyBreakPayload({ ...payload, id })),
+    updateDailyBreak: async (id, payload) => calendarRepository.updateDailyBreak(id, await normalizeDailyBreakPayload({ ...payload, id }, calendarRepository)),
     updateHoliday: async (id, payload) => calendarRepository.updateHoliday(id, normalizeHolidayPayload({ ...payload, id })),
     updatePlan: async (id, payload) => calendarRepository.updatePlan(id, normalizePlanPayload({ ...payload, id })),
     updateSchoolYear: async (id, payload) => calendarRepository.updateSchoolYear(id, normalizeSchoolYearPayload({ ...payload, id }))
@@ -92,12 +92,12 @@ function normalizeQuarterPayload(input, schoolYearId) {
   return { id, schoolYearId, name, startDate, endDate };
 }
 
-function normalizeDailyBreakPayload(input) {
+async function normalizeDailyBreakPayload(input, calendarRepository) {
   const id = String(input?.id || "").trim() || randomUUID();
-  const schoolYearId = String(input?.schoolYearId || "").trim();
+  const requestedSchoolYearId = String(input?.schoolYearId || "").trim();
   const type = String(input?.type || "").trim();
   const description = String(input?.description || "").trim();
-  const startTime = String(input?.startTime || "").trim();
+  const startTime = normalizeDailyBreakStartTime(input?.startTime);
   const durationMinutes = Number(input?.durationMinutes);
   const studentIds = Array.isArray(input?.studentIds)
     ? Array.from(new Set(input.studentIds.map((studentId) => String(studentId || "").trim()).filter(Boolean)))
@@ -106,15 +106,44 @@ function normalizeDailyBreakPayload(input) {
     ? Array.from(new Set(input.weekdays.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5))).sort((a, b) => a - b)
     : [];
 
-  if (!schoolYearId
-    || !["lunch", "recess", "other"].includes(type)
-    || !/^\d{2}:\d{2}$/.test(startTime)
-    || !Number.isFinite(durationMinutes)
-    || durationMinutes < 5
-    || !studentIds.length
-    || !weekdays.length
-    || (type === "other" && !description)) {
-    const error = new Error("Provide students, a valid start time, a duration of at least 5 minutes, and at least one weekday.");
+  const schoolYears = await calendarRepository.listSchoolYears();
+  const fallbackSchoolYear = schoolYears.find((schoolYear) => schoolYear.isCurrent) || schoolYears[0] || null;
+  const schoolYearId = schoolYears.some((schoolYear) => schoolYear.id === requestedSchoolYearId)
+    ? requestedSchoolYearId
+    : (fallbackSchoolYear?.id || "");
+
+  if (!schoolYearId) {
+    const error = new Error("A valid school year is required for daily lunch and break schedules.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!["lunch", "recess", "other"].includes(type)) {
+    const error = new Error("Provide a valid daily break type.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!studentIds.length) {
+    const error = new Error("Select at least one student for the daily lunch or break schedule.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!startTime) {
+    const error = new Error("Provide a valid start time for the daily lunch or break schedule.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!Number.isFinite(durationMinutes) || durationMinutes < 5) {
+    const error = new Error("Provide a duration of at least 5 minutes for the daily lunch or break schedule.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!weekdays.length) {
+    const error = new Error("Select at least one weekday for the daily lunch or break schedule.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (type === "other" && !description) {
+    const error = new Error("Provide a description when the break type is Other.");
     error.statusCode = 400;
     throw error;
   }
@@ -129,6 +158,28 @@ function normalizeDailyBreakPayload(input) {
     durationMinutes,
     weekdays
   };
+}
+
+function normalizeDailyBreakStartTime(value) {
+  const raw = String(value || "").trim();
+  if (/^\d{2}:\d{2}$/.test(raw)) return raw;
+  if (/^\d{2}:\d{2}:\d{2}$/.test(raw)) return raw.slice(0, 5);
+
+  const twelveHourMatch = raw.match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/i);
+  if (!twelveHourMatch) return "";
+
+  let hours = Number(twelveHourMatch[1]);
+  const minutes = Number(twelveHourMatch[2]);
+  const meridiem = twelveHourMatch[3].toUpperCase();
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
+    return "";
+  }
+  if (meridiem === "AM") {
+    hours = hours === 12 ? 0 : hours;
+  } else {
+    hours = hours === 12 ? 12 : hours + 12;
+  }
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 function normalizePlanPayload(input) {
