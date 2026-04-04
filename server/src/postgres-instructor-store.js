@@ -9,6 +9,7 @@ async function listInstructors() {
       last_name AS "lastName",
       birthdate,
       category,
+      education_level AS "educationLevel",
       age_recorded AS "ageRecorded",
       created_at AS "createdAt"
     FROM instructors
@@ -26,6 +27,7 @@ async function getInstructorById(id) {
       last_name AS "lastName",
       birthdate,
       category,
+      education_level AS "educationLevel",
       age_recorded AS "ageRecorded",
       created_at AS "createdAt"
     FROM instructors
@@ -38,14 +40,15 @@ async function getInstructorById(id) {
 async function createInstructor(instructor) {
   const pool = getPostgresPool();
   const result = await pool.query(`
-    INSERT INTO instructors (id, first_name, last_name, birthdate, category, age_recorded, created_at)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    INSERT INTO instructors (id, first_name, last_name, birthdate, category, education_level, age_recorded, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING
       id,
       first_name AS "firstName",
       last_name AS "lastName",
       birthdate,
       category,
+      education_level AS "educationLevel",
       age_recorded AS "ageRecorded",
       created_at AS "createdAt"
   `, [
@@ -54,6 +57,7 @@ async function createInstructor(instructor) {
     instructor.lastName,
     instructor.birthdate,
     instructor.category,
+    instructor.educationLevel || null,
     instructor.ageRecorded,
     instructor.createdAt
   ]);
@@ -69,7 +73,8 @@ async function updateInstructor(id, instructor) {
       last_name = $3,
       birthdate = $4,
       category = $5,
-      age_recorded = $6,
+      education_level = $6,
+      age_recorded = $7,
       updated_at = NOW()
     WHERE id = $1
     RETURNING
@@ -78,6 +83,7 @@ async function updateInstructor(id, instructor) {
       last_name AS "lastName",
       birthdate,
       category,
+      education_level AS "educationLevel",
       age_recorded AS "ageRecorded",
       created_at AS "createdAt"
   `, [
@@ -86,6 +92,7 @@ async function updateInstructor(id, instructor) {
     instructor.lastName,
     instructor.birthdate,
     instructor.category,
+    instructor.educationLevel || null,
     instructor.ageRecorded
   ]);
   return result.rows[0] || null;

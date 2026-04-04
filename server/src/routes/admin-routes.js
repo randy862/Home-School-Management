@@ -300,6 +300,22 @@ function normalizeInstructorPayload(input) {
   const birthdate = String(input?.birthdate || "").trim();
   const rawCategory = String(input?.category || "").trim().toLowerCase();
   const category = ["parent", "volunteer", "compensated", "other"].includes(rawCategory) ? rawCategory : "";
+  const rawEducationLevel = String(
+    input?.educationLevel
+    ?? input?.education_level
+    ?? input?.educationlevel
+    ?? ""
+  ).trim().toLowerCase();
+  const educationLevel = [
+    "",
+    "high_school_diploma_or_ged",
+    "some_college",
+    "associate_degree",
+    "bachelors_degree",
+    "masters_degree",
+    "doctoral_degree",
+    "other"
+  ].includes(rawEducationLevel) ? rawEducationLevel : "";
   const ageRecorded = input?.ageRecorded === "" || input?.ageRecorded == null ? null : Number(input.ageRecorded);
   const createdAt = String(input?.createdAt || "").trim() || birthdate;
   if (!firstName
@@ -311,7 +327,7 @@ function normalizeInstructorPayload(input) {
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), firstName, lastName, birthdate, category, ageRecorded, createdAt };
+  return { ...(id ? { id } : {}), firstName, lastName, birthdate, category, educationLevel, ageRecorded, createdAt };
 }
 
 function normalizeUserPayload(input, options = {}) {

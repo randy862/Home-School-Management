@@ -45,7 +45,25 @@ const INSTRUCTOR_CATEGORY_OPTIONS = ["parent", "volunteer", "compensated", "othe
 const INSTRUCTOR_CATEGORY_LABELS = {
   parent: "Parent",
   volunteer: "Volunteer",
-  compensated: "Compensated",
+  compensated: "Staff",
+  other: "Other"
+};
+const INSTRUCTOR_EDUCATION_LEVEL_OPTIONS = [
+  "high_school_diploma_or_ged",
+  "some_college",
+  "associate_degree",
+  "bachelors_degree",
+  "masters_degree",
+  "doctoral_degree",
+  "other"
+];
+const INSTRUCTOR_EDUCATION_LEVEL_LABELS = {
+  high_school_diploma_or_ged: "High School Diploma or GED",
+  some_college: "Some College",
+  associate_degree: "Associate Degree",
+  bachelors_degree: "Bachelor's Degree",
+  masters_degree: "Master's Degree",
+  doctoral_degree: "Doctoral Degree",
   other: "Other"
 };
 
@@ -298,6 +316,9 @@ function normalizeInstructorsShape(inputState) {
         lastName: String(instructor.lastName || "").trim(),
         birthdate: normalizeApiDate(instructor.birthdate),
         category,
+        educationLevel: INSTRUCTOR_EDUCATION_LEVEL_OPTIONS.includes(String(instructor.educationLevel || "").trim().toLowerCase())
+          ? String(instructor.educationLevel || "").trim().toLowerCase()
+          : "",
         ageRecorded: Number.isInteger(rawAge) && rawAge >= 0 ? rawAge : null,
         createdAt: instructor.createdAt || normalizeApiDate(instructor.birthdate) || todayISO()
       };
@@ -810,6 +831,7 @@ let instructorViewMode = "list";
 let studentEnrollmentDraftStudentId = "";
 let studentEnrollmentDraft = [];
 let studentEnrollmentDraftDirty = false;
+let studentEnrollmentEditMode = false;
 const expandedStudentAverageRows = new Set();
 const expandedSubjectAverageRows = new Set();
 const expandedStudentAttendanceRows = new Set();
@@ -849,15 +871,20 @@ let calendarBackToMonthContext = null;
 let calendarSelectedStudentIds = new Set();
 let calendarSelectedSubjectIds = new Set();
 let calendarSelectedCourseIds = new Set();
+let reportType = "student";
 let reportSelectedStudentIds = new Set();
-const REPORT_CONTENT_OPTIONS = [
+const STUDENT_REPORT_CONTENT_OPTIONS = [
   { id: "studentSummary", label: "Student Summary" },
   { id: "courseSummary", label: "Course Summary" },
   { id: "detailedGrades", label: "Detailed Grades" },
   { id: "detailedAttendance", label: "Detailed Attendance" },
   { id: "instructionalHours", label: "Instructional Hours" }
 ];
-let reportSelectedContentIds = new Set(REPORT_CONTENT_OPTIONS.map((option) => option.id));
+const INSTRUCTOR_REPORT_CONTENT_OPTIONS = [
+  { id: "instructorSummary", label: "Summary" },
+  { id: "detailedInstruction", label: "Detailed Instruction" }
+];
+let reportSelectedContentIds = new Set(STUDENT_REPORT_CONTENT_OPTIONS.map((option) => option.id));
 let loginMessageKind = "";
 let setupMessageKind = "";
 let userFormMessageKind = "";
@@ -994,6 +1021,9 @@ async function refreshHostedInstructors() {
       category: INSTRUCTOR_CATEGORY_OPTIONS.includes(String(instructor.category || "").trim().toLowerCase())
         ? String(instructor.category || "").trim().toLowerCase()
         : "other",
+      educationLevel: INSTRUCTOR_EDUCATION_LEVEL_OPTIONS.includes(String(instructor.educationLevel || "").trim().toLowerCase())
+        ? String(instructor.educationLevel || "").trim().toLowerCase()
+        : "",
       ageRecorded: instructor.ageRecorded == null ? null : Number(instructor.ageRecorded || 0)
     }));
   }
@@ -1804,6 +1834,7 @@ function resetStudentEnrollmentDraft() {
   studentEnrollmentDraftStudentId = "";
   studentEnrollmentDraft = [];
   studentEnrollmentDraftDirty = false;
+  studentEnrollmentEditMode = false;
 }
 
 function primeStudentEnrollmentDraft(studentId) {
@@ -1812,6 +1843,7 @@ function primeStudentEnrollmentDraft(studentId) {
     .filter((entry) => entry.studentId === studentId)
     .map((entry) => ({ ...entry }));
   studentEnrollmentDraftDirty = false;
+  studentEnrollmentEditMode = false;
 }
 
 function workingStudentEnrollments(studentId) {
@@ -1862,11 +1894,13 @@ function beginInstructorEdit(instructorId) {
   const firstInput = document.getElementById("instructor-first");
   const lastInput = document.getElementById("instructor-last");
   const categoryInput = document.getElementById("instructor-category");
+  const educationLevelInput = document.getElementById("instructor-education-level");
   const birthdateInput = document.getElementById("instructor-birthdate");
   const ageInput = document.getElementById("instructor-age");
   if (firstInput) firstInput.value = instructor.firstName || "";
   if (lastInput) lastInput.value = instructor.lastName || "";
   if (categoryInput) categoryInput.value = instructor.category || "parent";
+  if (educationLevelInput) educationLevelInput.value = instructor.educationLevel || "";
   if (birthdateInput) birthdateInput.value = normalizeApiDate(instructor.birthdate);
   if (ageInput) ageInput.value = String(calculateAge(instructor.birthdate));
   renderInstructorViewMode();
@@ -2044,6 +2078,7 @@ function instructionMatchesInstructorFilter(studentId, courseId, date, filterIns
   return matchesInstructorFilter(effectiveInstructionInstructorId(studentId, courseId, date), filterInstructorId);
 }
 function getInstructorCategoryLabel(category) { return INSTRUCTOR_CATEGORY_LABELS[String(category || "").trim().toLowerCase()] || "Other"; }
+function getInstructorEducationLevelLabel(educationLevel) { return INSTRUCTOR_EDUCATION_LEVEL_LABELS[String(educationLevel || "").trim().toLowerCase()] || "Not recorded"; }
 function getSubjectName(id) { const s = state.subjects.find((x) => x.id === id); return s ? s.name : "Unknown Subject"; }
 function getCourse(id) { return state.courses.find((x) => x.id === id) || null; }
 function getCourseName(id) { const c = getCourse(id); return c ? c.name : "Unknown Course"; }
@@ -2363,6 +2398,7 @@ function updateEnrollmentScheduleOrder(enrollmentId, rawValue) {
   if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === enrollment.studentId) {
     enrollment.scheduleOrder = nextOrder;
     studentEnrollmentDraftDirty = true;
+    studentEnrollmentEditMode = true;
     renderStudentDetail();
     return;
   }
@@ -2811,6 +2847,7 @@ function renderSelects() {
   renderStudentEnrollmentCourseChecklist(selectedStudentEnrollmentCourseIds, selectedStudentId);
   renderDailyBreakStudentChecklist(getSelectedDailyBreakStudentIds());
   renderAttendanceStudentChecklist();
+  renderReportsFormMode();
   renderReportStudentChecklist(Array.from(reportSelectedStudentIds));
   renderReportContentChecklist(Array.from(reportSelectedContentIds));
   renderStudentPerformanceGradeMethodChecklist(Array.from(studentPerformanceSelectedGradeMethods));
@@ -3255,12 +3292,24 @@ function getSelectedReportStudentIds() {
   return Array.from(document.querySelectorAll(".reports-student-checkbox:checked")).map((el) => el.value);
 }
 
+function reportContentOptionsForType(type = reportType) {
+  return type === "instructor" ? INSTRUCTOR_REPORT_CONTENT_OPTIONS : STUDENT_REPORT_CONTENT_OPTIONS;
+}
+
+function renderReportsFormMode() {
+  const typeSelect = document.getElementById("reports-type");
+  if (typeSelect && typeSelect.value !== reportType) typeSelect.value = reportType;
+  const studentWrap = document.getElementById("reports-student-filter-wrap");
+  if (studentWrap) studentWrap.classList.toggle("hidden", reportType !== "student");
+}
+
 function renderReportContentChecklist(preselectedContentIds = []) {
   const optionsWrap = document.getElementById("reports-content-options");
   if (!optionsWrap) return;
-  const validIds = new Set(REPORT_CONTENT_OPTIONS.map((option) => option.id));
+  const reportOptions = reportContentOptionsForType();
+  const validIds = new Set(reportOptions.map((option) => option.id));
   const selected = new Set(preselectedContentIds.filter((contentId) => validIds.has(contentId)));
-  const checkboxes = REPORT_CONTENT_OPTIONS.map((option, idx) => {
+  const checkboxes = reportOptions.map((option, idx) => {
     const checked = selected.has(option.id) ? " checked" : "";
     const inputId = `reports-content-${idx}-${option.id}`;
     return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="reports-content-checkbox" value="${option.id}"${checked}><label for="${inputId}">${option.label}</label></div>`;
@@ -3538,7 +3587,158 @@ function reportAttendanceRows(studentIds, range) {
     }));
 }
 
-function buildPrintableReportHtml({ studentIds, range, instructorId = "all" }) {
+function reportInstructorSessionRows(range, instructorId = "all") {
+  const schoolYear = getSchoolYear(range.schoolYear.id);
+  if (!schoolYear) return [];
+  const today = todayISO();
+  const reportDates = instructionalDatesByRangeForSchoolYear(schoolYear, range.startDate, range.endDate)
+    .filter((dateKey) => dateKey <= today);
+  const studentIds = state.students.map((student) => student.id);
+  const sessionMap = new Map();
+
+  reportDates.forEach((dateKey) => {
+    const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
+    Array.from(blocksByStudent.values()).flat().forEach((block) => {
+      if (block.type !== "instruction") return;
+      const effectiveInstructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
+      if (!effectiveInstructorId) return;
+      if (instructorId !== "all" && effectiveInstructorId !== instructorId) return;
+      const minutes = Number(block.actualMinutes || 0);
+      if (!(minutes > 0)) return;
+      const sessionKey = `${effectiveInstructorId}||${block.courseId}||${dateKey}||${block.plannedStart || block.start}||${block.plannedEnd || block.end}`;
+      const existing = sessionMap.get(sessionKey);
+      if (existing && existing.minutes >= minutes) return;
+      const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+      sessionMap.set(sessionKey, {
+        instructorId: effectiveInstructorId,
+        instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : "Unknown Instructor",
+        instructorCategory: instructor ? getInstructorCategoryLabel(instructor.category) : "Other",
+        courseId: block.courseId,
+        courseName: getCourseName(block.courseId),
+        date: dateKey,
+        minutes
+      });
+    });
+  });
+
+  return Array.from(sessionMap.values()).sort((a, b) =>
+    a.instructorName.localeCompare(b.instructorName)
+    || a.courseName.localeCompare(b.courseName)
+    || a.date.localeCompare(b.date));
+}
+
+function reportInstructorSummaryRows(range, instructorId = "all") {
+  const sessionRows = reportInstructorSessionRows(range, instructorId);
+  const summaryMap = new Map();
+  sessionRows.forEach((row) => {
+    const key = `${row.instructorId}||${row.courseId}`;
+    if (!summaryMap.has(key)) {
+      summaryMap.set(key, {
+        instructorId: row.instructorId,
+        instructorName: row.instructorName,
+        instructorCategory: row.instructorCategory,
+        courseName: row.courseName,
+        taughtDates: new Set(),
+        totalMinutes: 0
+      });
+    }
+    const summary = summaryMap.get(key);
+    summary.taughtDates.add(row.date);
+    summary.totalMinutes += row.minutes;
+  });
+
+  return Array.from(summaryMap.values())
+    .map((row) => ({
+      instructorId: row.instructorId,
+      instructorName: row.instructorName,
+      instructorCategory: row.instructorCategory,
+      courseName: row.courseName,
+      instructionDays: row.taughtDates.size,
+      instructionHours: row.totalMinutes / 60
+    }))
+    .sort((a, b) =>
+      a.instructorName.localeCompare(b.instructorName)
+      || a.courseName.localeCompare(b.courseName));
+}
+
+function reportInstructorOverviewRows(range, instructorId = "all") {
+  const sessionRows = reportInstructorSessionRows(range, instructorId);
+  if (!sessionRows.length) {
+    if (instructorId === "all") {
+      return state.instructors
+        .slice()
+        .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`))
+        .map((instructor) => ({
+          instructorName: `${instructor.firstName} ${instructor.lastName}`,
+          age: instructor.birthdate ? String(calculateAge(instructor.birthdate)) : "-",
+          educationLevel: getInstructorEducationLevelLabel(instructor.educationLevel || ""),
+          instructionDays: 0,
+          instructionHours: 0
+        }));
+    }
+    return [{
+      instructorName: getInstructorName(instructorId),
+      age: "-",
+      educationLevel: "Not recorded",
+      instructionDays: 0,
+      instructionHours: 0
+    }];
+  }
+
+  if (instructorId !== "all") {
+    const instructor = state.instructors.find((entry) => entry.id === instructorId);
+    return [{
+      instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : getInstructorName(instructorId),
+      age: instructor?.birthdate ? String(calculateAge(instructor.birthdate)) : "-",
+      educationLevel: getInstructorEducationLevelLabel(instructor?.educationLevel || ""),
+      instructionDays: new Set(sessionRows.map((row) => row.date)).size,
+      instructionHours: sessionRows.reduce((sum, row) => sum + (row.minutes / 60), 0)
+    }];
+  }
+
+  const overviewMap = new Map();
+  const sourceInstructors = instructorId === "all"
+    ? state.instructors
+    : state.instructors.filter((entry) => entry.id === instructorId);
+
+  sourceInstructors.forEach((instructor) => {
+    overviewMap.set(instructor.id, {
+      instructorName: `${instructor.firstName} ${instructor.lastName}`,
+      age: instructor.birthdate ? String(calculateAge(instructor.birthdate)) : "-",
+      educationLevel: getInstructorEducationLevelLabel(instructor.educationLevel || ""),
+      taughtDates: new Set(),
+      instructionHours: 0
+    });
+  });
+
+  sessionRows.forEach((row) => {
+    if (!row.instructorId) return;
+    if (!overviewMap.has(row.instructorId)) {
+      overviewMap.set(row.instructorId, {
+        instructorName: row.instructorName,
+        age: "-",
+        educationLevel: "Not recorded",
+        taughtDates: new Set(),
+        instructionHours: 0
+      });
+    }
+    const overview = overviewMap.get(row.instructorId);
+    overview.taughtDates.add(row.date);
+    overview.instructionHours += row.minutes / 60;
+  });
+
+  return Array.from(overviewMap.values())
+    .map((row) => ({
+      instructorName: row.instructorName,
+      age: row.age,
+      educationLevel: row.educationLevel,
+      instructionDays: row.taughtDates.size,
+      instructionHours: row.instructionHours
+    }))
+    .sort((a, b) => a.instructorName.localeCompare(b.instructorName));
+}
+
+function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "all" }) {
   const titlePeriod = range.quarter ? `${range.schoolYear.label} | ${range.quarter.name}` : `${range.schoolYear.label} | All Quarters`;
   const selectedStudentsLabel = studentIds.map((studentId) => getStudentName(studentId)).join(", ");
   const selectedInstructorLabel = instructorId === "all" ? "All Instructors" : getInstructorName(instructorId);
@@ -3550,7 +3750,7 @@ function buildPrintableReportHtml({ studentIds, range, instructorId = "all" }) {
   const attendanceRows = reportAttendanceRows(studentIds, range);
   const instructionalHourRows = reportInstructionalHourRows(studentIds, range, { instructorId });
   const summaryTableRows = summaryRows.length
-    ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${escapeHtml(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td><td>${row.attended}</td><td>${row.absent}</td><td>${row.instructionalDaysCompleted}</td><td>${row.instructionalHoursCompleted.toFixed(1)}</td></tr>`).join("")
+    ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${escapeHtml(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td><td>${row.attended}</td><td>${row.absent}</td><td>${row.instructionalDaysCompleted}</td><td>${row.instructionalHoursCompleted.toFixed(2)}</td></tr>`).join("")
     : "<tr><td colspan='8'>No student summary data found for the selected filters.</td></tr>";
   const gradeTableRows = gradeRows.length
     ? gradeRows.map((row) => `<tr><td>${escapeHtml(row.student)}</td><td>${escapeHtml(row.subject)}</td><td>${escapeHtml(row.course)}</td><td>${row.date}</td><td>${escapeHtml(row.gradeType)}</td><td>${escapeHtml(row.grade)}</td></tr>`).join("")
@@ -3597,7 +3797,7 @@ function buildPrintableReportHtml({ studentIds, range, instructorId = "all" }) {
       return Array.from(groupedRows.entries()).map(([student, rows]) => {
         const studentTotal = rows.reduce((sum, row) => sum + row.instructionalHours, 0);
         const tableRows = rows
-          .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${row.instructionalHours.toFixed(1)}</td></tr>`)
+          .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${row.instructionalHours.toFixed(2)}</td></tr>`)
           .join("");
         return `
           <h2>${escapeHtml(student)}</h2>
@@ -3609,7 +3809,7 @@ function buildPrintableReportHtml({ studentIds, range, instructorId = "all" }) {
             <thead><tr><th>Course</th><th>Instructional Hours</th></tr></thead>
             <tbody>${tableRows}</tbody>
           </table>
-          <p class="report-meta"><strong>${escapeHtml(student)} Total Instructional Hours:</strong> ${studentTotal.toFixed(1)}</p>`;
+          <p class="report-meta"><strong>${escapeHtml(student)} Total Instructional Hours:</strong> ${studentTotal.toFixed(2)}</p>`;
       }).join("");
     })()
     : "<p>No instructional hours found for the selected filters.</p>";
@@ -3667,7 +3867,7 @@ function buildPrintableReportHtml({ studentIds, range, instructorId = "all" }) {
       <h1>Instructional Hours</h1>
       <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}<br>Instructor: ${escapeHtml(selectedInstructorLabel)}</p>
       ${instructionalHoursSections}
-      <p class="report-meta"><strong>Total Instructional Hours:</strong> ${totalInstructionalHours.toFixed(1)}</p>
+      <p class="report-meta"><strong>Total Instructional Hours:</strong> ${totalInstructionalHours.toFixed(2)}</p>
     </section>`);
   }
 
@@ -3729,14 +3929,100 @@ function buildPrintableReportHtml({ studentIds, range, instructorId = "all" }) {
 </html>`;
 }
 
+function buildPrintableInstructorReportHtml({ range, instructorId = "all" }) {
+  const titlePeriod = range.quarter ? `${range.schoolYear.label} | ${range.quarter.name}` : `${range.schoolYear.label} | All Quarters`;
+  const selectedInstructorLabel = instructorId === "all" ? "All Instructors" : getInstructorName(instructorId);
+  const selectedContentIds = Array.from(reportSelectedContentIds);
+  const overviewRows = reportInstructorOverviewRows(range, instructorId);
+  const summaryRows = reportInstructorSummaryRows(range, instructorId);
+  const detailedRows = reportInstructorSessionRows(range, instructorId);
+  const overviewTableRows = overviewRows.map((row) => `<tr><td>${escapeHtml(row.instructorName)}</td><td>${escapeHtml(row.age)}</td><td>${escapeHtml(row.educationLevel)}</td><td>${row.instructionDays}</td><td>${row.instructionHours.toFixed(2)}</td></tr>`).join("");
+  const summaryTableRows = summaryRows.length
+    ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.instructorName)}</td><td>${escapeHtml(row.instructorCategory)}</td><td>${escapeHtml(row.courseName)}</td><td>${row.instructionDays}</td><td>${row.instructionHours.toFixed(2)}</td></tr>`).join("")
+    : "<tr><td colspan='5'>No instructor summary data found for the selected filters.</td></tr>";
+  const detailTableRows = detailedRows.length
+    ? detailedRows.map((row) => `<tr><td>${escapeHtml(row.instructorName)}</td><td>${escapeHtml(row.instructorCategory)}</td><td>${escapeHtml(row.courseName)}</td><td>${row.date}</td><td>${(row.minutes / 60).toFixed(2)}</td></tr>`).join("")
+    : "<tr><td colspan='5'>No detailed instruction data found for the selected filters.</td></tr>";
+  const pageSections = [];
+
+  if (selectedContentIds.includes("instructorSummary")) {
+    pageSections.push(`
+    <section class="report-page report-page-break">
+      <h1>Instructor Summary</h1>
+      <p class="report-meta">Instructors: ${escapeHtml(selectedInstructorLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      <table>
+        <thead><tr><th>Instructor Name</th><th>Age</th><th>Education Level</th><th>Instruction Days</th><th>Instruction Hours</th></tr></thead>
+        <tbody>${overviewTableRows}</tbody>
+      </table>
+      <table>
+        <thead><tr><th>Instructor Name</th><th>Instructor Category</th><th>Course</th><th>Instruction Days Taught</th><th>Instruction Hours Taught</th></tr></thead>
+        <tbody>${summaryTableRows}</tbody>
+      </table>
+    </section>`);
+  }
+
+  if (selectedContentIds.includes("detailedInstruction")) {
+    pageSections.push(`
+    <section class="report-page">
+      <h1>Detailed Instruction</h1>
+      <p class="report-meta">Instructors: ${escapeHtml(selectedInstructorLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
+      <table>
+        <thead><tr><th>Instructor Name</th><th>Instructor Category</th><th>Course</th><th>Date</th><th>Hours Instructed</th></tr></thead>
+        <tbody>${detailTableRows}</tbody>
+      </table>
+    </section>`);
+  }
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Instructor Report</title>
+  <style>
+    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #2f1f14; margin: 0; background: #f4efe7; }
+    .report-shell { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .report-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .report-toolbar button { border: 0; border-radius: 8px; padding: 10px 16px; background: #875422; color: #fff; font: inherit; cursor: pointer; }
+    .report-page { background: #fff; border: 1px solid #d7c8ad; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(24, 33, 20, 0.08); }
+    .report-page.report-page-break { page-break-after: always; }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .report-meta { margin: 0 0 18px; color: #6c5847; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #d9cdb7; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f6f1e7; }
+    @media print {
+      body { background: #fff; }
+      .report-shell { max-width: none; padding: 0; }
+      .report-toolbar { display: none; }
+      .report-page { box-shadow: none; border: 0; border-radius: 0; margin: 0; padding: 0; }
+      .report-page.report-page-break { page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-shell">
+    <div class="report-toolbar">
+      <div>
+        <strong>Instructor Report</strong><br>
+        <span>${escapeHtml(titlePeriod)}</span>
+      </div>
+      <button type="button" onclick="window.print()">Print</button>
+    </div>
+
+    ${pageSections.join("\n")}
+  </div>
+</body>
+</html>`;
+}
+
 function generatePrintableReport() {
-  const studentIds = Array.from(reportSelectedStudentIds);
   const selectedContentIds = Array.from(reportSelectedContentIds);
   const schoolYearId = document.getElementById("reports-school-year")?.value || "";
   const quarterName = document.getElementById("reports-quarter")?.value || "";
   const instructorId = document.getElementById("reports-instructor")?.value || "all";
-  if (!studentIds.length || !schoolYearId || !quarterName) {
-    setReportsMessage("error", "Student, School Year, and Quarter are all required.");
+  const studentIds = Array.from(reportSelectedStudentIds);
+  if (!schoolYearId || !quarterName) {
+    setReportsMessage("error", "School Year and Quarter are required.");
     return;
   }
   if (!selectedContentIds.length) {
@@ -3748,6 +4034,10 @@ function generatePrintableReport() {
     setReportsMessage("error", "The selected School Year or Quarter is not valid.");
     return;
   }
+  if (reportType === "student" && !studentIds.length) {
+    setReportsMessage("error", "Select at least one student for a Student report.");
+    return;
+  }
   const reportWindow = window.open("", "_blank");
   if (!reportWindow) {
     setReportsMessage("error", "The report could not be opened. Please allow pop-ups and try again.");
@@ -3755,7 +4045,11 @@ function generatePrintableReport() {
   }
   reportWindow.opener = null;
   reportWindow.document.open();
-  reportWindow.document.write(buildPrintableReportHtml({ studentIds, range, instructorId }));
+  reportWindow.document.write(
+    reportType === "instructor"
+      ? buildPrintableInstructorReportHtml({ range, instructorId })
+      : buildPrintableStudentReportHtml({ studentIds, range, instructorId })
+  );
   reportWindow.document.close();
   setReportsMessage("success", "Report opened in a new tab.");
 }
@@ -4188,9 +4482,9 @@ function renderInstructors() {
     .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`))
     .map((instructor) => {
       const ageNow = calculateAge(instructor.birthdate);
-      return `<tr><td>${escapeHtml(instructor.firstName)} ${escapeHtml(instructor.lastName)}</td><td>${escapeHtml(getInstructorCategoryLabel(instructor.category))}</td><td>${escapeHtml(formatDisplayDate(instructor.birthdate))}</td><td>${ageNow}</td><td><div class="table-action-row"><button data-edit-instructor="${instructor.id}" type="button">Edit</button><button data-remove-instructor="${instructor.id}" type="button">Remove</button></div></td></tr>`;
+      return `<tr><td>${escapeHtml(instructor.firstName)} ${escapeHtml(instructor.lastName)}</td><td>${escapeHtml(getInstructorCategoryLabel(instructor.category))}</td><td>${escapeHtml(getInstructorEducationLevelLabel(instructor.educationLevel))}</td><td>${escapeHtml(formatDisplayDate(instructor.birthdate))}</td><td>${ageNow}</td><td><div class="table-action-row"><button data-edit-instructor="${instructor.id}" type="button">Edit</button><button data-remove-instructor="${instructor.id}" type="button">Remove</button></div></td></tr>`;
     });
-  rowOrEmpty(tableBody, rows, "No instructors added yet.", 5);
+  rowOrEmpty(tableBody, rows, "No instructors added yet.", 6);
 }
 
 function renderSubjects() {
@@ -4216,6 +4510,17 @@ function renderManagementSectionVisibility() {
   document.querySelectorAll("[data-management-tab]").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-management-tab") === currentManagementTab);
   });
+}
+
+function isStudentEnrolledInCourse(studentId, courseId, sourceEnrollments = state.enrollments) {
+  return sourceEnrollments.some((enrollment) =>
+    enrollment.studentId === studentId
+    && enrollment.courseId === courseId);
+}
+
+function removePlansForStudentCourse(studentId, courseId) {
+  state.plans = state.plans.filter((plan) =>
+    !(plan.studentId === studentId && plan.courseId === courseId));
 }
 
 function renderScheduleSectionVisibility() {
@@ -4403,6 +4708,10 @@ function renderStudentDetail() {
   }
 
   document.getElementById("student-detail-title").textContent = `${student.firstName} ${student.lastName} | Grade ${student.grade} | Age ${calculateAge(student.birthdate)}`;
+  const applyBtn = document.getElementById("student-detail-apply-btn");
+  if (applyBtn) {
+    applyBtn.textContent = studentEnrollmentEditMode ? "Apply Changes" : "Students";
+  }
   renderStudentEnrollmentCourseChecklist(getSelectedStudentEnrollmentCourseIds(), student.id);
 
   const quarterSelect = document.getElementById("student-detail-quarter-filter");
@@ -4428,9 +4737,12 @@ function renderStudentDetail() {
         }))
         .join("");
       const orderControl = isAdminUser()
-        ? `<select class="student-schedule-order-select" data-enrollment-order-id="${e.id}" aria-label="Schedule order for ${getCourseName(e.courseId)}">${orderOptions}</select>`
+        ? `<select class="student-schedule-order-select" data-enrollment-order-id="${e.id}" aria-label="Schedule order for ${getCourseName(e.courseId)}"${studentEnrollmentEditMode ? "" : " disabled"}>${orderOptions}</select>`
         : (parseScheduleOrderValue(e.scheduleOrder) != null ? String(parseScheduleOrderValue(e.scheduleOrder)) : "Auto");
-      return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${orderControl}</td><td>${avgDisplay}</td><td><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></td></tr>`;
+      const actions = studentEnrollmentEditMode
+        ? `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' type='button' disabled>Editing</button><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></div>`
+        : `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' type='button'>Edit</button></div>`;
+      return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
     });
   if (enrollmentRows.length) {
     const overallAverage = gradeSummary.overallAverage;
@@ -6400,6 +6712,7 @@ function calendarEvents(rangeStart, rangeEnd, studentFilterIds = [], subjectFilt
   state.plans.forEach((p) => {
     if (studentFilterIds.length && !studentFilterIds.includes(p.studentId)) return;
     if (courseFilterIds.length && !courseFilterIds.includes(p.courseId)) return;
+    if (!isStudentEnrolledInCourse(p.studentId, p.courseId)) return;
     const course = getCourse(p.courseId);
     if (!course) return;
     if (subjectFilterIds.length && !subjectFilterIds.includes(course.subjectId)) return;
@@ -6821,7 +7134,7 @@ function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds
       const actualRange = `${formatClockTime(block.start)} - ${formatClockTime(block.end)}`;
       const plannedRange = `${formatClockTime(block.plannedStart)} - ${formatClockTime(block.plannedEnd)}`;
       if (block.type !== "instruction") {
-        return `<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td>${Number(block.actualMinutes || 0)} min</td><td></td></tr>`;
+        return `<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td></td><td>${Number(block.actualMinutes || 0)} min</td><td class="calendar-actions-cell"></td></tr>`;
       }
 
       const existing = findInstructionActualRecord(block.studentId, block.courseId, dateKey);
@@ -7337,7 +7650,9 @@ function removeLegacyLocalCourse(courseId) {
 }
 
 function removeLegacyLocalEnrollment(enrollmentId) {
+  const enrollment = state.enrollments.find((entry) => entry.id === enrollmentId);
   state.enrollments = state.enrollments.filter((entry) => entry.id !== enrollmentId);
+  if (enrollment) removePlansForStudentCourse(enrollment.studentId, enrollment.courseId);
 }
 
 function removeLegacyLocalUser(userId) {
@@ -7381,6 +7696,7 @@ function updateLegacyLocalInstructor(existingInstructor, payload) {
   existingInstructor.lastName = payload.lastName;
   existingInstructor.birthdate = payload.birthdate;
   existingInstructor.category = payload.category;
+  existingInstructor.educationLevel = payload.educationLevel || "";
   existingInstructor.ageRecorded = payload.ageRecorded;
 }
 
@@ -7706,13 +8022,15 @@ function bindEvents() {
     const firstName = document.getElementById("instructor-first").value.trim();
     const lastName = document.getElementById("instructor-last").value.trim();
     const category = document.getElementById("instructor-category").value;
+    const educationLevel = document.getElementById("instructor-education-level").value;
     const birthdate = document.getElementById("instructor-birthdate").value;
     const ageRecorded = birthdate ? calculateAge(birthdate) : null;
-    if (!firstName || !lastName || !birthdate || !INSTRUCTOR_CATEGORY_OPTIONS.includes(category)) return;
+    if (!firstName || !lastName || !birthdate || !INSTRUCTOR_CATEGORY_OPTIONS.includes(category) || (educationLevel && !INSTRUCTOR_EDUCATION_LEVEL_OPTIONS.includes(educationLevel))) return;
     const payload = {
       firstName,
       lastName,
       category,
+      educationLevel,
       birthdate,
       ageRecorded,
       createdAt: todayISO()
@@ -8017,6 +8335,7 @@ function bindEvents() {
     if (studentViewMode === "detail" && studentEnrollmentDraftStudentId === studentId) {
       studentEnrollmentDraft.push(...newCourseIds.map((courseId) => ({ id: uid(), studentId, courseId, scheduleOrder: null })));
       studentEnrollmentDraftDirty = true;
+      studentEnrollmentEditMode = true;
       renderStudentDetail();
       return;
     }
@@ -8053,15 +8372,30 @@ function bindEvents() {
   const studentDetailApplyBtn = document.getElementById("student-detail-apply-btn");
   if (studentDetailApplyBtn) {
     studentDetailApplyBtn.addEventListener("click", () => {
-      if (!ensureAdminAction()) return;
       const studentId = selectedStudentId;
       if (!studentId || studentEnrollmentDraftStudentId !== studentId) return;
+      if (!studentEnrollmentEditMode) {
+        resetStudentEnrollmentDraft();
+        selectedStudentId = "";
+        setStudentViewMode("list");
+        renderStudentViewMode();
+        renderAll();
+        return;
+      }
+      if (!studentEnrollmentDraftDirty) {
+        studentEnrollmentEditMode = false;
+        renderStudentDetail();
+        return;
+      }
+      if (!ensureAdminAction()) return;
       const existingEnrollments = state.enrollments.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry }));
       const draftEnrollments = studentEnrollmentDraft.map((entry) => ({
         ...entry,
         studentId,
         scheduleOrder: parseScheduleOrderValue(entry.scheduleOrder)
       }));
+      const removedEnrollments = existingEnrollments.filter((entry) =>
+        !draftEnrollments.some((draft) => draft.id === entry.id));
       if (hostedModeEnabled) {
         (async () => {
           try {
@@ -8070,6 +8404,13 @@ function bindEvents() {
             for (const existing of existingEnrollments) {
               if (!draftById.has(existing.id)) {
                 await deleteHostedEnrollment(existing.id);
+              }
+            }
+            for (const removed of removedEnrollments) {
+              const matchingPlans = state.plans.filter((plan) =>
+                plan.studentId === removed.studentId && plan.courseId === removed.courseId);
+              for (const plan of matchingPlans) {
+                await deleteHostedPlan(plan.id);
               }
             }
             for (const draft of draftEnrollments) {
@@ -8097,6 +8438,7 @@ function bindEvents() {
         return;
       }
       state.enrollments = state.enrollments.filter((entry) => entry.studentId !== studentId);
+      removedEnrollments.forEach((entry) => removePlansForStudentCourse(entry.studentId, entry.courseId));
       state.enrollments.push(...draftEnrollments.map((entry) => ({ ...entry })));
       saveState();
       primeStudentEnrollmentDraft(studentId);
@@ -8112,6 +8454,16 @@ function bindEvents() {
   if (reportsSchoolYearSelect) {
     reportsSchoolYearSelect.addEventListener("change", () => {
       syncReportsQuarterOptions();
+      setReportsMessage("", "Select report criteria and content to generate a printable report.");
+    });
+  }
+  const reportsTypeSelect = document.getElementById("reports-type");
+  if (reportsTypeSelect) {
+    reportsTypeSelect.addEventListener("change", () => {
+      reportType = reportsTypeSelect.value === "instructor" ? "instructor" : "student";
+      reportSelectedContentIds = new Set(reportContentOptionsForType().map((option) => option.id));
+      renderReportsFormMode();
+      renderReportContentChecklist(Array.from(reportSelectedContentIds));
       setReportsMessage("", "Select report criteria and content to generate a printable report.");
     });
   }
@@ -9667,6 +10019,7 @@ function bindEvents() {
       if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === selectedStudentId) {
         studentEnrollmentDraft = studentEnrollmentDraft.filter((entry) => entry.id !== enrollmentId);
         studentEnrollmentDraftDirty = true;
+        studentEnrollmentEditMode = true;
         renderStudentDetail();
         return;
       }
@@ -9685,6 +10038,15 @@ function bindEvents() {
       removeLegacyLocalEnrollment(enrollmentId);
       saveState();
       renderAll();
+      return;
+    }
+    const editEnrollmentId = t.getAttribute("data-edit-student-enrollment");
+    if (editEnrollmentId) {
+      if (!ensureAdminAction()) return;
+      if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === selectedStudentId) {
+        studentEnrollmentEditMode = true;
+        renderStudentDetail();
+      }
       return;
     }
     const dailyBreakId = t.getAttribute("data-remove-daily-break");

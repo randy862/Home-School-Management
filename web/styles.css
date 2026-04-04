@@ -1874,6 +1874,20 @@ td {
   white-space: nowrap;
 }
 
+.course-exclusive-field {
+  display: grid;
+  gap: 0.2rem;
+  align-self: end;
+  justify-self: start;
+  min-width: 0;
+}
+
+.course-exclusive-field input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  justify-self: center;
+}
+
 #grade-type-form {
   grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto auto;
   align-items: end;

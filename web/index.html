@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604031250">
+  <link rel="stylesheet" href="styles.css?v=202604031445">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -424,7 +424,7 @@
           <h3>Instructors</h3>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Name</th><th>Category</th><th>Birthdate</th><th>Age</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Category</th><th>Education Level</th><th>Birthdate</th><th>Age</th><th>Actions</th></tr></thead>
               <tbody id="instructor-table"></tbody>
             </table>
           </div>
@@ -440,7 +440,19 @@
             <select id="instructor-category" required>
               <option value="parent">Parent</option>
               <option value="volunteer">Volunteer</option>
-              <option value="compensated">Compensated</option>
+              <option value="compensated">Staff</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label>Education Level
+            <select id="instructor-education-level">
+              <option value="">Select education level</option>
+              <option value="high_school_diploma_or_ged">High School Diploma or GED</option>
+              <option value="some_college">Some College</option>
+              <option value="associate_degree">Associate Degree</option>
+              <option value="bachelors_degree">Bachelor's Degree</option>
+              <option value="masters_degree">Master's Degree</option>
+              <option value="doctoral_degree">Doctoral Degree</option>
               <option value="other">Other</option>
             </select>
           </label>
@@ -485,7 +497,7 @@
             <label>Subject<select id="course-subject" required></select></label>
             <label>Instructor<select id="course-instructor"><option value="">Unassigned</option></select></label>
             <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
-            <label class="checkbox-field checkbox-field-stacked">Exclusive<input id="course-exclusive-resource" type="checkbox"></label>
+            <label class="course-exclusive-field">Exclusive<input id="course-exclusive-resource" type="checkbox"></label>
             <div class="course-form-actions">
               <button id="course-submit-btn" type="submit">Add Course</button>
               <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
@@ -1005,7 +1017,13 @@
           <section class="reports-filter-group">
             <h3>Report Criteria</h3>
             <div class="reports-criteria-grid">
-              <label class="reports-student-field">Student
+              <label>Report Type
+                <select id="reports-type" required>
+                  <option value="student">Student</option>
+                  <option value="instructor">Instructor</option>
+                </select>
+              </label>
+              <label id="reports-student-filter-wrap" class="reports-student-field">Student
                 <details id="reports-student-dropdown" class="multi-select-dropdown">
                   <summary id="reports-student-summary">Students (0 selected)</summary>
                   <div id="reports-student-options" class="checklist-vertical"></div>
@@ -1017,7 +1035,7 @@
               <label>Quarter
                 <select id="reports-quarter" required></select>
               </label>
-              <label>Instructor
+              <label id="reports-instructor-filter-wrap">Instructor
                 <select id="reports-instructor">
                   <option value="all">All Instructors</option>
                 </select>
@@ -1037,6 +1055,6 @@
     </div>
   </main>
 
-  <script src="app.js?v=202604031235"></script>
+  <script src="app.js?v=202604031915"></script>
 </body>
 </html>
