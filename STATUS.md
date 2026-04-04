@@ -1,6 +1,6 @@
 # Status Board
 
-Date: 2026-03-27
+Date: 2026-04-04
 
 ## Done
 - Completed the MVP/local-first app with student, curriculum, planning, attendance, grades, dashboard, and report functionality.
@@ -11,6 +11,7 @@ Date: 2026-03-27
   - `NOTES/milestone-1-production-plan.md`
   - `NOTES/postgresql-schema-v1.md`
   - `NOTES/backend-auth-api-refactor-plan.md`
+- Captured the `School Day` operational hub as an implementation-ready package in `NOTES/school-day-hub-spec-package.md`.
 - Reframed the roadmap around a production-ready single-tenant deployment as the prerequisite for later SaaS multi-tenancy.
 
 ## In Progress
@@ -546,3 +547,17 @@ Date: 2026-03-27
   - implement Stripe checkout-session creation
   - implement Stripe webhook intake with idempotent event persistence
   - implement provisioning handoff and signup-status lookup
+
+## Current School Day Build Hand-off
+
+- The implementation-ready planning package now exists in:
+  - `NOTES/school-day-hub-spec-package.md`
+- The preferred delivery model is locked in as:
+  - `hub model first`
+  - `true daily execution layer later`
+- The next coding slice is now clearly defined:
+  - add the `School Day` sidebar entry and shell
+  - introduce shared date/filter context across the new workspace
+  - render the current Calendar daily view inside the new tab
+  - add inline grade entry from daily schedule rows
+  - follow with attendance integration and only then evaluate deeper persistence changes for same-day schedule overrides

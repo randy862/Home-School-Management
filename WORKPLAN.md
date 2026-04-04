@@ -38,6 +38,7 @@
   - `NOTES/postgresql-schema-v1.md`
   - `NOTES/backend-auth-api-refactor-plan.md`
   - `NOTES/postgres-repository-transition-plan.md`
+  - `NOTES/school-day-hub-spec-package.md`
 - Workstreams:
   - [x] Define target architecture and deployment topology
   - [x] Define Milestone 1 scope, sequencing, and acceptance criteria
@@ -178,3 +179,9 @@
    - [ ] Decide the first-release public-site hosting/runtime approach.
    - [ ] Finalize the first public plan set, pricing, and whether launch includes monthly only or monthly plus annual billing.
    - [ ] Implement the first control-plane commercial migration and public plan API.
+11. Prepare the next hosted-app workflow consolidation slice: the School Day hub.
+   - [x] Define the School Day hub concept as an implementation-ready spec package.
+   - [x] Decide that the first version should be a hub model, not the full persisted execution layer.
+   - [x] Define the phased rollout from shared shell to inline grade entry, attendance integration, and execution-layer-ready daily overrides.
+   - [ ] Confirm the first-pass shared filter set and whether inline attendance lands in the first coding slice.
+   - [ ] Implement Phase 1: `School Day` sidebar entry, page shell, shared date context, and internal tabs.
