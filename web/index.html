@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604031445">
+  <link rel="stylesheet" href="styles.css?v=202604051050">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -60,6 +60,7 @@
       <aside class="app-sidebar panel">
         <nav class="tabs app-sidebar-nav" aria-label="Primary">
           <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
+          <button class="tab-btn" data-tab="school-day" type="button">School Day</button>
           <button class="tab-btn" data-tab="students" type="button">Students</button>
           <button class="tab-btn" data-tab="instructors" type="button">Instructors</button>
           <button class="tab-btn" data-tab="management" type="button">Cirriculum</button>
@@ -322,6 +323,101 @@
         </div>
       </div>
 
+    </section>
+
+    <section id="tab-school-day" class="tab-panel panel">
+      <h2>School Day</h2>
+      <div class="school-day-section school-day-section-shell">
+        <p class="muted">Use one workspace for the normal daily loop: review the day, make same-day adjustments, and move into attendance and grades without hunting through the app.</p>
+        <form id="school-day-form" class="grid-form school-day-form">
+          <label>Reference Date<input id="school-day-date" type="date" required></label>
+          <label class="calendar-filter-field">Student Filter
+            <details id="school-day-student-dropdown" class="multi-select-dropdown">
+              <summary id="school-day-student-summary">Students (0 selected)</summary>
+              <div id="school-day-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label class="calendar-filter-field">Subject Filter
+            <details id="school-day-subject-dropdown" class="multi-select-dropdown">
+              <summary id="school-day-subject-summary">Subjects (0 selected)</summary>
+              <div id="school-day-subject-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label class="calendar-filter-field">Course Filter
+            <details id="school-day-course-dropdown" class="multi-select-dropdown">
+              <summary id="school-day-course-summary">Courses (0 selected)</summary>
+              <div id="school-day-course-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+        </form>
+        <div class="calendar-toolbar school-day-toolbar">
+          <button id="school-day-prev-period" type="button">Previous</button>
+          <p id="school-day-range" class="calendar-month-title">Daily view</p>
+          <button id="school-day-next-period" type="button">Next</button>
+        </div>
+      </div>
+
+      <div class="subtabs school-day-subtabs" aria-label="School Day sections">
+        <button class="subtab-btn active" data-school-day-tab="daily-schedule" type="button">Daily Schedule</button>
+        <button class="subtab-btn" data-school-day-tab="attendance" type="button">Attendance</button>
+        <button class="subtab-btn" data-school-day-tab="grades" type="button">Grades</button>
+      </div>
+
+      <div id="school-day-daily-schedule-section" class="school-day-section">
+        <h3>Daily Schedule</h3>
+        <div id="school-day-quick-filters" class="school-day-quick-filters" aria-label="School Day quick filters">
+          <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="needs-attendance">Needs Attendance</button>
+          <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="needs-grade">Needs Grade</button>
+          <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="overridden">Overridden</button>
+        </div>
+        <div class="school-day-attendance-toolbar">
+          <p id="school-day-daily-message" class="muted">Review or adjust the selected School Day schedule.</p>
+          <div class="table-action-row">
+            <button type="button" id="school-day-reset-student-btn">Reset Student Day</button>
+            <button type="button" id="school-day-reset-day-btn">Reset Filtered Day</button>
+          </div>
+        </div>
+        <div class="table-wrap calendar-table-wrap">
+          <table>
+            <thead><tr><th>Hour</th><th>Student</th><th>Planned Instruction</th><th>Instructor</th><th>Minutes</th><th>Actions</th></tr></thead>
+            <tbody id="school-day-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="school-day-attendance-section" class="school-day-section hidden">
+        <h3>Attendance</h3>
+        <div class="school-day-attendance-toolbar">
+          <p id="school-day-attendance-message" class="muted">Mark attendance for the selected School Day roster.</p>
+          <button type="button" id="school-day-attendance-save-all-btn">Save All Attendance</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Status</th><th>Existing Record</th><th>Actions</th></tr></thead>
+            <tbody id="school-day-attendance-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="school-day-grades-section" class="school-day-section hidden">
+        <h3>Grades</h3>
+        <div class="school-day-attendance-toolbar">
+          <p id="school-day-grades-message" class="muted">Enter grades for the selected School Day context.</p>
+          <div class="table-action-row">
+            <button type="button" id="school-day-add-grade-row-btn">Add Grade Row</button>
+            <button type="button" id="school-day-add-grade-rows-for-students-btn">Add Rows For Students</button>
+          </div>
+        </div>
+        <div id="school-day-grade-entry-wrap" class="table-wrap hidden">
+          <table>
+            <thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead>
+            <tbody id="school-day-grade-entry-body"></tbody>
+          </table>
+        </div>
+        <div class="callout school-day-grades-callout">
+          <p class="muted">Use the `Grade` button on a schedule row for the fastest in-context workflow, or use this tab for bulk same-day entry.</p>
+        </div>
+      </div>
     </section>
 
     <section id="tab-students" class="tab-panel panel">
@@ -1054,7 +1150,6 @@
       </div>
     </div>
   </main>
-
-  <script src="app.js?v=202604031915"></script>
+  <script src="app.js?v=202604051050"></script>
 </body>
 </html>

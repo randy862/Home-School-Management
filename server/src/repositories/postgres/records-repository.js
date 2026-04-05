@@ -5,16 +5,18 @@ function createRecordsRepository(deps) {
     createActualInstructionMinutes: async (record) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
-        INSERT INTO actual_instruction_minutes (id, student_id, course_id, instructor_id, instruction_date, actual_minutes)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO actual_instruction_minutes (id, student_id, course_id, instructor_id, instruction_date, actual_minutes, start_minutes, order_index)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING
           id,
           student_id AS "studentId",
           course_id AS "courseId",
           instructor_id AS "instructorId",
           instruction_date AS "date",
-          actual_minutes AS "actualMinutes"
-      `, [record.id, record.studentId, record.courseId, record.instructorId || null, record.date, record.actualMinutes]);
+          actual_minutes AS "actualMinutes",
+          start_minutes AS "startMinutes",
+          order_index AS "orderIndex"
+      `, [record.id, record.studentId, record.courseId, record.instructorId || null, record.date, record.actualMinutes, record.startMinutes ?? null, record.orderIndex ?? null]);
       return mapActualInstructionRow(result.rows[0]);
     },
 
@@ -111,7 +113,9 @@ function createRecordsRepository(deps) {
             course_id AS "courseId",
             instructor_id AS "instructorId",
             instruction_date AS "date",
-            actual_minutes AS "actualMinutes"
+            actual_minutes AS "actualMinutes",
+            start_minutes AS "startMinutes",
+            order_index AS "orderIndex"
           FROM actual_instruction_minutes
           WHERE student_id = $1
           ORDER BY instruction_date, course_id
@@ -126,7 +130,9 @@ function createRecordsRepository(deps) {
           course_id AS "courseId",
           instructor_id AS "instructorId",
           instruction_date AS "date",
-          actual_minutes AS "actualMinutes"
+          actual_minutes AS "actualMinutes",
+          start_minutes AS "startMinutes",
+          order_index AS "orderIndex"
         FROM actual_instruction_minutes
         ORDER BY instruction_date, student_id, course_id
       `);
@@ -198,7 +204,9 @@ function createRecordsRepository(deps) {
           course_id = $3,
           instructor_id = $4,
           instruction_date = $5,
-          actual_minutes = $6
+          actual_minutes = $6,
+          start_minutes = $7,
+          order_index = $8
         WHERE id = $1
         RETURNING
           id,
@@ -206,8 +214,10 @@ function createRecordsRepository(deps) {
           course_id AS "courseId",
           instructor_id AS "instructorId",
           instruction_date AS "date",
-          actual_minutes AS "actualMinutes"
-      `, [id, record.studentId, record.courseId, record.instructorId || null, record.date, record.actualMinutes]);
+          actual_minutes AS "actualMinutes",
+          start_minutes AS "startMinutes",
+          order_index AS "orderIndex"
+      `, [id, record.studentId, record.courseId, record.instructorId || null, record.date, record.actualMinutes, record.startMinutes ?? null, record.orderIndex ?? null]);
       return result.rows[0] ? mapActualInstructionRow(result.rows[0]) : null;
     },
 
@@ -252,7 +262,13 @@ function mapActualInstructionRow(row) {
   return {
     ...row,
     instructorId: row.instructorId || "",
-    actualMinutes: Number(row.actualMinutes || 0)
+    actualMinutes: Number(row.actualMinutes || 0),
+    startMinutes: row.startMinutes == null || row.startMinutes === ""
+      ? null
+      : Number(row.startMinutes),
+    orderIndex: row.orderIndex == null || row.orderIndex === ""
+      ? null
+      : Number(row.orderIndex)
   };
 }
 

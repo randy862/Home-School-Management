@@ -26,16 +26,24 @@ function normalizeActualInstructionPayload(input) {
   const instructorId = String(input?.instructorId || "").trim();
   const date = String(input?.date || "").trim();
   const actualMinutes = Number(input?.actualMinutes);
+  const startMinutes = input?.startMinutes == null || input?.startMinutes === ""
+    ? null
+    : Number(input.startMinutes);
+  const orderIndex = input?.orderIndex == null || input?.orderIndex === ""
+    ? null
+    : Number(input.orderIndex);
   if (!studentId
     || !courseId
     || !/^\d{4}-\d{2}-\d{2}$/.test(date)
     || !Number.isInteger(actualMinutes)
-    || actualMinutes <= 0) {
+    || actualMinutes <= 0
+    || (startMinutes != null && (!Number.isInteger(startMinutes) || startMinutes < 0 || startMinutes >= 1440))
+    || (orderIndex != null && (!Number.isInteger(orderIndex) || orderIndex <= 0))) {
     const error = new Error("Provide valid actual instructional minute values.");
     error.statusCode = 400;
     throw error;
   }
-  return { id, studentId, courseId, instructorId, date, actualMinutes };
+  return { id, studentId, courseId, instructorId, date, actualMinutes, startMinutes, orderIndex };
 }
 
 function normalizeAttendancePayload(input) {

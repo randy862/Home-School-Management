@@ -343,14 +343,22 @@ function normalizeInstructionActualsShape(inputState) {
       courseId: String(entry.courseId || "").trim(),
       instructorId: String(entry.instructorId || "").trim(),
       date: String(entry.date || "").trim(),
-      actualMinutes: Number(entry.actualMinutes)
+      actualMinutes: Number(entry.actualMinutes),
+      startMinutes: entry.startMinutes == null || entry.startMinutes === ""
+        ? null
+        : Number(entry.startMinutes),
+      orderIndex: entry.orderIndex == null || entry.orderIndex === ""
+        ? null
+        : Number(entry.orderIndex)
     }))
     .filter((entry) =>
       validStudentIds.has(entry.studentId)
       && validCourseIds.has(entry.courseId)
       && /^\d{4}-\d{2}-\d{2}$/.test(entry.date)
       && Number.isInteger(entry.actualMinutes)
-      && entry.actualMinutes > 0)
+      && entry.actualMinutes > 0
+      && (entry.startMinutes == null || (Number.isInteger(entry.startMinutes) && entry.startMinutes >= 0 && entry.startMinutes < 1440))
+      && (entry.orderIndex == null || (Number.isInteger(entry.orderIndex) && entry.orderIndex > 0)))
     .filter((entry) => {
       const key = `${entry.studentId}||${entry.courseId}||${entry.date}`;
       if (seen.has(key)) return false;
@@ -866,11 +874,24 @@ let showScheduleDailyBreaks = false;
 let showScheduleHolidays = false;
 let showSchedulePlans = false;
 let currentScheduleTab = "school-years";
+let currentSchoolDayTab = "daily-schedule";
+let schoolDayInlineGradeKey = "";
+let schoolDayDailyMessageState = { kind: "", text: "" };
+let schoolDayAttendanceMessageState = { kind: "", text: "" };
+let schoolDayGradesMessageState = { kind: "", text: "" };
+let schoolDayQuickFilters = {
+  needsAttendance: false,
+  needsGrade: false,
+  overridden: false
+};
 let calendarBackToWeekContext = null;
 let calendarBackToMonthContext = null;
 let calendarSelectedStudentIds = new Set();
 let calendarSelectedSubjectIds = new Set();
 let calendarSelectedCourseIds = new Set();
+let schoolDaySelectedStudentIds = new Set();
+let schoolDaySelectedSubjectIds = new Set();
+let schoolDaySelectedCourseIds = new Set();
 let reportType = "student";
 let reportSelectedStudentIds = new Set();
 const STUDENT_REPORT_CONTENT_OPTIONS = [
@@ -1127,7 +1148,9 @@ async function refreshHostedInstructionActuals() {
       ...row,
       instructorId: row.instructorId || "",
       date: normalizeApiDate(row.date),
-      actualMinutes: Number(row.actualMinutes || 0)
+      actualMinutes: Number(row.actualMinutes || 0),
+      startMinutes: row.startMinutes == null || row.startMinutes === "" ? null : Number(row.startMinutes),
+      orderIndex: row.orderIndex == null || row.orderIndex === "" ? null : Number(row.orderIndex)
     }));
   }
 }
@@ -2663,6 +2686,14 @@ function formatClockTime(value) {
   const ampm = h24 >= 12 ? "PM" : "AM";
   const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
   return `${h12}:${String(mins).padStart(2, "0")} ${ampm}`;
+}
+
+function formatTimeInputValue(value) {
+  const minutes = typeof value === "number" ? value : parseTimeToMinutes(value);
+  if (!Number.isFinite(minutes)) return "";
+  const h24 = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(h24).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
 }
 
 function dailyBreakLabel(entry) {
@@ -4512,6 +4543,19 @@ function renderManagementSectionVisibility() {
   });
 }
 
+function effectiveInstructionOrderIndex(studentId, courseId, date, fallbackOrderIndex = null) {
+  const existing = findInstructionActualRecord(studentId, courseId, date);
+  if (existing && Number.isInteger(existing.orderIndex) && existing.orderIndex > 0) {
+    return existing.orderIndex;
+  }
+  return Number.isFinite(fallbackOrderIndex) ? fallbackOrderIndex : null;
+}
+
+function hasInstructionOrderOverride(studentId, courseId, date) {
+  const existing = findInstructionActualRecord(studentId, courseId, date);
+  return !!(existing && Number.isInteger(existing.orderIndex) && existing.orderIndex > 0);
+}
+
 function isStudentEnrolledInCourse(studentId, courseId, sourceEnrollments = state.enrollments) {
   return sourceEnrollments.some((enrollment) =>
     enrollment.studentId === studentId
@@ -4970,6 +5014,222 @@ function renderAttendance() {
   rowOrEmpty(document.getElementById("attendance-table"), rows, "No attendance recorded yet.", 4);
 }
 
+function attendanceRecordForStudentDate(studentId, date) {
+  return state.attendance.find((record) => record.studentId === studentId && record.date === date) || null;
+}
+
+function gradeRecordsForStudentCourseDate(studentId, courseId, date) {
+  return state.tests.filter((record) =>
+    record.studentId === studentId
+    && record.courseId === courseId
+    && record.date === date);
+}
+
+function schoolDayRosterStudents(referenceISO) {
+  const selectedStudentIds = getSchoolDaySelectedStudentIds();
+  if (selectedStudentIds.length) {
+    return visibleStudents().filter((student) => selectedStudentIds.includes(student.id));
+  }
+  const subjectFilterIds = getSchoolDaySelectedSubjectIds();
+  const courseFilterIds = getSchoolDaySelectedCourseIds();
+  const scheduledStudentIds = new Set(
+    Array.from(dailyScheduledBlocks(referenceISO, [], subjectFilterIds, courseFilterIds).values())
+      .flat()
+      .map((block) => block.studentId)
+      .filter(Boolean)
+  );
+  if (scheduledStudentIds.size) {
+    return visibleStudents().filter((student) => scheduledStudentIds.has(student.id));
+  }
+  return visibleStudents();
+}
+
+async function saveAttendanceUpserts(records) {
+  if (hostedModeEnabled) {
+    for (const record of records) {
+      const existing = attendanceRecordForStudentDate(record.studentId, record.date);
+      if (existing) {
+        await updateHostedAttendance(existing.id, {
+          studentId: record.studentId,
+          date: record.date,
+          present: record.present
+        });
+      } else {
+        await createHostedAttendance({
+          id: uid(),
+          studentId: record.studentId,
+          date: record.date,
+          present: record.present
+        });
+      }
+    }
+    await refreshHostedAttendance();
+    return;
+  }
+
+  records.forEach((record) => {
+    const existing = attendanceRecordForStudentDate(record.studentId, record.date);
+    if (existing) {
+      updateLegacyLocalAttendance(existing, {
+        studentId: record.studentId,
+        date: record.date,
+        present: record.present
+      });
+    } else {
+      createLegacyLocalAttendance({
+        studentId: record.studentId,
+        date: record.date,
+        present: record.present
+      });
+    }
+  });
+  saveState();
+}
+
+function setSchoolDayAttendanceMessage(kind, message) {
+  schoolDayAttendanceMessageState = { kind: kind || "", text: message || "" };
+  const el = document.getElementById("school-day-attendance-message");
+  if (!el) return;
+  el.className = kind ? `status-text ${kind}` : "muted";
+  el.textContent = message || "";
+}
+
+function setSchoolDayDailyMessage(kind, message) {
+  schoolDayDailyMessageState = { kind: kind || "", text: message || "" };
+  const el = document.getElementById("school-day-daily-message");
+  if (!el) return;
+  el.className = kind ? `status-text ${kind}` : "muted";
+  el.textContent = message || "";
+}
+
+function setSchoolDayGradesMessage(kind, message) {
+  schoolDayGradesMessageState = { kind: kind || "", text: message || "" };
+  const el = document.getElementById("school-day-grades-message");
+  if (!el) return;
+  el.className = kind ? `status-text ${kind}` : "muted";
+  el.textContent = message || "";
+}
+
+function schoolDayInstructionActualIds(date, studentIds = [], courseIds = []) {
+  return state.instructionActuals
+    .filter((entry) =>
+      entry.date === date
+      && (!studentIds.length || studentIds.includes(entry.studentId))
+      && (!courseIds.length || courseIds.includes(entry.courseId)))
+    .map((entry) => entry.id);
+}
+
+async function resetInstructionActualMinutesBatch(recordIds) {
+  const uniqueIds = Array.from(new Set(recordIds.filter(Boolean)));
+  for (const id of uniqueIds) {
+    await resetInstructionActualMinutes(id);
+  }
+}
+
+function renderSchoolDayAttendance() {
+  const date = document.getElementById("school-day-date")?.value || todayISO();
+  const rosterStudents = schoolDayRosterStudents(date);
+  const recordedCount = rosterStudents.filter((student) => !!attendanceRecordForStudentDate(student.id, date)).length;
+  const rows = rosterStudents.map((student) => {
+    const existing = attendanceRecordForStudentDate(student.id, date);
+    const currentValue = existing ? (existing.present ? "present" : "absent") : "present";
+    const recordLabel = existing
+      ? `${existing.present ? "Present" : "Absent"} on ${formatDisplayDate(existing.date)}`
+      : "Not recorded";
+    return `<tr>
+      <td>${student.firstName} ${student.lastName}</td>
+      <td>
+        <select data-school-day-attendance-status="${student.id}">
+          <option value="present"${currentValue === "present" ? " selected" : ""}>Present</option>
+          <option value="absent"${currentValue === "absent" ? " selected" : ""}>Absent</option>
+        </select>
+      </td>
+      <td>${recordLabel}</td>
+      <td class="schedule-actions-cell"><div class="table-action-row"><button type="button" data-school-day-attendance-save="${student.id}" data-date="${date}">Save</button></div></td>
+    </tr>`;
+  });
+  rowOrEmpty(document.getElementById("school-day-attendance-table"), rows, "No students available for the selected School Day context.", 4);
+  if (schoolDayAttendanceMessageState.text) {
+    setSchoolDayAttendanceMessage(schoolDayAttendanceMessageState.kind, schoolDayAttendanceMessageState.text);
+  } else {
+    setSchoolDayAttendanceMessage("", rosterStudents.length
+      ? `Attendance recorded for ${recordedCount} of ${rosterStudents.length} students on ${formatDisplayDate(date)}.`
+      : `No attendance roster is available for ${formatDisplayDate(date)} with the current filters.`);
+  }
+}
+
+function buildSchoolDayGradeRow() {
+  const date = document.getElementById("school-day-date")?.value || todayISO();
+  const rosterStudents = schoolDayRosterStudents(date);
+  const selectedStudents = getSchoolDaySelectedStudentIds();
+  const defaultStudent = (selectedStudents.length === 1
+    ? visibleStudents().find((student) => student.id === selectedStudents[0])
+    : null) || rosterStudents[0] || visibleStudents()[0] || null;
+  const studentId = defaultStudent?.id || "";
+  const selectedCourseIds = getSchoolDaySelectedCourseIds();
+  const selectedSubjectIds = getSchoolDaySelectedSubjectIds();
+  const enrolledCourses = studentId ? getEnrolledCoursesForStudent(studentId) : [];
+  let firstCourse = null;
+  if (selectedCourseIds.length === 1) {
+    firstCourse = enrolledCourses.find((course) => course.id === selectedCourseIds[0]) || null;
+  }
+  if (!firstCourse && selectedSubjectIds.length === 1) {
+    firstCourse = enrolledCourses.find((course) => course.subjectId === selectedSubjectIds[0]) || null;
+  }
+  if (!firstCourse) firstCourse = enrolledCourses[0] || null;
+  const subjectId = firstCourse?.subjectId || (selectedSubjectIds.length === 1 ? selectedSubjectIds[0] : "");
+  const courseId = firstCourse?.id || "";
+  return buildGradeEntryRow(null, {
+    date,
+    studentId,
+    subjectId,
+    courseId,
+    gradeType: "Assignment"
+  });
+}
+
+function buildSchoolDayGradeRowForStudent(studentId) {
+  const date = document.getElementById("school-day-date")?.value || todayISO();
+  const selectedCourseIds = getSchoolDaySelectedCourseIds();
+  const selectedSubjectIds = getSchoolDaySelectedSubjectIds();
+  const enrolledCourses = studentId ? getEnrolledCoursesForStudent(studentId) : [];
+  let firstCourse = null;
+  if (selectedCourseIds.length === 1) {
+    firstCourse = enrolledCourses.find((course) => course.id === selectedCourseIds[0]) || null;
+  }
+  if (!firstCourse && selectedSubjectIds.length === 1) {
+    firstCourse = enrolledCourses.find((course) => course.subjectId === selectedSubjectIds[0]) || null;
+  }
+  if (!firstCourse) firstCourse = enrolledCourses[0] || null;
+  return buildGradeEntryRow(null, {
+    date,
+    studentId,
+    subjectId: firstCourse?.subjectId || (selectedSubjectIds.length === 1 ? selectedSubjectIds[0] : ""),
+    courseId: firstCourse?.id || "",
+    gradeType: "Assignment"
+  });
+}
+
+function updateSchoolDayGradeEntryVisibility() {
+  const wrap = document.getElementById("school-day-grade-entry-wrap");
+  const body = document.getElementById("school-day-grade-entry-body");
+  if (!wrap || !body) return;
+  wrap.classList.toggle("hidden", body.children.length === 0);
+}
+
+function renderSchoolDayGrades() {
+  const date = document.getElementById("school-day-date")?.value || todayISO();
+  const rosterStudentIds = new Set(schoolDayRosterStudents(date).map((student) => student.id));
+  const todayGrades = state.tests.filter((record) => record.date === date && (!rosterStudentIds.size || rosterStudentIds.has(record.studentId)));
+  const gradedStudentCount = new Set(todayGrades.map((record) => record.studentId)).size;
+  if (schoolDayGradesMessageState.text) {
+    setSchoolDayGradesMessage(schoolDayGradesMessageState.kind, schoolDayGradesMessageState.text);
+  } else {
+    setSchoolDayGradesMessage("", `${todayGrades.length} grades recorded for ${gradedStudentCount} students on ${formatDisplayDate(date)}.`);
+  }
+  updateSchoolDayGradeEntryVisibility();
+}
+
 function resetAttendanceEditMode() {
   editingAttendanceId = "";
   const submitBtn = document.getElementById("attendance-submit-btn");
@@ -5226,6 +5486,194 @@ function syncCalendarFilterSubjectCourseOptions() {
   renderCalendarCourseChecklist(filteredCourses, Array.from(calendarSelectedCourseIds));
 }
 
+function getSchoolDaySelectedStudentIds() {
+  if (currentStudentId()) return [currentStudentId()];
+  return Array.from(document.querySelectorAll(".school-day-student-checkbox:checked")).map((el) => el.value);
+}
+
+function getSchoolDaySelectedSubjectIds() {
+  return Array.from(document.querySelectorAll(".school-day-subject-checkbox:checked")).map((el) => el.value);
+}
+
+function getSchoolDaySelectedCourseIds() {
+  return Array.from(document.querySelectorAll(".school-day-course-checkbox:checked")).map((el) => el.value);
+}
+
+function schoolDayActiveQuickFilterCount() {
+  return Object.values(schoolDayQuickFilters).filter(Boolean).length;
+}
+
+function rowMatchesSchoolDayQuickFilters({ needsAttendance = false, needsGrade = false, overridden = false } = {}) {
+  if (schoolDayQuickFilters.needsAttendance && !needsAttendance) return false;
+  if (schoolDayQuickFilters.needsGrade && !needsGrade) return false;
+  if (schoolDayQuickFilters.overridden && !overridden) return false;
+  return true;
+}
+
+function renderSchoolDayQuickFilterState() {
+  document.querySelectorAll("[data-school-day-quick-filter]").forEach((btn) => {
+    const key = btn.getAttribute("data-school-day-quick-filter") || "";
+    const isActive = key === "needs-attendance"
+      ? schoolDayQuickFilters.needsAttendance
+      : key === "needs-grade"
+        ? schoolDayQuickFilters.needsGrade
+        : key === "overridden"
+          ? schoolDayQuickFilters.overridden
+          : false;
+    btn.classList.toggle("active", !!isActive);
+    btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+}
+
+function updateSchoolDayStudentSummary() {
+  const summary = document.getElementById("school-day-student-summary");
+  if (!summary) return;
+  const selectedCount = getSchoolDaySelectedStudentIds().length;
+  const totalCount = visibleStudents().length;
+  summary.textContent = selectedCount && selectedCount === totalCount
+    ? "Students (All)"
+    : `Students (${selectedCount} selected)`;
+}
+
+function updateSchoolDaySubjectSummary() {
+  const summary = document.getElementById("school-day-subject-summary");
+  if (!summary) return;
+  const selectedCount = getSchoolDaySelectedSubjectIds().length;
+  const totalCount = document.querySelectorAll(".school-day-subject-checkbox").length;
+  summary.textContent = selectedCount && selectedCount === totalCount
+    ? "Subjects (All)"
+    : `Subjects (${selectedCount} selected)`;
+}
+
+function updateSchoolDayCourseSummary() {
+  const summary = document.getElementById("school-day-course-summary");
+  if (!summary) return;
+  const selectedCount = getSchoolDaySelectedCourseIds().length;
+  const totalCount = document.querySelectorAll(".school-day-course-checkbox").length;
+  summary.textContent = selectedCount && selectedCount === totalCount
+    ? "Courses (All)"
+    : `Courses (${selectedCount} selected)`;
+}
+
+function applySchoolDayFilterSelection({ studentIds = null, subjectIds = null, courseIds = null } = {}) {
+  if (studentIds) {
+    schoolDaySelectedStudentIds = new Set(studentIds);
+    setCalendarChecklistSelection("school-day-student-checkbox", studentIds);
+  }
+  if (subjectIds) {
+    schoolDaySelectedSubjectIds = new Set(subjectIds);
+    setCalendarChecklistSelection("school-day-subject-checkbox", subjectIds);
+  }
+  if (courseIds) {
+    schoolDaySelectedCourseIds = new Set(courseIds);
+    setCalendarChecklistSelection("school-day-course-checkbox", courseIds);
+  }
+  updateSchoolDayStudentSummary();
+  updateSchoolDaySubjectSummary();
+  updateSchoolDayCourseSummary();
+}
+
+function renderSchoolDayStudentChecklist(preselectedStudentIds = []) {
+  const optionsWrap = document.getElementById("school-day-student-options");
+  if (!optionsWrap) return;
+  const selected = new Set(currentStudentId() ? [currentStudentId()] : preselectedStudentIds);
+  const forceSingleStudent = !!currentStudentId();
+  const students = visibleStudents();
+  const allChecked = students.length > 0 && students.every((student) => selected.has(student.id));
+  const allRow = forceSingleStudent ? "" : `<div class="checklist-row"><input id="school-day-student-all" type="checkbox" class="school-day-student-all-checkbox"${allChecked ? " checked" : ""}><label for="school-day-student-all">All</label></div>`;
+  const checkboxes = students.map((student, idx) => {
+    const checked = selected.has(student.id) ? " checked" : "";
+    const disabled = forceSingleStudent ? " disabled" : "";
+    const inputId = `school-day-student-${idx}-${student.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="school-day-student-checkbox" value="${student.id}"${checked}${disabled}><label for="${inputId}">${student.firstName} ${student.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = students.length ? `${allRow}${checkboxes}` : "<span>No students available.</span>";
+  syncCalendarAllCheckbox("school-day-student-checkbox", "school-day-student-all-checkbox");
+  updateSchoolDayStudentSummary();
+}
+
+function renderSchoolDaySubjectChecklist(subjects, preselectedSubjectIds = []) {
+  const optionsWrap = document.getElementById("school-day-subject-options");
+  if (!optionsWrap) return;
+  const selected = new Set(preselectedSubjectIds);
+  const allChecked = subjects.length > 0 && subjects.every((subject) => selected.has(subject.id));
+  const allRow = subjects.length ? `<div class="checklist-row"><input id="school-day-subject-all" type="checkbox" class="school-day-subject-all-checkbox"${allChecked ? " checked" : ""}><label for="school-day-subject-all">All</label></div>` : "";
+  const checkboxes = subjects.map((subject, idx) => {
+    const checked = selected.has(subject.id) ? " checked" : "";
+    const inputId = `school-day-subject-${idx}-${subject.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="school-day-subject-checkbox" value="${subject.id}"${checked}><label for="${inputId}">${subject.name}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = subjects.length ? `${allRow}${checkboxes}` : "<span>No subjects available.</span>";
+  syncCalendarAllCheckbox("school-day-subject-checkbox", "school-day-subject-all-checkbox");
+  updateSchoolDaySubjectSummary();
+}
+
+function renderSchoolDayCourseChecklist(courses, preselectedCourseIds = []) {
+  const optionsWrap = document.getElementById("school-day-course-options");
+  if (!optionsWrap) return;
+  const selected = new Set(preselectedCourseIds);
+  const allChecked = courses.length > 0 && courses.every((course) => selected.has(course.id));
+  const allRow = courses.length ? `<div class="checklist-row"><input id="school-day-course-all" type="checkbox" class="school-day-course-all-checkbox"${allChecked ? " checked" : ""}><label for="school-day-course-all">All</label></div>` : "";
+  const checkboxes = courses.map((course, idx) => {
+    const checked = selected.has(course.id) ? " checked" : "";
+    const inputId = `school-day-course-${idx}-${course.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="school-day-course-checkbox" value="${course.id}"${checked}><label for="${inputId}">${course.name} (${getSubjectName(course.subjectId)})</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = courses.length ? `${allRow}${checkboxes}` : "<span>No courses available.</span>";
+  syncCalendarAllCheckbox("school-day-course-checkbox", "school-day-course-all-checkbox");
+  updateSchoolDayCourseSummary();
+}
+
+function syncSchoolDayFilterSubjectCourseOptions() {
+  const previousStudentIds = Array.from(schoolDaySelectedStudentIds);
+  const previousSubjectIds = Array.from(schoolDaySelectedSubjectIds);
+  const previousCourseIds = Array.from(schoolDaySelectedCourseIds);
+  renderSchoolDayStudentChecklist(previousStudentIds);
+  const selectedStudentIds = getSchoolDaySelectedStudentIds();
+  let subjectPool = state.subjects;
+  let coursePool = state.courses;
+
+  if (selectedStudentIds.length) {
+    const enrolledCourses = Array.from(new Map(
+      selectedStudentIds
+        .flatMap((studentId) => getEnrolledCoursesForStudent(studentId))
+        .map((course) => [course.id, course])
+    ).values());
+    const subjectIds = new Set(enrolledCourses.map((course) => course.subjectId));
+    subjectPool = state.subjects.filter((subject) => subjectIds.has(subject.id));
+    coursePool = enrolledCourses;
+  }
+  const allowedSubjectIds = new Set(subjectPool.map((subject) => subject.id));
+  schoolDaySelectedStudentIds = new Set(selectedStudentIds);
+  schoolDaySelectedSubjectIds = new Set(previousSubjectIds.filter((id) => allowedSubjectIds.has(id)));
+  renderSchoolDaySubjectChecklist(subjectPool, Array.from(schoolDaySelectedSubjectIds));
+
+  const activeSubjectIds = getSchoolDaySelectedSubjectIds();
+  const filteredCourses = activeSubjectIds.length
+    ? coursePool.filter((course) => activeSubjectIds.includes(course.subjectId))
+    : coursePool;
+  const allowedCourseIds = new Set(filteredCourses.map((course) => course.id));
+  schoolDaySelectedCourseIds = new Set(previousCourseIds.filter((id) => allowedCourseIds.has(id)));
+  renderSchoolDayCourseChecklist(filteredCourses, Array.from(schoolDaySelectedCourseIds));
+}
+
+function renderSchoolDaySectionVisibility() {
+  const sectionIds = ["daily-schedule", "attendance", "grades"];
+  sectionIds.forEach((tabName) => {
+    const section = document.getElementById(`school-day-${tabName}-section`);
+    if (section) section.classList.toggle("hidden", currentSchoolDayTab !== tabName);
+  });
+  document.querySelectorAll("[data-school-day-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-school-day-tab") === currentSchoolDayTab);
+  });
+  const quickFilters = document.getElementById("school-day-quick-filters");
+  if (quickFilters) quickFilters.classList.toggle("hidden", currentSchoolDayTab !== "daily-schedule");
+}
+
+function schoolDayGradeKey(studentId, courseId, date) {
+  return `${studentId}::${courseId}::${date}`;
+}
+
 function syncGradesFilterSubjectCourseOptions() {
   const studentFilter = document.getElementById("grades-filter-student")?.value || "all";
   const instructorFilter = document.getElementById("grades-filter-instructor")?.value || "all";
@@ -5287,19 +5735,20 @@ function getEligibleCoursesForStudentSubject(studentId, subjectId, includeCourse
   return state.courses.filter((c) => enrolledCourseIds.has(c.id));
 }
 
-function buildGradeEntryRow(existingGrade) {
+function buildGradeEntryRow(existingGrade, preset = {}) {
   const tr = document.createElement("tr");
   tr.setAttribute("data-grade-entry-row-id", existingGrade?.id || uid());
+  const useSchoolDayInlineActions = !!preset.schoolDayInline;
 
-  const dateValue = existingGrade ? existingGrade.date : todayISO();
+  const dateValue = existingGrade ? existingGrade.date : (preset.date || todayISO());
   const gradeValue = existingGrade ? Number(existingGrade.score || 0) : "";
-  const selectedGradeStudentId = existingGrade ? existingGrade.studentId : (state.students[0] ? state.students[0].id : "");
-  const selectedSubjectId = existingGrade ? existingGrade.subjectId : (state.subjects[0] ? state.subjects[0].id : "");
-  const selectedCourseId = existingGrade ? existingGrade.courseId : "";
+  const selectedGradeStudentId = existingGrade ? existingGrade.studentId : (preset.studentId || (state.students[0] ? state.students[0].id : ""));
+  const selectedSubjectId = existingGrade ? existingGrade.subjectId : (preset.subjectId || (state.subjects[0] ? state.subjects[0].id : ""));
+  const selectedCourseId = existingGrade ? existingGrade.courseId : (preset.courseId || "");
   const allGradeTypes = availableGradeTypes();
   const selectedGradeType = existingGrade
     ? gradeTypeName(existingGrade)
-    : (allGradeTypes.includes("Quiz") ? "Quiz" : (allGradeTypes[0] || "Test"));
+    : (preset.gradeType || (allGradeTypes.includes("Quiz") ? "Quiz" : (allGradeTypes[0] || "Test")));
 
   const studentOptions = state.students
     .map((s) => `<option value="${s.id}"${s.id === selectedGradeStudentId ? " selected" : ""}>${s.firstName} ${s.lastName}</option>`)
@@ -5324,6 +5773,14 @@ function buildGradeEntryRow(existingGrade) {
     tr.setAttribute("data-edit-grade-id", existingGrade.id);
   }
 
+  const actionsMarkup = useSchoolDayInlineActions
+    ? `<div class="grade-entry-inline-placeholder"></div>`
+    : `<div class="table-action-row grade-entry-actions">
+        <button type="button" data-grade-save="1">${existingGrade ? "Update" : "Save"}</button>
+        <button type="button" data-grade-calc-toggle="1">Calculate</button>
+        <button type="button" data-grade-cancel="1">Cancel</button>
+      </div>`;
+
   tr.innerHTML = `
     <td><input class="grade-row-date" type="date" value="${dateValue}"></td>
     <td><select class="grade-row-student">${studentOptions}</select></td>
@@ -5336,11 +5793,7 @@ function buildGradeEntryRow(existingGrade) {
     </td>
     <td><input class="grade-row-value" type="number" min="0" max="100" step="0.1" placeholder="0-100" value="${gradeValue}"></td>
     <td>
-      <div class="table-action-row grade-entry-actions">
-        <button type="button" data-grade-save="1">${existingGrade ? "Update" : "Save"}</button>
-        <button type="button" data-grade-calc-toggle="1">Calculate</button>
-        <button type="button" data-grade-cancel="1">Cancel</button>
-      </div>
+      ${actionsMarkup}
     </td>
   `;
 
@@ -6855,7 +7308,14 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
   studentIdsInOrder.forEach((studentId) => {
     const studentName = getStudentName(studentId);
     const blocks = [];
-    const remaining = orderedEventsForStudent(studentId, byStudent.get(studentId) || []);
+    const baseOrderedEvents = orderedEventsForStudent(studentId, byStudent.get(studentId) || []);
+    const remaining = [...baseOrderedEvents].sort((a, b) => {
+      const indexA = effectiveInstructionOrderIndex(studentId, a.courseId, dateKey, baseOrderedEvents.findIndex((entry) => entry.courseId === a.courseId) + 1);
+      const indexB = effectiveInstructionOrderIndex(studentId, b.courseId, dateKey, baseOrderedEvents.findIndex((entry) => entry.courseId === b.courseId) + 1);
+      if (indexA !== indexB) return indexA - indexB;
+      return baseOrderedEvents.findIndex((entry) => entry.courseId === a.courseId)
+        - baseOrderedEvents.findIndex((entry) => entry.courseId === b.courseId);
+    });
     const breakBlocks = dailyBreaksForStudentDate(studentId, dateKey);
 
     let slot = 8 * 60;
@@ -6930,6 +7390,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         student: studentName,
         studentId,
         courseId: chosen.event.courseId,
+        subjectId: chosen.course.subjectId,
         label: `${chosen.course.name} (${getSubjectName(chosen.course.subjectId)})`,
         plannedStart: startMin,
         plannedEnd: endMin,
@@ -6959,7 +7420,14 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       const actualDuration = block.type === "instruction"
         ? effectiveInstructionMinutes(block.studentId, block.courseId, dateKey)
         : plannedDuration;
-      const actualStart = actualCursor == null ? plannedStart : Math.max(plannedStart, actualCursor);
+      const actualStartTarget = block.type === "instruction"
+        ? effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, plannedStart)
+        : plannedStart;
+      const explicitStartOverride = block.type === "instruction"
+        && hasInstructionStartOverride(block.studentId, block.courseId, dateKey);
+      const actualStart = explicitStartOverride
+        ? actualStartTarget
+        : (actualCursor == null ? actualStartTarget : Math.max(actualStartTarget, actualCursor));
       const actualEnd = Math.min(24 * 60, actualStart + actualDuration);
       adjustedBlocks.push({
         ...block,
@@ -6969,7 +7437,15 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         end: actualEnd,
         actualMinutes: actualDuration
       });
-      actualCursor = actualEnd;
+      actualCursor = block.type === "instruction"
+        ? Math.min(24 * 60, actualEnd + 5)
+        : actualEnd;
+    });
+
+    const instructionBlocks = adjustedBlocks.filter((entry) => entry.type === "instruction");
+    instructionBlocks.forEach((entry, index) => {
+      entry.orderPosition = index + 1;
+      entry.orderTotal = instructionBlocks.length;
     });
 
     blocksByStudent.set(studentId, adjustedBlocks);
@@ -7122,39 +7598,117 @@ function renderWeekCalendar(referenceISO, studentFilterIds = [], subjectFilterId
   return { start, end };
 }
 
-function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
+function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = [], options = {}) {
   const ref = toDate(referenceISO || todayISO());
   const dateKey = toISO(ref);
+  const mode = options.mode || "calendar";
+  const useQuickFilters = !!options.useQuickFilters;
 
   const blocksByStudent = dailyScheduledBlocks(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
   const rows = Array.from(blocksByStudent.values())
     .flat()
     .sort((a, b) => a.start - b.start || a.student.localeCompare(b.student) || a.label.localeCompare(b.label))
-    .map((block) => {
+    .flatMap((block) => {
       const actualRange = `${formatClockTime(block.start)} - ${formatClockTime(block.end)}`;
       const plannedRange = `${formatClockTime(block.plannedStart)} - ${formatClockTime(block.plannedEnd)}`;
       if (block.type !== "instruction") {
-        return `<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td></td><td>${Number(block.actualMinutes || 0)} min</td><td class="calendar-actions-cell"></td></tr>`;
+        if (useQuickFilters && schoolDayActiveQuickFilterCount()) return [];
+        return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td></td><td>${Number(block.actualMinutes || 0)} min</td><td class="calendar-actions-cell"></td></tr>`];
       }
 
       const existing = findInstructionActualRecord(block.studentId, block.courseId, dateKey);
+      const overrideBadge = existing
+        ? `<span class="school-day-override-badge">Override</span>`
+        : "";
+      const attendanceRecord = attendanceRecordForStudentDate(block.studentId, dateKey);
+      const needsAttendance = !attendanceRecord;
+      const attendanceBadge = attendanceRecord
+        ? `<span class="school-day-status-badge ${attendanceRecord.present ? "success" : "warning"}">${attendanceRecord.present ? "Present" : "Absent"}</span>`
+        : `<span class="school-day-status-badge muted">Attendance Open</span>`;
+      const gradeRecordCount = gradeRecordsForStudentCourseDate(block.studentId, block.courseId, dateKey).length;
+      const needsGrade = gradeRecordCount === 0;
+      const isOverridden = !!existing;
+      if (useQuickFilters && !rowMatchesSchoolDayQuickFilters({ needsAttendance, needsGrade, overridden: isOverridden })) {
+        return [];
+      }
+      const gradeBadge = gradeRecordCount
+        ? `<span class="school-day-status-badge info">${gradeRecordCount} ${gradeRecordCount === 1 ? "Grade" : "Grades"}</span>`
+        : `<span class="school-day-status-badge muted">No Grade</span>`;
+      const rowBadges = `<div class="school-day-row-badges">${overrideBadge}${attendanceBadge}${gradeBadge}</div>`;
       const editKey = instructionActualEditKey(block.studentId, block.courseId, dateKey);
       const isEditing = editingInstructionActualKey === editKey;
       const canEditActualMinutes = isAdminUser();
       const instructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
+      const startTimeValue = effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, block.plannedStart);
+      const hourCell = isEditing
+        ? `<div class="calendar-inline-editor"><label class="calendar-inline-label">Start Time<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-instruction-actual-start="${editKey}"></label></div>`
+        : actualRange;
       const instructorCell = isEditing
         ? `<select data-instruction-actual-instructor="${editKey}">${buildInstructionInstructorOptions(instructorId)}</select>`
         : escapeHtml(instructorId ? getInstructorName(instructorId) : "Unassigned");
       const minutesCell = isEditing
         ? `<input type="number" min="1" step="1" value="${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))}" data-instruction-actual-input="${editKey}">`
         : `${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))} min`;
+      const inlineGradeKey = schoolDayGradeKey(block.studentId, block.courseId, dateKey);
+      const showInlineGrade = mode === "school-day" && schoolDayInlineGradeKey === inlineGradeKey;
+      const inlineGradeActions = mode === "school-day" && canEditActualMinutes
+        ? `<button type="button" data-school-day-grade="${inlineGradeKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-subject-id="${block.subjectId}" data-date="${dateKey}">${showInlineGrade ? "Close Grade" : "Grade"}</button>`
+        : "";
+      const editAttr = mode === "school-day" ? "data-school-day-edit-instruction-actual" : "data-edit-instruction-actual";
+      const cancelAttr = mode === "school-day" ? "data-school-day-cancel-instruction-actual" : "data-cancel-instruction-actual";
+      const saveAttr = mode === "school-day" ? "data-school-day-save-instruction-actual" : "data-save-instruction-actual";
+      const resetAttr = mode === "school-day" ? "data-school-day-reset-instruction-actual" : "data-reset-instruction-actual";
+      const moveUpButton = mode === "school-day" && canEditActualMinutes && Number(block.orderPosition || 0) > 1
+        ? `<button type="button" class="school-day-reorder-btn" aria-label="Move class up" title="Move class up" data-school-day-move-instruction="up" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">&#9650;</button>`
+        : "";
+      const moveDownButton = mode === "school-day" && canEditActualMinutes && Number(block.orderPosition || 0) < Number(block.orderTotal || 0)
+        ? `<button type="button" class="school-day-reorder-btn" aria-label="Move class down" title="Move class down" data-school-day-move-instruction="down" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">&#9660;</button>`
+        : "";
+      const reorderControls = moveUpButton || moveDownButton
+        ? `<div class="school-day-reorder-controls">${moveUpButton}${moveDownButton}</div>`
+        : "";
+      const hourDisplay = mode === "school-day" && reorderControls
+        ? `<div class="school-day-hour-cell">${reorderControls}<span>${hourCell}</span></div>`
+        : hourCell;
       const actionsCell = !canEditActualMinutes
         ? ""
         : (isEditing
-          ? `<div class="table-action-row"><button type="button" data-save-instruction-actual="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" data-cancel-instruction-actual="${editKey}">Cancel</button></div>`
-          : `<div class="table-action-row"><button type="button" data-edit-instruction-actual="${editKey}">Edit</button>${existing ? `<button type="button" data-reset-instruction-actual="${existing.id}">Use Planned</button>` : ""}</div>`);
-      return `<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td>${instructorCell}</td><td>${minutesCell}</td><td class="calendar-actions-cell">${actionsCell}</td></tr>`;
+          ? `<div class="table-action-row"><button type="button" ${saveAttr}="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" ${cancelAttr}="${editKey}">Cancel</button></div>`
+          : `<div class="table-action-row"><button type="button" ${editAttr}="${editKey}">Edit</button>${existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}${inlineGradeActions}</div>`);
+      const renderedRows = [`<tr><td>${hourDisplay}</td><td>${block.student}</td><td>${block.label}<br>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td>${instructorCell}</td><td>${minutesCell}</td><td class="calendar-actions-cell">${actionsCell}</td></tr>`];
+      if (showInlineGrade) {
+        const gradeRow = buildGradeEntryRow(null, {
+          date: dateKey,
+          studentId: block.studentId,
+          subjectId: block.subjectId,
+          courseId: block.courseId,
+          gradeType: "Assignment",
+          schoolDayInline: true
+        });
+        gradeRow.setAttribute("data-school-day-inline-grade", "1");
+        const gradeRowId = gradeRow.getAttribute("data-grade-entry-row-id");
+        const calculateCell = gradeRow.querySelector("td:last-child");
+        if (calculateCell) {
+          calculateCell.innerHTML = `<div class="grade-entry-action-row"><button type="button" data-grade-calc-toggle="1">Calculate</button></div>`;
+        }
+        const inlineActionRows = `
+          <tr class="school-day-inline-grade-action-table-row" data-grade-action-for="${gradeRowId}">
+            <td colspan="7">
+              <div class="grade-entry-action-row">
+                <button type="button" data-grade-save="1">Save</button>
+                <button type="button" data-grade-cancel="1">Cancel</button>
+              </div>
+            </td>
+          </tr>`;
+        renderedRows.push(`<tr data-school-day-inline-grade-container="${inlineGradeKey}" class="school-day-inline-grade-row"><td colspan="6"><div class="table-wrap school-day-inline-grade-wrap"><table><thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead><tbody>${gradeRow.outerHTML}${inlineActionRows}</tbody></table></div></td></tr>`);
+      }
+      return renderedRows;
     });
+  return { dateKey, rows };
+}
+
+function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
+  const { dateKey, rows } = buildDayCalendarRows(referenceISO, studentFilterIds, subjectFilterIds, courseFilterIds);
   rowOrEmpty(document.getElementById("calendar-day-table"), rows, "No scheduled instruction for this day.", 6);
   return { dateKey };
 }
@@ -7242,6 +7796,34 @@ function renderCalendar() {
     return `<tr><td>${entry.date}</td><td>${getStudentName(entry.studentId)}</td><td>${detail}</td><td>${totalHours.toFixed(2)}</td></tr>`;
   });
   rowOrEmpty(document.getElementById("calendar-table"), rows, "No students to display for this calendar view.", 4);
+}
+
+function renderSchoolDay() {
+  const dateInput = document.getElementById("school-day-date");
+  if (dateInput && !dateInput.value) dateInput.value = todayISO();
+  const ref = dateInput?.value || todayISO();
+  syncSchoolDayFilterSubjectCourseOptions();
+  renderSchoolDayQuickFilterState();
+  renderSchoolDaySectionVisibility();
+
+  const rangeLabel = document.getElementById("school-day-range");
+  if (rangeLabel) rangeLabel.textContent = `Daily view: ${ref}`;
+
+  const studentFilterIds = getSchoolDaySelectedStudentIds();
+  const subjectFilterIds = getSchoolDaySelectedSubjectIds();
+  const courseFilterIds = getSchoolDaySelectedCourseIds();
+  const { rows } = buildDayCalendarRows(ref, studentFilterIds, subjectFilterIds, courseFilterIds, { mode: "school-day", useQuickFilters: true });
+  const quickFilterEmptyMessage = schoolDayActiveQuickFilterCount()
+    ? "No School Day rows match the selected quick filters."
+    : "No scheduled instruction for this day.";
+  rowOrEmpty(document.getElementById("school-day-table"), rows, quickFilterEmptyMessage, 6);
+  if (schoolDayDailyMessageState.text) {
+    setSchoolDayDailyMessage(schoolDayDailyMessageState.kind, schoolDayDailyMessageState.text);
+  } else {
+    setSchoolDayDailyMessage("", `Review or adjust the School Day schedule for ${formatDisplayDate(ref)}.`);
+  }
+  renderSchoolDayAttendance();
+  renderSchoolDayGrades();
 }
 
 function fillSettingsForms() {
@@ -7385,6 +7967,19 @@ function effectiveInstructionMinutes(studentId, courseId, date) {
   return plannedInstructionMinutesForCourse(courseId);
 }
 
+function effectiveInstructionStartMinutes(studentId, courseId, date, fallbackStartMinutes = null) {
+  const existing = findInstructionActualRecord(studentId, courseId, date);
+  if (existing && Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0) {
+    return existing.startMinutes;
+  }
+  return Number.isFinite(fallbackStartMinutes) ? fallbackStartMinutes : null;
+}
+
+function hasInstructionStartOverride(studentId, courseId, date) {
+  const existing = findInstructionActualRecord(studentId, courseId, date);
+  return !!(existing && Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0);
+}
+
 function instructionActualEditKey(studentId, courseId, date) {
   return `${studentId}||${courseId}||${date}`;
 }
@@ -7396,7 +7991,9 @@ function createLegacyLocalInstructionActual(payload) {
     courseId: payload.courseId,
     instructorId: payload.instructorId || "",
     date: payload.date,
-    actualMinutes: payload.actualMinutes
+    actualMinutes: payload.actualMinutes,
+    startMinutes: payload.startMinutes == null ? null : payload.startMinutes,
+    orderIndex: payload.orderIndex == null ? null : payload.orderIndex
   });
 }
 
@@ -7407,6 +8004,8 @@ function updateLegacyLocalInstructionActual(existing, payload) {
   existing.instructorId = payload.instructorId || "";
   existing.date = payload.date;
   existing.actualMinutes = payload.actualMinutes;
+  existing.startMinutes = payload.startMinutes == null ? null : payload.startMinutes;
+  existing.orderIndex = payload.orderIndex == null ? null : payload.orderIndex;
 }
 
 function deleteLegacyLocalInstructionActual(id) {
@@ -7434,9 +8033,17 @@ function buildInstructionInstructorOptions(selectedInstructorId) {
     .join("");
 }
 
-async function saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes }) {
+async function saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes, startMinutes, orderIndex }) {
   const existing = findInstructionActualRecord(studentId, courseId, date);
-  const payload = { studentId, courseId, instructorId: String(instructorId || "").trim(), date, actualMinutes };
+  const payload = {
+    studentId,
+    courseId,
+    instructorId: String(instructorId || "").trim(),
+    date,
+    actualMinutes,
+    startMinutes: startMinutes == null || startMinutes === "" ? null : Number(startMinutes),
+    orderIndex: orderIndex == null || orderIndex === "" ? null : Number(orderIndex)
+  };
   if (hostedModeEnabled) {
     if (existing) {
       await updateHostedInstructionActual(existing.id, payload);
@@ -7453,6 +8060,22 @@ async function saveInstructionActualMinutes({ studentId, courseId, instructorId,
     createLegacyLocalInstructionActual({ id: uid(), ...payload });
   }
   saveState();
+}
+
+async function saveInstructionOrderOverridesForStudentDate(studentId, date, orderedCourseIds) {
+  for (let index = 0; index < orderedCourseIds.length; index += 1) {
+    const courseId = orderedCourseIds[index];
+    const existing = findInstructionActualRecord(studentId, courseId, date);
+    await saveInstructionActualMinutes({
+      studentId,
+      courseId,
+      instructorId: effectiveInstructionInstructorId(studentId, courseId, date),
+      date,
+      actualMinutes: effectiveInstructionMinutes(studentId, courseId, date),
+      startMinutes: existing?.startMinutes ?? null,
+      orderIndex: index + 1
+    });
+  }
 }
 
 async function resetInstructionActualMinutes(recordId) {
@@ -8940,6 +9563,90 @@ function bindEvents() {
     });
   }
 
+  document.getElementById("school-day-form").addEventListener("submit", (e) => { e.preventDefault(); renderSchoolDay(); });
+  const schoolDayDateInput = document.getElementById("school-day-date");
+  if (schoolDayDateInput) {
+    schoolDayDateInput.addEventListener("change", () => renderSchoolDay());
+  }
+  const schoolDayPrevBtn = document.getElementById("school-day-prev-period");
+  if (schoolDayPrevBtn) {
+    schoolDayPrevBtn.addEventListener("click", () => {
+      const input = document.getElementById("school-day-date");
+      const base = toDate(input?.value || todayISO());
+      base.setDate(base.getDate() - 1);
+      if (input) input.value = toISO(base);
+      renderSchoolDay();
+    });
+  }
+  const schoolDayNextBtn = document.getElementById("school-day-next-period");
+  if (schoolDayNextBtn) {
+    schoolDayNextBtn.addEventListener("click", () => {
+      const input = document.getElementById("school-day-date");
+      const base = toDate(input?.value || todayISO());
+      base.setDate(base.getDate() + 1);
+      if (input) input.value = toISO(base);
+      renderSchoolDay();
+    });
+  }
+  const schoolDayAttendanceSaveAllBtn = document.getElementById("school-day-attendance-save-all-btn");
+  if (schoolDayAttendanceSaveAllBtn) {
+    schoolDayAttendanceSaveAllBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      const date = document.getElementById("school-day-date")?.value || todayISO();
+      const rosterStudents = schoolDayRosterStudents(date);
+      if (!rosterStudents.length) {
+        setSchoolDayAttendanceMessage("error", `No attendance roster is available for ${formatDisplayDate(date)} with the current filters.`);
+        return;
+      }
+      const records = rosterStudents.map((student) => {
+        const statusInput = document.querySelector(`[data-school-day-attendance-status="${student.id}"]`);
+        return {
+          studentId: student.id,
+          date,
+          present: String(statusInput?.value || "present") === "present"
+        };
+      });
+      (async () => {
+        try {
+          await saveAttendanceUpserts(records);
+          setSchoolDayAttendanceMessage("success", `Saved attendance for ${records.length} student${records.length === 1 ? "" : "s"} on ${formatDisplayDate(date)}.`);
+          renderAll();
+        } catch (error) {
+          setSchoolDayAttendanceMessage("error", error.message || "Unable to save School Day attendance.");
+          alert(error.message || "Unable to save School Day attendance.");
+        }
+      })();
+    });
+  }
+  const schoolDayAddGradeRowBtn = document.getElementById("school-day-add-grade-row-btn");
+  if (schoolDayAddGradeRowBtn) {
+    schoolDayAddGradeRowBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      const body = document.getElementById("school-day-grade-entry-body");
+      if (!body) return;
+      body.appendChild(buildSchoolDayGradeRow());
+      updateSchoolDayGradeEntryVisibility();
+    });
+  }
+  const schoolDayAddGradeRowsForStudentsBtn = document.getElementById("school-day-add-grade-rows-for-students-btn");
+  if (schoolDayAddGradeRowsForStudentsBtn) {
+    schoolDayAddGradeRowsForStudentsBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      const body = document.getElementById("school-day-grade-entry-body");
+      const date = document.getElementById("school-day-date")?.value || todayISO();
+      const rosterStudents = schoolDayRosterStudents(date);
+      if (!body || !rosterStudents.length) {
+        setSchoolDayGradesMessage("error", `No School Day roster is available for ${formatDisplayDate(date)} with the current filters.`);
+        return;
+      }
+      rosterStudents.forEach((student) => {
+        body.appendChild(buildSchoolDayGradeRowForStudent(student.id));
+      });
+      setSchoolDayGradesMessage("success", `Added ${rosterStudents.length} grade row${rosterStudents.length === 1 ? "" : "s"} for ${formatDisplayDate(date)}.`);
+      updateSchoolDayGradeEntryVisibility();
+    });
+  }
+
   document.getElementById("attendance-form").addEventListener("submit", (e) => {
     e.preventDefault();
     if (!ensureAdminAction()) return;
@@ -9335,6 +10042,13 @@ function bindEvents() {
       renderCalendar();
       return;
     }
+    if (t.classList.contains("school-day-student-checkbox")) {
+      schoolDaySelectedStudentIds = new Set(getSchoolDaySelectedStudentIds());
+      syncCalendarAllCheckbox("school-day-student-checkbox", "school-day-student-all-checkbox");
+      syncSchoolDayFilterSubjectCourseOptions();
+      renderSchoolDay();
+      return;
+    }
     if (t.classList.contains("reports-student-checkbox")) {
       reportSelectedStudentIds = new Set(getSelectedReportStudentIds());
       updateReportStudentSummary();
@@ -9352,11 +10066,26 @@ function bindEvents() {
       renderCalendar();
       return;
     }
+    if (t.classList.contains("school-day-student-all-checkbox")) {
+      const checked = t instanceof HTMLInputElement ? t.checked : false;
+      const studentIds = checked ? visibleStudents().map((student) => student.id) : [];
+      applySchoolDayFilterSelection({ studentIds });
+      syncSchoolDayFilterSubjectCourseOptions();
+      renderSchoolDay();
+      return;
+    }
     if (t.classList.contains("calendar-subject-checkbox")) {
       calendarSelectedSubjectIds = new Set(getCalendarSelectedSubjectIds());
       syncCalendarAllCheckbox("calendar-subject-checkbox", "calendar-subject-all-checkbox");
       syncCalendarFilterSubjectCourseOptions();
       renderCalendar();
+      return;
+    }
+    if (t.classList.contains("school-day-subject-checkbox")) {
+      schoolDaySelectedSubjectIds = new Set(getSchoolDaySelectedSubjectIds());
+      syncCalendarAllCheckbox("school-day-subject-checkbox", "school-day-subject-all-checkbox");
+      syncSchoolDayFilterSubjectCourseOptions();
+      renderSchoolDay();
       return;
     }
     if (t.classList.contains("calendar-subject-all-checkbox")) {
@@ -9369,11 +10098,28 @@ function bindEvents() {
       renderCalendar();
       return;
     }
+    if (t.classList.contains("school-day-subject-all-checkbox")) {
+      const checked = t instanceof HTMLInputElement ? t.checked : false;
+      const subjectIds = checked
+        ? Array.from(document.querySelectorAll(".school-day-subject-checkbox")).map((el) => el.value)
+        : [];
+      applySchoolDayFilterSelection({ subjectIds });
+      syncSchoolDayFilterSubjectCourseOptions();
+      renderSchoolDay();
+      return;
+    }
     if (t.classList.contains("calendar-course-checkbox")) {
       calendarSelectedCourseIds = new Set(getCalendarSelectedCourseIds());
       syncCalendarAllCheckbox("calendar-course-checkbox", "calendar-course-all-checkbox");
       updateCalendarCourseSummary();
       renderCalendar();
+      return;
+    }
+    if (t.classList.contains("school-day-course-checkbox")) {
+      schoolDaySelectedCourseIds = new Set(getSchoolDaySelectedCourseIds());
+      syncCalendarAllCheckbox("school-day-course-checkbox", "school-day-course-all-checkbox");
+      updateSchoolDayCourseSummary();
+      renderSchoolDay();
       return;
     }
     if (t.classList.contains("calendar-course-all-checkbox")) {
@@ -9384,6 +10130,16 @@ function bindEvents() {
       applyCalendarFilterSelection({ courseIds });
       updateCalendarCourseSummary();
       renderCalendar();
+      return;
+    }
+    if (t.classList.contains("school-day-course-all-checkbox")) {
+      const checked = t instanceof HTMLInputElement ? t.checked : false;
+      const courseIds = checked
+        ? Array.from(document.querySelectorAll(".school-day-course-checkbox")).map((el) => el.value)
+        : [];
+      applySchoolDayFilterSelection({ courseIds });
+      updateSchoolDayCourseSummary();
+      renderSchoolDay();
       return;
     }
     if (t.classList.contains("grade-row-subject") || t.classList.contains("grade-row-student")) {
@@ -9523,6 +10279,203 @@ function bindEvents() {
       beginCourseEdit(editCourseId);
       return;
     }
+    const schoolDayTab = t.getAttribute("data-school-day-tab");
+    if (schoolDayTab) {
+      currentSchoolDayTab = ["daily-schedule", "attendance", "grades"].includes(schoolDayTab) ? schoolDayTab : "daily-schedule";
+      renderSchoolDaySectionVisibility();
+      return;
+    }
+    const schoolDayQuickFilter = t.getAttribute("data-school-day-quick-filter");
+    if (schoolDayQuickFilter) {
+      if (schoolDayQuickFilter === "needs-attendance") schoolDayQuickFilters.needsAttendance = !schoolDayQuickFilters.needsAttendance;
+      if (schoolDayQuickFilter === "needs-grade") schoolDayQuickFilters.needsGrade = !schoolDayQuickFilters.needsGrade;
+      if (schoolDayQuickFilter === "overridden") schoolDayQuickFilters.overridden = !schoolDayQuickFilters.overridden;
+      renderSchoolDay();
+      return;
+    }
+    const schoolDayOpenTab = t.getAttribute("data-school-day-open-tab");
+    if (schoolDayOpenTab) {
+      if (schoolDayOpenTab === "attendance") {
+        const selectedStudents = getSchoolDaySelectedStudentIds();
+        const attendanceDateInput = document.getElementById("attendance-date");
+        const attendanceFilterDateInput = document.getElementById("attendance-filter-date");
+        if (attendanceDateInput) attendanceDateInput.value = document.getElementById("school-day-date")?.value || todayISO();
+        if (attendanceFilterDateInput) attendanceFilterDateInput.value = document.getElementById("school-day-date")?.value || "";
+        if (selectedStudents.length) renderAttendanceStudentChecklist([selectedStudents[0]]);
+        renderAttendance();
+      }
+      if (schoolDayOpenTab === "grades") {
+        const gradesStudentFilter = document.getElementById("grades-filter-student");
+        const selectedStudents = getSchoolDaySelectedStudentIds();
+        if (gradesStudentFilter && selectedStudents.length === 1) {
+          gradesStudentFilter.value = selectedStudents[0];
+          syncGradesFilterSubjectCourseOptions();
+        }
+        renderTests();
+      }
+      setActiveTab(schoolDayOpenTab);
+      return;
+    }
+    const schoolDayAttendanceSaveStudentId = t.getAttribute("data-school-day-attendance-save");
+    if (schoolDayAttendanceSaveStudentId) {
+      if (!ensureAdminAction()) return;
+      const date = t.getAttribute("data-date") || document.getElementById("school-day-date")?.value || todayISO();
+      const statusInput = document.querySelector(`[data-school-day-attendance-status="${schoolDayAttendanceSaveStudentId}"]`);
+      const present = String(statusInput?.value || "present") === "present";
+      (async () => {
+        try {
+          await saveAttendanceUpserts([{ studentId: schoolDayAttendanceSaveStudentId, date, present }]);
+          setSchoolDayAttendanceMessage("success", `Saved ${getStudentName(schoolDayAttendanceSaveStudentId)} as ${present ? "Present" : "Absent"} for ${formatDisplayDate(date)}.`);
+          renderAll();
+        } catch (error) {
+          setSchoolDayAttendanceMessage("error", error.message || "Unable to save School Day attendance.");
+          alert(error.message || "Unable to save School Day attendance.");
+        }
+      })();
+      return;
+    }
+    const schoolDayEditInstructionActualKey = t.getAttribute("data-school-day-edit-instruction-actual");
+    if (schoolDayEditInstructionActualKey) {
+      if (!ensureAdminAction()) return;
+      editingInstructionActualKey = schoolDayEditInstructionActualKey;
+      renderSchoolDay();
+      return;
+    }
+    const schoolDayCancelInstructionActualKey = t.getAttribute("data-school-day-cancel-instruction-actual");
+    if (schoolDayCancelInstructionActualKey) {
+      editingInstructionActualKey = "";
+      renderSchoolDay();
+      return;
+    }
+    const schoolDaySaveInstructionActualKey = t.getAttribute("data-school-day-save-instruction-actual");
+    if (schoolDaySaveInstructionActualKey) {
+      if (!ensureAdminAction()) return;
+      const studentId = t.getAttribute("data-student-id") || "";
+      const courseId = t.getAttribute("data-course-id") || "";
+      const date = t.getAttribute("data-date") || "";
+      const input = document.querySelector(`[data-instruction-actual-input="${schoolDaySaveInstructionActualKey}"]`);
+      const startInput = document.querySelector(`[data-instruction-actual-start="${schoolDaySaveInstructionActualKey}"]`);
+      const instructorInput = document.querySelector(`[data-instruction-actual-instructor="${schoolDaySaveInstructionActualKey}"]`);
+      const instructorId = String(instructorInput?.value || "").trim();
+      const actualMinutes = Number(input?.value);
+      const startMinutes = parseTimeToMinutes(startInput?.value || "");
+      if (!studentId || !courseId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isInteger(actualMinutes) || actualMinutes <= 0) {
+        alert("Enter a whole number of minutes greater than 0.");
+        return;
+      }
+      if (!Number.isInteger(startMinutes) || startMinutes < 0) {
+        alert("Enter a valid start time.");
+        return;
+      }
+      (async () => {
+        try {
+          await saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes, startMinutes });
+          editingInstructionActualKey = "";
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save actual instructional minutes.");
+        }
+      })();
+      return;
+    }
+    const schoolDayResetInstructionActualId = t.getAttribute("data-school-day-reset-instruction-actual");
+    if (schoolDayResetInstructionActualId) {
+      if (!ensureAdminAction()) return;
+      (async () => {
+        try {
+          await resetInstructionActualMinutes(schoolDayResetInstructionActualId);
+          editingInstructionActualKey = "";
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to reset to planned minutes.");
+        }
+      })();
+      return;
+    }
+  const schoolDayGradeKeyValue = t.getAttribute("data-school-day-grade");
+  if (schoolDayGradeKeyValue) {
+    if (!ensureAdminAction()) return;
+    schoolDayInlineGradeKey = schoolDayInlineGradeKey === schoolDayGradeKeyValue ? "" : schoolDayGradeKeyValue;
+    renderSchoolDay();
+    return;
+  }
+    const schoolDayResetStudentBtn = t.getAttribute("id") === "school-day-reset-student-btn";
+    if (schoolDayResetStudentBtn) {
+      if (!ensureAdminAction()) return;
+      const date = document.getElementById("school-day-date")?.value || todayISO();
+      const studentIds = getSchoolDaySelectedStudentIds();
+      if (studentIds.length !== 1) {
+        setSchoolDayDailyMessage("error", "Select exactly one student to reset that student's day.");
+        return;
+      }
+      const recordIds = schoolDayInstructionActualIds(date, studentIds);
+      if (!recordIds.length) {
+        setSchoolDayDailyMessage("", `No daily overrides exist for ${getStudentName(studentIds[0])} on ${formatDisplayDate(date)}.`);
+        return;
+      }
+      (async () => {
+        try {
+          await resetInstructionActualMinutesBatch(recordIds);
+          schoolDayInlineGradeKey = "";
+          editingInstructionActualKey = "";
+          setSchoolDayDailyMessage("success", `Reset ${getStudentName(studentIds[0])}'s School Day to planned for ${formatDisplayDate(date)}.`);
+          renderAll();
+        } catch (error) {
+          setSchoolDayDailyMessage("error", error.message || "Unable to reset the selected student's School Day.");
+          alert(error.message || "Unable to reset the selected student's School Day.");
+        }
+      })();
+      return;
+    }
+    const schoolDayResetDayBtn = t.getAttribute("id") === "school-day-reset-day-btn";
+    if (schoolDayResetDayBtn) {
+      if (!ensureAdminAction()) return;
+      const date = document.getElementById("school-day-date")?.value || todayISO();
+      const studentIds = getSchoolDaySelectedStudentIds();
+      const courseIds = getSchoolDaySelectedCourseIds();
+      const recordIds = schoolDayInstructionActualIds(date, studentIds, courseIds);
+      if (!recordIds.length) {
+        setSchoolDayDailyMessage("", `No daily overrides exist for the current School Day filters on ${formatDisplayDate(date)}.`);
+        return;
+      }
+      (async () => {
+        try {
+          await resetInstructionActualMinutesBatch(recordIds);
+          schoolDayInlineGradeKey = "";
+          editingInstructionActualKey = "";
+          setSchoolDayDailyMessage("success", `Reset the filtered School Day to planned for ${formatDisplayDate(date)}.`);
+          renderAll();
+        } catch (error) {
+          setSchoolDayDailyMessage("error", error.message || "Unable to reset the filtered School Day.");
+          alert(error.message || "Unable to reset the filtered School Day.");
+        }
+      })();
+      return;
+    }
+    const schoolDayMoveInstructionDirection = t.getAttribute("data-school-day-move-instruction");
+    if (schoolDayMoveInstructionDirection) {
+      if (!ensureAdminAction()) return;
+      const studentId = t.getAttribute("data-student-id") || "";
+      const courseId = t.getAttribute("data-course-id") || "";
+      const date = t.getAttribute("data-date") || document.getElementById("school-day-date")?.value || todayISO();
+      const studentBlocks = (dailyScheduledBlocks(date, [studentId]).get(studentId) || []).filter((entry) => entry.type === "instruction");
+      const currentIndex = studentBlocks.findIndex((entry) => entry.courseId === courseId);
+      if (currentIndex < 0) return;
+      const targetIndex = schoolDayMoveInstructionDirection === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= studentBlocks.length) return;
+      const reordered = [...studentBlocks];
+      const [moved] = reordered.splice(currentIndex, 1);
+      reordered.splice(targetIndex, 0, moved);
+      (async () => {
+        try {
+          await saveInstructionOrderOverridesForStudentDate(studentId, date, reordered.map((entry) => entry.courseId));
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to reorder the School Day schedule.");
+        }
+      })();
+      return;
+    }
     const managementTab = t.getAttribute("data-management-tab");
     if (managementTab) {
       currentManagementTab = managementTab;
@@ -9593,13 +10546,13 @@ function bindEvents() {
     if (editInstructionActualKey) {
       if (!ensureAdminAction()) return;
       editingInstructionActualKey = editInstructionActualKey;
-      renderCalendar();
+      renderAll();
       return;
     }
     const cancelInstructionActualKey = t.getAttribute("data-cancel-instruction-actual");
     if (cancelInstructionActualKey) {
       editingInstructionActualKey = "";
-      renderCalendar();
+      renderAll();
       return;
     }
     const saveInstructionActualKey = t.getAttribute("data-save-instruction-actual");
@@ -9609,16 +10562,22 @@ function bindEvents() {
       const courseId = t.getAttribute("data-course-id") || "";
       const date = t.getAttribute("data-date") || "";
       const input = document.querySelector(`[data-instruction-actual-input="${saveInstructionActualKey}"]`);
+      const startInput = document.querySelector(`[data-instruction-actual-start="${saveInstructionActualKey}"]`);
       const instructorInput = document.querySelector(`[data-instruction-actual-instructor="${saveInstructionActualKey}"]`);
       const instructorId = String(instructorInput?.value || "").trim();
       const actualMinutes = Number(input?.value);
+      const startMinutes = parseTimeToMinutes(startInput?.value || "");
       if (!studentId || !courseId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isInteger(actualMinutes) || actualMinutes <= 0) {
         alert("Enter a whole number of minutes greater than 0.");
         return;
       }
+      if (!Number.isInteger(startMinutes) || startMinutes < 0) {
+        alert("Enter a valid start time.");
+        return;
+      }
       (async () => {
         try {
-          await saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes });
+          await saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes, startMinutes });
           editingInstructionActualKey = "";
           renderAll();
         } catch (error) {
@@ -9690,8 +10649,15 @@ function bindEvents() {
     const saveGrade = t.getAttribute("data-grade-save");
     if (saveGrade) {
       if (!ensureAdminAction()) return;
-      const row = t.closest("tr");
+      const clickedRow = t.closest("tr");
+      if (!clickedRow) return;
+      const actionForRowId = clickedRow.getAttribute("data-grade-action-for");
+      const row = actionForRowId
+        ? document.querySelector(`tr[data-grade-entry-row-id="${actionForRowId}"]`)
+        : clickedRow;
       if (!row) return;
+      const inlineSchoolDayGrade = !!row.closest("[data-school-day-inline-grade-container]");
+      const schoolDayGradesTabRow = row.parentElement?.id === "school-day-grade-entry-body";
       const editGradeId = row.getAttribute("data-edit-grade-id");
       const date = row.querySelector(".grade-row-date")?.value || "";
       const studentId = row.querySelector(".grade-row-student")?.value || "";
@@ -9758,8 +10724,13 @@ function bindEvents() {
                 score: gradeValue,
                 maxScore: 100
               });
+              if (inlineSchoolDayGrade) schoolDayInlineGradeKey = "";
+              if (schoolDayGradesTabRow) {
+                setSchoolDayGradesMessage("success", `Saved grade for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
+              }
               row.remove();
               updateGradeEntryVisibility();
+              updateSchoolDayGradeEntryVisibility();
               await refreshHostedTests();
               renderAll();
             } catch (error) {
@@ -9780,8 +10751,13 @@ function bindEvents() {
         });
       }
 
+      if (inlineSchoolDayGrade) schoolDayInlineGradeKey = "";
+      if (schoolDayGradesTabRow) {
+        setSchoolDayGradesMessage("success", `Saved grade for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
+      }
       row.remove();
       updateGradeEntryVisibility();
+      updateSchoolDayGradeEntryVisibility();
       saveState();
       renderAll();
       return;
@@ -9790,7 +10766,11 @@ function bindEvents() {
     const toggleGradeCalc = t.getAttribute("data-grade-calc-toggle");
     if (toggleGradeCalc) {
       if (!ensureAdminAction()) return;
-      const row = t.closest("tr");
+      const clickedRow = t.closest("tr");
+      const actionForRowId = clickedRow?.getAttribute("data-grade-action-for");
+      const row = actionForRowId
+        ? document.querySelector(`tr[data-grade-entry-row-id="${actionForRowId}"]`)
+        : clickedRow;
       toggleGradeCalculatorRow(row);
       return;
     }
@@ -9814,12 +10794,22 @@ function bindEvents() {
     const cancelGrade = t.getAttribute("data-grade-cancel");
     if (cancelGrade) {
       if (!ensureAdminAction()) return;
-      const row = t.closest("tr");
+      const clickedRow = t.closest("tr");
+      const actionForRowId = clickedRow?.getAttribute("data-grade-action-for");
+      const row = actionForRowId
+        ? document.querySelector(`tr[data-grade-entry-row-id="${actionForRowId}"]`)
+        : clickedRow;
       if (row) {
+        if (row.closest("[data-school-day-inline-grade-container]")) {
+          schoolDayInlineGradeKey = "";
+          renderSchoolDay();
+          return;
+        }
         removeGradeCalculatorRow(row.getAttribute("data-grade-entry-row-id"));
         row.remove();
       }
       updateGradeEntryVisibility();
+      updateSchoolDayGradeEntryVisibility();
       return;
     }
 
@@ -10146,6 +11136,7 @@ function renderAll() {
   ensureStudentSelection();
   updateGradeEntryVisibility();
   renderDashboard();
+  renderSchoolDay();
   renderCalendar();
 
   const studentMode = isStudentUser();

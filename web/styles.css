@@ -932,6 +932,32 @@ td {
   white-space: nowrap;
 }
 
+.school-day-reorder-controls {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  margin-right: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.school-day-reorder-btn {
+  min-width: 1.6rem;
+  width: 1.6rem;
+  height: 1.3rem;
+  padding: 0;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+}
+
+.school-day-hour-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
 .student-avg-toggle {
   width: 1.5rem;
   height: 1.5rem;
@@ -1569,6 +1595,163 @@ td {
   flex-wrap: wrap;
   gap: 0.45rem;
   margin-bottom: 0.8rem;
+}
+
+.school-day-section + .school-day-section {
+  margin-top: 0.8rem;
+}
+
+.school-day-form {
+  align-items: end;
+  margin-bottom: 0.75rem;
+}
+
+.school-day-toolbar {
+  margin-bottom: 0.9rem;
+}
+
+.school-day-quick-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+}
+
+.school-day-quick-filter-btn {
+  border: 1px solid #c8d7e8;
+  background: #f7fbff;
+  color: #35516e;
+  border-radius: 999px;
+  padding: 0.38rem 0.8rem;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.school-day-quick-filter-btn.active {
+  background: #2f5885;
+  border-color: #2f5885;
+  color: #fff;
+}
+
+.school-day-callout-title {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+}
+
+.school-day-override-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.35rem;
+  padding: 0.08rem 0.42rem;
+  border-radius: 999px;
+  background: #e7f0fb;
+  color: #47698a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.school-day-row-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.2rem 0 0.2rem;
+}
+
+.school-day-row-badges .school-day-override-badge {
+  margin-left: 0;
+}
+
+.school-day-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.42rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.school-day-status-badge.success {
+  background: #e7f6ee;
+  color: #336a4f;
+}
+
+.school-day-status-badge.warning {
+  background: #fff1df;
+  color: #8a5a1d;
+}
+
+.school-day-status-badge.info {
+  background: #e7f0fb;
+  color: #47698a;
+}
+
+.school-day-status-badge.muted {
+  background: #eef3f8;
+  color: #627a97;
+}
+
+.school-day-inline-grade-row td {
+  background: #f8fbff;
+}
+
+.school-day-inline-grade-wrap {
+  margin-top: 0.2rem;
+}
+
+.school-day-inline-grade-wrap table {
+  margin: 0;
+}
+
+.school-day-inline-grade-wrap tr[data-school-day-inline-grade] .grade-entry-action-row {
+  display: flex;
+  gap: 0.32rem;
+  justify-content: flex-start;
+}
+
+.school-day-inline-grade-wrap tr[data-school-day-inline-grade] .grade-entry-action-row button,
+.school-day-inline-grade-wrap .school-day-inline-grade-action-table-row .grade-entry-action-row button {
+  width: auto;
+  min-width: 0;
+}
+
+.school-day-inline-grade-wrap .school-day-inline-grade-action-table-row td {
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+  background: #f8fbff;
+}
+
+.school-day-inline-grade-wrap .grade-entry-inline-placeholder {
+  min-height: 1rem;
+}
+
+.calendar-inline-editor {
+  min-width: 9rem;
+}
+
+.calendar-inline-label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #5e7695;
+}
+
+.calendar-inline-label input {
+  width: 100%;
+}
+
+.school-day-attendance-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.8rem;
+}
+
+.school-day-grades-callout {
+  margin-top: 0.85rem;
 }
 
 .subtab-btn {
