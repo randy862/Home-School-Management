@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604051050">
+  <link rel="stylesheet" href="styles.css?v=202604051135">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -329,27 +329,33 @@
       <h2>School Day</h2>
       <div class="school-day-section school-day-section-shell">
         <p class="muted">Use one workspace for the normal daily loop: review the day, make same-day adjustments, and move into attendance and grades without hunting through the app.</p>
-        <form id="school-day-form" class="grid-form school-day-form">
-          <label>Reference Date<input id="school-day-date" type="date" required></label>
-          <label class="calendar-filter-field">Student Filter
-            <details id="school-day-student-dropdown" class="multi-select-dropdown">
-              <summary id="school-day-student-summary">Students (0 selected)</summary>
-              <div id="school-day-student-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label class="calendar-filter-field">Subject Filter
-            <details id="school-day-subject-dropdown" class="multi-select-dropdown">
-              <summary id="school-day-subject-summary">Subjects (0 selected)</summary>
-              <div id="school-day-subject-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label class="calendar-filter-field">Course Filter
-            <details id="school-day-course-dropdown" class="multi-select-dropdown">
-              <summary id="school-day-course-summary">Courses (0 selected)</summary>
-              <div id="school-day-course-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-        </form>
+        <div class="school-day-filter-header">
+          <button id="school-day-filters-toggle" type="button" class="school-day-filter-toggle" aria-expanded="false" aria-controls="school-day-filters-wrap">+</button>
+          <h3>Filters</h3>
+        </div>
+        <div id="school-day-filters-wrap" class="hidden">
+          <form id="school-day-form" class="grid-form school-day-form">
+            <label>Reference Date<input id="school-day-date" type="date" required></label>
+            <label class="calendar-filter-field">Student Filter
+              <details id="school-day-student-dropdown" class="multi-select-dropdown">
+                <summary id="school-day-student-summary">Students (0 selected)</summary>
+                <div id="school-day-student-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label class="calendar-filter-field">Subject Filter
+              <details id="school-day-subject-dropdown" class="multi-select-dropdown">
+                <summary id="school-day-subject-summary">Subjects (0 selected)</summary>
+                <div id="school-day-subject-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label class="calendar-filter-field">Course Filter
+              <details id="school-day-course-dropdown" class="multi-select-dropdown">
+                <summary id="school-day-course-summary">Courses (0 selected)</summary>
+                <div id="school-day-course-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+          </form>
+        </div>
         <div class="calendar-toolbar school-day-toolbar">
           <button id="school-day-prev-period" type="button">Previous</button>
           <p id="school-day-range" class="calendar-month-title">Daily view</p>
@@ -1150,6 +1156,6 @@
       </div>
     </div>
   </main>
-  <script src="app.js?v=202604051050"></script>
+  <script src="app.js?v=202604051135"></script>
 </body>
 </html>

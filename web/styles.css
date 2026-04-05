@@ -1606,6 +1606,27 @@ td {
   margin-bottom: 0.75rem;
 }
 
+.school-day-filter-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.school-day-filter-header h3 {
+  margin: 0;
+}
+
+.school-day-filter-toggle {
+  width: 2.2rem;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .school-day-toolbar {
   margin-bottom: 0.9rem;
 }

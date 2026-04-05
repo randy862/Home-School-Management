@@ -884,6 +884,7 @@ let schoolDayQuickFilters = {
   needsGrade: false,
   overridden: false
 };
+let schoolDayFiltersExpanded = false;
 let calendarBackToWeekContext = null;
 let calendarBackToMonthContext = null;
 let calendarSelectedStudentIds = new Set();
@@ -5525,6 +5526,17 @@ function renderSchoolDayQuickFilterState() {
   });
 }
 
+function renderSchoolDayFilterVisibility() {
+  const wrap = document.getElementById("school-day-filters-wrap");
+  const toggle = document.getElementById("school-day-filters-toggle");
+  if (wrap) wrap.classList.toggle("hidden", !schoolDayFiltersExpanded);
+  if (toggle) {
+    toggle.textContent = schoolDayFiltersExpanded ? "-" : "+";
+    toggle.setAttribute("aria-expanded", schoolDayFiltersExpanded ? "true" : "false");
+    toggle.setAttribute("title", schoolDayFiltersExpanded ? "Hide filters" : "Show filters");
+  }
+}
+
 function updateSchoolDayStudentSummary() {
   const summary = document.getElementById("school-day-student-summary");
   if (!summary) return;
@@ -7802,6 +7814,7 @@ function renderSchoolDay() {
   const dateInput = document.getElementById("school-day-date");
   if (dateInput && !dateInput.value) dateInput.value = todayISO();
   const ref = dateInput?.value || todayISO();
+  renderSchoolDayFilterVisibility();
   syncSchoolDayFilterSubjectCourseOptions();
   renderSchoolDayQuickFilterState();
   renderSchoolDaySectionVisibility();
@@ -10283,6 +10296,12 @@ function bindEvents() {
     if (schoolDayTab) {
       currentSchoolDayTab = ["daily-schedule", "attendance", "grades"].includes(schoolDayTab) ? schoolDayTab : "daily-schedule";
       renderSchoolDaySectionVisibility();
+      return;
+    }
+    const schoolDayFiltersToggle = t.getAttribute("id") === "school-day-filters-toggle";
+    if (schoolDayFiltersToggle) {
+      schoolDayFiltersExpanded = !schoolDayFiltersExpanded;
+      renderSchoolDayFilterVisibility();
       return;
     }
     const schoolDayQuickFilter = t.getAttribute("data-school-day-quick-filter");
