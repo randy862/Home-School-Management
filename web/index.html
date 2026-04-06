@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604051135">
+  <link rel="stylesheet" href="styles.css?v=202604051845">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -328,56 +328,57 @@
     <section id="tab-school-day" class="tab-panel panel">
       <h2>School Day</h2>
       <div class="school-day-section school-day-section-shell">
-        <p class="muted">Use one workspace for the normal daily loop: review the day, make same-day adjustments, and move into attendance and grades without hunting through the app.</p>
-        <div class="school-day-filter-header">
-          <button id="school-day-filters-toggle" type="button" class="school-day-filter-toggle" aria-expanded="false" aria-controls="school-day-filters-wrap">+</button>
-          <h3>Filters</h3>
-        </div>
-        <div id="school-day-filters-wrap" class="hidden">
-          <form id="school-day-form" class="grid-form school-day-form">
-            <label>Reference Date<input id="school-day-date" type="date" required></label>
-            <label class="calendar-filter-field">Student Filter
-              <details id="school-day-student-dropdown" class="multi-select-dropdown">
-                <summary id="school-day-student-summary">Students (0 selected)</summary>
-                <div id="school-day-student-options" class="checklist-vertical"></div>
-              </details>
-            </label>
-            <label class="calendar-filter-field">Subject Filter
-              <details id="school-day-subject-dropdown" class="multi-select-dropdown">
-                <summary id="school-day-subject-summary">Subjects (0 selected)</summary>
-                <div id="school-day-subject-options" class="checklist-vertical"></div>
-              </details>
-            </label>
-            <label class="calendar-filter-field">Course Filter
-              <details id="school-day-course-dropdown" class="multi-select-dropdown">
-                <summary id="school-day-course-summary">Courses (0 selected)</summary>
-                <div id="school-day-course-options" class="checklist-vertical"></div>
-              </details>
-            </label>
-          </form>
-        </div>
-        <div class="calendar-toolbar school-day-toolbar">
-          <button id="school-day-prev-period" type="button">Previous</button>
-          <p id="school-day-range" class="calendar-month-title">Daily view</p>
-          <button id="school-day-next-period" type="button">Next</button>
-        </div>
+        <form id="school-day-form" class="grid-form school-day-form">
+          <label>Reference Date<input id="school-day-date" type="date" required></label>
+          <label class="calendar-filter-field">Student Filter
+            <details id="school-day-student-dropdown" class="multi-select-dropdown">
+              <summary id="school-day-student-summary">Students (0 selected)</summary>
+              <div id="school-day-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label class="calendar-filter-field">Subject Filter
+            <details id="school-day-subject-dropdown" class="multi-select-dropdown">
+              <summary id="school-day-subject-summary">Subjects (0 selected)</summary>
+              <div id="school-day-subject-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label class="calendar-filter-field">Course Filter
+            <details id="school-day-course-dropdown" class="multi-select-dropdown">
+              <summary id="school-day-course-summary">Courses (0 selected)</summary>
+              <div id="school-day-course-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+        </form>
       </div>
 
-      <div class="subtabs school-day-subtabs" aria-label="School Day sections">
-        <button class="subtab-btn active" data-school-day-tab="daily-schedule" type="button">Daily Schedule</button>
-        <button class="subtab-btn" data-school-day-tab="attendance" type="button">Attendance</button>
-        <button class="subtab-btn" data-school-day-tab="grades" type="button">Grades</button>
-      </div>
-
-      <div id="school-day-daily-schedule-section" class="school-day-section">
-        <h3>Daily Schedule</h3>
+      <div class="school-day-nav-row">
         <div id="school-day-quick-filters" class="school-day-quick-filters" aria-label="School Day quick filters">
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="needs-attendance">Needs Attendance</button>
+          <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="needs-completion">Needs Completion</button>
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="needs-grade">Needs Grade</button>
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="overridden">Overridden</button>
         </div>
+        <div class="subtabs school-day-subtabs" aria-label="School Day sections">
+          <button class="subtab-btn active" data-school-day-tab="daily-schedule" type="button">Daily Schedule</button>
+          <button class="subtab-btn" data-school-day-tab="attendance" type="button">Attendance</button>
+          <button class="subtab-btn" data-school-day-tab="grades" type="button">Grades</button>
+        </div>
+      </div>
+
+      <div id="school-day-daily-schedule-section" class="school-day-section">
+        <div class="school-day-section-header">
+          <h3>Daily Schedule</h3>
+          <div class="school-day-date-nav">
+            <button id="school-day-prev-period" type="button">Previous</button>
+            <p id="school-day-range" class="school-day-date-title">04-05-2026</p>
+            <button id="school-day-next-period" type="button">Next</button>
+          </div>
+        </div>
         <div class="school-day-attendance-toolbar">
-          <p id="school-day-daily-message" class="muted">Review or adjust the selected School Day schedule.</p>
+          <div class="school-day-summary-copy">
+            <p id="school-day-daily-message" class="muted">Review or adjust the selected School Day schedule.</p>
+            <p id="school-day-hours-summary" class="muted school-day-hours-summary"></p>
+          </div>
           <div class="table-action-row">
             <button type="button" id="school-day-reset-student-btn">Reset Student Day</button>
             <button type="button" id="school-day-reset-day-btn">Reset Filtered Day</button>
@@ -1156,6 +1157,6 @@
       </div>
     </div>
   </main>
-  <script src="app.js?v=202604051135"></script>
+  <script src="app.js?v=202604051845"></script>
 </body>
 </html>

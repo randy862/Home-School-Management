@@ -342,6 +342,7 @@ function normalizeInstructionActualsShape(inputState) {
       studentId: String(entry.studentId || "").trim(),
       courseId: String(entry.courseId || "").trim(),
       instructorId: String(entry.instructorId || "").trim(),
+      completed: !!entry.completed,
       date: String(entry.date || "").trim(),
       actualMinutes: Number(entry.actualMinutes),
       startMinutes: entry.startMinutes == null || entry.startMinutes === ""
@@ -881,10 +882,10 @@ let schoolDayAttendanceMessageState = { kind: "", text: "" };
 let schoolDayGradesMessageState = { kind: "", text: "" };
 let schoolDayQuickFilters = {
   needsAttendance: false,
+  needsCompletion: false,
   needsGrade: false,
   overridden: false
 };
-let schoolDayFiltersExpanded = false;
 let calendarBackToWeekContext = null;
 let calendarBackToMonthContext = null;
 let calendarSelectedStudentIds = new Set();
@@ -1148,6 +1149,7 @@ async function refreshHostedInstructionActuals() {
     state.instructionActuals = instructionActuals.map((row) => ({
       ...row,
       instructorId: row.instructorId || "",
+      completed: !!row.completed,
       date: normalizeApiDate(row.date),
       actualMinutes: Number(row.actualMinutes || 0),
       startMinutes: row.startMinutes == null || row.startMinutes === "" ? null : Number(row.startMinutes),
@@ -2597,9 +2599,9 @@ function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
     }
     return studentSummary.subjects.get(subjectId);
   };
-  const addHours = (metrics, hours, earned) => {
+  const addHours = (metrics, hours, earnedHours) => {
     metrics.projected += hours;
-    if (earned) metrics.earned += hours;
+    metrics.earned += earnedHours;
   };
 
   state.attendance.forEach((record) => {
@@ -2629,15 +2631,19 @@ function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
 
       const studentSummary = ensureStudentSummary(block.studentId);
       const subjectSummary = ensureSubjectSummary(studentSummary, course.subjectId || "__unknown_subject__");
-      const earned = dateKey <= todayKey && attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) === true;
+      const earnedHours = (
+        dateKey <= todayKey
+        && attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) === true
+        && instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)
+      ) ? hours : 0;
 
-      addHours(studentSummary.buckets.total, hours, earned);
-      addHours(subjectSummary.buckets.total, hours, earned);
+      addHours(studentSummary.buckets.total, hours, earnedHours);
+      addHours(subjectSummary.buckets.total, hours, earnedHours);
       buckets.slice(1).forEach((bucket) => {
         if (!bucket.startDate || !bucket.endDate) return;
         if (!inRange(dateKey, bucket.startDate, bucket.endDate)) return;
-        addHours(studentSummary.buckets[bucket.key], hours, earned);
-        addHours(subjectSummary.buckets[bucket.key], hours, earned);
+        addHours(studentSummary.buckets[bucket.key], hours, earnedHours);
+        addHours(subjectSummary.buckets[bucket.key], hours, earnedHours);
       });
     });
     cursor.setDate(cursor.getDate() + 1);
@@ -3465,7 +3471,11 @@ function reportInstructionalHoursByStudent(studentIds, schoolYearId, range, opti
       const hours = Number(block.actualMinutes || 0) / 60;
       if (!(hours > 0)) return;
       metrics.projected += hours;
-      if (dateKey <= today && attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) === true) {
+      if (
+        dateKey <= today
+        && attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) === true
+        && instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)
+      ) {
         metrics.earned += hours;
       }
     });
@@ -3495,6 +3505,7 @@ function reportInstructionalHourRows(studentIds, range, options = {}) {
       if (block.type !== "instruction" || !studentIds.includes(block.studentId)) return;
       if (!instructionMatchesInstructorFilter(block.studentId, block.courseId, dateKey, instructorId)) return;
       if (!(dateKey <= today && attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) === true)) return;
+      if (!instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)) return;
       const key = `${block.studentId}||${block.courseId}`;
       if (!rowsByStudentCourse.has(key)) {
         rowsByStudentCourse.set(key, {
@@ -3632,6 +3643,7 @@ function reportInstructorSessionRows(range, instructorId = "all") {
     const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction") return;
+      if (!instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)) return;
       const effectiveInstructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
       if (!effectiveInstructorId) return;
       if (instructorId !== "all" && effectiveInstructorId !== instructorId) return;
@@ -5504,8 +5516,9 @@ function schoolDayActiveQuickFilterCount() {
   return Object.values(schoolDayQuickFilters).filter(Boolean).length;
 }
 
-function rowMatchesSchoolDayQuickFilters({ needsAttendance = false, needsGrade = false, overridden = false } = {}) {
+function rowMatchesSchoolDayQuickFilters({ needsAttendance = false, needsCompletion = false, needsGrade = false, overridden = false } = {}) {
   if (schoolDayQuickFilters.needsAttendance && !needsAttendance) return false;
+  if (schoolDayQuickFilters.needsCompletion && !needsCompletion) return false;
   if (schoolDayQuickFilters.needsGrade && !needsGrade) return false;
   if (schoolDayQuickFilters.overridden && !overridden) return false;
   return true;
@@ -5516,6 +5529,8 @@ function renderSchoolDayQuickFilterState() {
     const key = btn.getAttribute("data-school-day-quick-filter") || "";
     const isActive = key === "needs-attendance"
       ? schoolDayQuickFilters.needsAttendance
+      : key === "needs-completion"
+        ? schoolDayQuickFilters.needsCompletion
       : key === "needs-grade"
         ? schoolDayQuickFilters.needsGrade
         : key === "overridden"
@@ -5526,15 +5541,9 @@ function renderSchoolDayQuickFilterState() {
   });
 }
 
-function renderSchoolDayFilterVisibility() {
-  const wrap = document.getElementById("school-day-filters-wrap");
-  const toggle = document.getElementById("school-day-filters-toggle");
-  if (wrap) wrap.classList.toggle("hidden", !schoolDayFiltersExpanded);
-  if (toggle) {
-    toggle.textContent = schoolDayFiltersExpanded ? "-" : "+";
-    toggle.setAttribute("aria-expanded", schoolDayFiltersExpanded ? "true" : "false");
-    toggle.setAttribute("title", schoolDayFiltersExpanded ? "Hide filters" : "Show filters");
-  }
+function formatSchoolDayHeaderDate(date) {
+  const value = formatDisplayDate(date || todayISO());
+  return value.replace(/\//g, "-");
 }
 
 function updateSchoolDayStudentSummary() {
@@ -6453,6 +6462,7 @@ function renderInstructionHoursTrending() {
       if (!course) return;
       if (subjectFilter !== "all" && course.subjectId !== subjectFilter) return;
       if (!instructionMatchesInstructorFilter(event.studentId, event.courseId, dateKey, instructorFilter)) return;
+      if (!instructionCountsTowardCompletedHours(event.studentId, event.courseId, dateKey)) return;
       const block = Array.from(dailyScheduledBlocks(dateKey, [event.studentId], subjectFilter !== "all" ? [course.subjectId] : [], [event.courseId]).values()).flat()
         .find((entry) => entry.type === "instruction" && entry.studentId === event.studentId && entry.courseId === event.courseId);
       const hours = Number(block?.actualMinutes || 0) / 60;
@@ -7629,7 +7639,8 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
       }
 
       const existing = findInstructionActualRecord(block.studentId, block.courseId, dateKey);
-      const overrideBadge = existing
+      const hasOverride = hasInstructionExecutionOverride(block.studentId, block.courseId, dateKey);
+      const overrideBadge = hasOverride
         ? `<span class="school-day-override-badge">Override</span>`
         : "";
       const attendanceRecord = attendanceRecordForStudentDate(block.studentId, dateKey);
@@ -7639,14 +7650,19 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
         : `<span class="school-day-status-badge muted">Attendance Open</span>`;
       const gradeRecordCount = gradeRecordsForStudentCourseDate(block.studentId, block.courseId, dateKey).length;
       const needsGrade = gradeRecordCount === 0;
-      const isOverridden = !!existing;
-      if (useQuickFilters && !rowMatchesSchoolDayQuickFilters({ needsAttendance, needsGrade, overridden: isOverridden })) {
+      const isOverridden = hasOverride;
+      const isCompleted = effectiveInstructionCompleted(block.studentId, block.courseId, dateKey);
+      const needsCompletion = !isCompleted;
+      if (useQuickFilters && !rowMatchesSchoolDayQuickFilters({ needsAttendance, needsCompletion, needsGrade, overridden: isOverridden })) {
         return [];
       }
+      const completedBadge = isCompleted
+        ? `<span class="school-day-status-badge complete">Completed</span>`
+        : `<span class="school-day-status-badge muted">Open</span>`;
       const gradeBadge = gradeRecordCount
         ? `<span class="school-day-status-badge info">${gradeRecordCount} ${gradeRecordCount === 1 ? "Grade" : "Grades"}</span>`
         : `<span class="school-day-status-badge muted">No Grade</span>`;
-      const rowBadges = `<div class="school-day-row-badges">${overrideBadge}${attendanceBadge}${gradeBadge}</div>`;
+      const rowBadges = `<div class="school-day-row-badges">${overrideBadge}${completedBadge}${attendanceBadge}${gradeBadge}</div>`;
       const editKey = instructionActualEditKey(block.studentId, block.courseId, dateKey);
       const isEditing = editingInstructionActualKey === editKey;
       const canEditActualMinutes = isAdminUser();
@@ -7686,7 +7702,7 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
         ? ""
         : (isEditing
           ? `<div class="table-action-row"><button type="button" ${saveAttr}="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" ${cancelAttr}="${editKey}">Cancel</button></div>`
-          : `<div class="table-action-row"><button type="button" ${editAttr}="${editKey}">Edit</button>${existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}${inlineGradeActions}</div>`);
+          : `<div class="school-day-actions-wrap"><label class="school-day-complete-toggle"><input type="checkbox" data-school-day-completed-toggle="1" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}"${isCompleted ? " checked" : ""}> Completed</label><div class="table-action-row"><button type="button" ${editAttr}="${editKey}">Edit</button>${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}${inlineGradeActions}</div></div>`);
       const renderedRows = [`<tr><td>${hourDisplay}</td><td>${block.student}</td><td>${block.label}<br>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td>${instructorCell}</td><td>${minutesCell}</td><td class="calendar-actions-cell">${actionsCell}</td></tr>`];
       if (showInlineGrade) {
         const gradeRow = buildGradeEntryRow(null, {
@@ -7814,26 +7830,43 @@ function renderSchoolDay() {
   const dateInput = document.getElementById("school-day-date");
   if (dateInput && !dateInput.value) dateInput.value = todayISO();
   const ref = dateInput?.value || todayISO();
-  renderSchoolDayFilterVisibility();
   syncSchoolDayFilterSubjectCourseOptions();
   renderSchoolDayQuickFilterState();
   renderSchoolDaySectionVisibility();
 
   const rangeLabel = document.getElementById("school-day-range");
-  if (rangeLabel) rangeLabel.textContent = `Daily view: ${ref}`;
+  if (rangeLabel) rangeLabel.textContent = formatSchoolDayHeaderDate(ref);
 
   const studentFilterIds = getSchoolDaySelectedStudentIds();
   const subjectFilterIds = getSchoolDaySelectedSubjectIds();
   const courseFilterIds = getSchoolDaySelectedCourseIds();
   const { rows } = buildDayCalendarRows(ref, studentFilterIds, subjectFilterIds, courseFilterIds, { mode: "school-day", useQuickFilters: true });
+  const completionRows = Array.from(dailyScheduledBlocks(ref, studentFilterIds, subjectFilterIds, courseFilterIds).values())
+    .flat()
+    .filter((block) => block.type === "instruction");
+  const completionCount = completionRows.filter((block) => effectiveInstructionCompleted(block.studentId, block.courseId, ref)).length;
+  const plannedMinutesTotal = completionRows.reduce((sum, block) => sum + plannedInstructionMinutesForCourse(block.courseId), 0);
+  const completedMinutesTotal = completionRows.reduce((sum, block) => (
+    effectiveInstructionCompleted(block.studentId, block.courseId, ref)
+      ? sum + effectiveInstructionMinutes(block.studentId, block.courseId, ref)
+      : sum
+  ), 0);
   const quickFilterEmptyMessage = schoolDayActiveQuickFilterCount()
     ? "No School Day rows match the selected quick filters."
     : "No scheduled instruction for this day.";
   rowOrEmpty(document.getElementById("school-day-table"), rows, quickFilterEmptyMessage, 6);
+  const hoursSummary = document.getElementById("school-day-hours-summary");
+  if (hoursSummary) {
+    hoursSummary.textContent = completionRows.length
+      ? `Planned: ${(plannedMinutesTotal / 60).toFixed(2)} hrs | Completed: ${(completedMinutesTotal / 60).toFixed(2)} hrs`
+      : "";
+  }
   if (schoolDayDailyMessageState.text) {
     setSchoolDayDailyMessage(schoolDayDailyMessageState.kind, schoolDayDailyMessageState.text);
   } else {
-    setSchoolDayDailyMessage("", `Review or adjust the School Day schedule for ${formatDisplayDate(ref)}.`);
+    setSchoolDayDailyMessage("", completionRows.length
+      ? `${completionCount} of ${completionRows.length} classes completed on ${formatDisplayDate(ref)}.`
+      : `No scheduled classes for ${formatDisplayDate(ref)}.`);
   }
   renderSchoolDayAttendance();
   renderSchoolDayGrades();
@@ -8003,6 +8036,7 @@ function createLegacyLocalInstructionActual(payload) {
     studentId: payload.studentId,
     courseId: payload.courseId,
     instructorId: payload.instructorId || "",
+    completed: !!payload.completed,
     date: payload.date,
     actualMinutes: payload.actualMinutes,
     startMinutes: payload.startMinutes == null ? null : payload.startMinutes,
@@ -8015,6 +8049,7 @@ function updateLegacyLocalInstructionActual(existing, payload) {
   existing.studentId = payload.studentId;
   existing.courseId = payload.courseId;
   existing.instructorId = payload.instructorId || "";
+  existing.completed = !!payload.completed;
   existing.date = payload.date;
   existing.actualMinutes = payload.actualMinutes;
   existing.startMinutes = payload.startMinutes == null ? null : payload.startMinutes;
@@ -8034,6 +8069,24 @@ function effectiveInstructionInstructorId(studentId, courseId, date) {
   return String(existing?.instructorId || defaultInstructorIdForCourse(courseId) || "").trim();
 }
 
+function effectiveInstructionCompleted(studentId, courseId, date) {
+  return !!findInstructionActualRecord(studentId, courseId, date)?.completed;
+}
+
+function instructionCountsTowardCompletedHours(studentId, courseId, date) {
+  return effectiveInstructionCompleted(studentId, courseId, date);
+}
+
+function hasInstructionExecutionOverride(studentId, courseId, date) {
+  const existing = findInstructionActualRecord(studentId, courseId, date);
+  if (!existing) return false;
+  if (Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0) return true;
+  if (Number.isInteger(existing.orderIndex) && existing.orderIndex > 0) return true;
+  if (String(existing.instructorId || "").trim() !== String(defaultInstructorIdForCourse(courseId) || "").trim()) return true;
+  if (Number.isInteger(existing.actualMinutes) && existing.actualMinutes > 0 && existing.actualMinutes !== plannedInstructionMinutesForCourse(courseId)) return true;
+  return false;
+}
+
 function buildInstructionInstructorOptions(selectedInstructorId) {
   const normalizedSelected = String(selectedInstructorId || "").trim();
   const optionRows = [{ value: "", label: "Unassigned" }]
@@ -8046,7 +8099,7 @@ function buildInstructionInstructorOptions(selectedInstructorId) {
     .join("");
 }
 
-async function saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes, startMinutes, orderIndex }) {
+async function saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes, startMinutes, orderIndex, completed }) {
   const existing = findInstructionActualRecord(studentId, courseId, date);
   const payload = {
     studentId,
@@ -8055,7 +8108,8 @@ async function saveInstructionActualMinutes({ studentId, courseId, instructorId,
     date,
     actualMinutes,
     startMinutes: startMinutes == null || startMinutes === "" ? null : Number(startMinutes),
-    orderIndex: orderIndex == null || orderIndex === "" ? null : Number(orderIndex)
+    orderIndex: orderIndex == null || orderIndex === "" ? null : Number(orderIndex),
+    completed: completed == null ? !!existing?.completed : !!completed
   };
   if (hostedModeEnabled) {
     if (existing) {
@@ -8086,7 +8140,8 @@ async function saveInstructionOrderOverridesForStudentDate(studentId, date, orde
       date,
       actualMinutes: effectiveInstructionMinutes(studentId, courseId, date),
       startMinutes: existing?.startMinutes ?? null,
-      orderIndex: index + 1
+      orderIndex: index + 1,
+      completed: existing?.completed ?? false
     });
   }
 }
@@ -10135,6 +10190,40 @@ function bindEvents() {
       renderSchoolDay();
       return;
     }
+    if (t.getAttribute("data-school-day-completed-toggle")) {
+      if (!ensureAdminAction()) return;
+      const studentId = t.getAttribute("data-student-id") || "";
+      const courseId = t.getAttribute("data-course-id") || "";
+      const date = t.getAttribute("data-date") || document.getElementById("school-day-date")?.value || todayISO();
+      const completed = t instanceof HTMLInputElement ? t.checked : false;
+      const existing = findInstructionActualRecord(studentId, courseId, date);
+      (async () => {
+        try {
+          if (!completed && existing && !hasInstructionExecutionOverride(studentId, courseId, date)) {
+            await resetInstructionActualMinutes(existing.id);
+            setSchoolDayDailyMessage("success", `Unmarked ${getCourseName(courseId)} as completed for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
+            renderAll();
+            return;
+          }
+          await saveInstructionActualMinutes({
+            studentId,
+            courseId,
+            instructorId: effectiveInstructionInstructorId(studentId, courseId, date),
+            date,
+            actualMinutes: effectiveInstructionMinutes(studentId, courseId, date),
+            startMinutes: existing?.startMinutes ?? null,
+            orderIndex: existing?.orderIndex ?? null,
+            completed
+          });
+          setSchoolDayDailyMessage("success", `${completed ? "Marked" : "Unmarked"} ${getCourseName(courseId)} as completed for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
+          renderAll();
+        } catch (error) {
+          setSchoolDayDailyMessage("error", error.message || "Unable to update completion status.");
+          alert(error.message || "Unable to update completion status.");
+        }
+      })();
+      return;
+    }
     if (t.classList.contains("calendar-course-all-checkbox")) {
       const checked = t instanceof HTMLInputElement ? t.checked : false;
       const courseIds = checked
@@ -10298,15 +10387,10 @@ function bindEvents() {
       renderSchoolDaySectionVisibility();
       return;
     }
-    const schoolDayFiltersToggle = t.getAttribute("id") === "school-day-filters-toggle";
-    if (schoolDayFiltersToggle) {
-      schoolDayFiltersExpanded = !schoolDayFiltersExpanded;
-      renderSchoolDayFilterVisibility();
-      return;
-    }
     const schoolDayQuickFilter = t.getAttribute("data-school-day-quick-filter");
     if (schoolDayQuickFilter) {
       if (schoolDayQuickFilter === "needs-attendance") schoolDayQuickFilters.needsAttendance = !schoolDayQuickFilters.needsAttendance;
+      if (schoolDayQuickFilter === "needs-completion") schoolDayQuickFilters.needsCompletion = !schoolDayQuickFilters.needsCompletion;
       if (schoolDayQuickFilter === "needs-grade") schoolDayQuickFilters.needsGrade = !schoolDayQuickFilters.needsGrade;
       if (schoolDayQuickFilter === "overridden") schoolDayQuickFilters.overridden = !schoolDayQuickFilters.overridden;
       renderSchoolDay();
