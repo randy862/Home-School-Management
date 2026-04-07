@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604051845">
+  <link rel="stylesheet" href="styles.css?v=202604061255">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -384,6 +384,16 @@
             <button type="button" id="school-day-reset-day-btn">Reset Filtered Day</button>
           </div>
         </div>
+        <div id="school-day-student-summaries-header" class="school-day-student-summaries-header hidden">
+          <button type="button" id="school-day-student-summaries-toggle" class="school-day-student-summaries-toggle" aria-expanded="true">-</button>
+          <h4>Student Summaries</h4>
+        </div>
+        <div id="school-day-student-summaries" class="school-day-student-summaries"></div>
+        <div id="school-day-overview-header" class="school-day-student-summaries-header hidden">
+          <button type="button" id="school-day-overview-toggle" class="school-day-student-summaries-toggle" aria-expanded="true">-</button>
+          <h4>Side-By-Side Schedule Overview</h4>
+        </div>
+        <div id="school-day-overview-grid" class="school-day-overview-grid hidden"></div>
         <div class="table-wrap calendar-table-wrap">
           <table>
             <thead><tr><th>Hour</th><th>Student</th><th>Planned Instruction</th><th>Instructor</th><th>Minutes</th><th>Actions</th></tr></thead>
@@ -1157,6 +1167,6 @@
       </div>
     </div>
   </main>
-  <script src="app.js?v=202604051845"></script>
+  <script src="app.js?v=202604061255"></script>
 </body>
 </html>

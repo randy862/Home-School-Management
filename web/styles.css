@@ -1801,6 +1801,46 @@ td {
   margin: 0.2rem 0 0.2rem;
 }
 
+#school-day-table tr.school-day-row-needs-attendance td:first-child,
+#school-day-table tr.school-day-row-needs-grade td:first-child,
+#school-day-table tr.school-day-row-needs-completion td:first-child,
+#school-day-table tr.school-day-row-completed td:first-child {
+  position: relative;
+}
+
+#school-day-table tr.school-day-row-needs-attendance td:first-child::before,
+#school-day-table tr.school-day-row-needs-grade td:first-child::before,
+#school-day-table tr.school-day-row-needs-completion td:first-child::before,
+#school-day-table tr.school-day-row-completed td:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 4px;
+  border-radius: 999px;
+}
+
+#school-day-table tr.school-day-row-needs-attendance td:first-child::before,
+#school-day-table tr.school-day-row-needs-grade td:first-child::before,
+#school-day-table tr.school-day-row-needs-completion td:first-child::before {
+  background: #ee9a1a;
+}
+
+#school-day-table tr.school-day-row-completed td:first-child::before {
+  background: #3f8a63;
+}
+
+#school-day-table tr.school-day-row-needs-attendance td,
+#school-day-table tr.school-day-row-needs-grade td,
+#school-day-table tr.school-day-row-needs-completion td {
+  background: #fffdf8;
+}
+
+#school-day-table tr.school-day-row-completed td {
+  background: #fbfffc;
+}
+
 .school-day-row-badges .school-day-override-badge {
   margin-left: 0;
 }
@@ -1820,8 +1860,8 @@ td {
 }
 
 .school-day-status-badge.warning {
-  background: #fff1df;
-  color: #8a5a1d;
+  background: #ffe7bf;
+  color: #8f4e00;
 }
 
 .school-day-status-badge.complete {
@@ -1842,6 +1882,7 @@ td {
 .school-day-actions-wrap {
   display: grid;
   gap: 0.35rem;
+  justify-items: start;
 }
 
 .school-day-complete-toggle {
@@ -1926,6 +1967,186 @@ td {
   font-size: 0.88rem;
   font-weight: 600;
 }
+
+.school-day-student-summaries {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.65rem;
+  margin: 0 0 0.7rem;
+}
+
+.school-day-student-summaries-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.5rem;
+}
+
+.school-day-student-summaries-header h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #627a97;
+}
+
+.school-day-student-summaries-toggle {
+  width: 1.85rem;
+  min-width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid #c8d7e8;
+  background: #fff;
+  color: #2f5885;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.school-day-student-summaries-toggle:hover {
+  background: #eef5fc;
+}
+
+.school-day-student-summary-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #dfe8f2;
+  border-radius: 14px;
+  background: #f8fbff;
+  padding: 0.7rem 0.8rem;
+  box-shadow: 0 10px 22px rgba(31, 47, 69, 0.06);
+  cursor: pointer;
+}
+
+.school-day-student-summary-card:hover {
+  border-color: #b8cde4;
+  background: #f3f8fd;
+}
+
+.school-day-student-summary-card.active {
+  border-color: #5f88b4;
+  background: #eaf3fc;
+  box-shadow: 0 12px 26px rgba(47, 88, 133, 0.14);
+}
+
+.school-day-student-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.45rem;
+}
+
+.school-day-student-summary-header h4 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.school-day-student-summary-stats {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+  color: #5a6f87;
+}
+
+.school-day-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.7rem;
+  margin: 0 0 0.8rem;
+}
+
+.school-day-overview-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #dfe8f2;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 0.75rem 0.85rem;
+  box-shadow: 0 10px 24px rgba(31, 47, 69, 0.07);
+  cursor: pointer;
+}
+
+.school-day-overview-card:hover {
+  border-color: #b8cde4;
+  background: #f4f9ff;
+}
+
+.school-day-overview-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.school-day-overview-card-header h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.school-day-overview-card-header span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #627a97;
+}
+
+.school-day-overview-body {
+  display: grid;
+  gap: 0.28rem;
+  max-height: 15.5rem;
+  overflow-y: auto;
+  padding-right: 0.2rem;
+}
+
+.school-day-overview-row {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.2rem 0;
+}
+
+.school-day-overview-time {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #446484;
+}
+
+.school-day-overview-course {
+  min-width: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #20344f;
+}
+
+.school-day-overview-status {
+  justify-self: end;
+  padding: 0.08rem 0.42rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.school-day-overview-status.complete {
+  background: #e8f6ee;
+  color: #2f6a4a;
+}
+
+.school-day-overview-status.needs-grade {
+  background: #ffe7bf;
+  color: #8f4e00;
+}
+
+.school-day-overview-status.open {
+  background: #eef3f8;
+  color: #627a97;
+}
+
 
 .school-day-grades-callout {
   margin-top: 0.85rem;
