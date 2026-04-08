@@ -23,6 +23,7 @@ const API_PLANS_ENDPOINT = `${API_BASE_URL}/api/plans`;
 const API_GRADE_TYPES_ENDPOINT = `${API_BASE_URL}/api/grade-types`;
 const API_GRADING_CRITERIA_ENDPOINT = `${API_BASE_URL}/api/grading-criteria`;
 const API_TESTS_ENDPOINT = `${API_BASE_URL}/api/tests`;
+const API_WORKSPACE_CONFIG_ENDPOINT = `${API_BASE_URL}/api/admin/workspace-config`;
 const SESSION_KEY = "hsm_session_v1";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -42,6 +43,7 @@ const LEGACY_BOOTSTRAP_ADMIN_PASSWORD = "ChangeMe123!";
 const STUDENT_ALLOWED_TABS = new Set(["dashboard", "calendar", "attendance", "grades"]);
 const HOSTED_MODE_STORAGE_KEY = "hsm_hosted_mode_v1";
 const SCHOOL_DAY_PREFS_STORAGE_KEY = "hsm_school_day_prefs_v1";
+const WORKSPACE_CONFIG_PREFS_STORAGE_KEY = "hsm_workspace_config_prefs_v1";
 const INSTRUCTOR_CATEGORY_OPTIONS = ["parent", "volunteer", "compensated", "other"];
 const INSTRUCTOR_CATEGORY_LABELS = {
   parent: "Parent",
@@ -66,6 +68,34 @@ const INSTRUCTOR_EDUCATION_LEVEL_LABELS = {
   masters_degree: "Master's Degree",
   doctoral_degree: "Doctoral Degree",
   other: "Other"
+};
+const DEFAULT_WORKSPACE_CONFIG = {
+  schoolDay: {
+    showReferenceDateFilter: true,
+    showStudentFilter: true,
+    showSubjectFilter: true,
+    showCourseFilter: true,
+    showStudentSummaries: true,
+    showSideBySideOverview: true,
+    showNeedsAttendanceFilter: true,
+    showNeedsCompletionFilter: true,
+    showNeedsGradeFilter: true,
+    showOverriddenFilter: true,
+    defaultTab: "daily-schedule",
+    studentSummariesDefault: "adaptive",
+    overviewDefault: "collapsed"
+  },
+  dashboard: {
+    showKpiCards: true,
+    showStudentPerformance: true,
+    showStudentAttendance: true,
+    showStudentInstructionalHours: true,
+    showGradeTrending: true,
+    showGpaTrending: true,
+    showInstructionalHoursTrending: true,
+    showGradeTypeVolume: true,
+    showWorkDistribution: true
+  }
 };
 
 function isLegacyBridgeMode() {
@@ -823,6 +853,7 @@ let hostedModeEnabled = loadHostedModePreference();
 if (!IS_LOCAL_DEV_HOST) {
   hostedModeEnabled = true;
 }
+let workspaceConfig = loadWorkspaceConfigPreferences();
 loadSession();
 loadSchoolDayPreferences();
 if (!state.users.some((user) => user.id === currentUserId)) currentUserId = "";
@@ -847,6 +878,7 @@ const expandedStudentAverageRows = new Set();
 const expandedSubjectAverageRows = new Set();
 const expandedStudentAttendanceRows = new Set();
 const expandedStudentInstructionalHourRows = new Set();
+let dashboardExpandableRenderCache = null;
 const studentPerformanceSelectedGradeMethods = new Set(STUDENT_PERFORMANCE_GRADE_METHODS);
 const trendSelectedStudentIds = new Set();
 const gpaTrendSelectedStudentIds = new Set();
@@ -878,6 +910,7 @@ let showScheduleHolidays = false;
 let showSchedulePlans = false;
 let currentScheduleTab = "school-years";
 let currentSchoolDayTab = "daily-schedule";
+let currentAdministrationTab = "workspace-configuration";
 let schoolDayInlineGradeKey = "";
 let schoolDayDailyMessageState = { kind: "", text: "" };
 let schoolDayAttendanceMessageState = { kind: "", text: "" };
@@ -900,6 +933,7 @@ let schoolDayStudentSummariesCollapsed = false;
 let schoolDayStudentSummariesManual = false;
 let schoolDayOverviewCollapsed = false;
 let schoolDayOverviewManual = false;
+let administrationWorkspaceConfigMessageState = { kind: "", text: "" };
 let reportType = "student";
 let reportSelectedStudentIds = new Set();
 const STUDENT_REPORT_CONTENT_OPTIONS = [
@@ -946,6 +980,54 @@ function loadSession() {
   }
 }
 
+function cloneWorkspaceConfig(config = DEFAULT_WORKSPACE_CONFIG) {
+  return JSON.parse(JSON.stringify(config));
+}
+
+function normalizeWorkspaceConfig(raw) {
+  const next = cloneWorkspaceConfig(DEFAULT_WORKSPACE_CONFIG);
+  const schoolDay = raw?.schoolDay || {};
+  const dashboard = raw?.dashboard || {};
+  Object.keys(next.schoolDay).forEach((key) => {
+    if (typeof next.schoolDay[key] === "boolean") {
+      if (typeof schoolDay[key] === "boolean") next.schoolDay[key] = schoolDay[key];
+    } else if (typeof next.schoolDay[key] === "string") {
+      if (typeof schoolDay[key] === "string" && schoolDay[key]) next.schoolDay[key] = schoolDay[key];
+    }
+  });
+  Object.keys(next.dashboard).forEach((key) => {
+    if (typeof dashboard[key] === "boolean") next.dashboard[key] = dashboard[key];
+  });
+  if (!["daily-schedule", "attendance", "grades"].includes(next.schoolDay.defaultTab)) {
+    next.schoolDay.defaultTab = DEFAULT_WORKSPACE_CONFIG.schoolDay.defaultTab;
+  }
+  if (!["expanded", "collapsed", "adaptive"].includes(next.schoolDay.studentSummariesDefault)) {
+    next.schoolDay.studentSummariesDefault = DEFAULT_WORKSPACE_CONFIG.schoolDay.studentSummariesDefault;
+  }
+  if (!["expanded", "collapsed", "adaptive"].includes(next.schoolDay.overviewDefault)) {
+    next.schoolDay.overviewDefault = DEFAULT_WORKSPACE_CONFIG.schoolDay.overviewDefault;
+  }
+  return next;
+}
+
+function loadWorkspaceConfigPreferences() {
+  try {
+    const raw = localStorage.getItem(WORKSPACE_CONFIG_PREFS_STORAGE_KEY);
+    if (!raw) return cloneWorkspaceConfig(DEFAULT_WORKSPACE_CONFIG);
+    return normalizeWorkspaceConfig(JSON.parse(raw));
+  } catch {
+    return cloneWorkspaceConfig(DEFAULT_WORKSPACE_CONFIG);
+  }
+}
+
+function saveWorkspaceConfigPreferences() {
+  try {
+    localStorage.setItem(WORKSPACE_CONFIG_PREFS_STORAGE_KEY, JSON.stringify(workspaceConfig));
+  } catch {
+    // ignore storage failures
+  }
+}
+
 function loadHostedModePreference() {
   try {
     return localStorage.getItem(HOSTED_MODE_STORAGE_KEY) === "true";
@@ -965,11 +1047,16 @@ function saveHostedModePreference(value) {
 function loadSchoolDayPreferences() {
   try {
     const raw = localStorage.getItem(SCHOOL_DAY_PREFS_STORAGE_KEY);
-    if (!raw) return;
+    if (!raw) {
+      currentSchoolDayTab = workspaceConfig?.schoolDay?.defaultTab || DEFAULT_WORKSPACE_CONFIG.schoolDay.defaultTab;
+      return;
+    }
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return;
     if (["daily-schedule", "attendance", "grades"].includes(parsed.currentSchoolDayTab)) {
       currentSchoolDayTab = parsed.currentSchoolDayTab;
+    } else {
+      currentSchoolDayTab = workspaceConfig?.schoolDay?.defaultTab || DEFAULT_WORKSPACE_CONFIG.schoolDay.defaultTab;
     }
     if (typeof parsed.studentSummariesCollapsed === "boolean") schoolDayStudentSummariesCollapsed = parsed.studentSummariesCollapsed;
     if (typeof parsed.studentSummariesManual === "boolean") schoolDayStudentSummariesManual = parsed.studentSummariesManual;
@@ -1260,6 +1347,26 @@ async function refreshHostedGradingCriteria() {
       gpaMax: criteria.gpaMax == null ? 4 : Number(criteria.gpaMax)
     };
   }
+}
+
+async function refreshHostedWorkspaceConfig() {
+  const response = await authFetch(API_WORKSPACE_CONFIG_ENDPOINT);
+  if (!response.ok) throw new Error(`Workspace configuration fetch failed (${response.status})`);
+  const config = await response.json();
+  workspaceConfig = normalizeWorkspaceConfig(config || {});
+  saveWorkspaceConfigPreferences();
+}
+
+async function saveHostedWorkspaceConfig(config) {
+  const response = await authFetch(API_WORKSPACE_CONFIG_ENDPOINT, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config)
+  });
+  const saved = await parseApiResponse(response, `Workspace configuration save failed (${response.status})`);
+  workspaceConfig = normalizeWorkspaceConfig(saved || {});
+  saveWorkspaceConfigPreferences();
+  return workspaceConfig;
 }
 
 async function createHostedHoliday(payload) {
@@ -1644,6 +1751,7 @@ async function refreshHostedTests() {
 
 async function hydrateHostedDomainState() {
   if (!currentUser()) return;
+  await refreshHostedWorkspaceConfig();
   await refreshHostedStudents();
   await refreshHostedInstructors();
   await refreshHostedSubjects();
@@ -1801,6 +1909,19 @@ function visibleStudentIds() {
 
 function studentCanAccessTab(tabName) {
   return STUDENT_ALLOWED_TABS.has(tabName);
+}
+
+function normalizeTabName(tabName) {
+  if (!isAdminUser()) return tabName;
+  if (tabName === "instructors") {
+    currentAdministrationTab = "instructors";
+    return "administration";
+  }
+  if (tabName === "users") {
+    currentAdministrationTab = "users";
+    return "administration";
+  }
+  return tabName;
 }
 
 function canAccessTab(tabName) {
@@ -1981,9 +2102,12 @@ function beginStudentDetail(studentId) {
 
 function setActiveTab(tabName) {
   const fallback = isAdminUser() ? "dashboard" : "dashboard";
-  currentTab = canAccessTab(tabName) ? tabName : fallback;
+  const normalizedTab = normalizeTabName(tabName);
+  currentTab = canAccessTab(normalizedTab) ? normalizedTab : fallback;
   document.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.tab === currentTab);
+    const btnTab = btn.dataset.tab || "";
+    const hiddenStandaloneAdminTab = isAdminUser() && (btnTab === "instructors" || btnTab === "users");
+    btn.classList.toggle("active", !hiddenStandaloneAdminTab && btnTab === currentTab);
   });
   document.querySelectorAll(".tab-panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === `tab-${currentTab}`);
@@ -2018,7 +2142,8 @@ function renderSessionChrome() {
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     const tabName = btn.dataset.tab || "";
-    btn.classList.toggle("hidden", !signedIn || !canAccessTab(tabName));
+    const hiddenStandaloneAdminTab = isAdminUser(user) && (tabName === "instructors" || tabName === "users");
+    btn.classList.toggle("hidden", !signedIn || !canAccessTab(tabName) || hiddenStandaloneAdminTab);
   });
 
   const studentView = isStudentUser(user);
@@ -2291,7 +2416,7 @@ function currentGpaMax() {
 function scoreToLetterGrade(scorePct) {
   const numeric = Number(scorePct);
   if (!Number.isFinite(numeric)) return "";
-  const clampedScore = clamp(numeric, 0, 100);
+  const clampedScore = Math.floor(clamp(numeric, 0, 100));
   const match = effectiveLetterGradeScale().find((entry) => clampedScore >= entry.start && clampedScore <= entry.end);
   return match ? match.label : "";
 }
@@ -4544,6 +4669,96 @@ function renderUsers() {
   rowOrEmpty(tableBody, rows, "No users configured.", 5);
 }
 
+function setAdministrationWorkspaceConfigMessage(kind, text) {
+  administrationWorkspaceConfigMessageState = { kind, text };
+  const node = document.getElementById("administration-workspace-config-message");
+  if (!node) return;
+  node.textContent = text || "";
+  node.className = `status-text${text ? "" : " hidden"}${kind ? ` ${kind}` : ""}`;
+  if (text) node.scrollIntoView({ block: "nearest" });
+}
+
+function renderAdministrationSectionVisibility() {
+  const visibleTab = currentAdministrationTab || "workspace-configuration";
+  document.querySelectorAll("[data-administration-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-administration-tab") === visibleTab);
+  });
+  const panels = {
+    "workspace-configuration": document.getElementById("administration-workspace-configuration-wrap"),
+    instructors: document.getElementById("administration-instructors-wrap"),
+    users: document.getElementById("administration-users-wrap")
+  };
+  Object.entries(panels).forEach(([key, panel]) => {
+    if (panel) panel.classList.toggle("hidden", key !== visibleTab);
+  });
+}
+
+function mountAdministrationManagedPanels() {
+  const mappings = [
+    ["tab-instructors", "administration-instructors-host"],
+    ["tab-users", "administration-users-host"]
+  ];
+  mappings.forEach(([sourceId, hostId]) => {
+    const source = document.getElementById(sourceId);
+    const host = document.getElementById(hostId);
+    if (!source || !host || host.childElementCount > 0) return;
+    Array.from(source.children)
+      .filter((child) => !(child.tagName === "H2"))
+      .forEach((child) => host.appendChild(child));
+  });
+}
+
+function renderAdministration() {
+  mountAdministrationManagedPanels();
+  renderAdministrationSectionVisibility();
+  const hostedTenantConfig = hostedModeEnabled && !!currentUser();
+
+  const config = workspaceConfig || cloneWorkspaceConfig(DEFAULT_WORKSPACE_CONFIG);
+  const mappings = [
+    ["admin-config-school-day-show-reference-date", config.schoolDay.showReferenceDateFilter],
+    ["admin-config-school-day-show-student-filter", config.schoolDay.showStudentFilter],
+    ["admin-config-school-day-show-subject-filter", config.schoolDay.showSubjectFilter],
+    ["admin-config-school-day-show-course-filter", config.schoolDay.showCourseFilter],
+    ["admin-config-school-day-show-student-summaries", config.schoolDay.showStudentSummaries],
+    ["admin-config-school-day-show-side-by-side-overview", config.schoolDay.showSideBySideOverview],
+    ["admin-config-school-day-show-needs-attendance", config.schoolDay.showNeedsAttendanceFilter],
+    ["admin-config-school-day-show-needs-completion", config.schoolDay.showNeedsCompletionFilter],
+    ["admin-config-school-day-show-needs-grade", config.schoolDay.showNeedsGradeFilter],
+    ["admin-config-school-day-show-overridden", config.schoolDay.showOverriddenFilter],
+    ["admin-config-dashboard-show-kpi-cards", config.dashboard.showKpiCards],
+    ["admin-config-dashboard-show-student-performance", config.dashboard.showStudentPerformance],
+    ["admin-config-dashboard-show-student-attendance", config.dashboard.showStudentAttendance],
+    ["admin-config-dashboard-show-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
+    ["admin-config-dashboard-show-grade-trending", config.dashboard.showGradeTrending],
+    ["admin-config-dashboard-show-gpa-trending", config.dashboard.showGpaTrending],
+    ["admin-config-dashboard-show-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending],
+    ["admin-config-dashboard-show-grade-type-volume", config.dashboard.showGradeTypeVolume],
+    ["admin-config-dashboard-show-work-distribution", config.dashboard.showWorkDistribution]
+  ];
+  mappings.forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.checked = !!value;
+  });
+  const schoolDayTabSelect = document.getElementById("admin-config-school-day-default-tab");
+  if (schoolDayTabSelect) schoolDayTabSelect.value = config.schoolDay.defaultTab;
+  const studentSummariesDefaultSelect = document.getElementById("admin-config-school-day-student-summaries-default");
+  if (studentSummariesDefaultSelect) studentSummariesDefaultSelect.value = config.schoolDay.studentSummariesDefault;
+  const overviewDefaultSelect = document.getElementById("admin-config-school-day-overview-default");
+  if (overviewDefaultSelect) overviewDefaultSelect.value = config.schoolDay.overviewDefault;
+  const intro = document.querySelector("#administration-workspace-configuration-wrap .administration-intro-card .muted");
+  if (intro) {
+    intro.textContent = hostedTenantConfig
+      ? "These tenant-wide settings control what School Day and Dashboard show for this hosted workspace. Changes saved here apply across the tenant, not just this browser."
+      : "Prototype the tenant workspace layout for School Day and Dashboard. This first pass previews configuration in this browser session so we can shape the experience before wiring tenant-wide persistence.";
+  }
+  const saveBtn = document.getElementById("administration-workspace-config-save-btn");
+  if (saveBtn) saveBtn.textContent = hostedTenantConfig ? "Save Configuration" : "Save Prototype Configuration";
+  const resetBtn = document.getElementById("administration-workspace-config-reset-btn");
+  if (resetBtn) resetBtn.textContent = hostedTenantConfig ? "Reset To Tenant Defaults" : "Reset To Defaults";
+
+  setAdministrationWorkspaceConfigMessage(administrationWorkspaceConfigMessageState.kind, administrationWorkspaceConfigMessageState.text);
+}
+
 function renderStudents() {
   if (!isAdminUser()) return;
   const rows = state.students.map((s) => {
@@ -5100,6 +5315,12 @@ function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], su
   const header = document.getElementById("school-day-student-summaries-header");
   const toggle = document.getElementById("school-day-student-summaries-toggle");
   if (!host) return;
+  if (!workspaceConfig.schoolDay.showStudentSummaries) {
+    host.innerHTML = "";
+    host.classList.add("hidden");
+    if (header) header.classList.add("hidden");
+    return;
+  }
   const roster = schoolDayRosterStudents(referenceISO);
   const blocksByStudent = dailyScheduledBlocks(referenceISO, studentFilterIds, subjectFilterIds, courseFilterIds);
   const singleSelectedStudentId = studentFilterIds.length === 1 ? studentFilterIds[0] : "";
@@ -5122,7 +5343,10 @@ function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], su
       return `
         <button type="button" class="school-day-student-summary-card${activeClass}" data-school-day-summary-student="${student.id}">
           <div class="school-day-student-summary-header">
-            <h4>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</h4>
+            <div class="school-day-card-student">
+              <span class="school-day-card-student-label">Student</span>
+              <h4>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</h4>
+            </div>
             <span class="school-day-status-badge ${attendanceClass}">${attendanceText}</span>
           </div>
           <div class="school-day-student-summary-stats">
@@ -5135,7 +5359,8 @@ function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], su
     .filter(Boolean);
   const summaryCount = cards.length;
   if (!schoolDayStudentSummariesManual) {
-    schoolDayStudentSummariesCollapsed = summaryCount > 3;
+    const pref = workspaceConfig.schoolDay.studentSummariesDefault;
+    schoolDayStudentSummariesCollapsed = pref === "collapsed" ? true : pref === "expanded" ? false : summaryCount > 3;
   }
   host.innerHTML = cards.join("");
   host.classList.toggle("hidden", !summaryCount || schoolDayStudentSummariesCollapsed);
@@ -5152,6 +5377,12 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
   const header = document.getElementById("school-day-overview-header");
   const toggle = document.getElementById("school-day-overview-toggle");
   if (!host) return;
+  if (!workspaceConfig.schoolDay.showSideBySideOverview) {
+    host.innerHTML = "";
+    host.classList.add("hidden");
+    if (header) header.classList.add("hidden");
+    return;
+  }
   const roster = schoolDayRosterStudents(referenceISO);
   const blocksByStudent = dailyScheduledBlocks(referenceISO, studentFilterIds, subjectFilterIds, courseFilterIds);
   const singleSelectedStudentId = studentFilterIds.length === 1 ? studentFilterIds[0] : "";
@@ -5178,14 +5409,18 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
     }).join("");
     return `<button type="button" class="school-day-overview-card" data-school-day-summary-student="${student.id}">
       <div class="school-day-overview-card-header">
-        <h4>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</h4>
+        <div class="school-day-card-student">
+          <span class="school-day-card-student-label">Student</span>
+          <h4>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</h4>
+        </div>
         <span>${instructionBlocks.length} classes</span>
       </div>
       <div class="school-day-overview-body">${rows}</div>
     </button>`;
   }).filter(Boolean);
   if (!schoolDayOverviewManual) {
-    schoolDayOverviewCollapsed = cards.length > 0;
+    const pref = workspaceConfig.schoolDay.overviewDefault;
+    schoolDayOverviewCollapsed = pref === "collapsed" ? true : pref === "expanded" ? false : cards.length > 0;
   }
   host.innerHTML = cards.join("");
   host.classList.toggle("hidden", !cards.length || schoolDayOverviewCollapsed);
@@ -5195,6 +5430,46 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
     toggle.setAttribute("aria-expanded", schoolDayOverviewCollapsed ? "false" : "true");
   }
   saveSchoolDayPreferences();
+}
+
+function applyWorkspaceConfiguration() {
+  const config = workspaceConfig || DEFAULT_WORKSPACE_CONFIG;
+  const schoolDayFieldVisibility = [
+    ["school-day-reference-date-field", config.schoolDay.showReferenceDateFilter],
+    ["school-day-student-filter-field", config.schoolDay.showStudentFilter],
+    ["school-day-subject-filter-field", config.schoolDay.showSubjectFilter],
+    ["school-day-course-filter-field", config.schoolDay.showCourseFilter]
+  ];
+  schoolDayFieldVisibility.forEach(([id, visible]) => {
+    const node = document.getElementById(id);
+    if (node) node.classList.toggle("hidden", !visible);
+  });
+
+  document.querySelectorAll("[data-school-day-quick-filter]").forEach((btn) => {
+    const filterName = btn.getAttribute("data-school-day-quick-filter");
+    const visible =
+      (filterName === "needs-attendance" && config.schoolDay.showNeedsAttendanceFilter) ||
+      (filterName === "needs-completion" && config.schoolDay.showNeedsCompletionFilter) ||
+      (filterName === "needs-grade" && config.schoolDay.showNeedsGradeFilter) ||
+      (filterName === "overridden" && config.schoolDay.showOverriddenFilter);
+    btn.classList.toggle("hidden", !visible);
+  });
+
+  const dashboardVisibility = [
+    ["dashboard-section-overview", config.dashboard.showKpiCards],
+    ["dashboard-section-student-performance", config.dashboard.showStudentPerformance],
+    ["dashboard-section-student-attendance", config.dashboard.showStudentAttendance],
+    ["dashboard-section-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
+    ["dashboard-section-grade-trending", config.dashboard.showGradeTrending],
+    ["dashboard-section-gpa-trending", config.dashboard.showGpaTrending],
+    ["dashboard-section-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending],
+    ["dashboard-section-grade-type-volume", config.dashboard.showGradeTypeVolume],
+    ["dashboard-section-work-distribution", config.dashboard.showWorkDistribution]
+  ];
+  dashboardVisibility.forEach(([id, visible]) => {
+    const node = document.getElementById(id);
+    if (node) node.classList.toggle("hidden", !visible);
+  });
 }
 
 async function saveAttendanceUpserts(records) {
@@ -5828,7 +6103,10 @@ function renderSchoolDaySectionVisibility() {
     btn.classList.toggle("active", btn.getAttribute("data-school-day-tab") === currentSchoolDayTab);
   });
   const quickFilters = document.getElementById("school-day-quick-filters");
-  if (quickFilters) quickFilters.classList.toggle("hidden", currentSchoolDayTab !== "daily-schedule");
+  if (quickFilters) {
+    const anyVisible = Array.from(quickFilters.querySelectorAll("[data-school-day-quick-filter]")).some((btn) => !btn.classList.contains("hidden"));
+    quickFilters.classList.toggle("hidden", currentSchoolDayTab !== "daily-schedule" || !anyVisible);
+  }
 }
 
 function schoolDayGradeKey(studentId, courseId, date) {
@@ -7001,6 +7279,195 @@ function renderWorkDistributionChart() {
     </div>`;
 }
 
+function formatDashboardAverageCell(avgValue, count, selectedGradeMethods) {
+  if (count <= 0) return "No grades";
+  return selectedGradeMethods.map((method) => {
+    if (method === "Percentage") return `${avgValue.toFixed(1)}%`;
+    if (method === "Letter") return scoreToLetterGrade(avgValue) || "-";
+    if (method === "GPA") return averageToGpa(avgValue).toFixed(2);
+    return "";
+  }).filter(Boolean).join("/");
+}
+
+function formatDashboardInstructionalHoursCell(bucketMetrics) {
+  const earned = Number(bucketMetrics?.earned || 0).toFixed(1);
+  const projected = Number(bucketMetrics?.projected || 0).toFixed(1);
+  return `<span class="instructional-hours-cell">${earned} / ${projected} hrs</span>`;
+}
+
+function renderDashboardToggleGlyph(expanded) {
+  return `<span class="student-avg-toggle-glyph" aria-hidden="true">${expanded ? "−" : "+"}</span>`;
+}
+
+function renderDashboardExpandableTables() {
+  const context = dashboardExpandableRenderCache;
+  if (!context) return;
+
+  const {
+    dashboardStudents,
+    totalAttendanceDays,
+    attendanceDatesThroughToday,
+    quarterByName,
+    selectedGradeMethods,
+    studentPerformanceInstructorFilter,
+    studentInstructionalHoursInstructorFilter
+  } = context;
+
+  const gradeTypeOrder = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final", "Quarter Final"];
+  const q1 = quarterByName.get("Q1");
+  const q2 = quarterByName.get("Q2");
+  const q3 = quarterByName.get("Q3");
+  const q4 = quarterByName.get("Q4");
+
+  const studentMetrics = dashboardStudents
+    .map((student) => {
+      const studentTests = state.tests.filter((t) => t.studentId === student.id && testMatchesInstructorFilter(t, studentPerformanceInstructorFilter));
+      const q1Tests = q1 ? studentTests.filter((t) => inRange(t.date, q1.startDate, q1.endDate)) : [];
+      const q2Tests = q2 ? studentTests.filter((t) => inRange(t.date, q2.startDate, q2.endDate)) : [];
+      const q3Tests = q3 ? studentTests.filter((t) => inRange(t.date, q3.startDate, q3.endDate)) : [];
+      const q4Tests = q4 ? studentTests.filter((t) => inRange(t.date, q4.startDate, q4.endDate)) : [];
+      const q1Avg = weightedAverageForTests(q1Tests, { quarterScoped: true });
+      const q2Avg = weightedAverageForTests(q2Tests, { quarterScoped: true });
+      const q3Avg = weightedAverageForTests(q3Tests, { quarterScoped: true });
+      const q4Avg = weightedAverageForTests(q4Tests, { quarterScoped: true });
+      const totalAvg = weightedAverageForTests(studentTests);
+      const subjectMap = new Map();
+      studentTests.forEach((test) => {
+        const subjectId = test.subjectId || "__unknown_subject__";
+        if (!subjectMap.has(subjectId)) subjectMap.set(subjectId, []);
+        subjectMap.get(subjectId).push(test);
+      });
+      const subjectRows = Array.from(subjectMap.entries())
+        .sort((a, b) => getSubjectName(a[0]).localeCompare(getSubjectName(b[0])))
+        .flatMap(([subjectId, testsForSubject]) => {
+          const subjectName = getSubjectName(subjectId);
+          const q1TestsBySubject = q1 ? testsForSubject.filter((test) => inRange(test.date, q1.startDate, q1.endDate)) : [];
+          const q2TestsBySubject = q2 ? testsForSubject.filter((test) => inRange(test.date, q2.startDate, q2.endDate)) : [];
+          const q3TestsBySubject = q3 ? testsForSubject.filter((test) => inRange(test.date, q3.startDate, q3.endDate)) : [];
+          const q4TestsBySubject = q4 ? testsForSubject.filter((test) => inRange(test.date, q4.startDate, q4.endDate)) : [];
+          const q1AvgBySubject = weightedAverageForTests(q1TestsBySubject, { quarterScoped: true });
+          const q2AvgBySubject = weightedAverageForTests(q2TestsBySubject, { quarterScoped: true });
+          const q3AvgBySubject = weightedAverageForTests(q3TestsBySubject, { quarterScoped: true });
+          const q4AvgBySubject = weightedAverageForTests(q4TestsBySubject, { quarterScoped: true });
+          const totalAvgBySubject = weightedAverageForTests(testsForSubject);
+
+          const subjectKey = `${student.id}::${subjectId}`;
+          const expandedSubject = expandedSubjectAverageRows.has(subjectKey);
+          const subjectRow = `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell"><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${renderDashboardToggleGlyph(expandedSubject)}</button>${subjectName}</td><td>${formatDashboardAverageCell(totalAvgBySubject, testsForSubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q1AvgBySubject, q1TestsBySubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q2AvgBySubject, q2TestsBySubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q3AvgBySubject, q3TestsBySubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q4AvgBySubject, q4TestsBySubject.length, selectedGradeMethods)}</td></tr>`;
+          if (!expandedSubject) return [subjectRow];
+
+          const typeMap = new Map();
+          testsForSubject.forEach((test) => {
+            const gradeType = gradeTypeName(test) || "Other";
+            if (!typeMap.has(gradeType)) typeMap.set(gradeType, []);
+            typeMap.get(gradeType).push(test);
+          });
+          const sortedTypes = Array.from(typeMap.keys()).sort((a, b) => {
+            const ai = gradeTypeOrder.indexOf(a);
+            const bi = gradeTypeOrder.indexOf(b);
+            const av = ai === -1 ? Number.MAX_SAFE_INTEGER : ai;
+            const bv = bi === -1 ? Number.MAX_SAFE_INTEGER : bi;
+            return av - bv || a.localeCompare(b);
+          });
+          const typeRows = sortedTypes.map((gradeType) => {
+            const typeTests = typeMap.get(gradeType) || [];
+            const q1TypeTests = q1 ? typeTests.filter((test) => inRange(test.date, q1.startDate, q1.endDate)) : [];
+            const q2TypeTests = q2 ? typeTests.filter((test) => inRange(test.date, q2.startDate, q2.endDate)) : [];
+            const q3TypeTests = q3 ? typeTests.filter((test) => inRange(test.date, q3.startDate, q3.endDate)) : [];
+            const q4TypeTests = q4 ? typeTests.filter((test) => inRange(test.date, q4.startDate, q4.endDate)) : [];
+            const q1TypeAvg = weightedAverageForTests(q1TypeTests, { quarterScoped: true });
+            const q2TypeAvg = weightedAverageForTests(q2TypeTests, { quarterScoped: true });
+            const q3TypeAvg = weightedAverageForTests(q3TypeTests, { quarterScoped: true });
+            const q4TypeAvg = weightedAverageForTests(q4TypeTests, { quarterScoped: true });
+            const totalTypeAvg = weightedAverageForTests(typeTests);
+            return `<tr class="student-avg-type-row"><td class="student-avg-type-cell">${gradeType}</td><td>${formatDashboardAverageCell(totalTypeAvg, typeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q1TypeAvg, q1TypeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q2TypeAvg, q2TypeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q3TypeAvg, q3TypeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q4TypeAvg, q4TypeTests.length, selectedGradeMethods)}</td></tr>`;
+          });
+          return [subjectRow, ...typeRows];
+        })
+        .join("");
+      const expanded = expandedStudentAverageRows.has(student.id);
+      const detailRows = subjectRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No subject grades yet.</td></tr>";
+      return {
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        totalCount: studentTests.length,
+        q1Count: q1Tests.length,
+        q2Count: q2Tests.length,
+        q3Count: q3Tests.length,
+        q4Count: q4Tests.length,
+        totalValue: studentTests.length ? totalAvg : -1,
+        q1Value: q1Avg,
+        q2Value: q2Avg,
+        q3Value: q3Avg,
+        q4Value: q4Avg,
+        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${student.firstName} ${student.lastName}</td><td>${formatDashboardAverageCell(totalAvg, studentTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q1Avg, q1Tests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q2Avg, q2Tests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q3Avg, q3Tests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q4Avg, q4Tests.length, selectedGradeMethods)}</td></tr>`,
+        detailRow: expanded ? detailRows : ""
+      };
+    })
+    .sort((a, b) => b.totalValue - a.totalValue || a.studentName.localeCompare(b.studentName));
+
+  const studentRows = studentMetrics.flatMap((entry) => entry.detailRow ? [entry.row, entry.detailRow] : [entry.row]);
+  if (studentMetrics.length) {
+    const totals = {
+      total: studentMetrics.filter((entry) => entry.totalCount > 0).map((entry) => entry.totalValue),
+      q1: studentMetrics.filter((entry) => entry.q1Count > 0).map((entry) => entry.q1Value),
+      q2: studentMetrics.filter((entry) => entry.q2Count > 0).map((entry) => entry.q2Value),
+      q3: studentMetrics.filter((entry) => entry.q3Count > 0).map((entry) => entry.q3Value),
+      q4: studentMetrics.filter((entry) => entry.q4Count > 0).map((entry) => entry.q4Value)
+    };
+    studentRows.push(`<tr><td><strong>Average</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.total), totals.total.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q1), totals.q1.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q2), totals.q2.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q3), totals.q3.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q4), totals.q4.length, selectedGradeMethods)}</strong></td></tr>`);
+  }
+  rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
+
+  const studentAttendanceRows = dashboardStudents.flatMap((student) => {
+    const summary = studentAttendanceSummary(student.id);
+    const presentCount = summary.attended;
+    const absentCount = summary.absent;
+    const attendanceAverage = totalAttendanceDays > 0 ? (presentCount / totalAttendanceDays) * 100 : 0;
+    const expandedAttendance = expandedStudentAttendanceRows.has(student.id);
+    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${student.id}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${student.firstName} ${student.lastName}</td><td>${totalAttendanceDays}</td><td>${presentCount}</td><td>${absentCount}</td><td>${totalAttendanceDays > 0 ? `${attendanceAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+    if (!expandedAttendance) return [studentRow];
+    const quarterRows = state.settings.quarters.map((quarter) => {
+      const quarterDates = attendanceDatesThroughToday.filter((d) => inRange(d, quarter.startDate, quarter.endDate));
+      const quarterTotalDays = quarterDates.length;
+      const quarterSummary = studentAttendanceSummaryByRange(student.id, quarter.startDate, quarter.endDate);
+      const quarterPresent = quarterSummary.attended;
+      const quarterAbsent = quarterSummary.absent;
+      const quarterAverage = quarterTotalDays > 0 ? (quarterPresent / quarterTotalDays) * 100 : 0;
+      return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarterTotalDays}</td><td>${quarterPresent}</td><td>${quarterAbsent}</td><td>${quarterTotalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+    });
+    return [studentRow, ...quarterRows];
+  });
+  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
+
+  const instructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { instructorId: studentInstructionalHoursInstructorFilter });
+  const instructionalHourRows = dashboardStudents
+    .map((student) => {
+      const studentSummary = instructionalHours.summaryByStudent.get(student.id) || {
+        buckets: Object.fromEntries(instructionalHours.buckets.map((bucket) => [bucket.key, { earned: 0, projected: 0 }])),
+        subjects: new Map()
+      };
+      const expanded = expandedStudentInstructionalHourRows.has(student.id);
+      const detailRows = Array.from(studentSummary.subjects.values())
+        .sort((a, b) => (b.buckets.total.earned - a.buckets.total.earned) || getSubjectName(a.subjectId).localeCompare(getSubjectName(b.subjectId)))
+        .map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${getSubjectName(subjectSummary.subjectId)}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}</tr>`)
+        .join("");
+      return {
+        studentName: `${student.firstName} ${student.lastName}`,
+        earnedTotal: studentSummary.buckets.total.earned,
+        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${student.firstName} ${student.lastName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(studentSummary.buckets[bucket.key])}</td>`).join("")}</tr>`,
+        detailRow: expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : ""
+      };
+    })
+    .sort((a, b) => b.earnedTotal - a.earnedTotal || a.studentName.localeCompare(b.studentName));
+  rowOrEmpty(
+    document.getElementById("dashboard-student-instructional-hours-table"),
+    instructionalHourRows.flatMap((entry) => entry.detailRow ? [entry.row, entry.detailRow] : [entry.row]),
+    "No students added yet.",
+    6
+  );
+}
+
 function renderDashboard() {
   const allowedStudentIds = visibleStudentIds();
   const dashboardStudents = visibleStudents();
@@ -7093,184 +7560,16 @@ function renderDashboard() {
   const selectedGradeMethods = getSelectedStudentPerformanceGradeMethods();
   const studentPerformanceInstructorFilter = Array.from(studentPerformanceSelectedInstructorIds);
   const studentInstructionalHoursInstructorFilter = Array.from(studentInstructionalHoursSelectedInstructorIds);
-  const formatAvgCell = (avgValue, count) => {
-    if (count <= 0) return "No grades";
-    return selectedGradeMethods.map((method) => {
-      if (method === "Percentage") return `${avgValue.toFixed(1)}%`;
-      if (method === "Letter") return scoreToLetterGrade(avgValue) || "-";
-      if (method === "GPA") return averageToGpa(avgValue).toFixed(2);
-      return "";
-    }).filter(Boolean).join("/");
+  dashboardExpandableRenderCache = {
+    dashboardStudents,
+    totalAttendanceDays,
+    attendanceDatesThroughToday,
+    quarterByName,
+    selectedGradeMethods,
+    studentPerformanceInstructorFilter,
+    studentInstructionalHoursInstructorFilter
   };
-  const gradeTypeOrder = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
-  const studentMetrics = dashboardStudents
-    .map((student) => {
-      const studentTests = state.tests.filter((t) => t.studentId === student.id && testMatchesInstructorFilter(t, studentPerformanceInstructorFilter));
-      const q1 = quarterByName.get("Q1");
-      const q2 = quarterByName.get("Q2");
-      const q3 = quarterByName.get("Q3");
-      const q4 = quarterByName.get("Q4");
-
-      const q1Tests = q1 ? studentTests.filter((t) => inRange(t.date, q1.startDate, q1.endDate)) : [];
-      const q2Tests = q2 ? studentTests.filter((t) => inRange(t.date, q2.startDate, q2.endDate)) : [];
-      const q3Tests = q3 ? studentTests.filter((t) => inRange(t.date, q3.startDate, q3.endDate)) : [];
-      const q4Tests = q4 ? studentTests.filter((t) => inRange(t.date, q4.startDate, q4.endDate)) : [];
-      const q1Avg = weightedAverageForTests(q1Tests, { quarterScoped: true });
-      const q2Avg = weightedAverageForTests(q2Tests, { quarterScoped: true });
-      const q3Avg = weightedAverageForTests(q3Tests, { quarterScoped: true });
-      const q4Avg = weightedAverageForTests(q4Tests, { quarterScoped: true });
-      const totalAvg = weightedAverageForTests(studentTests);
-      const subjectMap = new Map();
-      studentTests.forEach((test) => {
-        const subjectId = test.subjectId || "__unknown_subject__";
-        if (!subjectMap.has(subjectId)) subjectMap.set(subjectId, []);
-        subjectMap.get(subjectId).push(test);
-      });
-      const subjectRows = Array.from(subjectMap.entries())
-        .sort((a, b) => getSubjectName(a[0]).localeCompare(getSubjectName(b[0])))
-        .flatMap(([subjectId, testsForSubject]) => {
-          const subjectName = getSubjectName(subjectId);
-          const q1TestsBySubject = q1 ? testsForSubject.filter((test) => inRange(test.date, q1.startDate, q1.endDate)) : [];
-          const q2TestsBySubject = q2 ? testsForSubject.filter((test) => inRange(test.date, q2.startDate, q2.endDate)) : [];
-          const q3TestsBySubject = q3 ? testsForSubject.filter((test) => inRange(test.date, q3.startDate, q3.endDate)) : [];
-          const q4TestsBySubject = q4 ? testsForSubject.filter((test) => inRange(test.date, q4.startDate, q4.endDate)) : [];
-          const q1AvgBySubject = weightedAverageForTests(q1TestsBySubject, { quarterScoped: true });
-          const q2AvgBySubject = weightedAverageForTests(q2TestsBySubject, { quarterScoped: true });
-          const q3AvgBySubject = weightedAverageForTests(q3TestsBySubject, { quarterScoped: true });
-          const q4AvgBySubject = weightedAverageForTests(q4TestsBySubject, { quarterScoped: true });
-          const totalAvgBySubject = weightedAverageForTests(testsForSubject);
-
-          const subjectKey = `${student.id}::${subjectId}`;
-          const expandedSubject = expandedSubjectAverageRows.has(subjectKey);
-          const subjectRow = `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell"><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${expandedSubject ? "-" : "+"}</button>${subjectName}</td><td>${formatAvgCell(totalAvgBySubject, testsForSubject.length)}</td><td>${formatAvgCell(q1AvgBySubject, q1TestsBySubject.length)}</td><td>${formatAvgCell(q2AvgBySubject, q2TestsBySubject.length)}</td><td>${formatAvgCell(q3AvgBySubject, q3TestsBySubject.length)}</td><td>${formatAvgCell(q4AvgBySubject, q4TestsBySubject.length)}</td></tr>`;
-
-          if (!expandedSubject) return [subjectRow];
-
-          const typeMap = new Map();
-          testsForSubject.forEach((test) => {
-            const gradeType = gradeTypeName(test) || "Other";
-            if (!typeMap.has(gradeType)) typeMap.set(gradeType, []);
-            typeMap.get(gradeType).push(test);
-          });
-          const sortedTypes = Array.from(typeMap.keys()).sort((a, b) => {
-            const ai = gradeTypeOrder.indexOf(a);
-            const bi = gradeTypeOrder.indexOf(b);
-            const av = ai === -1 ? Number.MAX_SAFE_INTEGER : ai;
-            const bv = bi === -1 ? Number.MAX_SAFE_INTEGER : bi;
-            return av - bv || a.localeCompare(b);
-          });
-          const typeRows = sortedTypes.map((gradeType) => {
-            const typeTests = typeMap.get(gradeType) || [];
-            const q1TypeTests = q1 ? typeTests.filter((test) => inRange(test.date, q1.startDate, q1.endDate)) : [];
-            const q2TypeTests = q2 ? typeTests.filter((test) => inRange(test.date, q2.startDate, q2.endDate)) : [];
-            const q3TypeTests = q3 ? typeTests.filter((test) => inRange(test.date, q3.startDate, q3.endDate)) : [];
-            const q4TypeTests = q4 ? typeTests.filter((test) => inRange(test.date, q4.startDate, q4.endDate)) : [];
-            const q1TypeAvg = weightedAverageForTests(q1TypeTests, { quarterScoped: true });
-            const q2TypeAvg = weightedAverageForTests(q2TypeTests, { quarterScoped: true });
-            const q3TypeAvg = weightedAverageForTests(q3TypeTests, { quarterScoped: true });
-            const q4TypeAvg = weightedAverageForTests(q4TypeTests, { quarterScoped: true });
-            const totalTypeAvg = weightedAverageForTests(typeTests);
-            return `<tr class="student-avg-type-row"><td class="student-avg-type-cell">${gradeType}</td><td>${formatAvgCell(totalTypeAvg, typeTests.length)}</td><td>${formatAvgCell(q1TypeAvg, q1TypeTests.length)}</td><td>${formatAvgCell(q2TypeAvg, q2TypeTests.length)}</td><td>${formatAvgCell(q3TypeAvg, q3TypeTests.length)}</td><td>${formatAvgCell(q4TypeAvg, q4TypeTests.length)}</td></tr>`;
-          });
-          return [subjectRow, ...typeRows];
-        })
-        .join("");
-      const expanded = expandedStudentAverageRows.has(student.id);
-      const detailRows = subjectRows
-        ? subjectRows
-        : "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No subject grades yet.</td></tr>";
-
-      return {
-        studentId: student.id,
-        studentName: `${student.firstName} ${student.lastName}`,
-        totalCount: studentTests.length,
-        q1Count: q1Tests.length,
-        q2Count: q2Tests.length,
-        q3Count: q3Tests.length,
-        q4Count: q4Tests.length,
-        totalValue: studentTests.length ? totalAvg : -1,
-        q1Value: q1Avg,
-        q2Value: q2Avg,
-        q3Value: q3Avg,
-        q4Value: q4Avg,
-        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "-" : "+"}</button> ${student.firstName} ${student.lastName}</td><td>${formatAvgCell(totalAvg, studentTests.length)}</td><td>${formatAvgCell(q1Avg, q1Tests.length)}</td><td>${formatAvgCell(q2Avg, q2Tests.length)}</td><td>${formatAvgCell(q3Avg, q3Tests.length)}</td><td>${formatAvgCell(q4Avg, q4Tests.length)}</td></tr>`,
-        detailRow: expanded ? detailRows : ""
-      };
-    })
-    .sort((a, b) => b.totalValue - a.totalValue || a.studentName.localeCompare(b.studentName));
-
-  const studentRows = studentMetrics.flatMap((entry) => entry.detailRow ? [entry.row, entry.detailRow] : [entry.row]);
-  if (studentMetrics.length) {
-    const totals = {
-      total: studentMetrics.filter((entry) => entry.totalCount > 0).map((entry) => entry.totalValue),
-      q1: studentMetrics.filter((entry) => entry.q1Count > 0).map((entry) => entry.q1Value),
-      q2: studentMetrics.filter((entry) => entry.q2Count > 0).map((entry) => entry.q2Value),
-      q3: studentMetrics.filter((entry) => entry.q3Count > 0).map((entry) => entry.q3Value),
-      q4: studentMetrics.filter((entry) => entry.q4Count > 0).map((entry) => entry.q4Value)
-    };
-    studentRows.push(`<tr><td><strong>Average</strong></td><td><strong>${formatAvgCell(avg(totals.total), totals.total.length)}</strong></td><td><strong>${formatAvgCell(avg(totals.q1), totals.q1.length)}</strong></td><td><strong>${formatAvgCell(avg(totals.q2), totals.q2.length)}</strong></td><td><strong>${formatAvgCell(avg(totals.q3), totals.q3.length)}</strong></td><td><strong>${formatAvgCell(avg(totals.q4), totals.q4.length)}</strong></td></tr>`);
-  }
-  rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
-
-  const studentAttendanceRows = dashboardStudents.flatMap((student) => {
-    const summary = studentAttendanceSummary(student.id);
-    const presentCount = summary.attended;
-    const absentCount = summary.absent;
-    const attendanceAverage = totalAttendanceDays > 0 ? (presentCount / totalAttendanceDays) * 100 : 0;
-    const expandedAttendance = expandedStudentAttendanceRows.has(student.id);
-    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${student.id}" aria-expanded="${expandedAttendance ? "true" : "false"}">${expandedAttendance ? "-" : "+"}</button> ${student.firstName} ${student.lastName}</td><td>${totalAttendanceDays}</td><td>${presentCount}</td><td>${absentCount}</td><td>${totalAttendanceDays > 0 ? `${attendanceAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
-    if (!expandedAttendance) return [studentRow];
-
-    const quarterRows = state.settings.quarters
-      .map((quarter) => {
-        const quarterDates = attendanceDatesThroughToday.filter((d) => inRange(d, quarter.startDate, quarter.endDate));
-        const quarterTotalDays = quarterDates.length;
-        const quarterSummary = studentAttendanceSummaryByRange(student.id, quarter.startDate, quarter.endDate);
-        const quarterPresent = quarterSummary.attended;
-        const quarterAbsent = quarterSummary.absent;
-        const quarterAverage = quarterTotalDays > 0 ? (quarterPresent / quarterTotalDays) * 100 : 0;
-        return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarterTotalDays}</td><td>${quarterPresent}</td><td>${quarterAbsent}</td><td>${quarterTotalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
-      });
-    return [studentRow, ...quarterRows];
-  });
-  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
-
-  const instructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { instructorId: studentInstructionalHoursInstructorFilter });
-  const formatInstructionalHoursCell = (bucketMetrics) => {
-    const earned = Number(bucketMetrics?.earned || 0).toFixed(1);
-    const projected = Number(bucketMetrics?.projected || 0).toFixed(1);
-    return `<span class="instructional-hours-cell">${earned} / ${projected} hrs</span>`;
-  };
-  const instructionalHourRows = dashboardStudents
-    .map((student) => {
-      const studentSummary = instructionalHours.summaryByStudent.get(student.id) || {
-        buckets: Object.fromEntries(instructionalHours.buckets.map((bucket) => [bucket.key, { earned: 0, projected: 0 }])),
-        subjects: new Map()
-      };
-      const expanded = expandedStudentInstructionalHourRows.has(student.id);
-      const detailRows = Array.from(studentSummary.subjects.values())
-        .sort((a, b) =>
-          (b.buckets.total.earned - a.buckets.total.earned)
-          || getSubjectName(a.subjectId).localeCompare(getSubjectName(b.subjectId)))
-        .map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${getSubjectName(subjectSummary.subjectId)}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}</tr>`)
-        .join("");
-
-      return {
-        studentName: `${student.firstName} ${student.lastName}`,
-        earnedTotal: studentSummary.buckets.total.earned,
-        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "-" : "+"}</button> ${student.firstName} ${student.lastName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatInstructionalHoursCell(studentSummary.buckets[bucket.key])}</td>`).join("")}</tr>`,
-        detailRow: expanded
-          ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>")
-          : ""
-      };
-    })
-    .sort((a, b) => b.earnedTotal - a.earnedTotal || a.studentName.localeCompare(b.studentName));
-  rowOrEmpty(
-    document.getElementById("dashboard-student-instructional-hours-table"),
-    instructionalHourRows.flatMap((entry) => entry.detailRow ? [entry.row, entry.detailRow] : [entry.row]),
-    "No students added yet.",
-    6
-  );
+  renderDashboardExpandableTables();
 
   renderGradeTrending();
   renderGpaTrending();
@@ -8630,6 +8929,99 @@ function bindEvents() {
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
     setActiveTab(btn.dataset.tab || "dashboard");
   }));
+
+  document.getElementById("administration-workspace-config-form")?.addEventListener("input", () => {
+    if (administrationWorkspaceConfigMessageState.text) {
+      setAdministrationWorkspaceConfigMessage("", "");
+    }
+  });
+
+  document.getElementById("administration-workspace-config-form")?.addEventListener("change", () => {
+    if (administrationWorkspaceConfigMessageState.text) {
+      setAdministrationWorkspaceConfigMessage("", "");
+    }
+  });
+
+  document.getElementById("administration-workspace-config-form")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const nextConfig = normalizeWorkspaceConfig({
+      schoolDay: {
+        showReferenceDateFilter: !!document.getElementById("admin-config-school-day-show-reference-date")?.checked,
+        showStudentFilter: !!document.getElementById("admin-config-school-day-show-student-filter")?.checked,
+        showSubjectFilter: !!document.getElementById("admin-config-school-day-show-subject-filter")?.checked,
+        showCourseFilter: !!document.getElementById("admin-config-school-day-show-course-filter")?.checked,
+        showStudentSummaries: !!document.getElementById("admin-config-school-day-show-student-summaries")?.checked,
+        showSideBySideOverview: !!document.getElementById("admin-config-school-day-show-side-by-side-overview")?.checked,
+        showNeedsAttendanceFilter: !!document.getElementById("admin-config-school-day-show-needs-attendance")?.checked,
+        showNeedsCompletionFilter: !!document.getElementById("admin-config-school-day-show-needs-completion")?.checked,
+        showNeedsGradeFilter: !!document.getElementById("admin-config-school-day-show-needs-grade")?.checked,
+        showOverriddenFilter: !!document.getElementById("admin-config-school-day-show-overridden")?.checked,
+        defaultTab: document.getElementById("admin-config-school-day-default-tab")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.defaultTab,
+        studentSummariesDefault: document.getElementById("admin-config-school-day-student-summaries-default")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.studentSummariesDefault,
+        overviewDefault: document.getElementById("admin-config-school-day-overview-default")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.overviewDefault
+      },
+      dashboard: {
+        showKpiCards: !!document.getElementById("admin-config-dashboard-show-kpi-cards")?.checked,
+        showStudentPerformance: !!document.getElementById("admin-config-dashboard-show-student-performance")?.checked,
+        showStudentAttendance: !!document.getElementById("admin-config-dashboard-show-student-attendance")?.checked,
+        showStudentInstructionalHours: !!document.getElementById("admin-config-dashboard-show-student-instructional-hours")?.checked,
+        showGradeTrending: !!document.getElementById("admin-config-dashboard-show-grade-trending")?.checked,
+        showGpaTrending: !!document.getElementById("admin-config-dashboard-show-gpa-trending")?.checked,
+        showInstructionalHoursTrending: !!document.getElementById("admin-config-dashboard-show-instructional-hours-trending")?.checked,
+        showGradeTypeVolume: !!document.getElementById("admin-config-dashboard-show-grade-type-volume")?.checked,
+        showWorkDistribution: !!document.getElementById("admin-config-dashboard-show-work-distribution")?.checked
+      }
+    });
+    schoolDayStudentSummariesManual = false;
+    schoolDayOverviewManual = false;
+    const applySavedConfig = (savedConfig, successText) => {
+      workspaceConfig = normalizeWorkspaceConfig(savedConfig || nextConfig);
+      if (!localStorage.getItem(SCHOOL_DAY_PREFS_STORAGE_KEY)) {
+        currentSchoolDayTab = workspaceConfig.schoolDay.defaultTab;
+      }
+      saveWorkspaceConfigPreferences();
+      setAdministrationWorkspaceConfigMessage("success", successText);
+      renderAll();
+    };
+    if (hostedModeEnabled && isAdminUser()) {
+      (async () => {
+        try {
+          const saved = await saveHostedWorkspaceConfig(nextConfig);
+          applySavedConfig(saved, "Tenant workspace configuration saved successfully. School Day and Dashboard are now using the persisted tenant settings.");
+        } catch (error) {
+          setAdministrationWorkspaceConfigMessage("error", error.message || "Unable to save tenant workspace configuration.");
+          renderAdministration();
+        }
+      })();
+      return;
+    }
+    applySavedConfig(nextConfig, "Prototype configuration saved successfully for this browser session. The School Day and Dashboard preview has been updated.");
+  });
+
+  document.getElementById("administration-workspace-config-reset-btn")?.addEventListener("click", () => {
+    const nextConfig = cloneWorkspaceConfig(DEFAULT_WORKSPACE_CONFIG);
+    schoolDayStudentSummariesManual = false;
+    schoolDayOverviewManual = false;
+    const applyResetConfig = (savedConfig, successText) => {
+      workspaceConfig = normalizeWorkspaceConfig(savedConfig || nextConfig);
+      saveWorkspaceConfigPreferences();
+      setAdministrationWorkspaceConfigMessage("success", successText);
+      renderAll();
+    };
+    if (hostedModeEnabled && isAdminUser()) {
+      (async () => {
+        try {
+          const saved = await saveHostedWorkspaceConfig(nextConfig);
+          applyResetConfig(saved, "Tenant workspace configuration reset to the default settings.");
+        } catch (error) {
+          setAdministrationWorkspaceConfigMessage("error", error.message || "Unable to reset tenant workspace configuration.");
+          renderAdministration();
+        }
+      })();
+      return;
+    }
+    applyResetConfig(nextConfig, "Prototype configuration reset to the default preview settings.");
+  });
 
   document.getElementById("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -10536,6 +10928,20 @@ function bindEvents() {
       renderSchoolDaySectionVisibility();
       return;
     }
+    const administrationTab = t.getAttribute("data-administration-tab");
+    if (administrationTab) {
+      currentAdministrationTab = ["workspace-configuration", "instructors", "users"].includes(administrationTab) ? administrationTab : "workspace-configuration";
+      renderAdministrationSectionVisibility();
+      return;
+    }
+    if (t.id === "administration-open-instructors-btn") {
+      setActiveTab("instructors");
+      return;
+    }
+    if (t.id === "administration-open-users-btn") {
+      setActiveTab("users");
+      return;
+    }
     const schoolDayQuickFilter = t.getAttribute("data-school-day-quick-filter");
     if (schoolDayQuickFilter) {
       if (schoolDayQuickFilter === "needs-attendance") schoolDayQuickFilters.needsAttendance = !schoolDayQuickFilters.needsAttendance;
@@ -10794,28 +11200,28 @@ function bindEvents() {
     if (toggleStudentAvgId) {
       if (expandedStudentAverageRows.has(toggleStudentAvgId)) expandedStudentAverageRows.delete(toggleStudentAvgId);
       else expandedStudentAverageRows.add(toggleStudentAvgId);
-      renderDashboard();
+      renderDashboardExpandableTables();
       return;
     }
     const toggleSubjectAvgKey = t.getAttribute("data-toggle-subject-avg");
     if (toggleSubjectAvgKey) {
       if (expandedSubjectAverageRows.has(toggleSubjectAvgKey)) expandedSubjectAverageRows.delete(toggleSubjectAvgKey);
       else expandedSubjectAverageRows.add(toggleSubjectAvgKey);
-      renderDashboard();
+      renderDashboardExpandableTables();
       return;
     }
     const toggleStudentAttendanceId = t.getAttribute("data-toggle-student-attendance");
     if (toggleStudentAttendanceId) {
       if (expandedStudentAttendanceRows.has(toggleStudentAttendanceId)) expandedStudentAttendanceRows.delete(toggleStudentAttendanceId);
       else expandedStudentAttendanceRows.add(toggleStudentAttendanceId);
-      renderDashboard();
+      renderDashboardExpandableTables();
       return;
     }
     const toggleStudentInstructionalHoursId = t.getAttribute("data-toggle-student-instructional-hours");
     if (toggleStudentInstructionalHoursId) {
       if (expandedStudentInstructionalHourRows.has(toggleStudentInstructionalHoursId)) expandedStudentInstructionalHourRows.delete(toggleStudentInstructionalHoursId);
       else expandedStudentInstructionalHourRows.add(toggleStudentInstructionalHoursId);
-      renderDashboard();
+      renderDashboardExpandableTables();
       return;
     }
 
@@ -11388,9 +11794,11 @@ function bindEvents() {
 
 function renderAll() {
   renderSessionChrome();
+  applyWorkspaceConfiguration();
   renderSelects();
   fillSettingsForms();
   updatePlanFormMode();
+  renderAdministration();
   renderStudents();
   renderStudentViewMode();
   renderStudentDetail();

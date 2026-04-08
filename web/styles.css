@@ -354,6 +354,102 @@ h3 {
   transition: width 240ms ease;
 }
 
+.administration-subtabs {
+  margin-bottom: 0.85rem;
+}
+
+.administration-tab-panel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.administration-intro-card,
+.administration-config-card,
+.administration-transition-card,
+.administration-preview-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,253,0.98));
+  box-shadow: var(--shadow-soft);
+}
+
+.administration-intro-card,
+.administration-config-card,
+.administration-transition-card {
+  padding: 1rem 1.1rem;
+}
+
+.administration-intro-card h3,
+.administration-config-card h4,
+.administration-transition-card h4 {
+  margin: 0 0 0.35rem;
+}
+
+.administration-config-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.administration-config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.55rem 1rem;
+}
+
+.administration-config-select-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.7rem 1rem;
+}
+
+.administration-config-grid .checklist-row {
+  border: 1px solid #dbe6f2;
+  border-radius: 999px;
+  padding: 0.45rem 0.7rem;
+  background: #fff;
+}
+
+.administration-config-actions {
+  justify-content: flex-start;
+}
+
+#administration-workspace-config-message {
+  margin-top: 0.15rem;
+  font-weight: 600;
+}
+
+.administration-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.8rem;
+}
+
+.administration-preview-card {
+  padding: 0.9rem 1rem;
+}
+
+.administration-preview-label {
+  margin: 0 0 0.3rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.administration-preview-value {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.administration-transition-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -973,6 +1069,9 @@ td {
 }
 
 .student-avg-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 1.5rem;
   height: 1.5rem;
   padding: 0;
@@ -980,6 +1079,16 @@ td {
   margin-right: 0.35rem;
   font-weight: 700;
   line-height: 1;
+  vertical-align: middle;
+}
+
+.student-avg-toggle-glyph {
+  display: block;
+  font-family: "Segoe UI Symbol", "Arial Unicode MS", "Segoe UI", sans-serif;
+  font-size: 0.95rem;
+  line-height: 1;
+  text-align: center;
+  width: 1em;
 }
 
 .student-avg-detail-row td {
@@ -1653,6 +1762,9 @@ td {
 
 #school-day-form .multi-select-dropdown summary {
   width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 #school-day-form .multi-select-dropdown[open] {
@@ -2035,9 +2147,30 @@ td {
 .school-day-student-summary-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.6rem;
   margin-bottom: 0.45rem;
+}
+
+.school-day-card-student {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.school-day-card-student-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b84a0;
+}
+
+.school-day-card-student h4 {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.2;
+  color: #18324d;
 }
 
 .school-day-student-summary-header h4 {
@@ -2079,7 +2212,7 @@ td {
 .school-day-overview-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 0.6rem;
   margin-bottom: 0.5rem;
 }

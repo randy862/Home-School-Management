@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604061255">
+  <link rel="stylesheet" href="styles.css?v=202604071435">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -61,14 +61,13 @@
         <nav class="tabs app-sidebar-nav" aria-label="Primary">
           <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
           <button class="tab-btn" data-tab="school-day" type="button">School Day</button>
+          <button class="tab-btn" data-tab="administration" type="button">Administration</button>
           <button class="tab-btn" data-tab="students" type="button">Students</button>
-          <button class="tab-btn" data-tab="instructors" type="button">Instructors</button>
           <button class="tab-btn" data-tab="management" type="button">Cirriculum</button>
           <button class="tab-btn" data-tab="planning" type="button">Schedule</button>
           <button class="tab-btn" data-tab="calendar" type="button">Calendar</button>
           <button class="tab-btn" data-tab="attendance" type="button">Attendance</button>
           <button class="tab-btn" data-tab="grades" type="button">Grades</button>
-          <button class="tab-btn" data-tab="users" type="button">Users</button>
           <button class="tab-btn" data-tab="reports" type="button">Reports</button>
         </nav>
       </aside>
@@ -77,7 +76,7 @@
     <section id="tab-dashboard" class="tab-panel active panel">
       <h2>Dashboard</h2>
 
-      <div class="dashboard-section dashboard-section-overview">
+      <div id="dashboard-section-overview" class="dashboard-section dashboard-section-overview">
         <div class="kpi-grid">
           <article class="kpi"><p class="kpi-label">Instruction Days</p><p class="kpi-value"><span id="kpi-days-complete">0</span> / <span id="kpi-days-total">0</span></p></article>
           <article class="kpi"><p class="kpi-label">Instruction Hours</p><p class="kpi-value"><span id="kpi-instruction-hours">0.0 / 0.0</span></p></article>
@@ -99,7 +98,7 @@
         </div>
       </div>
 
-      <div class="dashboard-section dashboard-section-student-performance">
+      <div id="dashboard-section-student-performance" class="dashboard-section dashboard-section-student-performance">
         <h3>Student Performance</h3>
         <form id="student-performance-filter-form" class="grid-form">
           <fieldset class="student-performance-grade-method-field">
@@ -121,7 +120,7 @@
         </div>
       </div>
 
-      <div class="dashboard-section dashboard-section-student-attendance">
+      <div id="dashboard-section-student-attendance" class="dashboard-section dashboard-section-student-attendance">
         <h3>Student Attendance</h3>
         <div class="table-wrap">
           <table>
@@ -131,7 +130,7 @@
         </div>
       </div>
 
-      <div class="dashboard-section dashboard-section-student-instructional-hours">
+      <div id="dashboard-section-student-instructional-hours" class="dashboard-section dashboard-section-student-instructional-hours">
         <h3>Student Instructional Hours</h3>
         <p class="muted instructional-hours-notation">Notation: <strong>Actual / Projected</strong> instructional hours.</p>
         <form id="student-instructional-hours-filter-form" class="grid-form">
@@ -150,7 +149,7 @@
         </div>
       </div>
 
-      <div class="dashboard-section dashboard-section-trending">
+      <div id="dashboard-section-grade-trending" class="dashboard-section dashboard-section-trending">
         <h3>Grade Trending</h3>
         <form id="trend-filter-form" class="grid-form">
           <label class="trend-student-field">Student
@@ -189,7 +188,7 @@
         <div id="grade-trending-chart" class="chart-wrap"></div>
       </div>
 
-      <div class="dashboard-section dashboard-section-gpa-trending">
+      <div id="dashboard-section-gpa-trending" class="dashboard-section dashboard-section-gpa-trending">
         <h3>GPA Trending</h3>
         <form id="gpa-trend-filter-form" class="grid-form">
           <label class="trend-student-field">Student
@@ -228,7 +227,7 @@
         <div id="gpa-trending-chart" class="chart-wrap"></div>
       </div>
 
-      <div class="dashboard-section dashboard-section-instruction-hours-trending">
+      <div id="dashboard-section-instructional-hours-trending" class="dashboard-section dashboard-section-instruction-hours-trending">
         <h3>Instruction Hours Trending</h3>
         <form id="instruction-hours-trend-filter-form" class="grid-form">
           <label class="trend-student-field">Student
@@ -257,7 +256,7 @@
         <div id="instruction-hours-trending-chart" class="chart-wrap"></div>
       </div>
 
-      <div class="dashboard-section dashboard-section-volume">
+      <div id="dashboard-section-grade-type-volume" class="dashboard-section dashboard-section-volume">
         <h3>Grade Type Volume</h3>
         <form id="volume-filter-form" class="grid-form">
           <label class="volume-student-field">Student
@@ -296,7 +295,7 @@
         <div id="grade-type-volume-chart" class="chart-wrap"></div>
       </div>
 
-      <div class="dashboard-section dashboard-section-work-distribution">
+      <div id="dashboard-section-work-distribution" class="dashboard-section dashboard-section-work-distribution">
         <h3>Work Distribution</h3>
         <div class="chart-wrap">
           <form id="work-filter-form" class="grid-form">
@@ -325,24 +324,122 @@
 
     </section>
 
+    <section id="tab-administration" class="tab-panel panel">
+      <h2>Administration</h2>
+      <div class="subtabs administration-subtabs" aria-label="Administration sections">
+        <button class="subtab-btn active" data-administration-tab="workspace-configuration" type="button">Workspace Configuration</button>
+        <button class="subtab-btn" data-administration-tab="instructors" type="button">Instructors</button>
+        <button class="subtab-btn" data-administration-tab="users" type="button">Users</button>
+      </div>
+
+      <div id="administration-workspace-configuration-wrap" class="administration-tab-panel">
+        <div class="administration-intro-card">
+          <h3>Workspace Configuration</h3>
+          <p class="muted">Prototype the tenant workspace layout for School Day and Dashboard. This first pass previews configuration in this browser session so we can shape the experience before wiring tenant-wide persistence.</p>
+        </div>
+
+        <form id="administration-workspace-config-form" class="administration-config-form">
+          <section class="administration-config-card">
+            <h4>School Day Visibility</h4>
+            <div class="administration-config-grid">
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-reference-date"> <span>Show Reference Date filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-student-filter"> <span>Show Student filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-subject-filter"> <span>Show Subject filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-course-filter"> <span>Show Course filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-student-summaries"> <span>Show Student Summaries</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-side-by-side-overview"> <span>Show Side-By-Side Overview</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-attendance"> <span>Show Needs Attendance filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-completion"> <span>Show Needs Completion filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-grade"> <span>Show Needs Grade filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-overridden"> <span>Show Overridden filter</span></label>
+            </div>
+          </section>
+
+          <section class="administration-config-card">
+            <h4>School Day Defaults</h4>
+            <div class="administration-config-select-grid">
+              <label>Default School Day tab
+                <select id="admin-config-school-day-default-tab">
+                  <option value="daily-schedule">Daily Schedule</option>
+                  <option value="attendance">Attendance</option>
+                  <option value="grades">Grades</option>
+                </select>
+              </label>
+              <label>Student Summaries default
+                <select id="admin-config-school-day-student-summaries-default">
+                  <option value="expanded">Expanded</option>
+                  <option value="collapsed">Collapsed</option>
+                  <option value="adaptive">Adaptive</option>
+                </select>
+              </label>
+              <label>Side-By-Side Overview default
+                <select id="admin-config-school-day-overview-default">
+                  <option value="collapsed">Collapsed</option>
+                  <option value="expanded">Expanded</option>
+                  <option value="adaptive">Adaptive</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="administration-config-card">
+            <h4>Dashboard Visibility</h4>
+            <div class="administration-config-grid">
+              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-kpi-cards"> <span>Show KPI Summary</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-performance"> <span>Show Student Performance</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-attendance"> <span>Show Student Attendance</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-instructional-hours"> <span>Show Student Instructional Hours</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-grade-trending"> <span>Show Grade Trending</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-gpa-trending"> <span>Show GPA Trending</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instructional-hours-trending"> <span>Show Instructional Hours Trending</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-grade-type-volume"> <span>Show Grade Type Volume</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-work-distribution"> <span>Show Work Distribution</span></label>
+            </div>
+          </section>
+
+          <div class="table-action-row administration-config-actions">
+            <button id="administration-workspace-config-save-btn" type="submit">Save Prototype Configuration</button>
+            <button id="administration-workspace-config-reset-btn" type="button">Reset To Defaults</button>
+          </div>
+          <p id="administration-workspace-config-message" class="status-text hidden"></p>
+        </form>
+      </div>
+
+      <div id="administration-instructors-wrap" class="administration-tab-panel hidden">
+        <div class="administration-intro-card">
+          <h3>Instructor Administration</h3>
+          <p class="muted">Instructor roster management now lives here. This is the long-term administrative home for create, edit, and remove actions.</p>
+        </div>
+        <div id="administration-instructors-host"></div>
+      </div>
+
+      <div id="administration-users-wrap" class="administration-tab-panel hidden">
+        <div class="administration-intro-card">
+          <h3>User Administration</h3>
+          <p class="muted">User and access management now lives here. This is the long-term administrative home for account maintenance.</p>
+        </div>
+        <div id="administration-users-host"></div>
+      </div>
+    </section>
+
     <section id="tab-school-day" class="tab-panel panel">
       <h2>School Day</h2>
       <div class="school-day-section school-day-section-shell">
         <form id="school-day-form" class="grid-form school-day-form">
-          <label>Reference Date<input id="school-day-date" type="date" required></label>
-          <label class="calendar-filter-field">Student Filter
+          <label id="school-day-reference-date-field">Reference Date<input id="school-day-date" type="date" required></label>
+          <label id="school-day-student-filter-field" class="calendar-filter-field">Student Filter
             <details id="school-day-student-dropdown" class="multi-select-dropdown">
               <summary id="school-day-student-summary">Students (0 selected)</summary>
               <div id="school-day-student-options" class="checklist-vertical"></div>
             </details>
           </label>
-          <label class="calendar-filter-field">Subject Filter
+          <label id="school-day-subject-filter-field" class="calendar-filter-field">Subject Filter
             <details id="school-day-subject-dropdown" class="multi-select-dropdown">
               <summary id="school-day-subject-summary">Subjects (0 selected)</summary>
               <div id="school-day-subject-options" class="checklist-vertical"></div>
             </details>
           </label>
-          <label class="calendar-filter-field">Course Filter
+          <label id="school-day-course-filter-field" class="calendar-filter-field">Course Filter
             <details id="school-day-course-dropdown" class="multi-select-dropdown">
               <summary id="school-day-course-summary">Courses (0 selected)</summary>
               <div id="school-day-course-options" class="checklist-vertical"></div>
@@ -526,7 +623,7 @@
       </div>
     </section>
 
-    <section id="tab-instructors" class="tab-panel panel">
+    <section id="tab-instructors" class="tab-panel hidden" aria-hidden="true">
       <h2>Instructors</h2>
       <div id="instructors-list-view">
         <div class="students-toolbar">
@@ -1080,7 +1177,7 @@
       </div>
     </section>
 
-    <section id="tab-users" class="tab-panel panel">
+    <section id="tab-users" class="tab-panel hidden" aria-hidden="true">
       <h2>Users</h2>
       <p class="muted">Create administrator and student accounts, assign linked students, and manage passwords.</p>
       <div id="users-list-view">
@@ -1167,6 +1264,6 @@
       </div>
     </div>
   </main>
-  <script src="app.js?v=202604061255"></script>
+  <script src="app.js?v=202604071435"></script>
 </body>
 </html>

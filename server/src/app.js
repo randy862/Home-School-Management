@@ -34,6 +34,10 @@ const {
   listInstructors,
   updateInstructor
 } = require("./postgres-instructor-store");
+const {
+  getWorkspaceConfig,
+  saveWorkspaceConfig
+} = require("./postgres-workspace-config-store");
 const { registerCalendarRoutes } = require("./routes/calendar-routes");
 const { registerAdminRoutes } = require("./routes/admin-routes");
 const { registerAuthRoutes } = require("./routes/auth-routes");
@@ -51,6 +55,7 @@ const { createCalendarService } = require("./services/calendar-service");
 const { createCurriculumService } = require("./services/curriculum-service");
 const { createGradingService } = require("./services/grading-service");
 const { createRecordsService } = require("./services/records-service");
+const { createWorkspaceConfigService } = require("./services/workspace-config-service");
 
 const app = express();
 const isPostgresMode = appConfig.dbClient === "postgres";
@@ -82,7 +87,13 @@ const adminRouteDeps = {
   updateInstructor,
   updateStudent,
   updateUser,
-  createStudent
+  createStudent,
+  ...createWorkspaceConfigService({
+    workspaceConfigStore: {
+      getWorkspaceConfig,
+      saveWorkspaceConfig
+    }
+  })
 };
 const curriculumRouteDeps = {
   curriculumService: createCurriculumService({

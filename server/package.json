@@ -9,7 +9,8 @@
     "db:migrate": "node src/scripts/migrate.js",
     "db:import-state": "node src/scripts/import-state.js",
     "db:migrate:pg": "node src/scripts/migrate-postgres.js",
-    "db:create-setup-token": "node src/scripts/create-setup-token.js"
+    "db:create-setup-token": "node src/scripts/create-setup-token.js",
+    "db:backfill:mitchell": "node src/scripts/backfill-mitchell-tenant.js --tenant-schema tenant_mitchell_family"
   },
   "dependencies": {
     "dotenv": "^16.6.1",

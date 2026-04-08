@@ -21,7 +21,9 @@ function registerAdminRoutes(app, deps) {
     updateInstructor,
     updateStudent,
     updateUser,
-    createStudent
+    createStudent,
+    getWorkspaceConfig,
+    saveWorkspaceConfig
   } = deps;
 
   app.get("/api/users", async (req, res) => {
@@ -250,6 +252,28 @@ function registerAdminRoutes(app, deps) {
       res.json({ ok: true });
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/workspace-config", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Workspace configuration")) return;
+    if (!ensureAuthenticated(req, res)) return;
+
+    try {
+      res.json(await getWorkspaceConfig());
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/admin/workspace-config", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Workspace configuration")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      res.json(await saveWorkspaceConfig(req.body));
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 }
