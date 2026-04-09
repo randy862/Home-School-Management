@@ -12,6 +12,7 @@ Date: 2026-04-04
   - `NOTES/postgresql-schema-v1.md`
   - `NOTES/backend-auth-api-refactor-plan.md`
 - Captured the `School Day` operational hub as an implementation-ready package in `NOTES/school-day-hub-spec-package.md`.
+- Captured the ordered schedule-block replacement for fixed-time lunch/recess/other breaks in `NOTES/ordered-schedule-blocks-spec-package.md`.
 - Reframed the roadmap around a production-ready single-tenant deployment as the prerequisite for later SaaS multi-tenancy.
 
 ## In Progress

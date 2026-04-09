@@ -38,6 +38,36 @@ function createCalendarRepository(deps) {
       return mapDailyBreakRow(result.rows[0]);
     },
 
+    createScheduleBlock: async (scheduleBlock) => {
+      const pool = getPostgresPool();
+      const result = await pool.query(`
+        INSERT INTO schedule_blocks (
+          id,
+          name,
+          block_type,
+          description,
+          duration_minutes,
+          weekdays_json
+        )
+        VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+        RETURNING
+          id,
+          name,
+          block_type AS "type",
+          description,
+          duration_minutes AS "durationMinutes",
+          weekdays_json AS "weekdaysJson"
+      `, [
+        scheduleBlock.id,
+        scheduleBlock.name,
+        scheduleBlock.type,
+        scheduleBlock.description || "",
+        scheduleBlock.durationMinutes,
+        JSON.stringify(scheduleBlock.weekdays || [])
+      ]);
+      return mapScheduleBlockRow(result.rows[0]);
+    },
+
     createHoliday: async (holiday) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
@@ -147,6 +177,12 @@ function createCalendarRepository(deps) {
       return result.rowCount > 0;
     },
 
+    deleteScheduleBlock: async (id) => {
+      const pool = getPostgresPool();
+      const result = await pool.query("DELETE FROM schedule_blocks WHERE id = $1", [id]);
+      return result.rowCount > 0;
+    },
+
     deleteHoliday: async (id) => {
       const pool = getPostgresPool();
       const result = await pool.query("DELETE FROM holidays WHERE id = $1", [id]);
@@ -233,6 +269,22 @@ function createCalendarRepository(deps) {
         ORDER BY start_time, id
       `);
       return result.rows.map(mapDailyBreakRow);
+    },
+
+    listScheduleBlocks: async () => {
+      const pool = getPostgresPool();
+      const result = await pool.query(`
+        SELECT
+          id,
+          name,
+          block_type AS "type",
+          description,
+          duration_minutes AS "durationMinutes",
+          weekdays_json AS "weekdaysJson"
+        FROM schedule_blocks
+        ORDER BY lower(name), id
+      `);
+      return result.rows.map(mapScheduleBlockRow);
     },
 
     listHolidays: async () => {
@@ -446,6 +498,35 @@ function createCalendarRepository(deps) {
       return result.rows[0] ? mapDailyBreakRow(result.rows[0]) : null;
     },
 
+    updateScheduleBlock: async (id, scheduleBlock) => {
+      const pool = getPostgresPool();
+      const result = await pool.query(`
+        UPDATE schedule_blocks
+        SET
+          name = $2,
+          block_type = $3,
+          description = $4,
+          duration_minutes = $5,
+          weekdays_json = $6::jsonb
+        WHERE id = $1
+        RETURNING
+          id,
+          name,
+          block_type AS "type",
+          description,
+          duration_minutes AS "durationMinutes",
+          weekdays_json AS "weekdaysJson"
+      `, [
+        id,
+        scheduleBlock.name,
+        scheduleBlock.type,
+        scheduleBlock.description || "",
+        scheduleBlock.durationMinutes,
+        JSON.stringify(scheduleBlock.weekdays || [])
+      ]);
+      return result.rows[0] ? mapScheduleBlockRow(result.rows[0]) : null;
+    },
+
     updateHoliday: async (id, holiday) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
@@ -574,6 +655,17 @@ function mapDailyBreakRow(row) {
     type: row.type,
     description: row.description || "",
     startTime: row.startTime || "12:00",
+    durationMinutes: row.durationMinutes == null ? 60 : Number(row.durationMinutes),
+    weekdays: Array.isArray(row.weekdaysJson) ? row.weekdaysJson.map((day) => Number(day)).filter(Number.isInteger) : []
+  };
+}
+
+function mapScheduleBlockRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    description: row.description || "",
     durationMinutes: row.durationMinutes == null ? 60 : Number(row.durationMinutes),
     weekdays: Array.isArray(row.weekdaysJson) ? row.weekdaysJson.map((day) => Number(day)).filter(Number.isInteger) : []
   };

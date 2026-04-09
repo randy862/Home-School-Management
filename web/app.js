@@ -13,6 +13,8 @@ const API_INSTRUCTORS_ENDPOINT = `${API_BASE_URL}/api/instructors`;
 const API_SUBJECTS_ENDPOINT = `${API_BASE_URL}/api/subjects`;
 const API_COURSES_ENDPOINT = `${API_BASE_URL}/api/courses`;
 const API_ENROLLMENTS_ENDPOINT = `${API_BASE_URL}/api/enrollments`;
+const API_SCHEDULE_BLOCKS_ENDPOINT = `${API_BASE_URL}/api/schedule-blocks`;
+const API_STUDENT_SCHEDULE_BLOCKS_ENDPOINT = `${API_BASE_URL}/api/student-schedule-blocks`;
 const API_SCHOOL_YEARS_ENDPOINT = `${API_BASE_URL}/api/school-years`;
 const API_QUARTERS_ENDPOINT = `${API_BASE_URL}/api/quarters`;
 const API_ATTENDANCE_ENDPOINT = `${API_BASE_URL}/api/attendance`;
@@ -69,6 +71,12 @@ const INSTRUCTOR_EDUCATION_LEVEL_LABELS = {
   doctoral_degree: "Doctoral Degree",
   other: "Other"
 };
+const SCHEDULE_BLOCK_TYPE_OPTIONS = ["lunch", "recess", "other_break"];
+const SCHEDULE_BLOCK_TYPE_LABELS = {
+  lunch: "Lunch",
+  recess: "Recess",
+  other_break: "Other Break"
+};
 const DEFAULT_WORKSPACE_CONFIG = {
   schoolDay: {
     showReferenceDateFilter: true,
@@ -77,6 +85,8 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showCourseFilter: true,
     showStudentSummaries: true,
     showSideBySideOverview: true,
+    showResetStudentDayButton: true,
+    showResetFilteredDayButton: true,
     showNeedsAttendanceFilter: true,
     showNeedsCompletionFilter: true,
     showNeedsGradeFilter: true,
@@ -303,7 +313,7 @@ function defaultState() {
     { id: uid(), schoolYearId, name: "Q4", startDate: `${y}-10-01`, endDate: `${y}-12-31` }
   ];
   return {
-    students: [], instructors: [], subjects: [], courses: [], enrollments: [], plans: [], attendance: [], instructionActuals: [], tests: [], users: [createLegacyBootstrapAdmin()],
+    students: [], instructors: [], subjects: [], courses: [], enrollments: [], scheduleBlocks: [], studentScheduleBlocks: [], plans: [], attendance: [], instructionActuals: [], tests: [], users: [createLegacyBootstrapAdmin()],
     settings: {
       schoolYear: { ...schoolYear },
       schoolYears: [schoolYear],
@@ -430,6 +440,57 @@ function normalizeEnrollmentsShape(inputState) {
         scheduleOrder: Number.isInteger(parsedOrder) && parsedOrder > 0 ? parsedOrder : null
       };
     });
+}
+
+function normalizeScheduleBlocksShape(inputState) {
+  const s = inputState;
+  if (!Array.isArray(s.scheduleBlocks)) {
+    s.scheduleBlocks = [];
+    return;
+  }
+  s.scheduleBlocks = s.scheduleBlocks
+    .filter((entry) => entry && String(entry.name || "").trim())
+    .map((entry) => {
+      const type = SCHEDULE_BLOCK_TYPE_OPTIONS.includes(String(entry.type || "").trim().toLowerCase())
+        ? String(entry.type || "").trim().toLowerCase()
+        : "lunch";
+      const weekdays = Array.isArray(entry.weekdays)
+        ? Array.from(new Set(entry.weekdays.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5))).sort((a, b) => a - b)
+        : [];
+      return {
+        id: entry.id || uid(),
+        name: String(entry.name || "").trim(),
+        type,
+        description: type === "other_break" ? String(entry.description || "").trim() : "",
+        durationMinutes: Math.max(5, Number(entry.durationMinutes || 0) || 60),
+        weekdays
+      };
+    })
+    .filter((entry) => entry.weekdays.length);
+}
+
+function normalizeStudentScheduleBlocksShape(inputState) {
+  const s = inputState;
+  const validStudentIds = new Set((s.students || []).map((student) => student.id));
+  const validBlockIds = new Set((s.scheduleBlocks || []).map((entry) => entry.id));
+  if (!Array.isArray(s.studentScheduleBlocks)) {
+    s.studentScheduleBlocks = [];
+    return;
+  }
+  s.studentScheduleBlocks = s.studentScheduleBlocks
+    .filter((entry) => entry)
+    .map((entry) => {
+      const parsedOrder = entry.scheduleOrder === "" || entry.scheduleOrder == null
+        ? null
+        : Number(entry.scheduleOrder);
+      return {
+        id: entry.id || uid(),
+        studentId: String(entry.studentId || "").trim(),
+        scheduleBlockId: String(entry.scheduleBlockId || "").trim(),
+        scheduleOrder: Number.isInteger(parsedOrder) && parsedOrder > 0 ? parsedOrder : null
+      };
+    })
+    .filter((entry) => validStudentIds.has(entry.studentId) && validBlockIds.has(entry.scheduleBlockId));
 }
 
 function mergeLegacyBridgeCoursesWithLocalState(remoteState, localState) {
@@ -749,6 +810,8 @@ function normalizeSettingsShape(inputState) {
   normalizeInstructorsShape(s);
   normalizeCoursesShape(s);
   normalizeEnrollmentsShape(s);
+  normalizeScheduleBlocksShape(s);
+  normalizeStudentScheduleBlocksShape(s);
   normalizeInstructionActualsShape(s);
 }
 
@@ -855,6 +918,8 @@ if (!IS_LOCAL_DEV_HOST) {
 }
 let workspaceConfig = loadWorkspaceConfigPreferences();
 loadSession();
+let hostedSessionResumeHint = hostedModeEnabled && !!currentUserId;
+let hostedBootstrapInFlight = false;
 loadSchoolDayPreferences();
 if (!state.users.some((user) => user.id === currentUserId)) currentUserId = "";
 setCurrentSchoolYear(state.settings.currentSchoolYearId);
@@ -879,6 +944,7 @@ const expandedSubjectAverageRows = new Set();
 const expandedStudentAttendanceRows = new Set();
 const expandedStudentInstructionalHourRows = new Set();
 let dashboardExpandableRenderCache = null;
+let dashboardExpandableMetricsCache = null;
 const studentPerformanceSelectedGradeMethods = new Set(STUDENT_PERFORMANCE_GRADE_METHODS);
 const trendSelectedStudentIds = new Set();
 const gpaTrendSelectedStudentIds = new Set();
@@ -896,6 +962,7 @@ let editingSchoolYearId = "";
 let editingQuarterSchoolYearId = "";
 let editingGradeTypeId = "";
 let editingDailyBreakId = "";
+let editingScheduleBlockId = "";
 let gradeTypeDraftDirty = false;
 let gradingCriteriaEditMode = false;
 let showManagementSubjects = false;
@@ -1117,6 +1184,7 @@ async function parseApiResponse(response, fallbackMessage) {
 function updateCurrentUserFromSummary(userSummary) {
   if (!userSummary || !userSummary.id) {
     currentUserId = "";
+    hostedSessionResumeHint = false;
     return;
   }
 
@@ -1133,6 +1201,7 @@ function updateCurrentUserFromSummary(userSummary) {
   state.users = state.users.filter((entry) => entry.id !== merged.id);
   state.users.push(merged);
   currentUserId = merged.id;
+  hostedSessionResumeHint = false;
 }
 
 async function refreshHostedUsers() {
@@ -1208,6 +1277,34 @@ async function refreshHostedEnrollments() {
     state.enrollments = enrollments.map((enrollment) => ({
       ...enrollment,
       scheduleOrder: enrollment.scheduleOrder == null ? null : Number(enrollment.scheduleOrder)
+    }));
+  }
+}
+
+async function refreshHostedScheduleBlocks() {
+  const response = await authFetch(API_SCHEDULE_BLOCKS_ENDPOINT);
+  if (!response.ok) throw new Error(`Schedule blocks fetch failed (${response.status})`);
+  const scheduleBlocks = await response.json();
+  if (Array.isArray(scheduleBlocks)) {
+    state.scheduleBlocks = scheduleBlocks.map((entry) => ({
+      ...entry,
+      type: SCHEDULE_BLOCK_TYPE_OPTIONS.includes(String(entry.type || "").trim().toLowerCase())
+        ? String(entry.type || "").trim().toLowerCase()
+        : "lunch",
+      durationMinutes: Number(entry.durationMinutes || 0),
+      weekdays: Array.isArray(entry.weekdays) ? entry.weekdays.map((day) => Number(day)).filter(Number.isInteger) : []
+    }));
+  }
+}
+
+async function refreshHostedStudentScheduleBlocks() {
+  const response = await authFetch(API_STUDENT_SCHEDULE_BLOCKS_ENDPOINT);
+  if (!response.ok) throw new Error(`Student schedule blocks fetch failed (${response.status})`);
+  const scheduledBlocks = await response.json();
+  if (Array.isArray(scheduledBlocks)) {
+    state.studentScheduleBlocks = scheduledBlocks.map((entry) => ({
+      ...entry,
+      scheduleOrder: entry.scheduleOrder == null ? null : Number(entry.scheduleOrder)
     }));
   }
 }
@@ -1660,6 +1757,56 @@ async function createHostedEnrollment(payload) {
   return parseApiResponse(response, `Enrollment save failed (${response.status})`);
 }
 
+async function createHostedScheduleBlock(payload) {
+  const response = await authFetch(API_SCHEDULE_BLOCKS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, "Unable to create schedule block.");
+}
+
+async function updateHostedScheduleBlock(id, payload) {
+  const response = await authFetch(`${API_SCHEDULE_BLOCKS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, "Unable to update schedule block.");
+}
+
+async function deleteHostedScheduleBlock(id) {
+  const response = await authFetch(`${API_SCHEDULE_BLOCKS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, "Unable to delete schedule block.");
+}
+
+async function createHostedStudentScheduleBlock(payload) {
+  const response = await authFetch(API_STUDENT_SCHEDULE_BLOCKS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, "Unable to create student schedule block.");
+}
+
+async function updateHostedStudentScheduleBlock(id, payload) {
+  const response = await authFetch(`${API_STUDENT_SCHEDULE_BLOCKS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, "Unable to update student schedule block.");
+}
+
+async function deleteHostedStudentScheduleBlock(id) {
+  const response = await authFetch(`${API_STUDENT_SCHEDULE_BLOCKS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, "Unable to delete student schedule block.");
+}
+
 async function updateHostedEnrollment(id, payload) {
   const response = await authFetch(`${API_ENROLLMENTS_ENDPOINT}/${encodeURIComponent(id)}`, {
     method: "PATCH",
@@ -1751,22 +1898,26 @@ async function refreshHostedTests() {
 
 async function hydrateHostedDomainState() {
   if (!currentUser()) return;
-  await refreshHostedWorkspaceConfig();
-  await refreshHostedStudents();
-  await refreshHostedInstructors();
-  await refreshHostedSubjects();
-  await refreshHostedCourses();
-  await refreshHostedEnrollments();
-  await refreshHostedSchoolYears();
-  await refreshHostedQuarters();
-  await refreshHostedAttendance();
-  await refreshHostedInstructionActuals();
-  await refreshHostedDailyBreaks();
-  await refreshHostedHolidays();
-  await refreshHostedPlans();
-  await refreshHostedGradeTypes();
-  await refreshHostedGradingCriteria();
-  await refreshHostedTests();
+  await Promise.all([
+    refreshHostedWorkspaceConfig(),
+    refreshHostedStudents(),
+    refreshHostedInstructors(),
+    refreshHostedSubjects(),
+    refreshHostedCourses(),
+    refreshHostedEnrollments(),
+    refreshHostedScheduleBlocks(),
+    refreshHostedStudentScheduleBlocks(),
+    refreshHostedSchoolYears(),
+    refreshHostedQuarters(),
+    refreshHostedAttendance(),
+    refreshHostedInstructionActuals(),
+    refreshHostedDailyBreaks(),
+    refreshHostedHolidays(),
+    refreshHostedPlans(),
+    refreshHostedGradeTypes(),
+    refreshHostedGradingCriteria(),
+    refreshHostedTests()
+  ]);
   if (isAdminUser()) {
     await refreshHostedUsers();
   }
@@ -1778,6 +1929,8 @@ async function refreshHostedCurriculumState() {
   await refreshHostedSubjects();
   await refreshHostedCourses();
   await refreshHostedEnrollments();
+  await refreshHostedScheduleBlocks();
+  await refreshHostedStudentScheduleBlocks();
 }
 
 async function refreshHostedCurriculumCascadeState() {
@@ -1860,6 +2013,7 @@ async function bootstrapHostedSession() {
   const response = await authFetch(API_ME_ENDPOINT);
   if (response.status === 401) {
     currentUserId = "";
+    hostedSessionResumeHint = false;
     saveSession();
     return false;
   }
@@ -2024,9 +2178,14 @@ function resetStudentEnrollmentDraft() {
 
 function primeStudentEnrollmentDraft(studentId) {
   studentEnrollmentDraftStudentId = studentId || "";
-  studentEnrollmentDraft = state.enrollments
-    .filter((entry) => entry.studentId === studentId)
-    .map((entry) => ({ ...entry }));
+  studentEnrollmentDraft = [
+    ...state.enrollments
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "course" })),
+    ...state.studentScheduleBlocks
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
+  ];
   studentEnrollmentDraftDirty = false;
   studentEnrollmentEditMode = false;
 }
@@ -2035,9 +2194,14 @@ function workingStudentEnrollments(studentId) {
   if (studentEnrollmentDraftStudentId === studentId) {
     return studentEnrollmentDraft.map((entry) => ({ ...entry }));
   }
-  return state.enrollments
-    .filter((entry) => entry.studentId === studentId)
-    .map((entry) => ({ ...entry }));
+  return [
+    ...state.enrollments
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "course" })),
+    ...state.studentScheduleBlocks
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
+  ];
 }
 
 function beginStudentCreate() {
@@ -2118,18 +2282,29 @@ function renderSessionChrome() {
   const loginShell = document.getElementById("login-shell");
   const appShell = document.getElementById("app-shell");
   const loginCard = document.getElementById("login-card");
+  const restoreCard = document.getElementById("restore-card");
   const setupCard = document.getElementById("setup-card");
+  const loginForm = document.getElementById("login-form");
   const sessionSummary = document.getElementById("session-summary");
   const defaultAdminNote = document.getElementById("login-default-admin-note");
   const userBanner = document.getElementById("users-default-admin-banner");
   const user = currentUser();
   const signedIn = !!user;
   const showHostedSetup = hostedModeEnabled && hostedSetupChecked && !hostedSetupInitialized && !signedIn;
+  const showHostedResume = hostedModeEnabled && !signedIn && hostedSessionResumeHint && !showHostedSetup;
 
   if (loginShell) loginShell.classList.toggle("hidden", signedIn);
   if (appShell) appShell.classList.toggle("hidden", !signedIn);
-  if (loginCard) loginCard.classList.toggle("hidden", showHostedSetup);
+  if (loginCard) loginCard.classList.toggle("hidden", showHostedSetup || showHostedResume);
+  if (restoreCard) restoreCard.classList.toggle("hidden", !showHostedResume);
   if (setupCard) setupCard.classList.toggle("hidden", !showHostedSetup);
+  if (loginForm) {
+    Array.from(loginForm.elements).forEach((element) => {
+      element.disabled = showHostedResume;
+    });
+  }
+  if (showHostedResume) setLoginMessage("info", "Restoring your hosted session...");
+  else if (loginMessageKind === "info") resetLoginMessage();
   const showBootstrapAdminMessaging = shouldShowLegacyBootstrapAdminMessaging();
   if (defaultAdminNote) defaultAdminNote.classList.toggle("hidden", signedIn || !showBootstrapAdminMessaging);
   if (userBanner) userBanner.classList.toggle("hidden", !signedIn || !isAdminUser(user) || !showBootstrapAdminMessaging);
@@ -2158,6 +2333,7 @@ async function logout() {
     await logoutWithBackend();
   }
   currentUserId = "";
+  hostedSessionResumeHint = false;
   saveSession();
   resetLoginMessage();
   renderSessionChrome();
@@ -2193,10 +2369,13 @@ function saveState() {
 async function bootstrapApplicationState() {
   if (hostedModeEnabled) {
     legacyBridgeSyncReady = false;
+    hostedBootstrapInFlight = true;
+    renderSessionChrome();
     try {
       const initialized = await fetchHostedSetupStatus();
       if (!initialized) {
         currentUserId = "";
+        hostedSessionResumeHint = false;
         saveSession();
         resetLoginMessage();
         resetSetupMessage();
@@ -2216,9 +2395,12 @@ async function bootstrapApplicationState() {
       }
       setLoginMessage("error", "Unable to reach the hosted session service.");
       currentUserId = "";
+      hostedSessionResumeHint = false;
       renderAll();
     } finally {
+      hostedBootstrapInFlight = false;
       legacyBridgeSyncReady = true;
+      renderSessionChrome();
     }
     return;
   }
@@ -2517,6 +2699,143 @@ function parseScheduleOrderValue(value) {
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
 }
+
+function getScheduleBlock(scheduleBlockId) {
+  return state.scheduleBlocks.find((entry) => entry.id === scheduleBlockId) || null;
+}
+
+function scheduleBlockDisplayName(scheduleBlockId) {
+  const block = getScheduleBlock(scheduleBlockId);
+  if (!block) return "Unknown Schedule Block";
+  return block.name || (SCHEDULE_BLOCK_TYPE_LABELS[block.type] || "Schedule Block");
+}
+
+function sortedStudentScheduledEntries(studentId, sourceEntries = workingStudentEnrollments(studentId)) {
+  const studentEntries = sourceEntries
+    .filter((entry) => entry.studentId === studentId)
+    .map((entry, index) => ({ ...entry, _sourceIndex: index }));
+  const autoSorted = [...studentEntries].sort((a, b) => {
+    const nameA = a.itemType === "scheduleBlock" ? scheduleBlockDisplayName(a.scheduleBlockId) : getCourseName(a.courseId);
+    const nameB = b.itemType === "scheduleBlock" ? scheduleBlockDisplayName(b.scheduleBlockId) : getCourseName(b.courseId);
+    return nameA.localeCompare(nameB) || a._sourceIndex - b._sourceIndex;
+  });
+  const ordered = new Array(autoSorted.length).fill(null);
+  const overflow = [];
+  autoSorted.forEach((entry) => {
+    const preferredOrder = parseScheduleOrderValue(entry.scheduleOrder);
+    if (preferredOrder == null) {
+      overflow.push(entry);
+      return;
+    }
+    const slotIndex = preferredOrder - 1;
+    if (slotIndex < 0 || slotIndex >= ordered.length || ordered[slotIndex]) {
+      overflow.push(entry);
+      return;
+    }
+    ordered[slotIndex] = entry;
+  });
+  let overflowIndex = 0;
+  for (let i = 0; i < ordered.length; i += 1) {
+    if (ordered[i]) continue;
+    ordered[i] = overflow[overflowIndex] || null;
+    overflowIndex += 1;
+  }
+  return ordered.filter(Boolean);
+}
+
+function studentScheduledEntriesForOrderUpdate(studentId) {
+  if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === studentId) {
+    return studentEnrollmentDraft;
+  }
+  return [
+    ...state.enrollments
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "course" })),
+    ...state.studentScheduleBlocks
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
+  ];
+}
+
+function applyInsertedScheduleOrder(entries, targetEntryId, requestedOrder) {
+  const studentId = entries[0]?.studentId || "";
+  const orderedEntries = sortedStudentScheduledEntries(studentId, entries.map((entry) => ({ ...entry })));
+  const targetIndex = orderedEntries.findIndex((entry) => entry.id === targetEntryId);
+  if (targetIndex === -1) return entries.map((entry) => ({ ...entry }));
+
+  const normalizedOrder = requestedOrder == null
+    ? orderedEntries.length
+    : clamp(requestedOrder, 1, orderedEntries.length);
+  const [targetEntry] = orderedEntries.splice(targetIndex, 1);
+  orderedEntries.splice(normalizedOrder - 1, 0, targetEntry);
+
+  return orderedEntries.map((entry, index) => ({
+    ...entry,
+    scheduleOrder: index + 1
+  }));
+}
+
+function replaceStudentScheduledEntries(studentId, nextEntries) {
+  if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === studentId) {
+    studentEnrollmentDraft = nextEntries.map((entry) => ({ ...entry }));
+    studentEnrollmentDraftDirty = true;
+    studentEnrollmentEditMode = true;
+    return;
+  }
+
+  const nextCourses = nextEntries
+    .filter((entry) => entry.itemType !== "scheduleBlock")
+    .map(({ itemType, ...entry }) => ({ ...entry }));
+  const nextBlocks = nextEntries
+    .filter((entry) => entry.itemType === "scheduleBlock")
+    .map(({ itemType, ...entry }) => ({ ...entry }));
+
+  state.enrollments = [
+    ...state.enrollments.filter((entry) => entry.studentId !== studentId),
+    ...nextCourses
+  ];
+  state.studentScheduleBlocks = [
+    ...state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId),
+    ...nextBlocks
+  ];
+}
+
+async function persistStudentScheduledEntries(studentId, nextEntries) {
+  const existingEntries = [
+    ...state.enrollments
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "course" })),
+    ...state.studentScheduleBlocks
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
+  ];
+  const existingById = new Map(existingEntries.map((entry) => [entry.id, entry]));
+
+  for (const entry of nextEntries) {
+    const existing = existingById.get(entry.id);
+    const existingOrder = parseScheduleOrderValue(existing?.scheduleOrder);
+    const nextOrder = parseScheduleOrderValue(entry.scheduleOrder);
+    if (existing && existingOrder === nextOrder) continue;
+
+    if (entry.itemType === "scheduleBlock") {
+      await updateHostedStudentScheduleBlock(entry.id, {
+        studentId: entry.studentId,
+        scheduleBlockId: entry.scheduleBlockId,
+        scheduleOrder: nextOrder
+      });
+    } else {
+      await updateHostedEnrollment(entry.id, {
+        studentId: entry.studentId,
+        courseId: entry.courseId,
+        scheduleOrder: nextOrder
+      });
+    }
+  }
+
+  await refreshHostedEnrollments();
+  await refreshHostedStudentScheduleBlocks();
+}
+
 function sortedStudentEnrollments(studentId, sourceEnrollments = state.enrollments) {
   const studentEnrollments = sourceEnrollments
     .filter((enrollment) => enrollment.studentId === studentId)
@@ -2568,38 +2887,27 @@ function orderedEventsForStudent(studentId, events) {
     return sourceA - sourceB;
   });
 }
-function updateEnrollmentScheduleOrder(enrollmentId, rawValue) {
-  const source = studentViewMode === "detail" && selectedStudentId
-    ? studentEnrollmentDraft
-    : state.enrollments;
+function updateEnrollmentScheduleOrder(enrollmentId, rawValue, itemType = "course") {
+  const draftStudentId = studentEnrollmentDraft.find((entry) => entry.id === enrollmentId)?.studentId || "";
+  const studentId = selectedStudentId || draftStudentId;
+  const source = studentScheduledEntriesForOrderUpdate(studentId);
   const enrollment = source.find((entry) => entry.id === enrollmentId);
   if (!enrollment) return;
   const nextOrder = parseScheduleOrderValue(rawValue);
-  const conflict = nextOrder != null && source.some((entry) =>
-    entry.id !== enrollmentId
-    && entry.studentId === enrollment.studentId
-    && parseScheduleOrderValue(entry.scheduleOrder) === nextOrder);
-  if (conflict) {
-    alert("That schedule order is already assigned to another course for this student.");
-    renderStudentDetail();
-    return;
-  }
+  const nextEntries = applyInsertedScheduleOrder(
+    source.filter((entry) => entry.studentId === enrollment.studentId),
+    enrollmentId,
+    nextOrder
+  );
   if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === enrollment.studentId) {
-    enrollment.scheduleOrder = nextOrder;
-    studentEnrollmentDraftDirty = true;
-    studentEnrollmentEditMode = true;
+    replaceStudentScheduledEntries(enrollment.studentId, nextEntries);
     renderStudentDetail();
     return;
   }
   if (hostedModeEnabled) {
     (async () => {
       try {
-        await updateHostedEnrollment(enrollmentId, {
-          studentId: enrollment.studentId,
-          courseId: enrollment.courseId,
-          scheduleOrder: nextOrder
-        });
-        await refreshHostedEnrollments();
+        await persistStudentScheduledEntries(enrollment.studentId, nextEntries);
         renderAll();
       } catch (error) {
         alert(error.message || "Unable to update schedule order.");
@@ -2608,7 +2916,7 @@ function updateEnrollmentScheduleOrder(enrollmentId, rawValue) {
     })();
     return;
   }
-  enrollment.scheduleOrder = nextOrder;
+  replaceStudentScheduledEntries(enrollment.studentId, nextEntries);
   saveState();
   renderAll();
 }
@@ -2871,6 +3179,11 @@ function dailyBreakLabel(entry) {
   if (entry.type === "lunch") return "Lunch Break";
   if (entry.type === "recess") return "Recess";
   return entry.description || "Other Break";
+}
+
+function scheduleBlockLabel(entry) {
+  if (!entry) return "Schedule Block";
+  return entry.name || SCHEDULE_BLOCK_TYPE_LABELS[entry.type] || "Schedule Block";
 }
 
 function getSelectedDailyBreakStudentIds() {
@@ -4108,6 +4421,7 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
     .report-subsection-grade-weighting { margin-top: 20px; }
     .report-meta { margin: 0 0 18px; color: #6c5847; }
     table { width: 100%; border-collapse: collapse; }
+    .report-page table + table { margin-top: 18px; }
     .report-table { table-layout: fixed; }
     th, td { border: 1px solid #d9cdb7; padding: 8px 10px; text-align: left; vertical-align: top; }
     th { background: #f6f1e7; }
@@ -4195,6 +4509,7 @@ function buildPrintableInstructorReportHtml({ range, instructorId = "all" }) {
     h1 { margin: 0 0 8px; font-size: 28px; }
     .report-meta { margin: 0 0 18px; color: #6c5847; }
     table { width: 100%; border-collapse: collapse; }
+    .report-page table + table { margin-top: 18px; }
     th, td { border: 1px solid #d9cdb7; padding: 8px 10px; text-align: left; vertical-align: top; }
     th { background: #f6f1e7; }
     @media print {
@@ -4483,19 +4798,42 @@ function getStudentEnrollmentEligibleCourses(studentId) {
   return state.courses.filter((course) => !enrolledCourseIds.has(course.id));
 }
 
+function getStudentEnrollmentEligibleScheduleBlocks(studentId) {
+  if (!studentId) return [];
+  const sourceBlocks = studentEnrollmentDraftStudentId === studentId
+    ? studentEnrollmentDraft.filter((entry) => entry.itemType === "scheduleBlock")
+    : state.studentScheduleBlocks.filter((entry) => entry.studentId === studentId);
+  const assignedIds = new Set(sourceBlocks.map((entry) => entry.scheduleBlockId));
+  return state.scheduleBlocks.filter((entry) => !assignedIds.has(entry.id));
+}
+
 function renderStudentEnrollmentCourseChecklist(preselectedCourseIds = [], studentId = "") {
   const container = document.getElementById("student-enroll-course-dropdown");
   const optionsWrap = document.getElementById("student-enroll-course-options");
   if (!container || !optionsWrap) return;
   const eligibleCourses = getStudentEnrollmentEligibleCourses(studentId);
-  const eligibleIds = new Set(eligibleCourses.map((course) => course.id));
-  const selected = new Set(preselectedCourseIds.filter((id) => eligibleIds.has(id)));
-  const checkboxes = eligibleCourses.map((course, idx) => {
-    const checked = selected.has(course.id) ? " checked" : "";
+  const eligibleBlocks = getStudentEnrollmentEligibleScheduleBlocks(studentId);
+  const eligibleItemKeys = new Set([
+    ...eligibleCourses.map((course) => `course:${course.id}`),
+    ...eligibleBlocks.map((block) => `scheduleBlock:${block.id}`)
+  ]);
+  const selected = new Set(preselectedCourseIds.filter((id) => eligibleItemKeys.has(id)));
+  const courseCheckboxes = eligibleCourses.map((course, idx) => {
+    const key = `course:${course.id}`;
+    const checked = selected.has(key) ? " checked" : "";
     const inputId = `student-enroll-course-${idx}-${course.id}`;
-    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${course.id}"${checked}><label for="${inputId}">${escapeHtml(course.name)} (${escapeHtml(getSubjectName(course.subjectId))})</label></div>`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${escapeHtml(course.name)} (${escapeHtml(getSubjectName(course.subjectId))})</label></div>`;
   }).join("");
-  optionsWrap.innerHTML = checkboxes || `<span>${studentId ? "No additional courses available for this student." : "Select a student first."}</span>`;
+  const blockCheckboxes = eligibleBlocks.map((block, idx) => {
+    const key = `scheduleBlock:${block.id}`;
+    const checked = selected.has(key) ? " checked" : "";
+    const inputId = `student-enroll-block-${idx}-${block.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${escapeHtml(block.name)} (${escapeHtml(SCHEDULE_BLOCK_TYPE_LABELS[block.type] || "Schedule Block")})</label></div>`;
+  }).join("");
+  const sections = [];
+  if (courseCheckboxes) sections.push(`<div class="checklist-group-label">Courses</div>${courseCheckboxes}`);
+  if (blockCheckboxes) sections.push(`<div class="checklist-group-label">Schedule Blocks</div>${blockCheckboxes}`);
+  optionsWrap.innerHTML = sections.join("") || `<span>${studentId ? "No additional scheduled items available for this student." : "Select a student first."}</span>`;
   updateStudentEnrollmentCourseSummary();
 }
 
@@ -4503,7 +4841,7 @@ function updateStudentEnrollmentCourseSummary() {
   const summary = document.getElementById("student-enroll-course-summary");
   if (!summary) return;
   const selectedCount = document.querySelectorAll(".student-enroll-course-checkbox:checked").length;
-  summary.textContent = `Courses (${selectedCount} selected)`;
+  summary.textContent = `Scheduled Items (${selectedCount} selected)`;
 }
 
 function getSelectedStudentEnrollmentCourseIds() {
@@ -4721,6 +5059,8 @@ function renderAdministration() {
     ["admin-config-school-day-show-course-filter", config.schoolDay.showCourseFilter],
     ["admin-config-school-day-show-student-summaries", config.schoolDay.showStudentSummaries],
     ["admin-config-school-day-show-side-by-side-overview", config.schoolDay.showSideBySideOverview],
+    ["admin-config-school-day-show-reset-student-day", config.schoolDay.showResetStudentDayButton],
+    ["admin-config-school-day-show-reset-filtered-day", config.schoolDay.showResetFilteredDayButton],
     ["admin-config-school-day-show-needs-attendance", config.schoolDay.showNeedsAttendanceFilter],
     ["admin-config-school-day-show-needs-completion", config.schoolDay.showNeedsCompletionFilter],
     ["admin-config-school-day-show-needs-grade", config.schoolDay.showNeedsGradeFilter],
@@ -5032,13 +5372,14 @@ function renderStudentDetail() {
   const rangeEnd = quarterRange ? quarterRange.endDate : state.settings.schoolYear.endDate;
   const gradeSummary = studentGradeSummary(student.id, { quarterName: selectedQuarter });
 
-  const studentEnrollments = sortedStudentEnrollments(student.id, workingStudentEnrollments(student.id));
+  const studentEnrollments = sortedStudentScheduledEntries(student.id, workingStudentEnrollments(student.id));
   const enrollmentRows = studentEnrollments
     .map((e) => {
-      const course = getCourse(e.courseId);
-      const subject = course ? getSubjectName(course.subjectId) : "Unknown Subject";
-      const courseAvg = gradeSummary.courseAverage(e.courseId);
-      const avgDisplay = courseAvg === 0 ? "No grades" : `${courseAvg.toFixed(1)}%`;
+      const isScheduleBlock = e.itemType === "scheduleBlock";
+      const course = isScheduleBlock ? null : getCourse(e.courseId);
+      const subject = isScheduleBlock ? (SCHEDULE_BLOCK_TYPE_LABELS[getScheduleBlock(e.scheduleBlockId)?.type] || "Schedule Block") : (course ? getSubjectName(course.subjectId) : "Unknown Subject");
+      const courseAvg = isScheduleBlock ? 0 : gradeSummary.courseAverage(e.courseId);
+      const avgDisplay = isScheduleBlock ? "-" : (courseAvg === 0 ? "No grades" : `${courseAvg.toFixed(1)}%`);
       const orderOptions = [`<option value="">Auto</option>`]
         .concat(studentEnrollments.map((_, index) => {
           const value = index + 1;
@@ -5047,12 +5388,12 @@ function renderStudentDetail() {
         }))
         .join("");
       const orderControl = isAdminUser()
-        ? `<select class="student-schedule-order-select" data-enrollment-order-id="${e.id}" aria-label="Schedule order for ${getCourseName(e.courseId)}"${studentEnrollmentEditMode ? "" : " disabled"}>${orderOptions}</select>`
+        ? `<select class="student-schedule-order-select" data-enrollment-order-id="${e.id}" data-enrollment-item-type="${isScheduleBlock ? "scheduleBlock" : "course"}" aria-label="Schedule order for ${escapeHtml(isScheduleBlock ? scheduleBlockDisplayName(e.scheduleBlockId) : getCourseName(e.courseId))}"${studentEnrollmentEditMode ? "" : " disabled"}>${orderOptions}</select>`
         : (parseScheduleOrderValue(e.scheduleOrder) != null ? String(parseScheduleOrderValue(e.scheduleOrder)) : "Auto");
       const actions = studentEnrollmentEditMode
-        ? `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' type='button' disabled>Editing</button><button data-remove-student-enrollment='${e.id}' type='button'>Remove</button></div>`
-        : `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' type='button'>Edit</button></div>`;
-      return `<tr><td>${getCourseName(e.courseId)}</td><td>${subject}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
+        ? `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${isScheduleBlock ? "scheduleBlock" : "course"}' type='button' disabled>Editing</button><button data-remove-student-enrollment='${e.id}' data-enrollment-item-type='${isScheduleBlock ? "scheduleBlock" : "course"}' type='button'>Remove</button></div>`
+        : `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${isScheduleBlock ? "scheduleBlock" : "course"}' type='button'>Edit</button></div>`;
+      return `<tr><td>${escapeHtml(isScheduleBlock ? scheduleBlockDisplayName(e.scheduleBlockId) : getCourseName(e.courseId))}</td><td>${escapeHtml(subject)}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
     });
   if (enrollmentRows.length) {
     const overallAverage = gradeSummary.overallAverage;
@@ -5135,6 +5476,62 @@ function renderDailyBreaks() {
   if (submitBtn) submitBtn.textContent = editingDailyBreakId ? "Update Break" : "Add Break";
   if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingDailyBreakId);
   updateDailyBreakFormMode();
+}
+
+function updateScheduleBlockFormMode() {
+  const typeSelect = document.getElementById("schedule-block-type");
+  const descriptionWrap = document.getElementById("schedule-block-description-wrap");
+  const descriptionInput = document.getElementById("schedule-block-description");
+  if (!typeSelect || !descriptionWrap || !descriptionInput) return;
+  const isOther = typeSelect.value === "other_break";
+  descriptionWrap.classList.toggle("hidden", !isOther);
+  descriptionInput.required = isOther;
+  if (!isOther) descriptionInput.value = "";
+}
+
+function resetScheduleBlockForm() {
+  editingScheduleBlockId = "";
+  const form = document.getElementById("schedule-block-form");
+  if (form) form.reset();
+  const durationInput = document.getElementById("schedule-block-duration");
+  if (durationInput) durationInput.value = "60";
+  document.querySelectorAll("input[name='schedule-block-weekday']").forEach((checkbox) => {
+    checkbox.checked = true;
+  });
+  updateScheduleBlockFormMode();
+}
+
+function beginScheduleBlockEdit(scheduleBlockId) {
+  const entry = state.scheduleBlocks.find((block) => block.id === scheduleBlockId);
+  if (!entry) return;
+  editingScheduleBlockId = entry.id;
+  document.getElementById("schedule-block-name").value = entry.name || "";
+  document.getElementById("schedule-block-type").value = entry.type || "lunch";
+  document.getElementById("schedule-block-description").value = entry.description || "";
+  document.getElementById("schedule-block-duration").value = String(Number(entry.durationMinutes || 60));
+  document.querySelectorAll("input[name='schedule-block-weekday']").forEach((checkbox) => {
+    checkbox.checked = Array.isArray(entry.weekdays) && entry.weekdays.includes(Number(checkbox.value));
+  });
+  updateScheduleBlockFormMode();
+  renderScheduleBlocks();
+}
+
+function renderScheduleBlocks() {
+  const tableBody = document.getElementById("schedule-block-table");
+  if (!tableBody) return;
+  const rows = [...(state.scheduleBlocks || [])]
+    .sort((a, b) => scheduleBlockLabel(a).localeCompare(scheduleBlockLabel(b)))
+    .map((entry) => {
+      const weekdays = (entry.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
+      const typeLabel = SCHEDULE_BLOCK_TYPE_LABELS[entry.type] || "Schedule Block";
+      return `<tr><td>${escapeHtml(scheduleBlockLabel(entry))}</td><td>${escapeHtml(typeLabel)}</td><td>${escapeHtml(entry.description || "-")}</td><td>${Number(entry.durationMinutes || 0)} min</td><td>${escapeHtml(weekdays)}</td><td class="schedule-actions-cell"><div class="table-action-row"><button data-edit-schedule-block="${entry.id}" type="button">Edit</button><button data-remove-schedule-block="${entry.id}" type="button">Remove</button></div></td></tr>`;
+    });
+  rowOrEmpty(tableBody, rows, "No ordered schedule blocks defined.", 6);
+  const submitBtn = document.getElementById("schedule-block-submit-btn");
+  const cancelBtn = document.getElementById("schedule-block-cancel-edit-btn");
+  if (submitBtn) submitBtn.textContent = editingScheduleBlockId ? "Update Block" : "Add Block";
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingScheduleBlockId);
+  updateScheduleBlockFormMode();
 }
 
 function renderPlanningSettings() {
@@ -5278,6 +5675,24 @@ function renderAttendance() {
       return `<tr><td>${formatDisplayDate(a.date)}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td>${typeof actions === "string" && actions.includes("<button") ? `<div class="table-action-row">${actions}</div>` : actions}</td></tr>`;
     });
   rowOrEmpty(document.getElementById("attendance-table"), rows, "No attendance recorded yet.", 4);
+}
+
+function createLegacyLocalScheduleBlock(payload) {
+  state.scheduleBlocks.push({ id: payload.id || uid(), ...payload });
+}
+
+function updateLegacyLocalScheduleBlock(existing, payload) {
+  if (!existing) return;
+  existing.name = payload.name;
+  existing.type = payload.type;
+  existing.description = payload.description || "";
+  existing.durationMinutes = payload.durationMinutes;
+  existing.weekdays = [...payload.weekdays];
+}
+
+function deleteLegacyLocalScheduleBlock(scheduleBlockId) {
+  state.scheduleBlocks = state.scheduleBlocks.filter((entry) => entry.id !== scheduleBlockId);
+  state.studentScheduleBlocks = state.studentScheduleBlocks.filter((entry) => entry.scheduleBlockId !== scheduleBlockId);
 }
 
 function attendanceRecordForStudentDate(studentId, date) {
@@ -5454,6 +5869,11 @@ function applyWorkspaceConfiguration() {
       (filterName === "overridden" && config.schoolDay.showOverriddenFilter);
     btn.classList.toggle("hidden", !visible);
   });
+
+  const resetStudentDayBtn = document.getElementById("school-day-reset-student-btn");
+  if (resetStudentDayBtn) resetStudentDayBtn.classList.toggle("hidden", !config.schoolDay.showResetStudentDayButton);
+  const resetFilteredDayBtn = document.getElementById("school-day-reset-day-btn");
+  if (resetFilteredDayBtn) resetFilteredDayBtn.classList.toggle("hidden", !config.schoolDay.showResetFilteredDayButton);
 
   const dashboardVisibility = [
     ["dashboard-section-overview", config.dashboard.showKpiCards],
@@ -7468,6 +7888,207 @@ function renderDashboardExpandableTables() {
   );
 }
 
+function buildDashboardExpandableMetrics(dashboardStudents, totalAttendanceDays, attendanceDatesThroughToday, quarterByName, studentPerformanceInstructorFilter, studentInstructionalHoursInstructorFilter) {
+  const gradeTypeOrder = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final", "Quarter Final"];
+  const q1 = quarterByName.get("Q1");
+  const q2 = quarterByName.get("Q2");
+  const q3 = quarterByName.get("Q3");
+  const q4 = quarterByName.get("Q4");
+
+  const performanceMetrics = dashboardStudents
+    .map((student) => {
+      const studentTests = state.tests.filter((t) => t.studentId === student.id && testMatchesInstructorFilter(t, studentPerformanceInstructorFilter));
+      const q1Tests = q1 ? studentTests.filter((t) => inRange(t.date, q1.startDate, q1.endDate)) : [];
+      const q2Tests = q2 ? studentTests.filter((t) => inRange(t.date, q2.startDate, q2.endDate)) : [];
+      const q3Tests = q3 ? studentTests.filter((t) => inRange(t.date, q3.startDate, q3.endDate)) : [];
+      const q4Tests = q4 ? studentTests.filter((t) => inRange(t.date, q4.startDate, q4.endDate)) : [];
+      const subjectMap = new Map();
+      studentTests.forEach((test) => {
+        const subjectId = test.subjectId || "__unknown_subject__";
+        if (!subjectMap.has(subjectId)) subjectMap.set(subjectId, []);
+        subjectMap.get(subjectId).push(test);
+      });
+      const subjects = Array.from(subjectMap.entries())
+        .sort((a, b) => getSubjectName(a[0]).localeCompare(getSubjectName(b[0])))
+        .map(([subjectId, testsForSubject]) => {
+          const q1TestsBySubject = q1 ? testsForSubject.filter((test) => inRange(test.date, q1.startDate, q1.endDate)) : [];
+          const q2TestsBySubject = q2 ? testsForSubject.filter((test) => inRange(test.date, q2.startDate, q2.endDate)) : [];
+          const q3TestsBySubject = q3 ? testsForSubject.filter((test) => inRange(test.date, q3.startDate, q3.endDate)) : [];
+          const q4TestsBySubject = q4 ? testsForSubject.filter((test) => inRange(test.date, q4.startDate, q4.endDate)) : [];
+          const typeMap = new Map();
+          testsForSubject.forEach((test) => {
+            const gradeType = gradeTypeName(test) || "Other";
+            if (!typeMap.has(gradeType)) typeMap.set(gradeType, []);
+            typeMap.get(gradeType).push(test);
+          });
+          const types = Array.from(typeMap.keys())
+            .sort((a, b) => {
+              const ai = gradeTypeOrder.indexOf(a);
+              const bi = gradeTypeOrder.indexOf(b);
+              const av = ai === -1 ? Number.MAX_SAFE_INTEGER : ai;
+              const bv = bi === -1 ? Number.MAX_SAFE_INTEGER : bi;
+              return av - bv || a.localeCompare(b);
+            })
+            .map((gradeType) => {
+              const typeTests = typeMap.get(gradeType) || [];
+              const q1TypeTests = q1 ? typeTests.filter((test) => inRange(test.date, q1.startDate, q1.endDate)) : [];
+              const q2TypeTests = q2 ? typeTests.filter((test) => inRange(test.date, q2.startDate, q2.endDate)) : [];
+              const q3TypeTests = q3 ? typeTests.filter((test) => inRange(test.date, q3.startDate, q3.endDate)) : [];
+              const q4TypeTests = q4 ? typeTests.filter((test) => inRange(test.date, q4.startDate, q4.endDate)) : [];
+              return {
+                gradeType,
+                count: typeTests.length,
+                totalAvg: weightedAverageForTests(typeTests),
+                q1Count: q1TypeTests.length,
+                q2Count: q2TypeTests.length,
+                q3Count: q3TypeTests.length,
+                q4Count: q4TypeTests.length,
+                q1Avg: weightedAverageForTests(q1TypeTests, { quarterScoped: true }),
+                q2Avg: weightedAverageForTests(q2TypeTests, { quarterScoped: true }),
+                q3Avg: weightedAverageForTests(q3TypeTests, { quarterScoped: true }),
+                q4Avg: weightedAverageForTests(q4TypeTests, { quarterScoped: true })
+              };
+            });
+          return {
+            subjectId,
+            subjectName: getSubjectName(subjectId),
+            count: testsForSubject.length,
+            totalAvg: weightedAverageForTests(testsForSubject),
+            q1Count: q1TestsBySubject.length,
+            q2Count: q2TestsBySubject.length,
+            q3Count: q3TestsBySubject.length,
+            q4Count: q4TestsBySubject.length,
+            q1Avg: weightedAverageForTests(q1TestsBySubject, { quarterScoped: true }),
+            q2Avg: weightedAverageForTests(q2TestsBySubject, { quarterScoped: true }),
+            q3Avg: weightedAverageForTests(q3TestsBySubject, { quarterScoped: true }),
+            q4Avg: weightedAverageForTests(q4TestsBySubject, { quarterScoped: true }),
+            types
+          };
+        });
+      const totalAvg = weightedAverageForTests(studentTests);
+      return {
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        totalCount: studentTests.length,
+        q1Count: q1Tests.length,
+        q2Count: q2Tests.length,
+        q3Count: q3Tests.length,
+        q4Count: q4Tests.length,
+        totalAvg,
+        q1Avg: weightedAverageForTests(q1Tests, { quarterScoped: true }),
+        q2Avg: weightedAverageForTests(q2Tests, { quarterScoped: true }),
+        q3Avg: weightedAverageForTests(q3Tests, { quarterScoped: true }),
+        q4Avg: weightedAverageForTests(q4Tests, { quarterScoped: true }),
+        sortValue: studentTests.length ? totalAvg : -1,
+        subjects
+      };
+    })
+    .sort((a, b) => b.sortValue - a.sortValue || a.studentName.localeCompare(b.studentName));
+
+  const attendanceMetrics = dashboardStudents.map((student) => {
+    const summary = studentAttendanceSummary(student.id);
+    return {
+      studentId: student.id,
+      studentName: `${student.firstName} ${student.lastName}`,
+      totalDays: totalAttendanceDays,
+      present: summary.attended,
+      absent: summary.absent,
+      attendanceAverage: totalAttendanceDays > 0 ? (summary.attended / totalAttendanceDays) * 100 : 0,
+      quarters: state.settings.quarters.map((quarter) => {
+        const quarterDates = attendanceDatesThroughToday.filter((d) => inRange(d, quarter.startDate, quarter.endDate));
+        const quarterSummary = studentAttendanceSummaryByRange(student.id, quarter.startDate, quarter.endDate);
+        return {
+          name: quarter.name,
+          totalDays: quarterDates.length,
+          present: quarterSummary.attended,
+          absent: quarterSummary.absent
+        };
+      })
+    };
+  });
+
+  const instructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { instructorId: studentInstructionalHoursInstructorFilter });
+  const instructionalHourMetrics = dashboardStudents
+    .map((student) => {
+      const studentSummary = instructionalHours.summaryByStudent.get(student.id) || {
+        buckets: Object.fromEntries(instructionalHours.buckets.map((bucket) => [bucket.key, { earned: 0, projected: 0 }])),
+        subjects: new Map()
+      };
+      return {
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        earnedTotal: studentSummary.buckets.total.earned,
+        buckets: studentSummary.buckets,
+        subjects: Array.from(studentSummary.subjects.values())
+          .sort((a, b) => (b.buckets.total.earned - a.buckets.total.earned) || getSubjectName(a.subjectId).localeCompare(getSubjectName(b.subjectId)))
+          .map((subjectSummary) => ({
+            subjectId: subjectSummary.subjectId,
+            subjectName: getSubjectName(subjectSummary.subjectId),
+            buckets: subjectSummary.buckets
+          }))
+      };
+    })
+    .sort((a, b) => b.earnedTotal - a.earnedTotal || a.studentName.localeCompare(b.studentName));
+
+  return { performanceMetrics, attendanceMetrics, instructionalHours, instructionalHourMetrics };
+}
+
+function renderDashboardExpandableTablesFast() {
+  const context = dashboardExpandableRenderCache;
+  const metrics = dashboardExpandableMetricsCache;
+  if (!context || !metrics) return;
+
+  const { selectedGradeMethods } = context;
+  const { performanceMetrics, attendanceMetrics, instructionalHours, instructionalHourMetrics } = metrics;
+
+  const studentRows = performanceMetrics.flatMap((entry) => {
+    const expanded = expandedStudentAverageRows.has(entry.studentId);
+    const subjectRows = entry.subjects.flatMap((subject) => {
+      const subjectKey = `${entry.studentId}::${subject.subjectId}`;
+      const expandedSubject = expandedSubjectAverageRows.has(subjectKey);
+      const subjectRow = `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell"><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${renderDashboardToggleGlyph(expandedSubject)}</button>${subject.subjectName}</td><td>${formatDashboardAverageCell(subject.totalAvg, subject.count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q1Avg, subject.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q2Avg, subject.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q3Avg, subject.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q4Avg, subject.q4Count, selectedGradeMethods)}</td></tr>`;
+      if (!expandedSubject) return [subjectRow];
+      const typeRows = subject.types.map((type) => `<tr class="student-avg-type-row"><td class="student-avg-type-cell">${type.gradeType}</td><td>${formatDashboardAverageCell(type.totalAvg, type.count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q1Avg, type.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q2Avg, type.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q3Avg, type.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q4Avg, type.q4Count, selectedGradeMethods)}</td></tr>`);
+      return [subjectRow, ...typeRows];
+    }).join("");
+    const row = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${entry.studentName}</td><td>${formatDashboardAverageCell(entry.totalAvg, entry.totalCount, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q1Avg, entry.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q2Avg, entry.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q3Avg, entry.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q4Avg, entry.q4Count, selectedGradeMethods)}</td></tr>`;
+    const detailRow = expanded ? (subjectRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No subject grades yet.</td></tr>") : "";
+    return detailRow ? [row, detailRow] : [row];
+  });
+  if (performanceMetrics.length) {
+    const totals = {
+      total: performanceMetrics.filter((entry) => entry.totalCount > 0).map((entry) => entry.totalAvg),
+      q1: performanceMetrics.filter((entry) => entry.q1Count > 0).map((entry) => entry.q1Avg),
+      q2: performanceMetrics.filter((entry) => entry.q2Count > 0).map((entry) => entry.q2Avg),
+      q3: performanceMetrics.filter((entry) => entry.q3Count > 0).map((entry) => entry.q3Avg),
+      q4: performanceMetrics.filter((entry) => entry.q4Count > 0).map((entry) => entry.q4Avg)
+    };
+    studentRows.push(`<tr><td><strong>Average</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.total), totals.total.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q1), totals.q1.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q2), totals.q2.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q3), totals.q3.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q4), totals.q4.length, selectedGradeMethods)}</strong></td></tr>`);
+  }
+  rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
+
+  const studentAttendanceRows = attendanceMetrics.flatMap((entry) => {
+    const expandedAttendance = expandedStudentAttendanceRows.has(entry.studentId);
+    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${entry.studentId}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${entry.studentName}</td><td>${entry.totalDays}</td><td>${entry.present}</td><td>${entry.absent}</td><td>${entry.totalDays > 0 ? `${entry.attendanceAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+    if (!expandedAttendance) return [studentRow];
+    const quarterRows = entry.quarters.map((quarter) => {
+      const quarterAverage = quarter.totalDays > 0 ? (quarter.present / quarter.totalDays) * 100 : 0;
+      return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarter.totalDays}</td><td>${quarter.present}</td><td>${quarter.absent}</td><td>${quarter.totalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+    });
+    return [studentRow, ...quarterRows];
+  });
+  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
+
+  const instructionalHourRows = instructionalHourMetrics.flatMap((entry) => {
+    const expanded = expandedStudentInstructionalHourRows.has(entry.studentId);
+    const detailRows = entry.subjects.map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${subjectSummary.subjectName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}</tr>`).join("");
+    const row = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${entry.studentName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(entry.buckets[bucket.key])}</td>`).join("")}</tr>`;
+    const detailRow = expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : "";
+    return detailRow ? [row, detailRow] : [row];
+  });
+  rowOrEmpty(document.getElementById("dashboard-student-instructional-hours-table"), instructionalHourRows, "No students added yet.", 6);
+}
+
 function renderDashboard() {
   const allowedStudentIds = visibleStudentIds();
   const dashboardStudents = visibleStudents();
@@ -7560,16 +8181,18 @@ function renderDashboard() {
   const selectedGradeMethods = getSelectedStudentPerformanceGradeMethods();
   const studentPerformanceInstructorFilter = Array.from(studentPerformanceSelectedInstructorIds);
   const studentInstructionalHoursInstructorFilter = Array.from(studentInstructionalHoursSelectedInstructorIds);
-  dashboardExpandableRenderCache = {
+  dashboardExpandableMetricsCache = buildDashboardExpandableMetrics(
     dashboardStudents,
     totalAttendanceDays,
     attendanceDatesThroughToday,
     quarterByName,
-    selectedGradeMethods,
     studentPerformanceInstructorFilter,
     studentInstructionalHoursInstructorFilter
+  );
+  dashboardExpandableRenderCache = {
+    selectedGradeMethods
   };
-  renderDashboardExpandableTables();
+  renderDashboardExpandableTablesFast();
 
   renderGradeTrending();
   renderGpaTrending();
@@ -7753,6 +8376,30 @@ function dailyBreaksForStudentDate(studentId, dateKey) {
   return matchingBreaks;
 }
 
+function orderedScheduleBlocksForStudentDate(studentId, dateKey) {
+  const date = toDate(dateKey);
+  if (Number.isNaN(date.getTime())) return [];
+  const weekday = date.getDay();
+  const orderedEntries = sortedStudentScheduledEntries(studentId);
+  return orderedEntries
+    .filter((entry) => entry.itemType === "scheduleBlock")
+    .map((entry) => ({
+      assignment: entry,
+      block: getScheduleBlock(entry.scheduleBlockId)
+    }))
+    .filter(({ block }) => block && Array.isArray(block.weekdays) && block.weekdays.includes(weekday))
+    .map(({ assignment, block }) => ({
+      id: assignment.id,
+      scheduleBlockId: block.id,
+      studentId,
+      label: scheduleBlockLabel(block),
+      type: block.type,
+      description: block.description || "",
+      durationMinutes: Math.max(5, Number(block.durationMinutes || 0)),
+      scheduleOrder: parseScheduleOrderValue(assignment.scheduleOrder)
+    }));
+}
+
 function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const events = calendarEventsForDate(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
   const byStudent = new Map();
@@ -7770,106 +8417,201 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     const studentName = getStudentName(studentId);
     const blocks = [];
     const baseOrderedEvents = orderedEventsForStudent(studentId, byStudent.get(studentId) || []);
-    const remaining = [...baseOrderedEvents].sort((a, b) => {
-      const indexA = effectiveInstructionOrderIndex(studentId, a.courseId, dateKey, baseOrderedEvents.findIndex((entry) => entry.courseId === a.courseId) + 1);
-      const indexB = effectiveInstructionOrderIndex(studentId, b.courseId, dateKey, baseOrderedEvents.findIndex((entry) => entry.courseId === b.courseId) + 1);
-      if (indexA !== indexB) return indexA - indexB;
-      return baseOrderedEvents.findIndex((entry) => entry.courseId === a.courseId)
-        - baseOrderedEvents.findIndex((entry) => entry.courseId === b.courseId);
-    });
-    const breakBlocks = dailyBreaksForStudentDate(studentId, dateKey);
+    const remainingByCourseId = new Map(baseOrderedEvents.map((event) => [event.courseId, event]));
+    const orderedScheduleEntries = sortedStudentScheduledEntries(studentId);
+    const orderedBlockEntries = orderedScheduleBlocksForStudentDate(studentId, dateKey);
+    const orderedBlockByAssignmentId = new Map(orderedBlockEntries.map((entry) => [entry.id, entry]));
+    const hasOrderedBlocks = orderedBlockEntries.length > 0;
+    const orderedItems = hasOrderedBlocks
+      ? orderedScheduleEntries
+      : [];
 
     let slot = 8 * 60;
-    let breakIndex = 0;
 
-    while (remaining.length || breakIndex < breakBlocks.length) {
-      const nextBreak = breakBlocks[breakIndex] || null;
-      if (nextBreak && slot >= nextBreak.start) {
-        blocks.push({
-          student: studentName,
-          studentId,
-          label: nextBreak.label,
-          plannedStart: nextBreak.start,
-          plannedEnd: nextBreak.end,
-          start: nextBreak.start,
-          end: nextBreak.end,
-          durationMinutes: nextBreak.durationMinutes,
-          type: nextBreak.type
-        });
-        slot = Math.max(slot, nextBreak.end);
-        breakIndex += 1;
-        continue;
-      }
+    if (hasOrderedBlocks) {
+      orderedItems.forEach((entry) => {
+        if (entry.itemType === "scheduleBlock") {
+          const blockEntry = orderedBlockByAssignmentId.get(entry.id);
+          if (!blockEntry) return;
+          const startMin = slot;
+          const endMin = Math.min(24 * 60, startMin + blockEntry.durationMinutes);
+          blocks.push({
+            student: studentName,
+            studentId,
+            scheduleBlockId: blockEntry.scheduleBlockId,
+            label: blockEntry.label,
+            plannedStart: startMin,
+            plannedEnd: endMin,
+            start: startMin,
+            end: endMin,
+            durationMinutes: blockEntry.durationMinutes,
+            type: blockEntry.type
+          });
+          slot = endMin;
+          return;
+        }
 
-      const candidates = remaining.map((event) => {
+        const event = remainingByCourseId.get(entry.courseId);
+        if (!event) return;
         const course = getCourse(event.courseId);
+        if (!course) return;
         const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
         const availableAt = course?.exclusiveResource
           ? Math.max(8 * 60, exclusiveCourseAvailability.get(course.id) || 8 * 60)
           : 8 * 60;
-        return {
-          event,
-          course,
+        const startMin = Math.max(slot, availableAt);
+        const endMin = Math.min(24 * 60, startMin + durationMinutes);
+        blocks.push({
+          student: studentName,
+          studentId,
+          courseId: event.courseId,
+          subjectId: course.subjectId,
+          label: `${course.name} (${getSubjectName(course.subjectId)})`,
+          plannedStart: startMin,
+          plannedEnd: endMin,
+          start: startMin,
+          end: endMin,
           durationMinutes,
-          availableAt
-        };
+          type: "instruction"
+        });
+        if (course.exclusiveResource) {
+          exclusiveCourseAvailability.set(course.id, endMin);
+        }
+        remainingByCourseId.delete(event.courseId);
+        slot = endMin;
+        if (slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
       });
+    } else {
+      const remaining = [...baseOrderedEvents].sort((a, b) => {
+        const indexA = effectiveInstructionOrderIndex(studentId, a.courseId, dateKey, baseOrderedEvents.findIndex((entry) => entry.courseId === a.courseId) + 1);
+        const indexB = effectiveInstructionOrderIndex(studentId, b.courseId, dateKey, baseOrderedEvents.findIndex((entry) => entry.courseId === b.courseId) + 1);
+        if (indexA !== indexB) return indexA - indexB;
+        return baseOrderedEvents.findIndex((entry) => entry.courseId === a.courseId)
+          - baseOrderedEvents.findIndex((entry) => entry.courseId === b.courseId);
+      });
+      const breakBlocks = dailyBreaksForStudentDate(studentId, dateKey);
+      let breakIndex = 0;
 
-      let chosen = null;
-      const startNow = candidates.filter((candidate) => candidate.availableAt <= slot);
+      while (remaining.length || breakIndex < breakBlocks.length) {
+        const nextBreak = breakBlocks[breakIndex] || null;
+        if (nextBreak && slot >= nextBreak.start) {
+          blocks.push({
+            student: studentName,
+            studentId,
+            label: nextBreak.label,
+            plannedStart: nextBreak.start,
+            plannedEnd: nextBreak.end,
+            start: nextBreak.start,
+            end: nextBreak.end,
+            durationMinutes: nextBreak.durationMinutes,
+            type: nextBreak.type
+          });
+          slot = Math.max(slot, nextBreak.end);
+          breakIndex += 1;
+          continue;
+        }
 
-      if (nextBreak) {
-        const fitsBeforeBreak = startNow.filter((candidate) => slot + candidate.durationMinutes <= nextBreak.start);
-        if (fitsBeforeBreak.length) {
-          [chosen] = fitsBeforeBreak;
+        const candidates = remaining.map((event) => {
+          const course = getCourse(event.courseId);
+          const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
+          const availableAt = course?.exclusiveResource
+            ? Math.max(8 * 60, exclusiveCourseAvailability.get(course.id) || 8 * 60)
+            : 8 * 60;
+          return {
+            event,
+            course,
+            durationMinutes,
+            availableAt
+          };
+        });
+
+        let chosen = null;
+        const startNow = candidates.filter((candidate) => candidate.availableAt <= slot);
+
+        if (nextBreak) {
+          const fitsBeforeBreak = startNow.filter((candidate) => slot + candidate.durationMinutes <= nextBreak.start);
+          if (fitsBeforeBreak.length) {
+            [chosen] = fitsBeforeBreak;
+          } else if (startNow.length) {
+            slot = nextBreak.start;
+            continue;
+          }
         } else if (startNow.length) {
-          slot = nextBreak.start;
-          continue;
+          [chosen] = startNow;
         }
-      } else if (startNow.length) {
-        [chosen] = startNow;
-      }
 
-      if (!chosen) {
-        if (!remaining.length && nextBreak) {
-          slot = nextBreak.start;
+        if (!chosen) {
+          if (!remaining.length && nextBreak) {
+            slot = nextBreak.start;
+            continue;
+          }
+          const nextAvailable = Math.min(...candidates.map((candidate) => candidate.availableAt));
+          if (!Number.isFinite(nextAvailable)) break;
+          if (nextBreak && nextAvailable >= nextBreak.start) {
+            slot = nextBreak.start;
+            continue;
+          }
+          slot = Math.max(slot, nextAvailable || slot);
           continue;
         }
-        const nextAvailable = Math.min(...candidates.map((candidate) => candidate.availableAt));
-        if (!Number.isFinite(nextAvailable)) break;
-        if (nextBreak && nextAvailable >= nextBreak.start) {
-          slot = nextBreak.start;
-          continue;
-        }
-        slot = Math.max(slot, nextAvailable || slot);
-        continue;
-      }
 
-      const startMin = slot;
-      const endMin = Math.min(24 * 60, startMin + chosen.durationMinutes);
-      blocks.push({
-        student: studentName,
-        studentId,
-        courseId: chosen.event.courseId,
-        subjectId: chosen.course.subjectId,
-        label: `${chosen.course.name} (${getSubjectName(chosen.course.subjectId)})`,
-        plannedStart: startMin,
-        plannedEnd: endMin,
-        start: startMin,
-        end: endMin,
-        durationMinutes: chosen.durationMinutes,
-        type: "instruction"
+        const startMin = slot;
+        const endMin = Math.min(24 * 60, startMin + chosen.durationMinutes);
+        blocks.push({
+          student: studentName,
+          studentId,
+          courseId: chosen.event.courseId,
+          subjectId: chosen.course.subjectId,
+          label: `${chosen.course.name} (${getSubjectName(chosen.course.subjectId)})`,
+          plannedStart: startMin,
+          plannedEnd: endMin,
+          start: startMin,
+          end: endMin,
+          durationMinutes: chosen.durationMinutes,
+          type: "instruction"
+        });
+        if (chosen.course.exclusiveResource) {
+          exclusiveCourseAvailability.set(chosen.course.id, endMin);
+        }
+
+        const removeIndex = remaining.findIndex((event) =>
+          event.studentId === chosen.event.studentId && event.courseId === chosen.event.courseId);
+        if (removeIndex >= 0) remaining.splice(removeIndex, 1);
+
+        slot = endMin;
+        if (remaining.length && slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
+      }
+    }
+
+    if (hasOrderedBlocks && remainingByCourseId.size) {
+      [...remainingByCourseId.values()].forEach((event) => {
+        const course = getCourse(event.courseId);
+        if (!course) return;
+        const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
+        const availableAt = course?.exclusiveResource
+          ? Math.max(8 * 60, exclusiveCourseAvailability.get(course.id) || 8 * 60)
+          : 8 * 60;
+        const startMin = Math.max(slot, availableAt);
+        const endMin = Math.min(24 * 60, startMin + durationMinutes);
+        blocks.push({
+          student: studentName,
+          studentId,
+          courseId: event.courseId,
+          subjectId: course.subjectId,
+          label: `${course.name} (${getSubjectName(course.subjectId)})`,
+          plannedStart: startMin,
+          plannedEnd: endMin,
+          start: startMin,
+          end: endMin,
+          durationMinutes,
+          type: "instruction"
+        });
+        if (course.exclusiveResource) {
+          exclusiveCourseAvailability.set(course.id, endMin);
+        }
+        slot = endMin;
+        if (slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
       });
-      if (chosen.course.exclusiveResource) {
-        exclusiveCourseAvailability.set(chosen.course.id, endMin);
-      }
-
-      const removeIndex = remaining.findIndex((event) =>
-        event.studentId === chosen.event.studentId && event.courseId === chosen.event.courseId);
-      if (removeIndex >= 0) remaining.splice(removeIndex, 1);
-
-      slot = endMin;
-      if (remaining.length && slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
     }
 
     const adjustedBlocks = [];
@@ -8114,13 +8856,13 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
       const instructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
       const startTimeValue = effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, block.plannedStart);
       const hourCell = isEditing
-        ? `<div class="calendar-inline-editor"><label class="calendar-inline-label">Start Time<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-instruction-actual-start="${editKey}"></label></div>`
+        ? `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Start Time<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-instruction-actual-start="${editKey}"></label></div>`
         : actualRange;
       const instructorCell = isEditing
-        ? `<select data-instruction-actual-instructor="${editKey}">${buildInstructionInstructorOptions(instructorId)}</select>`
+        ? `<select class="school-day-instructor-editor" data-instruction-actual-instructor="${editKey}">${buildInstructionInstructorOptions(instructorId)}</select>`
         : escapeHtml(instructorId ? getInstructorName(instructorId) : "Unassigned");
       const minutesCell = isEditing
-        ? `<input type="number" min="1" step="1" value="${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))}" data-instruction-actual-input="${editKey}">`
+        ? `<input class="school-day-minutes-editor" type="number" min="1" step="1" value="${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))}" data-instruction-actual-input="${editKey}">`
         : `${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))} min`;
       const inlineGradeKey = schoolDayGradeKey(block.studentId, block.courseId, dateKey);
       const showInlineGrade = mode === "school-day" && schoolDayInlineGradeKey === inlineGradeKey;
@@ -8148,7 +8890,7 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
         : (isEditing
           ? `<div class="table-action-row"><button type="button" ${saveAttr}="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" ${cancelAttr}="${editKey}">Cancel</button></div>`
           : `<div class="school-day-actions-wrap"><label class="school-day-complete-toggle"><input type="checkbox" data-school-day-completed-toggle="1" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}"${isCompleted ? " checked" : ""}> Completed</label><div class="table-action-row">${inlineGradeActions}<button type="button" ${editAttr}="${editKey}">Edit</button>${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}</div></div>`);
-      const renderedRows = [`<tr class="${rowStateClasses}"><td>${hourDisplay}</td><td>${block.student}</td><td>${block.label}<br>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td>${instructorCell}</td><td>${minutesCell}</td><td class="calendar-actions-cell">${actionsCell}</td></tr>`];
+      const renderedRows = [`<tr class="${rowStateClasses}${isEditing ? " school-day-editing-row" : ""}"><td class="school-day-hour-column">${hourDisplay}</td><td class="school-day-student-column">${block.student}</td><td class="school-day-planned-column"><div class="school-day-planned-copy">${block.label}</div>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td class="school-day-instructor-column">${instructorCell}</td><td class="school-day-minutes-column">${minutesCell}</td><td class="calendar-actions-cell school-day-actions-column">${actionsCell}</td></tr>`];
       if (showInlineGrade) {
         const gradeRow = buildGradeEntryRow(null, {
           date: dateKey,
@@ -8162,12 +8904,13 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
         const gradeRowId = gradeRow.getAttribute("data-grade-entry-row-id");
         const calculateCell = gradeRow.querySelector("td:last-child");
         if (calculateCell) {
-          calculateCell.innerHTML = `<div class="grade-entry-action-row"><button type="button" data-grade-calc-toggle="1">Calculate</button></div>`;
+          calculateCell.innerHTML = `<div class="grade-entry-inline-placeholder"></div>`;
         }
         const inlineActionRows = `
           <tr class="school-day-inline-grade-action-table-row" data-grade-action-for="${gradeRowId}">
             <td colspan="7">
               <div class="grade-entry-action-row">
+                <button type="button" data-grade-calc-toggle="1">Calculate</button>
                 <button type="button" data-grade-save="1">Save</button>
                 <button type="button" data-grade-cancel="1">Cancel</button>
               </div>
@@ -8952,6 +9695,8 @@ function bindEvents() {
         showCourseFilter: !!document.getElementById("admin-config-school-day-show-course-filter")?.checked,
         showStudentSummaries: !!document.getElementById("admin-config-school-day-show-student-summaries")?.checked,
         showSideBySideOverview: !!document.getElementById("admin-config-school-day-show-side-by-side-overview")?.checked,
+        showResetStudentDayButton: !!document.getElementById("admin-config-school-day-show-reset-student-day")?.checked,
+        showResetFilteredDayButton: !!document.getElementById("admin-config-school-day-show-reset-filtered-day")?.checked,
         showNeedsAttendanceFilter: !!document.getElementById("admin-config-school-day-show-needs-attendance")?.checked,
         showNeedsCompletionFilter: !!document.getElementById("admin-config-school-day-show-needs-completion")?.checked,
         showNeedsGradeFilter: !!document.getElementById("admin-config-school-day-show-needs-grade")?.checked,
@@ -9548,23 +10293,102 @@ function bindEvents() {
   if (courseCancelEditBtn) {
     courseCancelEditBtn.addEventListener("click", () => cancelCourseEdit());
   }
+  const scheduleBlockCancelEditBtn = document.getElementById("schedule-block-cancel-edit-btn");
+  if (scheduleBlockCancelEditBtn) {
+    scheduleBlockCancelEditBtn.addEventListener("click", () => {
+      resetScheduleBlockForm();
+      renderScheduleBlocks();
+    });
+  }
+  const scheduleBlockTypeSelect = document.getElementById("schedule-block-type");
+  if (scheduleBlockTypeSelect) {
+    scheduleBlockTypeSelect.addEventListener("change", () => updateScheduleBlockFormMode());
+  }
+  const scheduleBlockForm = document.getElementById("schedule-block-form");
+  if (scheduleBlockForm) {
+    scheduleBlockForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!ensureAdminAction()) return;
+      const name = String(document.getElementById("schedule-block-name")?.value || "").trim();
+      const type = String(document.getElementById("schedule-block-type")?.value || "").trim();
+      const description = String(document.getElementById("schedule-block-description")?.value || "").trim();
+      const durationMinutes = Number(document.getElementById("schedule-block-duration")?.value || 0);
+      const weekdays = Array.from(document.querySelectorAll("input[name='schedule-block-weekday']:checked")).map((input) => Number(input.value));
+      if (!name || !SCHEDULE_BLOCK_TYPE_OPTIONS.includes(type) || !Number.isFinite(durationMinutes) || durationMinutes < 5 || !weekdays.length) {
+        alert("Provide a valid schedule block name, type, duration, and weekdays.");
+        return;
+      }
+      if (type === "other_break" && !description) {
+        alert("Provide a description for Other Break.");
+        return;
+      }
+      const payload = {
+        name,
+        type,
+        description: type === "other_break" ? description : "",
+        durationMinutes,
+        weekdays
+      };
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            if (editingScheduleBlockId) {
+              await updateHostedScheduleBlock(editingScheduleBlockId, payload);
+            } else {
+              await createHostedScheduleBlock({ id: uid(), ...payload });
+            }
+            resetScheduleBlockForm();
+            await refreshHostedScheduleBlocks();
+            await refreshHostedStudentScheduleBlocks();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to save schedule block.");
+          }
+        })();
+        return;
+      }
+      if (editingScheduleBlockId) {
+        updateLegacyLocalScheduleBlock(state.scheduleBlocks.find((entry) => entry.id === editingScheduleBlockId), payload);
+      } else {
+        createLegacyLocalScheduleBlock({ id: uid(), ...payload });
+      }
+      resetScheduleBlockForm();
+      saveState();
+      renderAll();
+    });
+  }
 
   document.getElementById("student-enrollment-form").addEventListener("submit", (e) => {
     e.preventDefault();
     if (!ensureAdminAction()) return;
     const studentId = selectedStudentId;
-    const courseIds = getSelectedStudentEnrollmentCourseIds();
-    if (!studentId || !courseIds.length) return;
-    const workingEnrollments = studentEnrollmentDraftStudentId === studentId ? studentEnrollmentDraft : state.enrollments;
+    const selectedItemKeys = getSelectedStudentEnrollmentCourseIds();
+    if (!studentId || !selectedItemKeys.length) return;
+    const workingEntries = studentEnrollmentDraftStudentId === studentId ? studentEnrollmentDraft : workingStudentEnrollments(studentId);
     const existingCourseIds = new Set(
-      workingEnrollments
-        .filter((entry) => entry.studentId === studentId)
+      workingEntries
+        .filter((entry) => entry.studentId === studentId && entry.itemType !== "scheduleBlock")
         .map((entry) => entry.courseId)
     );
-    const newCourseIds = courseIds.filter((courseId) => !existingCourseIds.has(courseId));
-    if (!newCourseIds.length) { alert("Student is already enrolled in the selected course(s)."); return; }
+    const existingBlockIds = new Set(
+      workingEntries
+        .filter((entry) => entry.studentId === studentId && entry.itemType === "scheduleBlock")
+        .map((entry) => entry.scheduleBlockId)
+    );
+    const newItems = selectedItemKeys
+      .map((key) => {
+        const [itemType, itemId] = String(key || "").split(":");
+        return { itemType, itemId };
+      })
+      .filter((entry) => entry.itemId)
+      .filter((entry) => (entry.itemType === "scheduleBlock" ? !existingBlockIds.has(entry.itemId) : !existingCourseIds.has(entry.itemId)));
+    if (!newItems.length) { alert("Student already has the selected scheduled item(s)."); return; }
     if (studentViewMode === "detail" && studentEnrollmentDraftStudentId === studentId) {
-      studentEnrollmentDraft.push(...newCourseIds.map((courseId) => ({ id: uid(), studentId, courseId, scheduleOrder: null })));
+      studentEnrollmentDraft.push(...newItems.map((entry) => (
+        entry.itemType === "scheduleBlock"
+          ? { id: uid(), itemType: "scheduleBlock", studentId, scheduleBlockId: entry.itemId, scheduleOrder: null }
+          : { id: uid(), itemType: "course", studentId, courseId: entry.itemId, scheduleOrder: null }
+      )));
       studentEnrollmentDraftDirty = true;
       studentEnrollmentEditMode = true;
       renderStudentDetail();
@@ -9573,18 +10397,29 @@ function bindEvents() {
     if (hostedModeEnabled) {
       (async () => {
         try {
-          for (const courseId of newCourseIds) {
-            await createHostedEnrollment({ id: uid(), studentId, courseId, scheduleOrder: null });
+          for (const entry of newItems) {
+            if (entry.itemType === "scheduleBlock") {
+              await createHostedStudentScheduleBlock({ id: uid(), studentId, scheduleBlockId: entry.itemId, scheduleOrder: null });
+            } else {
+              await createHostedEnrollment({ id: uid(), studentId, courseId: entry.itemId, scheduleOrder: null });
+            }
           }
           await refreshHostedEnrollments();
+          await refreshHostedStudentScheduleBlocks();
           renderAll();
         } catch (error) {
-          alert(error.message || "Unable to save enrollment.");
+          alert(error.message || "Unable to save scheduled item.");
         }
       })();
       return;
     }
-    newCourseIds.forEach((courseId) => createLegacyLocalEnrollment({ studentId, courseId, scheduleOrder: null }));
+    newItems.forEach((entry) => {
+      if (entry.itemType === "scheduleBlock") {
+        state.studentScheduleBlocks.push({ id: uid(), studentId, scheduleBlockId: entry.itemId, scheduleOrder: null });
+      } else {
+        createLegacyLocalEnrollment({ studentId, courseId: entry.itemId, scheduleOrder: null });
+      }
+    });
     saveState();
     renderAll();
   });
@@ -9619,23 +10454,31 @@ function bindEvents() {
         return;
       }
       if (!ensureAdminAction()) return;
-      const existingEnrollments = state.enrollments.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry }));
-      const draftEnrollments = studentEnrollmentDraft.map((entry) => ({
+      const existingEnrollments = state.enrollments.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry, itemType: "course" }));
+      const existingScheduleBlocks = state.studentScheduleBlocks.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry, itemType: "scheduleBlock" }));
+      const draftEntries = studentEnrollmentDraft.map((entry) => ({
         ...entry,
         studentId,
         scheduleOrder: parseScheduleOrderValue(entry.scheduleOrder)
       }));
-      const removedEnrollments = existingEnrollments.filter((entry) =>
-        !draftEnrollments.some((draft) => draft.id === entry.id));
+      const draftEnrollments = draftEntries.filter((entry) => entry.itemType !== "scheduleBlock");
+      const draftScheduleBlocks = draftEntries.filter((entry) => entry.itemType === "scheduleBlock");
+      const removedEnrollments = existingEnrollments.filter((entry) => !draftEnrollments.some((draft) => draft.id === entry.id));
+      const removedScheduleBlocks = existingScheduleBlocks.filter((entry) => !draftScheduleBlocks.some((draft) => draft.id === entry.id));
       if (hostedModeEnabled) {
         (async () => {
           try {
             const existingById = new Map(existingEnrollments.map((entry) => [entry.id, entry]));
+            const existingBlocksById = new Map(existingScheduleBlocks.map((entry) => [entry.id, entry]));
             const draftById = new Map(draftEnrollments.map((entry) => [entry.id, entry]));
+            const draftBlocksById = new Map(draftScheduleBlocks.map((entry) => [entry.id, entry]));
             for (const existing of existingEnrollments) {
               if (!draftById.has(existing.id)) {
                 await deleteHostedEnrollment(existing.id);
               }
+            }
+            for (const removed of removedScheduleBlocks) {
+              await deleteHostedStudentScheduleBlock(removed.id);
             }
             for (const removed of removedEnrollments) {
               const matchingPlans = state.plans.filter((plan) =>
@@ -9659,18 +10502,36 @@ function bindEvents() {
                 });
               }
             }
+            for (const draft of draftScheduleBlocks) {
+              const existing = existingBlocksById.get(draft.id);
+              if (!existing) {
+                await createHostedStudentScheduleBlock(draft);
+                continue;
+              }
+              const existingOrder = parseScheduleOrderValue(existing.scheduleOrder);
+              if (existing.scheduleBlockId !== draft.scheduleBlockId || existingOrder !== draft.scheduleOrder) {
+                await updateHostedStudentScheduleBlock(draft.id, {
+                  studentId: draft.studentId,
+                  scheduleBlockId: draft.scheduleBlockId,
+                  scheduleOrder: draft.scheduleOrder
+                });
+              }
+            }
             await refreshHostedEnrollments();
+            await refreshHostedStudentScheduleBlocks();
             primeStudentEnrollmentDraft(studentId);
             renderAll();
           } catch (error) {
-            alert(error.message || "Unable to apply enrollment changes.");
+            alert(error.message || "Unable to apply scheduled-item changes.");
           }
         })();
         return;
       }
       state.enrollments = state.enrollments.filter((entry) => entry.studentId !== studentId);
+      state.studentScheduleBlocks = state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId);
       removedEnrollments.forEach((entry) => removePlansForStudentCourse(entry.studentId, entry.courseId));
       state.enrollments.push(...draftEnrollments.map((entry) => ({ ...entry })));
+      state.studentScheduleBlocks.push(...draftScheduleBlocks.map((entry) => ({ ...entry })));
       saveState();
       primeStudentEnrollmentDraft(studentId);
       renderAll();
@@ -9833,94 +10694,97 @@ function bindEvents() {
     });
   }
 
-  document.getElementById("daily-break-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (!ensureAdminAction()) return;
-    const selectedSchoolYear = currentSchoolYear();
-    const schoolYearId = getSchoolYear(state.settings.currentSchoolYearId)?.id || selectedSchoolYear?.id || "";
-    const studentIds = getSelectedDailyBreakStudentIds();
-    const type = document.getElementById("daily-break-type").value;
-    const description = document.getElementById("daily-break-description").value.trim();
-    const startTime = normalizeDailyBreakStartTime(document.getElementById("daily-break-start-time").value);
-    const durationMinutes = Number(document.getElementById("daily-break-duration").value);
-    const weekdays = Array.from(document.querySelectorAll("input[name='daily-break-weekday']:checked")).map((input) => Number(input.value));
-    if (!schoolYearId) {
-      alert("Select or create a valid school year before adding a daily lunch or break schedule.");
-      return;
-    }
-    if (!studentIds.length) {
-      alert("Select at least one student for the daily lunch or break schedule.");
-      return;
-    }
-    if (!startTime) {
-      alert("Provide a valid start time for the daily lunch or break schedule.");
-      return;
-    }
-    if (!Number.isFinite(durationMinutes) || durationMinutes < 5) {
-      alert("Provide a duration of at least 5 minutes for the daily lunch or break schedule.");
-      return;
-    }
-    if (!weekdays.length) {
-      alert("Select at least one weekday for the daily lunch or break schedule.");
-      return;
-    }
-    if (type === "other" && !description) {
-      alert("Provide a description when the break type is Other.");
-      return;
-    }
-    const payload = {
-      schoolYearId,
-      studentIds,
-      type,
-      description: type === "other" ? description : "",
-      startTime,
-      durationMinutes,
-      weekdays
-    };
-    if (hostedModeEnabled) {
-      (async () => {
-        try {
-          const ensuredSchoolYear = await ensureHostedSchoolYearRecord({
-            id: schoolYearId,
-            ...selectedSchoolYear
-          }, {
-            id: schoolYearId,
-            isCurrent: true
-          });
-          const resolvedSchoolYearId = ensuredSchoolYear?.id || schoolYearId;
-          if (editingDailyBreakId) {
-            await updateHostedDailyBreak(editingDailyBreakId, {
-              ...payload,
-              schoolYearId: resolvedSchoolYearId
+  const dailyBreakForm = document.getElementById("daily-break-form");
+  if (dailyBreakForm) {
+    dailyBreakForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!ensureAdminAction()) return;
+      const selectedSchoolYear = currentSchoolYear();
+      const schoolYearId = getSchoolYear(state.settings.currentSchoolYearId)?.id || selectedSchoolYear?.id || "";
+      const studentIds = getSelectedDailyBreakStudentIds();
+      const type = document.getElementById("daily-break-type").value;
+      const description = document.getElementById("daily-break-description").value.trim();
+      const startTime = normalizeDailyBreakStartTime(document.getElementById("daily-break-start-time").value);
+      const durationMinutes = Number(document.getElementById("daily-break-duration").value);
+      const weekdays = Array.from(document.querySelectorAll("input[name='daily-break-weekday']:checked")).map((input) => Number(input.value));
+      if (!schoolYearId) {
+        alert("Select or create a valid school year before adding a daily lunch or break schedule.");
+        return;
+      }
+      if (!studentIds.length) {
+        alert("Select at least one student for the daily lunch or break schedule.");
+        return;
+      }
+      if (!startTime) {
+        alert("Provide a valid start time for the daily lunch or break schedule.");
+        return;
+      }
+      if (!Number.isFinite(durationMinutes) || durationMinutes < 5) {
+        alert("Provide a duration of at least 5 minutes for the daily lunch or break schedule.");
+        return;
+      }
+      if (!weekdays.length) {
+        alert("Select at least one weekday for the daily lunch or break schedule.");
+        return;
+      }
+      if (type === "other" && !description) {
+        alert("Provide a description when the break type is Other.");
+        return;
+      }
+      const payload = {
+        schoolYearId,
+        studentIds,
+        type,
+        description: type === "other" ? description : "",
+        startTime,
+        durationMinutes,
+        weekdays
+      };
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            const ensuredSchoolYear = await ensureHostedSchoolYearRecord({
+              id: schoolYearId,
+              ...selectedSchoolYear
+            }, {
+              id: schoolYearId,
+              isCurrent: true
             });
-          } else {
-            await createHostedDailyBreak({
-              id: uid(),
-              ...payload,
-              schoolYearId: resolvedSchoolYearId
-            });
+            const resolvedSchoolYearId = ensuredSchoolYear?.id || schoolYearId;
+            if (editingDailyBreakId) {
+              await updateHostedDailyBreak(editingDailyBreakId, {
+                ...payload,
+                schoolYearId: resolvedSchoolYearId
+              });
+            } else {
+              await createHostedDailyBreak({
+                id: uid(),
+                ...payload,
+                schoolYearId: resolvedSchoolYearId
+              });
+            }
+            editingDailyBreakId = "";
+            resetDailyBreakForm();
+            await refreshHostedSchoolConfigState();
+            await refreshHostedDailyBreaks();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to save daily break.");
           }
-          editingDailyBreakId = "";
-          resetDailyBreakForm();
-          await refreshHostedSchoolConfigState();
-          await refreshHostedDailyBreaks();
-          renderAll();
-        } catch (error) {
-          alert(error.message || "Unable to save daily break.");
-        }
-      })();
-      return;
-    }
-    if (editingDailyBreakId) {
-      updateLegacyLocalDailyBreak(state.settings.dailyBreaks.find((entry) => entry.id === editingDailyBreakId), payload);
-      editingDailyBreakId = "";
-    } else {
-      createLegacyLocalDailyBreak(payload);
-    }
-    resetDailyBreakForm();
-    saveState();
-    renderAll();
-  });
+        })();
+        return;
+      }
+      if (editingDailyBreakId) {
+        updateLegacyLocalDailyBreak(state.settings.dailyBreaks.find((entry) => entry.id === editingDailyBreakId), payload);
+        editingDailyBreakId = "";
+      } else {
+        createLegacyLocalDailyBreak(payload);
+      }
+      resetDailyBreakForm();
+      saveState();
+      renderAll();
+    });
+  }
   const dailyBreakCancelEditBtn = document.getElementById("daily-break-cancel-edit-btn");
   if (dailyBreakCancelEditBtn) {
     dailyBreakCancelEditBtn.addEventListener("click", () => cancelDailyBreakEdit());
@@ -10640,7 +11504,8 @@ function bindEvents() {
         return;
       }
       const enrollmentId = t.getAttribute("data-enrollment-order-id") || "";
-      updateEnrollmentScheduleOrder(enrollmentId, t instanceof HTMLSelectElement ? t.value : "");
+      const itemType = t.getAttribute("data-enrollment-item-type") || "course";
+      updateEnrollmentScheduleOrder(enrollmentId, t instanceof HTMLSelectElement ? t.value : "", itemType);
       return;
     }
     if (t.classList.contains("calendar-student-checkbox")) {
@@ -11196,32 +12061,33 @@ function bindEvents() {
       return;
     }
 
-    const toggleStudentAvgId = t.getAttribute("data-toggle-student-avg");
+    const dashboardToggleTarget = t.closest("[data-toggle-student-avg], [data-toggle-subject-avg], [data-toggle-student-attendance], [data-toggle-student-instructional-hours]");
+    const toggleStudentAvgId = dashboardToggleTarget?.getAttribute("data-toggle-student-avg");
     if (toggleStudentAvgId) {
       if (expandedStudentAverageRows.has(toggleStudentAvgId)) expandedStudentAverageRows.delete(toggleStudentAvgId);
       else expandedStudentAverageRows.add(toggleStudentAvgId);
-      renderDashboardExpandableTables();
+      renderDashboardExpandableTablesFast();
       return;
     }
-    const toggleSubjectAvgKey = t.getAttribute("data-toggle-subject-avg");
+    const toggleSubjectAvgKey = dashboardToggleTarget?.getAttribute("data-toggle-subject-avg");
     if (toggleSubjectAvgKey) {
       if (expandedSubjectAverageRows.has(toggleSubjectAvgKey)) expandedSubjectAverageRows.delete(toggleSubjectAvgKey);
       else expandedSubjectAverageRows.add(toggleSubjectAvgKey);
-      renderDashboardExpandableTables();
+      renderDashboardExpandableTablesFast();
       return;
     }
-    const toggleStudentAttendanceId = t.getAttribute("data-toggle-student-attendance");
+    const toggleStudentAttendanceId = dashboardToggleTarget?.getAttribute("data-toggle-student-attendance");
     if (toggleStudentAttendanceId) {
       if (expandedStudentAttendanceRows.has(toggleStudentAttendanceId)) expandedStudentAttendanceRows.delete(toggleStudentAttendanceId);
       else expandedStudentAttendanceRows.add(toggleStudentAttendanceId);
-      renderDashboardExpandableTables();
+      renderDashboardExpandableTablesFast();
       return;
     }
-    const toggleStudentInstructionalHoursId = t.getAttribute("data-toggle-student-instructional-hours");
+    const toggleStudentInstructionalHoursId = dashboardToggleTarget?.getAttribute("data-toggle-student-instructional-hours");
     if (toggleStudentInstructionalHoursId) {
       if (expandedStudentInstructionalHourRows.has(toggleStudentInstructionalHoursId)) expandedStudentInstructionalHourRows.delete(toggleStudentInstructionalHoursId);
       else expandedStudentInstructionalHourRows.add(toggleStudentInstructionalHoursId);
-      renderDashboardExpandableTables();
+      renderDashboardExpandableTablesFast();
       return;
     }
 
@@ -11689,6 +12555,7 @@ function bindEvents() {
     const enrollmentId = t.getAttribute("data-remove-student-enrollment");
     if (enrollmentId) {
       if (!ensureAdminAction()) return;
+      const itemType = t.getAttribute("data-enrollment-item-type") || "course";
       if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === selectedStudentId) {
         studentEnrollmentDraft = studentEnrollmentDraft.filter((entry) => entry.id !== enrollmentId);
         studentEnrollmentDraftDirty = true;
@@ -11699,16 +12566,25 @@ function bindEvents() {
       if (hostedModeEnabled) {
         (async () => {
           try {
-            await deleteHostedEnrollment(enrollmentId);
-            await refreshHostedEnrollments();
+            if (itemType === "scheduleBlock") {
+              await deleteHostedStudentScheduleBlock(enrollmentId);
+              await refreshHostedStudentScheduleBlocks();
+            } else {
+              await deleteHostedEnrollment(enrollmentId);
+              await refreshHostedEnrollments();
+            }
             renderAll();
           } catch (error) {
-            alert(error.message || "Unable to remove enrollment.");
+            alert(error.message || "Unable to remove scheduled item.");
           }
         })();
         return;
       }
-      removeLegacyLocalEnrollment(enrollmentId);
+      if (itemType === "scheduleBlock") {
+        state.studentScheduleBlocks = state.studentScheduleBlocks.filter((entry) => entry.id !== enrollmentId);
+      } else {
+        removeLegacyLocalEnrollment(enrollmentId);
+      }
       saveState();
       renderAll();
       return;
@@ -11720,6 +12596,13 @@ function bindEvents() {
         studentEnrollmentEditMode = true;
         renderStudentDetail();
       }
+      return;
+    }
+    const editScheduleBlockId = t.getAttribute("data-edit-schedule-block");
+    if (editScheduleBlockId) {
+      if (!ensureAdminAction()) return;
+      beginScheduleBlockEdit(editScheduleBlockId);
+      renderAll();
       return;
     }
     const dailyBreakId = t.getAttribute("data-remove-daily-break");
@@ -11742,6 +12625,29 @@ function bindEvents() {
       deleteLegacyLocalDailyBreak(dailyBreakId);
       if (editingDailyBreakId === dailyBreakId) editingDailyBreakId = "";
       resetDailyBreakForm();
+      saveState();
+      renderAll();
+      return;
+    }
+    const scheduleBlockId = t.getAttribute("data-remove-schedule-block");
+    if (scheduleBlockId) {
+      if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedScheduleBlock(scheduleBlockId);
+            if (editingScheduleBlockId === scheduleBlockId) resetScheduleBlockForm();
+            await refreshHostedScheduleBlocks();
+            await refreshHostedStudentScheduleBlocks();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove schedule block.");
+          }
+        })();
+        return;
+      }
+      deleteLegacyLocalScheduleBlock(scheduleBlockId);
+      if (editingScheduleBlockId === scheduleBlockId) resetScheduleBlockForm();
       saveState();
       renderAll();
       return;
@@ -11809,7 +12715,7 @@ function renderAll() {
   renderCourses();
   renderGradeTypes();
   renderGradingCriteria();
-  renderDailyBreaks();
+  renderScheduleBlocks();
   renderHolidays();
   renderPlanningSettings();
   renderPlans();

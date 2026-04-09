@@ -185,3 +185,10 @@
    - [x] Define the phased rollout from shared shell to inline grade entry, attendance integration, and execution-layer-ready daily overrides.
    - [ ] Confirm the first-pass shared filter set and whether inline attendance lands in the first coding slice.
    - [ ] Implement Phase 1: `School Day` sidebar entry, page shell, shared date context, and internal tabs.
+12. Prepare the ordered schedule-block replacement for fixed-time lunch and breaks.
+   - [x] Define the ordered schedule-block model as an implementation-ready spec package.
+   - [x] Decide that lunch, recess, and other breaks should behave like orderable schedule items but remain non-academic blocks under the hood.
+   - [ ] Define schema and API changes for reusable schedule blocks and student scheduled items.
+   - [ ] Update Student Enrollment to allow assigning and ordering schedule blocks.
+   - [ ] Cut Calendar and School Day day-generation over to ordered schedule blocks.
+   - [ ] Plan and execute migration away from fixed-time daily lunch/break scheduling.

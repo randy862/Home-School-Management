@@ -32,6 +32,20 @@ function createCurriculumRepository(deps) {
       return mapEnrollmentRow(result.rows[0]);
     },
 
+    createStudentScheduleBlock: async (scheduledBlock) => {
+      const pool = getPostgresPool();
+      const result = await pool.query(`
+        INSERT INTO student_schedule_blocks (id, student_id, schedule_block_id, schedule_order)
+        VALUES ($1, $2, $3, $4)
+        RETURNING
+          id,
+          student_id AS "studentId",
+          schedule_block_id AS "scheduleBlockId",
+          schedule_order AS "scheduleOrder"
+      `, [scheduledBlock.id, scheduledBlock.studentId, scheduledBlock.scheduleBlockId, scheduledBlock.scheduleOrder]);
+      return mapStudentScheduleBlockRow(result.rows[0]);
+    },
+
     createSubject: async (subject) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
@@ -64,6 +78,12 @@ function createCurriculumRepository(deps) {
     deleteEnrollment: async (id) => {
       const pool = getPostgresPool();
       const result = await pool.query("DELETE FROM enrollments WHERE id = $1", [id]);
+      return result.rowCount > 0;
+    },
+
+    deleteStudentScheduleBlock: async (id) => {
+      const pool = getPostgresPool();
+      const result = await pool.query("DELETE FROM student_schedule_blocks WHERE id = $1", [id]);
       return result.rowCount > 0;
     },
 
@@ -152,6 +172,31 @@ function createCurriculumRepository(deps) {
       return result.rows.map(mapEnrollmentRow);
     },
 
+    listStudentScheduleBlocksForUser: async (user) => {
+      const pool = getPostgresPool();
+      const result = user?.role === "student"
+        ? await pool.query(`
+          SELECT
+            id,
+            student_id AS "studentId",
+            schedule_block_id AS "scheduleBlockId",
+            schedule_order AS "scheduleOrder"
+          FROM student_schedule_blocks
+          WHERE student_id = $1
+          ORDER BY id
+        `, [user.studentId || ""])
+        : await pool.query(`
+          SELECT
+            id,
+            student_id AS "studentId",
+            schedule_block_id AS "scheduleBlockId",
+            schedule_order AS "scheduleOrder"
+          FROM student_schedule_blocks
+          ORDER BY id
+        `);
+      return result.rows.map(mapStudentScheduleBlockRow);
+    },
+
     listSubjectsForUser: async (user) => {
       const pool = getPostgresPool();
       if (user?.role === "student") {
@@ -218,6 +263,24 @@ function createCurriculumRepository(deps) {
       return result.rows[0] ? mapEnrollmentRow(result.rows[0]) : null;
     },
 
+    updateStudentScheduleBlock: async (id, scheduledBlock) => {
+      const pool = getPostgresPool();
+      const result = await pool.query(`
+        UPDATE student_schedule_blocks
+        SET
+          student_id = $2,
+          schedule_block_id = $3,
+          schedule_order = $4
+        WHERE id = $1
+        RETURNING
+          id,
+          student_id AS "studentId",
+          schedule_block_id AS "scheduleBlockId",
+          schedule_order AS "scheduleOrder"
+      `, [id, scheduledBlock.studentId, scheduledBlock.scheduleBlockId, scheduledBlock.scheduleOrder]);
+      return result.rows[0] ? mapStudentScheduleBlockRow(result.rows[0]) : null;
+    },
+
     updateSubject: async (id, subject) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
@@ -242,6 +305,13 @@ function mapCourseRow(row) {
 }
 
 function mapEnrollmentRow(row) {
+  return {
+    ...row,
+    scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)
+  };
+}
+
+function mapStudentScheduleBlockRow(row) {
   return {
     ...row,
     scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)

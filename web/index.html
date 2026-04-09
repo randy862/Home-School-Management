@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604071435">
+  <link rel="stylesheet" href="styles.css?v=202604081430">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -26,6 +26,14 @@
           <button type="submit">Sign In</button>
         </form>
         <p id="login-message" class="status-text hidden"></p>
+      </div>
+
+      <div id="restore-card" class="auth-card hidden">
+        <div>
+          <h2>Restoring Session</h2>
+          <p class="muted">Reconnecting to your hosted workspace and loading your tenant data.</p>
+        </div>
+        <p id="restore-message" class="status-text info">Please wait a moment...</p>
       </div>
 
       <div id="setup-card" class="auth-card hidden">
@@ -348,6 +356,8 @@
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-course-filter"> <span>Show Course filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-student-summaries"> <span>Show Student Summaries</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-side-by-side-overview"> <span>Show Side-By-Side Overview</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-reset-student-day"> <span>Show Reset Student Day button</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-reset-filtered-day"> <span>Show Reset Filtered Day button</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-attendance"> <span>Show Needs Attendance filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-completion"> <span>Show Needs Completion filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-grade"> <span>Show Needs Grade filter</span></label>
@@ -573,7 +583,7 @@
             <div class="student-detail-section student-detail-section-profile">
               <p id="student-detail-title" class="detail-title"></p>
               <h4>Course Enrollment</h4>
-              <h4>Add a Course</h4>
+              <h4>Add a Scheduled Item</h4>
               <form id="student-detail-filter-form" class="inline-form">
                 <label>Quarter
                   <select id="student-detail-quarter-filter">
@@ -582,9 +592,9 @@
                 </label>
               </form>
               <form id="student-enrollment-form" class="grid-form">
-                <label class="student-enrollment-course-field">Course
+                <label class="student-enrollment-course-field">Scheduled Item
                   <details id="student-enroll-course-dropdown" class="multi-select-dropdown">
-                    <summary id="student-enroll-course-summary">Courses (0 selected)</summary>
+                    <summary id="student-enroll-course-summary">Scheduled Items (0 selected)</summary>
                     <div id="student-enroll-course-options" class="checklist-vertical"></div>
                   </details>
                 </label>
@@ -592,10 +602,10 @@
               </form>
             </div>
             <div class="student-detail-section student-detail-section-schedule">
-              <h4>Current Course Schedule</h4>
+              <h4>Current Schedule</h4>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Course</th><th>Subject</th><th>Schedule Order</th><th>Current Avg Grade</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Scheduled Item</th><th>Type / Subject</th><th>Schedule Order</th><th>Current Avg Grade</th><th>Actions</th></tr></thead>
                   <tbody id="student-enrollment-table"></tbody>
                 </table>
               </div>
@@ -706,7 +716,7 @@
             <label>Course Name<input id="course-name" type="text" required></label>
             <label>Subject<select id="course-subject" required></select></label>
             <label>Instructor<select id="course-instructor"><option value="">Unassigned</option></select></label>
-            <label>Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
+            <label class="course-hours-field">Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
             <label class="course-exclusive-field">Exclusive<input id="course-exclusive-resource" type="checkbox"></label>
             <div class="course-form-actions">
               <button id="course-submit-btn" type="submit">Add Course</button>
@@ -792,7 +802,7 @@
       <div class="subtabs schedule-subtabs" aria-label="Schedule sections">
         <button class="subtab-btn active" data-schedule-tab="school-years" type="button">School Years</button>
         <button class="subtab-btn" data-schedule-tab="quarters" type="button">Quarters</button>
-        <button class="subtab-btn" data-schedule-tab="daily-breaks" type="button">Daily Lunch and Breaks</button>
+        <button class="subtab-btn" data-schedule-tab="daily-breaks" type="button">Schedule Blocks</button>
         <button class="subtab-btn" data-schedule-tab="holidays" type="button">Holidays and Breaks</button>
         <button class="subtab-btn" data-schedule-tab="plans" type="button">Instruction Plans</button>
       </div>
@@ -842,41 +852,35 @@
       </div>
 
       <div id="schedule-daily-breaks-wrap" class="schedule-tab-panel schedule-section schedule-section-daily-breaks hidden">
-        <h3>Daily Lunch and Breaks</h3>
-          <form id="daily-break-form" class="grid-form">
-            <label class="daily-break-student-field">Student
-              <details id="daily-break-student-dropdown" class="multi-select-dropdown">
-                <summary id="daily-break-student-summary">Students (0 selected)</summary>
-                <div id="daily-break-student-options" class="checklist-vertical"></div>
-              </details>
-            </label>
-            <label class="daily-break-type-field">Type
-              <select id="daily-break-type" required>
+        <h3>Schedule Blocks</h3>
+          <form id="schedule-block-form" class="grid-form">
+            <label class="schedule-block-name-field">Name<input id="schedule-block-name" type="text" required></label>
+            <label class="schedule-block-type-field">Type
+              <select id="schedule-block-type" required>
                 <option value="lunch">Lunch</option>
                 <option value="recess">Recess</option>
-                <option value="other">Other</option>
+                <option value="other_break">Other Break</option>
               </select>
             </label>
-            <label id="daily-break-description-wrap" class="hidden">Description<input id="daily-break-description" type="text"></label>
-            <label class="daily-break-start-field">Start Time<input id="daily-break-start-time" type="time" required value="12:00"></label>
-            <div class="daily-break-secondary-row">
-              <label class="daily-break-duration-field">Duration (minutes)<input id="daily-break-duration" type="number" min="5" step="5" required value="60"></label>
-              <fieldset class="weekday-set daily-break-weekdays-field">
+            <label id="schedule-block-description-wrap" class="hidden">Description<input id="schedule-block-description" type="text"></label>
+            <div class="schedule-block-secondary-row">
+              <label class="schedule-block-duration-field">Duration (minutes)<input id="schedule-block-duration" type="number" min="5" step="5" required value="60"></label>
+              <fieldset class="weekday-set schedule-block-weekdays-field">
                 <legend>Weekdays</legend>
-                <label><input type="checkbox" name="daily-break-weekday" value="1" checked>Mon</label>
-                <label><input type="checkbox" name="daily-break-weekday" value="2" checked>Tue</label>
-                <label><input type="checkbox" name="daily-break-weekday" value="3" checked>Wed</label>
-                <label><input type="checkbox" name="daily-break-weekday" value="4" checked>Thu</label>
-                <label><input type="checkbox" name="daily-break-weekday" value="5" checked>Fri</label>
+                <label><input type="checkbox" name="schedule-block-weekday" value="1" checked>Mon</label>
+                <label><input type="checkbox" name="schedule-block-weekday" value="2" checked>Tue</label>
+                <label><input type="checkbox" name="schedule-block-weekday" value="3" checked>Wed</label>
+                <label><input type="checkbox" name="schedule-block-weekday" value="4" checked>Thu</label>
+                <label><input type="checkbox" name="schedule-block-weekday" value="5" checked>Fri</label>
               </fieldset>
-              <button id="daily-break-submit-btn" type="submit" class="daily-break-submit-btn">Add Break</button>
-              <button id="daily-break-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+              <button id="schedule-block-submit-btn" type="submit" class="schedule-block-submit-btn">Add Block</button>
+              <button id="schedule-block-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
             </div>
           </form>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Students</th><th>Type</th><th>Description</th><th>Start Time</th><th>Duration</th><th>Weekdays</th><th>Actions</th></tr></thead>
-              <tbody id="daily-break-table"></tbody>
+              <thead><tr><th>Name</th><th>Type</th><th>Description</th><th>Duration</th><th>Weekdays</th><th>Actions</th></tr></thead>
+              <tbody id="schedule-block-table"></tbody>
             </table>
           </div>
       </div>
@@ -1264,6 +1268,6 @@
       </div>
     </div>
   </main>
-  <script src="app.js?v=202604071435"></script>
+  <script src="app.js?v=202604081530"></script>
 </body>
 </html>

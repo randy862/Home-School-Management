@@ -5,6 +5,7 @@ function createCalendarService(deps) {
 
   return {
     createDailyBreak: async (payload) => calendarRepository.createDailyBreak(await normalizeDailyBreakPayload(payload, calendarRepository)),
+    createScheduleBlock: async (payload) => calendarRepository.createScheduleBlock(normalizeScheduleBlockPayload(payload)),
     createHoliday: async (payload) => calendarRepository.createHoliday(normalizeHolidayPayload(payload)),
     createPlans: async (payload) => {
       const plansPayload = Array.isArray(payload?.plans) ? payload.plans : [payload];
@@ -18,10 +19,12 @@ function createCalendarService(deps) {
     },
     createSchoolYear: async (payload) => calendarRepository.createSchoolYear(normalizeSchoolYearPayload(payload)),
     deleteDailyBreak: (id) => calendarRepository.deleteDailyBreak(id),
+    deleteScheduleBlock: (id) => calendarRepository.deleteScheduleBlock(id),
     deleteHoliday: (id) => calendarRepository.deleteHoliday(id),
     deletePlan: (id) => calendarRepository.deletePlan(id),
     deleteSchoolYear: (id) => calendarRepository.deleteSchoolYear(id),
     listDailyBreaksForUser: (user) => calendarRepository.listDailyBreaksForUser(user),
+    listScheduleBlocks: () => calendarRepository.listScheduleBlocks(),
     listHolidays: () => calendarRepository.listHolidays(),
     listPlansForUser: (user) => calendarRepository.listPlansForUser(user),
     listQuarters: () => calendarRepository.listQuarters(),
@@ -34,9 +37,50 @@ function createCalendarService(deps) {
     },
     setCurrentSchoolYear: (id) => calendarRepository.setCurrentSchoolYear(id),
     updateDailyBreak: async (id, payload) => calendarRepository.updateDailyBreak(id, await normalizeDailyBreakPayload({ ...payload, id }, calendarRepository)),
+    updateScheduleBlock: async (id, payload) => calendarRepository.updateScheduleBlock(id, normalizeScheduleBlockPayload({ ...payload, id })),
     updateHoliday: async (id, payload) => calendarRepository.updateHoliday(id, normalizeHolidayPayload({ ...payload, id })),
     updatePlan: async (id, payload) => calendarRepository.updatePlan(id, normalizePlanPayload({ ...payload, id })),
     updateSchoolYear: async (id, payload) => calendarRepository.updateSchoolYear(id, normalizeSchoolYearPayload({ ...payload, id }))
+  };
+}
+
+function normalizeScheduleBlockPayload(input) {
+  const id = String(input?.id || "").trim() || randomUUID();
+  const name = String(input?.name || "").trim();
+  const type = String(input?.type || input?.blockType || "").trim();
+  const description = String(input?.description || "").trim();
+  const durationMinutes = Number(input?.durationMinutes);
+  const weekdays = Array.isArray(input?.weekdays)
+    ? Array.from(new Set(input.weekdays.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5))).sort((a, b) => a - b)
+    : [];
+
+  if (!name || !["lunch", "recess", "other_break"].includes(type)) {
+    const error = new Error("Provide a valid schedule block name and type.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!Number.isFinite(durationMinutes) || durationMinutes < 5) {
+    const error = new Error("Provide a schedule block duration of at least 5 minutes.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!weekdays.length) {
+    const error = new Error("Select at least one weekday for the schedule block.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (type === "other_break" && !description) {
+    const error = new Error("Provide a description for Other Break schedule blocks.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return {
+    id,
+    name,
+    type,
+    description: type === "other_break" ? description : "",
+    durationMinutes,
+    weekdays
   };
 }
 

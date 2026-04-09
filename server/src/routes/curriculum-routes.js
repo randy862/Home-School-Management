@@ -123,12 +123,34 @@ function registerCurriculumRoutes(app, deps) {
     }
   });
 
+  app.get("/api/student-schedule-blocks", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Student schedule blocks")) return;
+    if (!ensureAuthenticated(req, res)) return;
+
+    try {
+      res.json(await curriculumService.listStudentScheduleBlocksForUser(req.auth.user));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/enrollments", async (req, res) => {
     if (!ensurePostgresMode(res, isPostgresMode, "Enrollments")) return;
     if (!ensureAdmin(req, res)) return;
 
     try {
       res.status(201).json(await curriculumService.createEnrollment(req.body));
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/student-schedule-blocks", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Student schedule blocks")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      res.status(201).json(await curriculumService.createStudentScheduleBlock(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
@@ -150,6 +172,22 @@ function registerCurriculumRoutes(app, deps) {
     }
   });
 
+  app.patch("/api/student-schedule-blocks/:id", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Student schedule blocks")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const updated = await curriculumService.updateStudentScheduleBlock(req.params.id, req.body);
+      if (!updated) {
+        res.status(404).json({ error: "Student schedule block not found." });
+        return;
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/enrollments/:id", async (req, res) => {
     if (!ensurePostgresMode(res, isPostgresMode, "Enrollments")) return;
     if (!ensureAdmin(req, res)) return;
@@ -158,6 +196,22 @@ function registerCurriculumRoutes(app, deps) {
       const deleted = await curriculumService.deleteEnrollment(req.params.id);
       if (!deleted) {
         res.status(404).json({ error: "Enrollment not found." });
+        return;
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/student-schedule-blocks/:id", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Student schedule blocks")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const deleted = await curriculumService.deleteStudentScheduleBlock(req.params.id);
+      if (!deleted) {
+        res.status(404).json({ error: "Student schedule block not found." });
         return;
       }
       res.json({ ok: true });

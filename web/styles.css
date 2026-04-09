@@ -267,6 +267,12 @@ body {
   color: #234b23;
 }
 
+.status-text.info {
+  background: #edf4fb;
+  border-color: #c7d8ea;
+  color: #35516e;
+}
+
 .callout {
   margin: 0;
   border-radius: 10px;
@@ -996,6 +1002,60 @@ td {
   width: 1%;
 }
 
+#schedule-block-form {
+  grid-template-columns: minmax(220px, 1.6fr) 180px;
+  align-items: end;
+  column-gap: 0.5rem;
+}
+
+.schedule-block-name-field {
+  min-width: 220px;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.schedule-block-type-field {
+  width: 180px;
+  grid-column: 2;
+  grid-row: 1;
+}
+
+#schedule-block-description-wrap {
+  grid-column: 1 / span 2;
+  max-width: 360px;
+}
+
+.schedule-block-secondary-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.schedule-block-duration-field {
+  width: 160px;
+}
+
+.schedule-block-weekdays-field {
+  margin: 0;
+  width: max-content;
+}
+
+.schedule-block-submit-btn,
+#schedule-block-cancel-edit-btn {
+  align-self: end;
+}
+
+.checklist-group-label {
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .schedule-actions-cell {
   white-space: nowrap;
   width: 1%;
@@ -1069,6 +1129,7 @@ td {
 }
 
 .student-avg-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1080,15 +1141,22 @@ td {
   font-weight: 700;
   line-height: 1;
   vertical-align: middle;
+  overflow: hidden;
 }
 
 .student-avg-toggle-glyph {
-  display: block;
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: "Segoe UI Symbol", "Arial Unicode MS", "Segoe UI", sans-serif;
   font-size: 0.95rem;
   line-height: 1;
   text-align: center;
-  width: 1em;
+  width: 100%;
+  height: 100%;
+  transform: translateY(-0.02em);
 }
 
 .student-avg-detail-row td {
@@ -1102,7 +1170,12 @@ td {
 .student-avg-subtoggle {
   width: 1.25rem;
   height: 1.25rem;
+  min-width: 1.25rem;
   margin-right: 0.35rem;
+}
+
+.student-avg-subtoggle .student-avg-toggle-glyph {
+  font-size: 0.82rem;
 }
 
 .student-avg-type-row td {
@@ -2044,6 +2117,10 @@ td {
   min-width: 9rem;
 }
 
+.school-day-start-editor {
+  min-width: 8.6rem;
+}
+
 .calendar-inline-label {
   display: grid;
   gap: 0.25rem;
@@ -2054,6 +2131,80 @@ td {
 
 .calendar-inline-label input {
   width: 100%;
+}
+
+#school-day-table .school-day-hour-column {
+  width: 19%;
+}
+
+#school-day-table .school-day-student-column {
+  width: 14%;
+}
+
+#school-day-table .school-day-planned-column {
+  width: 31%;
+}
+
+#school-day-table .school-day-instructor-column {
+  width: 14%;
+}
+
+#school-day-table .school-day-minutes-column {
+  width: 10%;
+}
+
+#school-day-table .school-day-actions-column {
+  width: 12%;
+}
+
+.school-day-planned-copy {
+  font-weight: 500;
+}
+
+.school-day-editing-row .school-day-planned-column {
+  min-width: 16rem;
+}
+
+.school-day-editing-row .school-day-instructor-column,
+.school-day-editing-row .school-day-minutes-column {
+  vertical-align: middle;
+}
+
+.school-day-instructor-editor {
+  width: 100%;
+  min-width: 8rem;
+  max-width: 10rem;
+}
+
+.school-day-minutes-editor {
+  width: 100%;
+  min-width: 5.2rem;
+  max-width: 6rem;
+}
+
+.school-day-editing-row .calendar-actions-cell {
+  min-width: 7.2rem;
+}
+
+@media (max-width: 900px) {
+  #school-day-table .school-day-hour-column,
+  #school-day-table .school-day-student-column,
+  #school-day-table .school-day-planned-column,
+  #school-day-table .school-day-instructor-column,
+  #school-day-table .school-day-minutes-column,
+  #school-day-table .school-day-actions-column {
+    width: auto;
+  }
+
+  .school-day-editing-row .school-day-planned-column {
+    min-width: 0;
+  }
+
+  .school-day-instructor-editor,
+  .school-day-minutes-editor,
+  .school-day-start-editor {
+    max-width: none;
+  }
 }
 
 .school-day-attendance-toolbar {
@@ -2556,7 +2707,7 @@ td {
 }
 
 #course-form {
-  grid-template-columns: minmax(200px, 1.35fr) minmax(170px, 1fr) minmax(120px, 0.7fr) minmax(90px, auto);
+  grid-template-columns: minmax(180px, 1.45fr) minmax(120px, 0.72fr) minmax(120px, 0.82fr) 96px 86px;
   align-items: end;
   column-gap: 0.85rem;
   row-gap: 0.6rem;
@@ -2589,17 +2740,43 @@ td {
 }
 
 .course-exclusive-field {
-  display: grid;
-  gap: 0.2rem;
-  align-self: end;
-  justify-self: start;
-  min-width: 0;
+  display: inline-grid;
+  grid-template-columns: auto;
+  grid-template-rows: auto 1fr;
+  gap: 0.18rem;
+  grid-column: 5;
+  align-self: start;
+  justify-self: center;
+  width: 86px;
+  min-width: 86px;
+  white-space: nowrap;
+  padding-top: 0;
+  padding-bottom: 0;
+  text-align: center;
+  align-items: start;
+  justify-items: center;
+}
+
+.course-exclusive-field span,
+.course-exclusive-field,
+.course-exclusive-field label {
+  overflow: visible;
+}
+
+.course-hours-field {
+  grid-column: 4;
+}
+
+#course-hours {
+  max-width: 96px;
 }
 
 .course-exclusive-field input[type="checkbox"] {
   width: auto;
   margin: 0;
   justify-self: center;
+  align-self: center;
+  margin-top: 0.45rem;
 }
 
 #grade-type-form {

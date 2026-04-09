@@ -107,6 +107,60 @@ function registerCalendarRoutes(app, deps) {
     }
   });
 
+  app.get("/api/schedule-blocks", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Schedule blocks")) return;
+    if (!ensureAuthenticated(req, res)) return;
+
+    try {
+      res.json(await calendarService.listScheduleBlocks());
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/schedule-blocks", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Schedule blocks")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      res.status(201).json(await calendarService.createScheduleBlock(req.body));
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/schedule-blocks/:id", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Schedule blocks")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const updated = await calendarService.updateScheduleBlock(req.params.id, req.body);
+      if (!updated) {
+        res.status(404).json({ error: "Schedule block not found." });
+        return;
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/schedule-blocks/:id", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Schedule blocks")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const deleted = await calendarService.deleteScheduleBlock(req.params.id);
+      if (!deleted) {
+        res.status(404).json({ error: "Schedule block not found." });
+        return;
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/daily-breaks", async (req, res) => {
     if (!ensurePostgresMode(req, res, isPostgresMode, "Daily breaks")) return;
     if (!ensureAdmin(req, res)) return;
