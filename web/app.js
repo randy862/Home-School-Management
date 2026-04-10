@@ -945,6 +945,7 @@ const expandedStudentAttendanceRows = new Set();
 const expandedStudentInstructionalHourRows = new Set();
 let dashboardExpandableRenderCache = null;
 let dashboardExpandableMetricsCache = null;
+let dashboardDirty = true;
 const studentPerformanceSelectedGradeMethods = new Set(STUDENT_PERFORMANCE_GRADE_METHODS);
 const trendSelectedStudentIds = new Set();
 const gpaTrendSelectedStudentIds = new Set();
@@ -1355,11 +1356,7 @@ async function refreshHostedAttendance() {
   if (!response.ok) throw new Error(`Attendance fetch failed (${response.status})`);
   const attendance = await response.json();
   if (Array.isArray(attendance)) {
-    state.attendance = attendance.map((row) => ({
-      ...row,
-      date: normalizeApiDate(row.date),
-      present: !!row.present
-    }));
+    state.attendance = attendance.map(normalizeHostedAttendanceRecord);
   }
 }
 
@@ -1368,15 +1365,7 @@ async function refreshHostedInstructionActuals() {
   if (!response.ok) throw new Error(`Actual instructional minutes fetch failed (${response.status})`);
   const instructionActuals = await response.json();
   if (Array.isArray(instructionActuals)) {
-    state.instructionActuals = instructionActuals.map((row) => ({
-      ...row,
-      instructorId: row.instructorId || "",
-      completed: !!row.completed,
-      date: normalizeApiDate(row.date),
-      actualMinutes: Number(row.actualMinutes || 0),
-      startMinutes: row.startMinutes == null || row.startMinutes === "" ? null : Number(row.startMinutes),
-      orderIndex: row.orderIndex == null || row.orderIndex === "" ? null : Number(row.orderIndex)
-    }));
+    state.instructionActuals = instructionActuals.map(normalizeHostedInstructionActualRecord);
   }
 }
 
@@ -1887,13 +1876,65 @@ async function refreshHostedTests() {
   if (!response.ok) throw new Error(`Tests fetch failed (${response.status})`);
   const tests = await response.json();
   if (Array.isArray(tests)) {
-    state.tests = tests.map((row) => ({
-      ...row,
-      date: normalizeApiDate(row.date),
-      score: Number(row.score || 0),
-      maxScore: Number(row.maxScore || 0)
-    }));
+    state.tests = tests.map(normalizeHostedTestRecord);
   }
+}
+
+function normalizeHostedAttendanceRecord(row) {
+  return {
+    ...row,
+    date: normalizeApiDate(row.date),
+    present: !!row.present
+  };
+}
+
+function normalizeHostedInstructionActualRecord(row) {
+  return {
+    ...row,
+    instructorId: row.instructorId || "",
+    completed: !!row.completed,
+    date: normalizeApiDate(row.date),
+    actualMinutes: Number(row.actualMinutes || 0),
+    startMinutes: row.startMinutes == null || row.startMinutes === "" ? null : Number(row.startMinutes),
+    orderIndex: row.orderIndex == null || row.orderIndex === "" ? null : Number(row.orderIndex)
+  };
+}
+
+function normalizeHostedTestRecord(row) {
+  return {
+    ...row,
+    date: normalizeApiDate(row.date),
+    score: Number(row.score || 0),
+    maxScore: Number(row.maxScore || 0)
+  };
+}
+
+function upsertHostedAttendanceState(row) {
+  const normalized = normalizeHostedAttendanceRecord(row);
+  state.attendance = [
+    ...state.attendance.filter((entry) => entry.id !== normalized.id),
+    normalized
+  ];
+}
+
+function upsertHostedInstructionActualState(row) {
+  const normalized = normalizeHostedInstructionActualRecord(row);
+  state.instructionActuals = [
+    ...state.instructionActuals.filter((entry) => entry.id !== normalized.id),
+    normalized
+  ];
+}
+
+function removeHostedInstructionActualState(recordId) {
+  state.instructionActuals = state.instructionActuals.filter((entry) => entry.id !== recordId);
+}
+
+function upsertHostedTestState(row) {
+  const normalized = normalizeHostedTestRecord(row);
+  state.tests = [
+    ...state.tests.filter((entry) => entry.id !== normalized.id),
+    normalized
+  ];
 }
 
 async function hydrateHostedDomainState() {
@@ -1923,6 +1964,7 @@ async function hydrateHostedDomainState() {
   }
   normalizeSettingsShape(state);
   gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+  invalidateDashboardCache();
 }
 
 async function refreshHostedCurriculumState() {
@@ -2276,6 +2318,71 @@ function setActiveTab(tabName) {
   document.querySelectorAll(".tab-panel").forEach((panel) => {
     panel.classList.toggle("active", panel.id === `tab-${currentTab}`);
   });
+}
+
+function activateTab(tabName) {
+  setActiveTab(tabName);
+  renderSelects();
+  renderCurrentTabPanel();
+}
+
+function invalidateDashboardCache() {
+  dashboardDirty = true;
+  dashboardExpandableRenderCache = null;
+  dashboardExpandableMetricsCache = null;
+}
+
+function renderCurrentTabPanel() {
+  switch (currentTab) {
+    case "administration":
+      renderAdministration();
+      renderInstructors();
+      renderInstructorViewMode();
+      renderUsers();
+      renderUsersViewMode();
+      break;
+    case "students":
+      renderStudents();
+      renderStudentViewMode();
+      renderStudentDetail();
+      break;
+    case "management":
+      renderSubjects();
+      renderManagementSectionVisibility();
+      renderCourses();
+      renderGradeTypes();
+      renderGradingCriteria();
+      break;
+    case "planning":
+      renderScheduleBlocks();
+      renderHolidays();
+      renderPlanningSettings();
+      renderPlans();
+      renderScheduleSectionVisibility();
+      updatePlanFormMode();
+      break;
+    case "attendance":
+      renderAttendance();
+      break;
+    case "grades":
+      renderTests();
+      updateGradeEntryVisibility();
+      break;
+    case "dashboard":
+      if (dashboardDirty || !dashboardExpandableMetricsCache) renderDashboard();
+      break;
+    case "school-day":
+      renderSchoolDay();
+      break;
+    case "calendar":
+      renderCalendar();
+      break;
+    case "reports":
+      renderReportsFormMode();
+      break;
+    default:
+      break;
+  }
 }
 
 function renderSessionChrome() {
@@ -5894,24 +6001,25 @@ function applyWorkspaceConfiguration() {
 
 async function saveAttendanceUpserts(records) {
   if (hostedModeEnabled) {
-    for (const record of records) {
+    await Promise.all(records.map(async (record) => {
       const existing = attendanceRecordForStudentDate(record.studentId, record.date);
       if (existing) {
-        await updateHostedAttendance(existing.id, {
+        const saved = await updateHostedAttendance(existing.id, {
           studentId: record.studentId,
           date: record.date,
           present: record.present
         });
+        if (saved) upsertHostedAttendanceState(saved);
       } else {
-        await createHostedAttendance({
+        const created = await createHostedAttendance({
           id: uid(),
           studentId: record.studentId,
           date: record.date,
           present: record.present
         });
+        if (created) upsertHostedAttendanceState(created);
       }
-    }
-    await refreshHostedAttendance();
+    }));
     return;
   }
 
@@ -5958,6 +6066,27 @@ function setSchoolDayGradesMessage(kind, message) {
   el.textContent = message || "";
 }
 
+function rerenderAfterInstructionChange() {
+  invalidateDashboardCache();
+  renderCurrentTabPanel();
+}
+
+function rerenderAfterAttendanceChange() {
+  invalidateDashboardCache();
+  renderCurrentTabPanel();
+}
+
+function rerenderAfterGradeChange() {
+  invalidateDashboardCache();
+  renderCurrentTabPanel();
+  updateSchoolDayGradeEntryVisibility();
+}
+
+function rerenderAfterEnrollmentChange() {
+  invalidateDashboardCache();
+  renderCurrentTabPanel();
+}
+
 function schoolDayInstructionActualIds(date, studentIds = [], courseIds = []) {
   return state.instructionActuals
     .filter((entry) =>
@@ -5969,9 +6098,7 @@ function schoolDayInstructionActualIds(date, studentIds = [], courseIds = []) {
 
 async function resetInstructionActualMinutesBatch(recordIds) {
   const uniqueIds = Array.from(new Set(recordIds.filter(Boolean)));
-  for (const id of uniqueIds) {
-    await resetInstructionActualMinutes(id);
-  }
+  await Promise.all(uniqueIds.map((id) => resetInstructionActualMinutes(id)));
 }
 
 function renderSchoolDayAttendance() {
@@ -8214,6 +8341,7 @@ function renderDashboard() {
     periodRows.push(`<tr><td>Annual (${state.settings.schoolYear.label})</td><td>${g.annualAvg.toFixed(1)}%</td><td>${g.annualCount}</td></tr>`);
     rowOrEmpty(periodTable, periodRows, "No period data.", 3);
   }
+  dashboardDirty = false;
 }
 function viewRange(view, refISO) {
   const ref = toDate(refISO);
@@ -8425,6 +8553,20 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     const orderedItems = hasOrderedBlocks
       ? orderedScheduleEntries
       : [];
+    const orderedInstructionEntries = hasOrderedBlocks
+      ? orderedScheduleEntries
+        .filter((entry) => entry.itemType !== "scheduleBlock")
+        .map((entry, index) => ({
+          ...entry,
+          _instructionOrder: effectiveInstructionOrderIndex(studentId, entry.courseId, dateKey, index + 1),
+          _sourceIndex: index
+        }))
+        .sort((a, b) => {
+          if (a._instructionOrder !== b._instructionOrder) return a._instructionOrder - b._instructionOrder;
+          return a._sourceIndex - b._sourceIndex;
+        })
+      : [];
+    let orderedInstructionIndex = 0;
 
     let slot = 8 * 60;
 
@@ -8451,7 +8593,9 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           return;
         }
 
-        const event = remainingByCourseId.get(entry.courseId);
+        const scheduledInstructionEntry = orderedInstructionEntries[orderedInstructionIndex] || entry;
+        orderedInstructionIndex += 1;
+        const event = remainingByCourseId.get(scheduledInstructionEntry.courseId);
         if (!event) return;
         const course = getCourse(event.courseId);
         if (!course) return;
@@ -9303,11 +9447,12 @@ async function saveInstructionActualMinutes({ studentId, courseId, instructorId,
   };
   if (hostedModeEnabled) {
     if (existing) {
-      await updateHostedInstructionActual(existing.id, payload);
+      const saved = await updateHostedInstructionActual(existing.id, payload);
+      if (saved) upsertHostedInstructionActualState(saved);
     } else {
-      await createHostedInstructionActual({ id: uid(), ...payload });
+      const created = await createHostedInstructionActual({ id: uid(), ...payload });
+      if (created) upsertHostedInstructionActualState(created);
     }
-    await refreshHostedInstructionActuals();
     return;
   }
 
@@ -9320,8 +9465,7 @@ async function saveInstructionActualMinutes({ studentId, courseId, instructorId,
 }
 
 async function saveInstructionOrderOverridesForStudentDate(studentId, date, orderedCourseIds) {
-  for (let index = 0; index < orderedCourseIds.length; index += 1) {
-    const courseId = orderedCourseIds[index];
+  await Promise.all(orderedCourseIds.map(async (courseId, index) => {
     const existing = findInstructionActualRecord(studentId, courseId, date);
     await saveInstructionActualMinutes({
       studentId,
@@ -9333,14 +9477,14 @@ async function saveInstructionOrderOverridesForStudentDate(studentId, date, orde
       orderIndex: index + 1,
       completed: existing?.completed ?? false
     });
-  }
+  }));
 }
 
 async function resetInstructionActualMinutes(recordId) {
   if (!recordId) return;
   if (hostedModeEnabled) {
     await deleteHostedInstructionActual(recordId);
-    await refreshHostedInstructionActuals();
+    removeHostedInstructionActualState(recordId);
     return;
   }
   deleteLegacyLocalInstructionActual(recordId);
@@ -9670,7 +9814,7 @@ function saveLegacyLocalGradingCriteria(criteria) {
 
 function bindEvents() {
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
-    setActiveTab(btn.dataset.tab || "dashboard");
+    activateTab(btn.dataset.tab || "dashboard");
   }));
 
   document.getElementById("administration-workspace-config-form")?.addEventListener("input", () => {
@@ -10471,56 +10615,58 @@ function bindEvents() {
             const existingById = new Map(existingEnrollments.map((entry) => [entry.id, entry]));
             const existingBlocksById = new Map(existingScheduleBlocks.map((entry) => [entry.id, entry]));
             const draftById = new Map(draftEnrollments.map((entry) => [entry.id, entry]));
-            const draftBlocksById = new Map(draftScheduleBlocks.map((entry) => [entry.id, entry]));
-            for (const existing of existingEnrollments) {
-              if (!draftById.has(existing.id)) {
-                await deleteHostedEnrollment(existing.id);
-              }
+            const planIdsToDelete = removedEnrollments.flatMap((removed) =>
+              state.plans
+                .filter((plan) => plan.studentId === removed.studentId && plan.courseId === removed.courseId)
+                .map((plan) => plan.id));
+
+            await Promise.all([
+              ...existingEnrollments
+                .filter((existing) => !draftById.has(existing.id))
+                .map((existing) => deleteHostedEnrollment(existing.id)),
+              ...removedScheduleBlocks.map((removed) => deleteHostedStudentScheduleBlock(removed.id)),
+              ...planIdsToDelete.map((planId) => deleteHostedPlan(planId)),
+              ...draftEnrollments.map((draft) => {
+                const existing = existingById.get(draft.id);
+                if (!existing) return createHostedEnrollment(draft);
+                const existingOrder = parseScheduleOrderValue(existing.scheduleOrder);
+                if (existing.courseId !== draft.courseId || existingOrder !== draft.scheduleOrder) {
+                  return updateHostedEnrollment(draft.id, {
+                    studentId: draft.studentId,
+                    courseId: draft.courseId,
+                    scheduleOrder: draft.scheduleOrder
+                  });
+                }
+                return Promise.resolve(null);
+              }),
+              ...draftScheduleBlocks.map((draft) => {
+                const existing = existingBlocksById.get(draft.id);
+                if (!existing) return createHostedStudentScheduleBlock(draft);
+                const existingOrder = parseScheduleOrderValue(existing.scheduleOrder);
+                if (existing.scheduleBlockId !== draft.scheduleBlockId || existingOrder !== draft.scheduleOrder) {
+                  return updateHostedStudentScheduleBlock(draft.id, {
+                    studentId: draft.studentId,
+                    scheduleBlockId: draft.scheduleBlockId,
+                    scheduleOrder: draft.scheduleOrder
+                  });
+                }
+                return Promise.resolve(null);
+              })
+            ]);
+
+            state.enrollments = [
+              ...state.enrollments.filter((entry) => entry.studentId !== studentId),
+              ...draftEnrollments.map(({ itemType, ...entry }) => ({ ...entry }))
+            ];
+            state.studentScheduleBlocks = [
+              ...state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId),
+              ...draftScheduleBlocks.map(({ itemType, ...entry }) => ({ ...entry }))
+            ];
+            if (planIdsToDelete.length) {
+              state.plans = state.plans.filter((plan) => !planIdsToDelete.includes(plan.id));
             }
-            for (const removed of removedScheduleBlocks) {
-              await deleteHostedStudentScheduleBlock(removed.id);
-            }
-            for (const removed of removedEnrollments) {
-              const matchingPlans = state.plans.filter((plan) =>
-                plan.studentId === removed.studentId && plan.courseId === removed.courseId);
-              for (const plan of matchingPlans) {
-                await deleteHostedPlan(plan.id);
-              }
-            }
-            for (const draft of draftEnrollments) {
-              const existing = existingById.get(draft.id);
-              if (!existing) {
-                await createHostedEnrollment(draft);
-                continue;
-              }
-              const existingOrder = parseScheduleOrderValue(existing.scheduleOrder);
-              if (existing.courseId !== draft.courseId || existingOrder !== draft.scheduleOrder) {
-                await updateHostedEnrollment(draft.id, {
-                  studentId: draft.studentId,
-                  courseId: draft.courseId,
-                  scheduleOrder: draft.scheduleOrder
-                });
-              }
-            }
-            for (const draft of draftScheduleBlocks) {
-              const existing = existingBlocksById.get(draft.id);
-              if (!existing) {
-                await createHostedStudentScheduleBlock(draft);
-                continue;
-              }
-              const existingOrder = parseScheduleOrderValue(existing.scheduleOrder);
-              if (existing.scheduleBlockId !== draft.scheduleBlockId || existingOrder !== draft.scheduleOrder) {
-                await updateHostedStudentScheduleBlock(draft.id, {
-                  studentId: draft.studentId,
-                  scheduleBlockId: draft.scheduleBlockId,
-                  scheduleOrder: draft.scheduleOrder
-                });
-              }
-            }
-            await refreshHostedEnrollments();
-            await refreshHostedStudentScheduleBlocks();
             primeStudentEnrollmentDraft(studentId);
-            renderAll();
+            rerenderAfterEnrollmentChange();
           } catch (error) {
             alert(error.message || "Unable to apply scheduled-item changes.");
           }
@@ -11082,7 +11228,7 @@ function bindEvents() {
         try {
           await saveAttendanceUpserts(records);
           setSchoolDayAttendanceMessage("success", `Saved attendance for ${records.length} student${records.length === 1 ? "" : "s"} on ${formatDisplayDate(date)}.`);
-          renderAll();
+          rerenderAfterAttendanceChange();
         } catch (error) {
           setSchoolDayAttendanceMessage("error", error.message || "Unable to save School Day attendance.");
           alert(error.message || "Unable to save School Day attendance.");
@@ -11132,11 +11278,12 @@ function bindEvents() {
         try {
           if (editingAttendanceId) {
             const studentId = studentIds[0];
-            await updateHostedAttendance(editingAttendanceId, {
+            const saved = await updateHostedAttendance(editingAttendanceId, {
               studentId,
               date,
               present: status === "present"
             });
+            if (saved) upsertHostedAttendanceState(saved);
           } else {
             const duplicates = studentIds
               .map((studentId) => state.attendance.find((a) => a.studentId === studentId && a.date === date))
@@ -11159,18 +11306,18 @@ function bindEvents() {
               alert(`Attendance record(s) already exist for ${duplicateNames} on ${date}. Edit the existing record instead of creating a duplicate.`);
               return;
             }
-            for (const studentId of studentIds) {
-              await createHostedAttendance({
+            await Promise.all(studentIds.map(async (studentId) => {
+              const created = await createHostedAttendance({
                 id: uid(),
                 studentId,
                 date,
                 present: status === "present"
               });
-            }
+              if (created) upsertHostedAttendanceState(created);
+            }));
           }
           resetAttendanceEditMode();
-          await refreshHostedAttendance();
-          renderAll();
+          rerenderAfterAttendanceChange();
         } catch (error) {
           alert(error.message || "Unable to save attendance.");
         }
@@ -11607,7 +11754,7 @@ function bindEvents() {
           if (!completed && existing && !hasInstructionExecutionOverride(studentId, courseId, date)) {
             await resetInstructionActualMinutes(existing.id);
             setSchoolDayDailyMessage("success", `Unmarked ${getCourseName(courseId)} as completed for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
-            renderAll();
+            rerenderAfterInstructionChange();
             return;
           }
           await saveInstructionActualMinutes({
@@ -11621,7 +11768,7 @@ function bindEvents() {
             completed
           });
           setSchoolDayDailyMessage("success", `${completed ? "Marked" : "Unmarked"} ${getCourseName(courseId)} as completed for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
-          renderAll();
+          rerenderAfterInstructionChange();
         } catch (error) {
           setSchoolDayDailyMessage("error", error.message || "Unable to update completion status.");
           alert(error.message || "Unable to update completion status.");
@@ -11800,11 +11947,11 @@ function bindEvents() {
       return;
     }
     if (t.id === "administration-open-instructors-btn") {
-      setActiveTab("instructors");
+      activateTab("instructors");
       return;
     }
     if (t.id === "administration-open-users-btn") {
-      setActiveTab("users");
+      activateTab("users");
       return;
     }
     const schoolDayQuickFilter = t.getAttribute("data-school-day-quick-filter");
@@ -11861,7 +12008,7 @@ function bindEvents() {
         }
         renderTests();
       }
-      setActiveTab(schoolDayOpenTab);
+      activateTab(schoolDayOpenTab);
       return;
     }
     const schoolDayAttendanceSaveStudentId = t.getAttribute("data-school-day-attendance-save");
@@ -11874,7 +12021,7 @@ function bindEvents() {
         try {
           await saveAttendanceUpserts([{ studentId: schoolDayAttendanceSaveStudentId, date, present }]);
           setSchoolDayAttendanceMessage("success", `Saved ${getStudentName(schoolDayAttendanceSaveStudentId)} as ${present ? "Present" : "Absent"} for ${formatDisplayDate(date)}.`);
-          renderAll();
+          rerenderAfterAttendanceChange();
         } catch (error) {
           setSchoolDayAttendanceMessage("error", error.message || "Unable to save School Day attendance.");
           alert(error.message || "Unable to save School Day attendance.");
@@ -11919,7 +12066,7 @@ function bindEvents() {
         try {
           await saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes, startMinutes });
           editingInstructionActualKey = "";
-          renderAll();
+          rerenderAfterInstructionChange();
         } catch (error) {
           alert(error.message || "Unable to save actual instructional minutes.");
         }
@@ -11933,7 +12080,7 @@ function bindEvents() {
         try {
           await resetInstructionActualMinutes(schoolDayResetInstructionActualId);
           editingInstructionActualKey = "";
-          renderAll();
+          rerenderAfterInstructionChange();
         } catch (error) {
           alert(error.message || "Unable to reset to planned minutes.");
         }
@@ -11967,7 +12114,7 @@ function bindEvents() {
           schoolDayInlineGradeKey = "";
           editingInstructionActualKey = "";
           setSchoolDayDailyMessage("success", `Reset ${getStudentName(studentIds[0])}'s School Day to planned for ${formatDisplayDate(date)}.`);
-          renderAll();
+          rerenderAfterInstructionChange();
         } catch (error) {
           setSchoolDayDailyMessage("error", error.message || "Unable to reset the selected student's School Day.");
           alert(error.message || "Unable to reset the selected student's School Day.");
@@ -11992,7 +12139,7 @@ function bindEvents() {
           schoolDayInlineGradeKey = "";
           editingInstructionActualKey = "";
           setSchoolDayDailyMessage("success", `Reset the filtered School Day to planned for ${formatDisplayDate(date)}.`);
-          renderAll();
+          rerenderAfterInstructionChange();
         } catch (error) {
           setSchoolDayDailyMessage("error", error.message || "Unable to reset the filtered School Day.");
           alert(error.message || "Unable to reset the filtered School Day.");
@@ -12017,7 +12164,7 @@ function bindEvents() {
       (async () => {
         try {
           await saveInstructionOrderOverridesForStudentDate(studentId, date, reordered.map((entry) => entry.courseId));
-          renderAll();
+          rerenderAfterInstructionChange();
         } catch (error) {
           alert(error.message || "Unable to reorder the School Day schedule.");
         }
@@ -12180,8 +12327,8 @@ function bindEvents() {
           try {
             await deleteHostedAttendance(removeAttendanceId);
             if (editingAttendanceId === removeAttendanceId) resetAttendanceEditMode();
-            await refreshHostedAttendance();
-            renderAll();
+            state.attendance = state.attendance.filter((entry) => entry.id !== removeAttendanceId);
+            rerenderAfterAttendanceChange();
           } catch (error) {
             alert(error.message || "Unable to remove attendance.");
           }
@@ -12228,7 +12375,7 @@ function bindEvents() {
         if (hostedModeEnabled) {
           (async () => {
             try {
-              await updateHostedTest(editGradeId, {
+              const saved = await updateHostedTest(editGradeId, {
                 date,
                 studentId,
                 subjectId,
@@ -12238,10 +12385,9 @@ function bindEvents() {
                 score: gradeValue,
                 maxScore: 100
               });
+              if (saved) upsertHostedTestState(saved);
               row.remove();
-              updateGradeEntryVisibility();
-              await refreshHostedTests();
-              renderAll();
+              rerenderAfterGradeChange();
             } catch (error) {
               alert(error.message || "Unable to update grade.");
             }
@@ -12262,7 +12408,7 @@ function bindEvents() {
         if (hostedModeEnabled) {
           (async () => {
             try {
-              await createHostedTest({
+              const created = await createHostedTest({
                 id: uid(),
                 date,
                 studentId,
@@ -12273,15 +12419,13 @@ function bindEvents() {
                 score: gradeValue,
                 maxScore: 100
               });
+              if (created) upsertHostedTestState(created);
               if (inlineSchoolDayGrade) schoolDayInlineGradeKey = "";
               if (schoolDayGradesTabRow) {
                 setSchoolDayGradesMessage("success", `Saved grade for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
               }
               row.remove();
-              updateGradeEntryVisibility();
-              updateSchoolDayGradeEntryVisibility();
-              await refreshHostedTests();
-              renderAll();
+              rerenderAfterGradeChange();
             } catch (error) {
               alert(error.message || "Unable to save grade.");
             }
@@ -12703,32 +12847,8 @@ function renderAll() {
   applyWorkspaceConfiguration();
   renderSelects();
   fillSettingsForms();
-  updatePlanFormMode();
-  renderAdministration();
-  renderStudents();
-  renderStudentViewMode();
-  renderStudentDetail();
-  renderInstructors();
-  renderInstructorViewMode();
-  renderSubjects();
-  renderManagementSectionVisibility();
-  renderCourses();
-  renderGradeTypes();
-  renderGradingCriteria();
-  renderScheduleBlocks();
-  renderHolidays();
-  renderPlanningSettings();
-  renderPlans();
-  renderScheduleSectionVisibility();
-  renderAttendance();
-  renderTests();
-  renderUsers();
-  renderUsersViewMode();
   ensureStudentSelection();
-  updateGradeEntryVisibility();
-  renderDashboard();
-  renderSchoolDay();
-  renderCalendar();
+  renderCurrentTabPanel();
 
   const studentMode = isStudentUser();
   const planForm = document.getElementById("plan-form");
