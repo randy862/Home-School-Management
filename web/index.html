@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604081430">
+  <link rel="stylesheet" href="styles.css?v=202604091305">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -83,6 +83,12 @@
       <div class="app-main">
     <section id="tab-dashboard" class="tab-panel active panel">
       <h2>Dashboard</h2>
+      <div class="subtabs dashboard-subtabs" aria-label="Dashboard sections">
+        <button class="subtab-btn active" data-dashboard-tab="overview" type="button">Overview</button>
+        <button class="subtab-btn" data-dashboard-tab="execution" type="button">Execution</button>
+        <button class="subtab-btn" data-dashboard-tab="performance" type="button">Performance</button>
+        <button class="subtab-btn" data-dashboard-tab="compliance" type="button">Compliance</button>
+      </div>
 
       <div id="dashboard-section-overview" class="dashboard-section dashboard-section-overview">
         <div class="kpi-grid">
@@ -103,6 +109,121 @@
             <div class="progress-bar"><div id="quarter-progress-fill" class="progress-fill"></div></div>
             <p id="quarter-progress-text" class="muted">0%</p>
           </div>
+        </div>
+
+        <div class="dashboard-summary-grid">
+          <article class="dashboard-summary-card">
+            <p class="dashboard-summary-label">Completion Today</p>
+            <p id="dashboard-overview-completion-value" class="dashboard-summary-value">0%</p>
+            <p id="dashboard-overview-completion-note" class="dashboard-summary-note muted">0 of 0 classes completed today.</p>
+          </article>
+          <article class="dashboard-summary-card">
+            <p class="dashboard-summary-label">Open Items Today</p>
+            <p id="dashboard-overview-attention-value" class="dashboard-summary-value">0</p>
+            <p id="dashboard-overview-attention-note" class="dashboard-summary-note muted">No open items for today.</p>
+          </article>
+          <article class="dashboard-summary-card">
+            <p class="dashboard-summary-label">Instruction Pace</p>
+            <p id="dashboard-overview-pace-value" class="dashboard-summary-value">On Pace</p>
+            <p id="dashboard-overview-pace-note" class="dashboard-summary-note muted">0.00 earned vs 0.00 expected.</p>
+          </article>
+          <article class="dashboard-summary-card">
+            <p class="dashboard-summary-label">Awaiting Grades Today</p>
+            <p id="dashboard-overview-missing-grades-value" class="dashboard-summary-value">0</p>
+            <p id="dashboard-overview-missing-grades-note" class="dashboard-summary-note muted">No completed classes are waiting on grades today.</p>
+          </article>
+        </div>
+      </div>
+
+      <div id="dashboard-section-completion-today" class="dashboard-section dashboard-section-execution-detail hidden">
+        <div class="dashboard-section-header">
+          <div>
+            <h3>Completion Today</h3>
+            <p id="dashboard-completion-today-note" class="muted">No scheduled classes for today.</p>
+          </div>
+          <span id="dashboard-completion-today-value" class="dashboard-pill-metric">0%</span>
+        </div>
+        <div class="progress-bar dashboard-metric-progress"><div id="dashboard-completion-today-fill" class="progress-fill"></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Scheduled Classes</th><th>Completed</th><th>Open</th><th>Completed Hours</th></tr></thead>
+            <tbody id="dashboard-completion-today-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="dashboard-section-needs-attention-today" class="dashboard-section dashboard-section-execution-detail hidden">
+        <div class="dashboard-section-header">
+          <div>
+            <h3>Open Items Today</h3>
+            <p id="dashboard-needs-attention-note" class="muted">No open items for today.</p>
+          </div>
+          <span id="dashboard-needs-attention-value" class="dashboard-pill-metric">0</span>
+        </div>
+        <div id="dashboard-needs-attention-chips" class="dashboard-chip-grid"></div>
+      </div>
+
+      <div id="dashboard-section-missing-grades" class="dashboard-section dashboard-section-execution-detail hidden">
+        <div class="dashboard-section-header">
+          <div>
+            <h3>Classes Awaiting Grades</h3>
+            <p id="dashboard-missing-grades-note" class="muted">No completed classes are waiting on grades today.</p>
+          </div>
+          <span id="dashboard-missing-grades-value" class="dashboard-pill-metric">0</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Time</th><th>Status</th></tr></thead>
+            <tbody id="dashboard-missing-grades-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="dashboard-execution-placeholder" class="dashboard-section dashboard-section-placeholder hidden">
+        <h3>Next Dashboard Slice</h3>
+        <p class="muted">Execution and watchlist gauges are live. This space is reserved for the next dashboard enhancement.</p>
+      </div>
+
+      <div id="dashboard-section-grade-risk-watchlist" class="dashboard-section dashboard-section-student-performance hidden">
+        <div class="dashboard-section-header">
+          <div>
+            <h3>Course Watchlist</h3>
+            <p id="dashboard-grade-risk-note" class="muted">No at-risk courses right now.</p>
+          </div>
+          <span id="dashboard-grade-risk-value" class="dashboard-pill-metric">0</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Average</th><th>Letter</th><th>GPA</th><th>Status</th></tr></thead>
+            <tbody id="dashboard-grade-risk-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="dashboard-section-instruction-hour-pace" class="dashboard-section dashboard-section-compliance-detail hidden">
+        <div class="dashboard-section-header">
+          <div>
+            <h3>Instruction Hour Pace</h3>
+            <p id="dashboard-hour-pace-note" class="muted">0.00 earned vs 0.00 expected to date.</p>
+          </div>
+          <span id="dashboard-hour-pace-value" class="dashboard-pill-metric">On pace</span>
+        </div>
+        <div class="dashboard-pace-grid">
+          <article class="dashboard-summary-card dashboard-summary-card-tight">
+            <p class="dashboard-summary-label">Expected To Date</p>
+            <p id="dashboard-hour-pace-expected" class="dashboard-summary-value">0.00</p>
+            <p class="dashboard-summary-note muted">Hours based on school year progress.</p>
+          </article>
+          <article class="dashboard-summary-card dashboard-summary-card-tight">
+            <p class="dashboard-summary-label">Earned To Date</p>
+            <p id="dashboard-hour-pace-actual" class="dashboard-summary-value">0.00</p>
+            <p class="dashboard-summary-note muted">Completed class hours through today.</p>
+          </article>
+          <article class="dashboard-summary-card dashboard-summary-card-tight">
+            <p class="dashboard-summary-label">Variance</p>
+            <p id="dashboard-hour-pace-variance" class="dashboard-summary-value">0.00</p>
+            <p id="dashboard-hour-pace-variance-note" class="dashboard-summary-note muted">Currently on pace.</p>
+          </article>
         </div>
       </div>
 
@@ -1268,6 +1389,6 @@
       </div>
     </div>
   </main>
-  <script src="app.js?v=202604091050"></script>
+  <script src="app.js?v=202604091305"></script>
 </body>
 </html>

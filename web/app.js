@@ -979,6 +979,7 @@ let showSchedulePlans = false;
 let currentScheduleTab = "school-years";
 let currentSchoolDayTab = "daily-schedule";
 let currentAdministrationTab = "workspace-configuration";
+let currentDashboardTab = "overview";
 let schoolDayInlineGradeKey = "";
 let schoolDayDailyMessageState = { kind: "", text: "" };
 let schoolDayAttendanceMessageState = { kind: "", text: "" };
@@ -5138,6 +5139,63 @@ function renderAdministrationSectionVisibility() {
   });
 }
 
+function renderDashboardSectionVisibility() {
+  const visibleTab = ["overview", "execution", "performance", "compliance"].includes(currentDashboardTab)
+    ? currentDashboardTab
+    : "overview";
+  const config = workspaceConfig || DEFAULT_WORKSPACE_CONFIG;
+  const tabSectionMap = {
+    overview: [
+      ["dashboard-section-overview", config.dashboard.showKpiCards]
+    ],
+    execution: [
+      ["dashboard-section-completion-today", true],
+      ["dashboard-section-needs-attention-today", true],
+      ["dashboard-section-missing-grades", true],
+      ["dashboard-execution-placeholder", true]
+    ],
+    performance: [
+      ["dashboard-section-grade-risk-watchlist", true],
+      ["dashboard-section-student-performance", config.dashboard.showStudentPerformance],
+      ["dashboard-section-grade-trending", config.dashboard.showGradeTrending],
+      ["dashboard-section-gpa-trending", config.dashboard.showGpaTrending],
+      ["dashboard-section-grade-type-volume", config.dashboard.showGradeTypeVolume],
+      ["dashboard-section-work-distribution", config.dashboard.showWorkDistribution]
+    ],
+    compliance: [
+      ["dashboard-section-instruction-hour-pace", true],
+      ["dashboard-section-student-attendance", config.dashboard.showStudentAttendance],
+      ["dashboard-section-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
+      ["dashboard-section-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending]
+    ]
+  };
+  const allSections = [
+    "dashboard-section-overview",
+    "dashboard-section-completion-today",
+    "dashboard-section-needs-attention-today",
+    "dashboard-section-missing-grades",
+    "dashboard-execution-placeholder",
+    "dashboard-section-grade-risk-watchlist",
+    "dashboard-section-instruction-hour-pace",
+    "dashboard-section-student-performance",
+    "dashboard-section-student-attendance",
+    "dashboard-section-student-instructional-hours",
+    "dashboard-section-grade-trending",
+    "dashboard-section-gpa-trending",
+    "dashboard-section-instructional-hours-trending",
+    "dashboard-section-grade-type-volume",
+    "dashboard-section-work-distribution"
+  ];
+  const visibleSections = new Map(tabSectionMap[visibleTab] || []);
+  allSections.forEach((id) => {
+    const node = document.getElementById(id);
+    if (node) node.classList.toggle("hidden", !visibleSections.get(id));
+  });
+  document.querySelectorAll("[data-dashboard-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-dashboard-tab") === visibleTab);
+  });
+}
+
 function mountAdministrationManagedPanels() {
   const mappings = [
     ["tab-instructors", "administration-instructors-host"],
@@ -5981,22 +6039,7 @@ function applyWorkspaceConfiguration() {
   if (resetStudentDayBtn) resetStudentDayBtn.classList.toggle("hidden", !config.schoolDay.showResetStudentDayButton);
   const resetFilteredDayBtn = document.getElementById("school-day-reset-day-btn");
   if (resetFilteredDayBtn) resetFilteredDayBtn.classList.toggle("hidden", !config.schoolDay.showResetFilteredDayButton);
-
-  const dashboardVisibility = [
-    ["dashboard-section-overview", config.dashboard.showKpiCards],
-    ["dashboard-section-student-performance", config.dashboard.showStudentPerformance],
-    ["dashboard-section-student-attendance", config.dashboard.showStudentAttendance],
-    ["dashboard-section-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
-    ["dashboard-section-grade-trending", config.dashboard.showGradeTrending],
-    ["dashboard-section-gpa-trending", config.dashboard.showGpaTrending],
-    ["dashboard-section-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending],
-    ["dashboard-section-grade-type-volume", config.dashboard.showGradeTypeVolume],
-    ["dashboard-section-work-distribution", config.dashboard.showWorkDistribution]
-  ];
-  dashboardVisibility.forEach(([id, visible]) => {
-    const node = document.getElementById(id);
-    if (node) node.classList.toggle("hidden", !visible);
-  });
+  renderDashboardSectionVisibility();
 }
 
 async function saveAttendanceUpserts(records) {
@@ -8216,7 +8259,295 @@ function renderDashboardExpandableTablesFast() {
   rowOrEmpty(document.getElementById("dashboard-student-instructional-hours-table"), instructionalHourRows, "No students added yet.", 6);
 }
 
+function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
+  const targetStudents = Array.isArray(dashboardStudents) ? dashboardStudents : visibleStudents();
+  const studentIds = targetStudents.map((student) => student.id);
+  const blocksByStudent = dailyScheduledBlocks(referenceISO, studentIds);
+  const students = targetStudents.map((student) => {
+    const instructionBlocks = (blocksByStudent.get(student.id) || []).filter((block) => block.type === "instruction");
+    if (!instructionBlocks.length) return null;
+    const completedCount = instructionBlocks.filter((block) => effectiveInstructionCompleted(student.id, block.courseId, referenceISO)).length;
+    const needsGradeCount = instructionBlocks.filter((block) => gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length === 0).length;
+    const overrideCount = instructionBlocks.filter((block) => hasInstructionExecutionOverride(student.id, block.courseId, referenceISO)).length;
+    const attendance = attendanceRecordForStudentDate(student.id, referenceISO);
+    const completedMinutes = instructionBlocks.reduce((sum, block) => (
+      effectiveInstructionCompleted(student.id, block.courseId, referenceISO)
+        ? sum + effectiveInstructionMinutes(student.id, block.courseId, referenceISO)
+        : sum
+    ), 0);
+    return {
+      student,
+      scheduledCount: instructionBlocks.length,
+      completedCount,
+      openCount: Math.max(instructionBlocks.length - completedCount, 0),
+      needsGradeCount,
+      overrideCount,
+      completedMinutes,
+      attendanceState: attendance ? (attendance.present ? "present" : "absent") : "open"
+    };
+  }).filter(Boolean);
+
+  const totals = students.reduce((summary, entry) => {
+    summary.scheduledCount += entry.scheduledCount;
+    summary.completedCount += entry.completedCount;
+    summary.needsGradeCount += entry.needsGradeCount;
+    summary.overrideCount += entry.overrideCount;
+    summary.needsCompletionCount += entry.openCount;
+    summary.completedMinutes += entry.completedMinutes;
+    if (entry.attendanceState === "open") summary.needsAttendanceCount += 1;
+    if (entry.attendanceState === "present") summary.presentCount += 1;
+    if (entry.attendanceState === "absent") summary.absentCount += 1;
+    return summary;
+  }, {
+    scheduledCount: 0,
+    completedCount: 0,
+    needsGradeCount: 0,
+    overrideCount: 0,
+    needsCompletionCount: 0,
+    needsAttendanceCount: 0,
+    presentCount: 0,
+    absentCount: 0,
+    completedMinutes: 0
+  });
+
+  return {
+    date: referenceISO,
+    students,
+    completionPercent: totals.scheduledCount > 0 ? (totals.completedCount / totals.scheduledCount) * 100 : 0,
+    attentionTotal: totals.needsAttendanceCount + totals.needsGradeCount + totals.needsCompletionCount + totals.overrideCount,
+    ...totals
+  };
+}
+
+function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructionalHoursSnapshot, yearProgressPercent) {
+  const studentCount = Array.isArray(dashboardStudents) ? dashboardStudents.length : 0;
+  const requiredPerStudent = Number(state.settings.schoolYear.requiredInstructionalHours || 0);
+  const requiredTotal = requiredPerStudent * studentCount;
+  const expectedToDate = requiredTotal * (clamp(yearProgressPercent, 0, 100) / 100);
+  const actualToDate = Array.from(instructionalHoursSnapshot.summaryByStudent.values()).reduce((sum, studentSummary) => {
+    return sum + Number(studentSummary.buckets.total?.earned || 0);
+  }, 0);
+  const varianceHours = actualToDate - expectedToDate;
+  const toleranceHours = Math.max(1, expectedToDate * 0.02);
+  let status = "On Pace";
+  let statusClass = "on-pace";
+  if (expectedToDate <= 0.01 && actualToDate <= 0.01) {
+    status = "Year Opening";
+    statusClass = "starting";
+  } else if (varianceHours > toleranceHours) {
+    status = "Ahead of Pace";
+    statusClass = "ahead";
+  } else if (varianceHours < -toleranceHours) {
+    status = "Behind Pace";
+    statusClass = "behind";
+  }
+  return {
+    studentCount,
+    requiredTotal,
+    expectedToDate,
+    actualToDate,
+    varianceHours,
+    status,
+    statusClass
+  };
+}
+
+function buildDashboardMissingGradesSnapshot(referenceISO, dashboardStudents) {
+  const targetStudents = Array.isArray(dashboardStudents) ? dashboardStudents : visibleStudents();
+  const studentIds = targetStudents.map((student) => student.id);
+  const blocksByStudent = dailyScheduledBlocks(referenceISO, studentIds);
+  const rows = [];
+  targetStudents.forEach((student) => {
+    const instructionBlocks = (blocksByStudent.get(student.id) || []).filter((block) => block.type === "instruction");
+    instructionBlocks.forEach((block) => {
+      const isCompleted = effectiveInstructionCompleted(student.id, block.courseId, referenceISO);
+      const hasGrade = gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length > 0;
+      if (!isCompleted || hasGrade) return;
+      rows.push({
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        courseId: block.courseId,
+        courseName: getCourseName(block.courseId),
+        subjectName: getSubjectName(block.subjectId),
+        timeLabel: `${formatClockTime(block.start)} - ${formatClockTime(block.end)}`,
+        statusLabel: "Completed / Awaiting Grade"
+      });
+    });
+  });
+  rows.sort((a, b) => a.studentName.localeCompare(b.studentName) || a.timeLabel.localeCompare(b.timeLabel) || a.courseName.localeCompare(b.courseName));
+  return {
+    date: referenceISO,
+    count: rows.length,
+    rows
+  };
+}
+
+function buildDashboardGradeRiskSnapshot(dashboardStudents) {
+  const allowedStudentIds = new Set((dashboardStudents || []).map((student) => student.id));
+  const quarter = currentQuarter(new Date());
+  const quarterTests = state.tests.filter((test) => {
+    if (!allowedStudentIds.has(test.studentId)) return false;
+    if (!quarter) return true;
+    return inRange(test.date, quarter.startDate, quarter.endDate);
+  });
+  const byStudentCourse = new Map();
+  quarterTests.forEach((test) => {
+    const key = `${test.studentId}||${test.courseId}`;
+    if (!byStudentCourse.has(key)) byStudentCourse.set(key, []);
+    byStudentCourse.get(key).push(test);
+  });
+  const rows = Array.from(byStudentCourse.entries()).map(([key, tests]) => {
+    const [studentId, courseId] = key.split("||");
+    const averageScore = weightedAverageForTests(tests, { quarterScoped: true });
+    return {
+      studentId,
+      studentName: getStudentName(studentId),
+      courseId,
+      courseName: getCourseName(courseId),
+      subjectName: tests[0]?.subjectId ? getSubjectName(tests[0].subjectId) : getSubjectName(getCourse(courseId)?.subjectId),
+      averageScore,
+      letterGrade: scoreToLetterGrade(averageScore) || "-",
+      gpa: averageToGpa(averageScore),
+      riskLevel: averageScore < 70 ? "At Risk" : averageScore < 80 ? "Watch" : "Monitor"
+    };
+  })
+    .filter((row) => row.averageScore < 85)
+    .sort((a, b) => a.averageScore - b.averageScore || a.studentName.localeCompare(b.studentName) || a.courseName.localeCompare(b.courseName));
+  return {
+    quarterName: quarter?.name || "Current Quarter",
+    count: rows.length,
+    rows
+  };
+}
+
+function renderDashboardExecutionSummary(snapshot) {
+  const completionValue = document.getElementById("dashboard-overview-completion-value");
+  const completionNote = document.getElementById("dashboard-overview-completion-note");
+  const attentionValue = document.getElementById("dashboard-overview-attention-value");
+  const attentionNote = document.getElementById("dashboard-overview-attention-note");
+  const detailCompletionValue = document.getElementById("dashboard-completion-today-value");
+  const detailCompletionNote = document.getElementById("dashboard-completion-today-note");
+  const completionFill = document.getElementById("dashboard-completion-today-fill");
+  const detailAttentionValue = document.getElementById("dashboard-needs-attention-value");
+  const detailAttentionNote = document.getElementById("dashboard-needs-attention-note");
+  const completionRows = snapshot.students.map((entry) => `
+    <tr>
+      <td>${escapeHtml(entry.student.firstName)} ${escapeHtml(entry.student.lastName)}</td>
+      <td>${entry.scheduledCount}</td>
+      <td>${entry.completedCount}</td>
+      <td>${entry.openCount}</td>
+      <td>${(entry.completedMinutes / 60).toFixed(2)}</td>
+    </tr>`);
+
+  if (completionValue) completionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
+  if (completionNote) completionNote.textContent = snapshot.scheduledCount
+    ? `${snapshot.completedCount} of ${snapshot.scheduledCount} classes completed today.`
+    : `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`;
+  if (attentionValue) attentionValue.textContent = String(snapshot.attentionTotal);
+  if (attentionNote) attentionNote.textContent = snapshot.attentionTotal
+    ? `${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
+    : `No open items for ${formatDisplayDate(snapshot.date)}.`;
+  if (detailCompletionValue) detailCompletionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
+  if (detailCompletionNote) detailCompletionNote.textContent = snapshot.scheduledCount
+    ? `${snapshot.completedCount} of ${snapshot.scheduledCount} scheduled classes are completed on ${formatDisplayDate(snapshot.date)}.`
+    : `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`;
+  if (completionFill) completionFill.style.width = `${snapshot.completionPercent.toFixed(1)}%`;
+  rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, "No scheduled classes for today.", 5);
+  if (detailAttentionValue) detailAttentionValue.textContent = String(snapshot.attentionTotal);
+  if (detailAttentionNote) detailAttentionNote.textContent = snapshot.attentionTotal
+    ? `Open today: ${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
+    : `No open items for ${formatDisplayDate(snapshot.date)}.`;
+  const chipsHost = document.getElementById("dashboard-needs-attention-chips");
+  if (chipsHost) {
+    chipsHost.innerHTML = [
+      { label: "Attendance Open", value: snapshot.needsAttendanceCount },
+      { label: "Classes Open", value: snapshot.needsCompletionCount },
+      { label: "Grades Open", value: snapshot.needsGradeCount },
+      { label: "Overrides Active", value: snapshot.overrideCount }
+    ].map((item) => `
+      <article class="dashboard-chip-card">
+        <p class="dashboard-chip-label">${item.label}</p>
+        <p class="dashboard-chip-value">${item.value}</p>
+      </article>`).join("");
+  }
+}
+
+function renderDashboardInstructionHourPaceSummary(snapshot) {
+  const overviewValue = document.getElementById("dashboard-overview-pace-value");
+  const overviewNote = document.getElementById("dashboard-overview-pace-note");
+  const detailValue = document.getElementById("dashboard-hour-pace-value");
+  const detailNote = document.getElementById("dashboard-hour-pace-note");
+  const expectedNode = document.getElementById("dashboard-hour-pace-expected");
+  const actualNode = document.getElementById("dashboard-hour-pace-actual");
+  const varianceNode = document.getElementById("dashboard-hour-pace-variance");
+  const varianceNote = document.getElementById("dashboard-hour-pace-variance-note");
+  const varianceText = `${snapshot.varianceHours >= 0 ? "+" : ""}${snapshot.varianceHours.toFixed(2)} hrs`;
+
+  if (overviewValue) overviewValue.textContent = snapshot.status;
+  if (overviewNote) overviewNote.textContent = `${snapshot.actualToDate.toFixed(2)} earned vs ${snapshot.expectedToDate.toFixed(2)} expected to date.`;
+  if (detailValue) {
+    detailValue.textContent = snapshot.status;
+    detailValue.className = `dashboard-pill-metric ${snapshot.statusClass}`;
+  }
+  if (detailNote) detailNote.textContent = `${snapshot.actualToDate.toFixed(2)} earned vs ${snapshot.expectedToDate.toFixed(2)} expected to date across ${snapshot.studentCount} student${snapshot.studentCount === 1 ? "" : "s"}.`;
+  if (expectedNode) expectedNode.textContent = snapshot.expectedToDate.toFixed(2);
+  if (actualNode) actualNode.textContent = snapshot.actualToDate.toFixed(2);
+  if (varianceNode) varianceNode.textContent = varianceText;
+  if (varianceNote) varianceNote.textContent = snapshot.status === "On Pace"
+    ? "Currently on pace."
+    : snapshot.status === "Ahead of Pace"
+      ? "Ahead of the expected year-to-date pace."
+      : snapshot.status === "Behind Pace"
+        ? "Behind the expected year-to-date pace."
+        : "School year pacing has not started yet.";
+}
+
+function renderDashboardMissingGradesSummary(snapshot) {
+  const overviewValue = document.getElementById("dashboard-overview-missing-grades-value");
+  const overviewNote = document.getElementById("dashboard-overview-missing-grades-note");
+  const detailValue = document.getElementById("dashboard-missing-grades-value");
+  const detailNote = document.getElementById("dashboard-missing-grades-note");
+  const rows = snapshot.rows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.studentName)}</td>
+      <td>${escapeHtml(row.courseName)}</td>
+      <td>${escapeHtml(row.subjectName)}</td>
+      <td>${escapeHtml(row.timeLabel)}</td>
+      <td>${escapeHtml(row.statusLabel)}</td>
+    </tr>`);
+  if (overviewValue) overviewValue.textContent = String(snapshot.count);
+  if (overviewNote) overviewNote.textContent = snapshot.count
+    ? `${snapshot.count} completed class${snapshot.count === 1 ? "" : "es"} are still awaiting grades today.`
+    : `No completed classes are waiting on grades today.`;
+  if (detailValue) detailValue.textContent = String(snapshot.count);
+  if (detailNote) detailNote.textContent = snapshot.count
+    ? `${snapshot.count} completed class${snapshot.count === 1 ? "" : "es"} are still awaiting grades for ${formatDisplayDate(snapshot.date)}.`
+    : `No completed classes are waiting on grades for ${formatDisplayDate(snapshot.date)}.`;
+  rowOrEmpty(document.getElementById("dashboard-missing-grades-table"), rows, "No completed classes are waiting on grades today.", 5);
+}
+
+function renderDashboardGradeRiskSummary(snapshot) {
+  const riskValue = document.getElementById("dashboard-grade-risk-value");
+  const riskNote = document.getElementById("dashboard-grade-risk-note");
+  const riskRows = snapshot.rows.map((row) => `
+    <tr>
+      <td>${escapeHtml(row.studentName)}</td>
+      <td>${escapeHtml(row.courseName)}</td>
+      <td>${escapeHtml(row.subjectName)}</td>
+      <td>${row.averageScore.toFixed(1)}%</td>
+      <td>${escapeHtml(row.letterGrade)}</td>
+      <td>${row.gpa.toFixed(2)}</td>
+      <td>${escapeHtml(row.riskLevel)}</td>
+    </tr>`);
+  if (riskValue) riskValue.textContent = String(snapshot.count);
+  if (riskNote) riskNote.textContent = snapshot.count
+    ? `${snapshot.count} course${snapshot.count === 1 ? "" : "s"} are below 85% in ${snapshot.quarterName}.`
+    : `No courses are currently below 85% in ${snapshot.quarterName}.`;
+  rowOrEmpty(document.getElementById("dashboard-grade-risk-table"), riskRows, "No at-risk courses right now.", 7);
+}
+
 function renderDashboard() {
+  renderDashboardSectionVisibility();
   const allowedStudentIds = visibleStudentIds();
   const dashboardStudents = visibleStudents();
   const dates = instructionalDates();
@@ -8264,6 +8595,10 @@ function renderDashboard() {
   document.getElementById("year-progress-text").textContent = `${state.settings.schoolYear.label}: ${yP.toFixed(1)}%`;
   document.getElementById("quarter-progress-fill").style.width = `${qP.toFixed(1)}%`;
   document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
+  renderDashboardExecutionSummary(buildDashboardExecutionSnapshot(todayISO(), dashboardStudents));
+  renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP));
+  renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(todayISO(), dashboardStudents));
+  renderDashboardGradeRiskSummary(buildDashboardGradeRiskSnapshot(dashboardStudents));
 
   const validStudentIds = new Set(dashboardStudents.map((student) => student.id));
   Array.from(expandedStudentAverageRows).forEach((studentId) => {
@@ -11944,6 +12279,15 @@ function bindEvents() {
     if (administrationTab) {
       currentAdministrationTab = ["workspace-configuration", "instructors", "users"].includes(administrationTab) ? administrationTab : "workspace-configuration";
       renderAdministrationSectionVisibility();
+      return;
+    }
+    const dashboardTab = t.getAttribute("data-dashboard-tab");
+    if (dashboardTab) {
+      currentDashboardTab = ["overview", "execution", "performance", "compliance"].includes(dashboardTab) ? dashboardTab : "overview";
+      renderDashboardSectionVisibility();
+      if (currentTab === "dashboard" && (dashboardDirty || !dashboardExpandableMetricsCache)) {
+        renderDashboard();
+      }
       return;
     }
     if (t.id === "administration-open-instructors-btn") {

@@ -2602,9 +2602,27 @@ td {
   margin: 0 0 0.35rem;
 }
 
+.dashboard-subtabs {
+  margin-bottom: 0.85rem;
+}
+
+.dashboard-section-placeholder {
+  padding: 0.95rem 1rem;
+}
+
 .dashboard-section-overview {
   background: #f6f1e7;
   border-color: #d2c3a8;
+}
+
+.dashboard-section-execution-detail {
+  background: #f7f3eb;
+  border-color: #d9ccb6;
+}
+
+.dashboard-section-compliance-detail {
+  background: #eef3f9;
+  border-color: #c9d5e8;
 }
 
 .dashboard-section-student-performance {
@@ -3421,6 +3439,103 @@ h4 {
 
 .dashboard-section-overview .kpi-grid {
   gap: 0.65rem;
+}
+
+.dashboard-section-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-pill-metric {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #d5c4aa;
+  border-radius: 999px;
+  background: #fffaf0;
+  color: var(--accent-strong);
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dashboard-pill-metric.ahead {
+  border-color: #b8d5c6;
+  background: #edf8f0;
+  color: #266b3e;
+}
+
+.dashboard-pill-metric.behind {
+  border-color: #e6c5b8;
+  background: #fff1eb;
+  color: #9a4a28;
+}
+
+.dashboard-pill-metric.on-pace,
+.dashboard-pill-metric.starting {
+  border-color: #d5c4aa;
+  background: #fffaf0;
+  color: var(--accent-strong);
+}
+
+.dashboard-summary-grid,
+.dashboard-pace-grid,
+.dashboard-chip-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dashboard-summary-grid,
+.dashboard-pace-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-top: 0.9rem;
+}
+
+.dashboard-chip-grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  margin-top: 0.9rem;
+}
+
+.dashboard-summary-card,
+.dashboard-chip-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid var(--edge);
+  border-radius: 18px;
+  padding: 0.85rem 0.95rem;
+}
+
+.dashboard-summary-card-tight {
+  min-height: 0;
+}
+
+.dashboard-summary-label,
+.dashboard-chip-label {
+  margin: 0;
+  color: #73849a;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dashboard-summary-value,
+.dashboard-chip-value {
+  margin: 0.32rem 0 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.dashboard-summary-note {
+  margin: 0.32rem 0 0;
+}
+
+.dashboard-metric-progress {
+  margin-top: 0.9rem;
 }
 
 .dashboard-section-overview .kpi {

@@ -192,3 +192,15 @@
    - [ ] Update Student Enrollment to allow assigning and ordering schedule blocks.
    - [ ] Cut Calendar and School Day day-generation over to ordered schedule blocks.
    - [ ] Plan and execute migration away from fixed-time daily lunch/break scheduling.
+13. Plan the next Dashboard enhancement slice around operational and risk-oriented analytics.
+   - [x] Decide that the next dashboard additions should prioritize actionable operational analytics over adding more undifferentiated historical widgets.
+   - [x] Define the implementation-ready dashboard enhancement spec package for:
+     - Completion Today
+     - Needs Attention Today
+     - Instruction Hour Pace
+     - Grade Risk / Course Watchlist
+     - Missing Grades
+   - [x] Decide that Dashboard should add internal tabs grouped by purpose before stacking more gauges onto one page.
+   - [ ] Implement the dashboard tab shell (`Overview`, `Execution`, `Performance`, `Compliance`).
+   - [ ] Implement the `Execution` tab first with Completion Today, Needs Attention Today, and Missing Grades.
+   - [ ] Implement Instruction Hour Pace and Grade Risk / Course Watchlist after the Execution tab lands cleanly.

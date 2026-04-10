@@ -13,6 +13,12 @@ Date: 2026-04-04
   - `NOTES/backend-auth-api-refactor-plan.md`
 - Captured the `School Day` operational hub as an implementation-ready package in `NOTES/school-day-hub-spec-package.md`.
 - Captured the ordered schedule-block replacement for fixed-time lunch/recess/other breaks in `NOTES/ordered-schedule-blocks-spec-package.md`.
+- Captured the next Dashboard enhancement slice in `NOTES/dashboard-enhancement-spec-package.md`, including grouped dashboard tabs and the first operational/risk-oriented gauges:
+  - Completion Today
+  - Needs Attention Today
+  - Instruction Hour Pace
+  - Grade Risk / Course Watchlist
+  - Missing Grades
 - Reframed the roadmap around a production-ready single-tenant deployment as the prerequisite for later SaaS multi-tenancy.
 
 ## In Progress
