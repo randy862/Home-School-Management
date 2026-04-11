@@ -1006,6 +1006,7 @@ let schoolDayStudentSummariesCollapsed = false;
 let schoolDayStudentSummariesManual = false;
 let schoolDayOverviewCollapsed = false;
 let schoolDayOverviewManual = false;
+let schoolDayDashboardReturnContext = null;
 let administrationWorkspaceConfigMessageState = { kind: "", text: "" };
 let reportType = "student";
 let reportSelectedStudentIds = new Set();
@@ -6715,6 +6716,19 @@ function renderSchoolDaySectionVisibility() {
   }
 }
 
+function renderSchoolDayDashboardReturn() {
+  const wrap = document.getElementById("school-day-dashboard-return");
+  const copy = document.getElementById("school-day-dashboard-return-copy");
+  if (!wrap || !copy) return;
+  if (!schoolDayDashboardReturnContext) {
+    wrap.classList.add("hidden");
+    copy.textContent = "";
+    return;
+  }
+  wrap.classList.remove("hidden");
+  copy.textContent = schoolDayDashboardReturnContext.message || "Opened from Dashboard.";
+}
+
 function resetSchoolDayQuickFilters() {
   schoolDayQuickFilters.needsAttendance = false;
   schoolDayQuickFilters.needsCompletion = false;
@@ -6728,7 +6742,8 @@ function openSchoolDayFromDashboard({
   studentIds = [],
   subjectIds = [],
   courseIds = [],
-  quickFilter = ""
+  quickFilter = "",
+  contextLabel = ""
 } = {}) {
   const dateInput = document.getElementById("school-day-date");
   if (dateInput) dateInput.value = date || todayISO();
@@ -6745,6 +6760,19 @@ function openSchoolDayFromDashboard({
   syncSchoolDayFilterSubjectCourseOptions();
   currentSchoolDayTab = ["daily-schedule", "attendance", "grades"].includes(tab) ? tab : "daily-schedule";
   schoolDayInlineGradeKey = "";
+  const dashboardTabLabel = currentDashboardTab === "execution"
+    ? "Execution"
+    : currentDashboardTab === "performance"
+      ? "Performance"
+      : currentDashboardTab === "compliance"
+        ? "Compliance"
+        : "Overview";
+  schoolDayDashboardReturnContext = {
+    dashboardTab: currentDashboardTab,
+    message: contextLabel
+      ? `${contextLabel} from Dashboard > ${dashboardTabLabel} for ${formatDisplayDate(date || todayISO())}.`
+      : `Opened from Dashboard > ${dashboardTabLabel} for ${formatDisplayDate(date || todayISO())}.`
+  };
   saveSchoolDayPreferences();
   activateTab("school-day");
   renderSchoolDay();
@@ -8066,7 +8094,7 @@ function renderDashboardExpandableTables() {
     const absentCount = summary.absent;
     const attendanceAverage = totalAttendanceDays > 0 ? (presentCount / totalAttendanceDays) * 100 : 0;
     const expandedAttendance = expandedStudentAttendanceRows.has(student.id);
-    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${student.id}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${student.firstName} ${student.lastName}</td><td>${totalAttendanceDays}</td><td>${presentCount}</td><td>${absentCount}</td><td>${totalAttendanceDays > 0 ? `${attendanceAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${student.id}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${student.firstName} ${student.lastName}</td><td>${totalAttendanceDays}</td><td>${presentCount}</td><td>${absentCount}</td><td>${totalAttendanceDays > 0 ? `${attendanceAverage.toFixed(1)}%` : "No days yet"}</td><td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-school-day-tab="attendance" data-date="${todayISO()}" data-student-id="${student.id}" data-dashboard-context-label="Student attendance">Open</button></td></tr>`;
     if (!expandedAttendance) return [studentRow];
     const quarterRows = state.settings.quarters.map((quarter) => {
       const quarterDates = attendanceDatesThroughToday.filter((d) => inRange(d, quarter.startDate, quarter.endDate));
@@ -8075,11 +8103,11 @@ function renderDashboardExpandableTables() {
       const quarterPresent = quarterSummary.attended;
       const quarterAbsent = quarterSummary.absent;
       const quarterAverage = quarterTotalDays > 0 ? (quarterPresent / quarterTotalDays) * 100 : 0;
-      return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarterTotalDays}</td><td>${quarterPresent}</td><td>${quarterAbsent}</td><td>${quarterTotalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+      return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarterTotalDays}</td><td>${quarterPresent}</td><td>${quarterAbsent}</td><td>${quarterTotalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td><td></td></tr>`;
     });
     return [studentRow, ...quarterRows];
   });
-  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
+  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 6);
 
   const instructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { instructorId: studentInstructionalHoursInstructorFilter });
   const instructionalHourRows = dashboardStudents
@@ -8091,13 +8119,13 @@ function renderDashboardExpandableTables() {
       const expanded = expandedStudentInstructionalHourRows.has(student.id);
       const detailRows = Array.from(studentSummary.subjects.values())
         .sort((a, b) => (b.buckets.total.earned - a.buckets.total.earned) || getSubjectName(a.subjectId).localeCompare(getSubjectName(b.subjectId)))
-        .map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${getSubjectName(subjectSummary.subjectId)}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}</tr>`)
+        .map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${getSubjectName(subjectSummary.subjectId)}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}<td></td></tr>`)
         .join("");
       return {
         studentName: `${student.firstName} ${student.lastName}`,
         earnedTotal: studentSummary.buckets.total.earned,
-        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${student.firstName} ${student.lastName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(studentSummary.buckets[bucket.key])}</td>`).join("")}</tr>`,
-        detailRow: expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : ""
+        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${student.firstName} ${student.lastName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(studentSummary.buckets[bucket.key])}</td>`).join("")}<td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-school-day-tab="daily-schedule" data-date="${todayISO()}" data-student-id="${student.id}" data-dashboard-context-label="Student instructional hours">Open</button></td></tr>`,
+        detailRow: expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='7' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : ""
       };
     })
     .sort((a, b) => b.earnedTotal - a.earnedTotal || a.studentName.localeCompare(b.studentName));
@@ -8105,7 +8133,7 @@ function renderDashboardExpandableTables() {
     document.getElementById("dashboard-student-instructional-hours-table"),
     instructionalHourRows.flatMap((entry) => entry.detailRow ? [entry.row, entry.detailRow] : [entry.row]),
     "No students added yet.",
-    6
+    7
   );
 }
 
@@ -8290,24 +8318,24 @@ function renderDashboardExpandableTablesFast() {
 
   const studentAttendanceRows = attendanceMetrics.flatMap((entry) => {
     const expandedAttendance = expandedStudentAttendanceRows.has(entry.studentId);
-    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${entry.studentId}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${entry.studentName}</td><td>${entry.totalDays}</td><td>${entry.present}</td><td>${entry.absent}</td><td>${entry.totalDays > 0 ? `${entry.attendanceAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${entry.studentId}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${entry.studentName}</td><td>${entry.totalDays}</td><td>${entry.present}</td><td>${entry.absent}</td><td>${entry.totalDays > 0 ? `${entry.attendanceAverage.toFixed(1)}%` : "No days yet"}</td><td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-school-day-tab="attendance" data-date="${todayISO()}" data-student-id="${entry.studentId}" data-dashboard-context-label="Student attendance">Open</button></td></tr>`;
     if (!expandedAttendance) return [studentRow];
     const quarterRows = entry.quarters.map((quarter) => {
       const quarterAverage = quarter.totalDays > 0 ? (quarter.present / quarter.totalDays) * 100 : 0;
-      return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarter.totalDays}</td><td>${quarter.present}</td><td>${quarter.absent}</td><td>${quarter.totalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+      return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarter.totalDays}</td><td>${quarter.present}</td><td>${quarter.absent}</td><td>${quarter.totalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td><td></td></tr>`;
     });
     return [studentRow, ...quarterRows];
   });
-  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
+  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 6);
 
   const instructionalHourRows = instructionalHourMetrics.flatMap((entry) => {
     const expanded = expandedStudentInstructionalHourRows.has(entry.studentId);
-    const detailRows = entry.subjects.map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${subjectSummary.subjectName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}</tr>`).join("");
-    const row = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${entry.studentName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(entry.buckets[bucket.key])}</td>`).join("")}</tr>`;
-    const detailRow = expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : "";
+    const detailRows = entry.subjects.map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${subjectSummary.subjectName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}<td></td></tr>`).join("");
+    const row = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${entry.studentName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(entry.buckets[bucket.key])}</td>`).join("")}<td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-school-day-tab="daily-schedule" data-date="${todayISO()}" data-student-id="${entry.studentId}" data-dashboard-context-label="Student instructional hours">Open</button></td></tr>`;
+    const detailRow = expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='7' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : "";
     return detailRow ? [row, detailRow] : [row];
   });
-  rowOrEmpty(document.getElementById("dashboard-student-instructional-hours-table"), instructionalHourRows, "No students added yet.", 6);
+  rowOrEmpty(document.getElementById("dashboard-student-instructional-hours-table"), instructionalHourRows, "No students added yet.", 7);
 }
 
 function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
@@ -8591,12 +8619,13 @@ function renderDashboardGradeRiskSummary(snapshot) {
       <td>${escapeHtml(row.letterGrade)}</td>
       <td>${row.gpa.toFixed(2)}</td>
       <td>${escapeHtml(row.riskLevel)}</td>
+      <td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-school-day-tab="grades" data-date="${todayISO()}" data-student-id="${row.studentId}" data-course-id="${row.courseId}" data-dashboard-context-label="Course watchlist">Open</button></td>
     </tr>`);
   if (riskValue) riskValue.textContent = String(snapshot.count);
   if (riskNote) riskNote.textContent = snapshot.count
     ? `${snapshot.count} course${snapshot.count === 1 ? "" : "s"} are below 85% in ${snapshot.quarterName}.`
     : `No courses are currently below 85% in ${snapshot.quarterName}.`;
-  rowOrEmpty(document.getElementById("dashboard-grade-risk-table"), riskRows, "No at-risk courses right now.", 7);
+  rowOrEmpty(document.getElementById("dashboard-grade-risk-table"), riskRows, "No at-risk courses right now.", 8);
 }
 
 function renderDashboard() {
@@ -9551,6 +9580,7 @@ function renderSchoolDay() {
   if (dateInput && !dateInput.value) dateInput.value = todayISO();
   const ref = dateInput?.value || todayISO();
   syncSchoolDayFilterSubjectCourseOptions();
+  renderSchoolDayDashboardReturn();
   renderSchoolDayQuickFilterState();
   renderSchoolDaySectionVisibility();
 
@@ -10202,7 +10232,9 @@ function saveLegacyLocalGradingCriteria(criteria) {
 
 function bindEvents() {
   document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => {
-    activateTab(btn.dataset.tab || "dashboard");
+    const targetTab = btn.dataset.tab || "dashboard";
+    if (targetTab === "school-day") schoolDayDashboardReturnContext = null;
+    activateTab(targetTab);
   }));
 
   document.getElementById("administration-workspace-config-form")?.addEventListener("input", () => {
@@ -12419,13 +12451,24 @@ function bindEvents() {
       const studentId = dashboardSchoolDayTarget.getAttribute("data-student-id") || "";
       const courseId = dashboardSchoolDayTarget.getAttribute("data-course-id") || "";
       const quickFilter = dashboardSchoolDayTarget.getAttribute("data-school-day-quick-filter") || "";
+      const contextLabel = dashboardSchoolDayTarget.getAttribute("data-dashboard-context-label") || "";
       openSchoolDayFromDashboard({
         date,
         tab: schoolDayTab,
         studentIds: studentId ? [studentId] : [],
         courseIds: courseId ? [courseId] : [],
-        quickFilter
+        quickFilter,
+        contextLabel
       });
+      return;
+    }
+    if (t.id === "school-day-return-dashboard-btn") {
+      const returnTab = schoolDayDashboardReturnContext?.dashboardTab || "overview";
+      schoolDayDashboardReturnContext = null;
+      activateTab("dashboard");
+      currentDashboardTab = ["overview", "execution", "performance", "compliance"].includes(returnTab) ? returnTab : "overview";
+      renderDashboardSectionVisibility();
+      renderDashboard();
       return;
     }
     const schoolDayAttendanceSaveStudentId = t.getAttribute("data-school-day-attendance-save");

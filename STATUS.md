@@ -38,6 +38,11 @@ Date: 2026-04-10
   - `Execution` attention chips can open `School Day` with the matching quick filter
   - `Completion Today` rows can open filtered `School Day` daily schedule for that student/date
   - `Missing Grades` rows can open filtered `School Day` grades context for that student/course/date
+- Expanded Dashboard-to-`School Day` follow-through beyond `Execution`:
+  - `Course Watchlist` rows can open `School Day` grades context for the selected student/course
+  - `Student Attendance` rows can open `School Day` attendance context for the selected student
+  - `Student Instructional Hours` rows can open `School Day` daily schedule context for the selected student
+  - `School Day` now shows a lightweight `From Dashboard` return banner so the user can jump back to the originating dashboard tab
 - Refined `Administration > Workspace Configuration > Dashboard Visibility` so it now:
   - groups optional dashboard controls by `Execution`, `Performance`, and `Compliance`
   - keeps `Overview` fixed as the dashboard landing state

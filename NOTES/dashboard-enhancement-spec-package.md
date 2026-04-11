@@ -463,7 +463,8 @@ This is the highest-value first build slice.
 7. Existing dashboard sections continue working within the new grouped-tab structure.
 8. The page remains readable on desktop and mobile.
 9. `Administration > Workspace Configuration` can hide any non-Overview dashboard gauge by grouped tab section without affecting the fixed Overview landing state.
-10. The first `Execution` interactions can jump directly into `School Day` with the relevant date/tab/filter context for follow-through work.
+10. The first Dashboard drill-down interactions can jump directly into `School Day` with the relevant date/tab/filter context for follow-through work.
+11. When Dashboard opens `School Day`, the user can return to the originating dashboard tab from an in-context School Day banner.
 
 ## Open Questions
 

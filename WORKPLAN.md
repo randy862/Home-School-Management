@@ -214,5 +214,6 @@
    - [x] Group `Administration > Workspace Configuration > Dashboard Visibility` by `Execution`, `Performance`, and `Compliance` rather than adding nested configuration tabs.
    - [x] Make all non-`Overview` dashboard gauges optional and persist those hosted workspace settings correctly.
    - [x] Tune the default dashboard visibility so the first operational/risk gauges start on while denser trend/history extras start off until explicitly enabled.
-   - [x] Add the first `Execution` drill-down links from Dashboard into `School Day` for open-work follow-through.
-   - [ ] Decide the next dashboard follow-up after the shipped tabbed operational slice, including whether to deepen drill-downs beyond `Execution`, add cross-links into `School Day` from more views, or expand compliance reporting.
+   - [x] Add the first drill-down links from Dashboard into `School Day` for open-work follow-through across `Execution`, key `Performance` views, and key `Compliance` views.
+   - [x] Add a lightweight `School Day` return path back to the originating Dashboard tab after a drill-down.
+   - [ ] Decide the next dashboard follow-up after the shipped tabbed operational slice, including whether to deepen drill-downs further, add cross-links into `Grades`/`Reports`, or expand compliance reporting.

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604101700">
+  <link rel="stylesheet" href="styles.css?v=202604101830">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -194,7 +194,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Average</th><th>Letter</th><th>GPA</th><th>Status</th></tr></thead>
+            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Average</th><th>Letter</th><th>GPA</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="dashboard-grade-risk-table"></tbody>
           </table>
         </div>
@@ -263,7 +263,7 @@
         <h3>Student Attendance</h3>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Total Days</th><th>Days Present</th><th>Days Absence</th><th>Attendance Average</th></tr></thead>
+            <thead><tr><th>Student</th><th>Total Days</th><th>Days Present</th><th>Days Absence</th><th>Attendance Average</th><th>Actions</th></tr></thead>
             <tbody id="dashboard-student-attendance-table"></tbody>
           </table>
         </div>
@@ -282,7 +282,7 @@
         </form>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Total</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
+            <thead><tr><th>Student</th><th>Total</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Actions</th></tr></thead>
             <tbody id="dashboard-student-instructional-hours-table"></tbody>
           </table>
         </div>
@@ -582,6 +582,13 @@
 
     <section id="tab-school-day" class="tab-panel panel">
       <h2>School Day</h2>
+      <div id="school-day-dashboard-return" class="callout school-day-dashboard-return hidden">
+        <div>
+          <p class="school-day-callout-title">From Dashboard</p>
+          <p id="school-day-dashboard-return-copy" class="muted">Opened from Dashboard.</p>
+        </div>
+        <button type="button" id="school-day-return-dashboard-btn">Back to Dashboard</button>
+      </div>
       <div class="school-day-section school-day-section-shell">
         <form id="school-day-form" class="grid-form school-day-form">
           <label id="school-day-reference-date-field">Reference Date<input id="school-day-date" type="date" required></label>
@@ -1416,6 +1423,6 @@
       </div>
     </div>
   </main>
-  <script src="app.js?v=202604101700"></script>
+  <script src="app.js?v=202604101830"></script>
 </body>
 </html>
