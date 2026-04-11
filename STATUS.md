@@ -43,6 +43,9 @@ Date: 2026-04-10
   - `Student Attendance` rows can open `School Day` attendance context for the selected student
   - `Student Instructional Hours` rows can open `School Day` daily schedule context for the selected student
   - `School Day` now shows a lightweight `From Dashboard` return banner so the user can jump back to the originating dashboard tab
+- Corrected the hosted Dashboard `Open` drill-down controls so they now reliably jump into `School Day`:
+  - Dashboard deep links now use a dedicated `data-dashboard-school-day-tab` hook instead of colliding with the in-page `School Day` subtab handler
+  - the tenant app on `WEB001` is serving the fixed frontend asset version `202604101905`
 - Refined `Administration > Workspace Configuration > Dashboard Visibility` so it now:
   - groups optional dashboard controls by `Execution`, `Performance`, and `Compliance`
   - keeps `Overview` fixed as the dashboard landing state
@@ -602,3 +605,7 @@ Date: 2026-04-10
   - decide whether to prioritize ordered schedule-block cutover or deeper `School Day` execution-layer persistence next
   - keep `Calendar` and `School Day` generation aligned as the ordered schedule-block work lands
   - add any remaining daily workflow ergonomics only if they materially improve the shipped hub rather than duplicating existing pages
+- Dashboard follow-through is now live and corrected in hosted mode:
+  - `Execution`, key `Performance`, and key `Compliance` views all have working `Open` actions into `School Day`
+  - the `From Dashboard` banner and return path are part of the shipped behavior
+  - any next Dashboard slice should start from `09f9e29` plus tonight’s hosted deep-link fix commit

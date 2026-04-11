@@ -465,6 +465,7 @@ This is the highest-value first build slice.
 9. `Administration > Workspace Configuration` can hide any non-Overview dashboard gauge by grouped tab section without affecting the fixed Overview landing state.
 10. The first Dashboard drill-down interactions can jump directly into `School Day` with the relevant date/tab/filter context for follow-through work.
 11. When Dashboard opens `School Day`, the user can return to the originating dashboard tab from an in-context School Day banner.
+12. Dashboard drill-down controls use their own event hook and do not share the `School Day` subtab attribute, so hosted `Open` actions cannot be intercepted by the in-page School Day tab switcher.
 
 ## Open Questions
 
