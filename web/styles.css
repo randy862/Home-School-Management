@@ -419,6 +419,33 @@ h3 {
   justify-content: flex-start;
 }
 
+.dashboard-visibility-group + .dashboard-visibility-group {
+  margin-top: 0.9rem;
+}
+
+.dashboard-visibility-group h5 {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+.dashboard-chip-card {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #dbe6f2;
+  background: #fff;
+  cursor: pointer;
+}
+
+.dashboard-chip-card:hover {
+  border-color: #b8cee8;
+  box-shadow: 0 10px 22px rgba(34, 72, 112, 0.08);
+}
+
+.dashboard-link-btn {
+  white-space: nowrap;
+}
+
 #administration-workspace-config-message {
   margin-top: 0.15rem;
   font-weight: 600;

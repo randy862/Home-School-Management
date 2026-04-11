@@ -96,15 +96,19 @@ const DEFAULT_WORKSPACE_CONFIG = {
     overviewDefault: "collapsed"
   },
   dashboard: {
-    showKpiCards: true,
+    showCompletionToday: true,
+    showNeedsAttentionToday: true,
+    showMissingGrades: true,
+    showGradeRiskWatchlist: true,
+    showInstructionHourPace: true,
     showStudentPerformance: true,
     showStudentAttendance: true,
     showStudentInstructionalHours: true,
-    showGradeTrending: true,
-    showGpaTrending: true,
-    showInstructionalHoursTrending: true,
-    showGradeTypeVolume: true,
-    showWorkDistribution: true
+    showGradeTrending: false,
+    showGpaTrending: false,
+    showInstructionalHoursTrending: false,
+    showGradeTypeVolume: false,
+    showWorkDistribution: false
   }
 };
 
@@ -5146,16 +5150,15 @@ function renderDashboardSectionVisibility() {
   const config = workspaceConfig || DEFAULT_WORKSPACE_CONFIG;
   const tabSectionMap = {
     overview: [
-      ["dashboard-section-overview", config.dashboard.showKpiCards]
+      ["dashboard-section-overview", true]
     ],
     execution: [
-      ["dashboard-section-completion-today", true],
-      ["dashboard-section-needs-attention-today", true],
-      ["dashboard-section-missing-grades", true],
-      ["dashboard-execution-placeholder", true]
+      ["dashboard-section-completion-today", config.dashboard.showCompletionToday],
+      ["dashboard-section-needs-attention-today", config.dashboard.showNeedsAttentionToday],
+      ["dashboard-section-missing-grades", config.dashboard.showMissingGrades]
     ],
     performance: [
-      ["dashboard-section-grade-risk-watchlist", true],
+      ["dashboard-section-grade-risk-watchlist", config.dashboard.showGradeRiskWatchlist],
       ["dashboard-section-student-performance", config.dashboard.showStudentPerformance],
       ["dashboard-section-grade-trending", config.dashboard.showGradeTrending],
       ["dashboard-section-gpa-trending", config.dashboard.showGpaTrending],
@@ -5163,7 +5166,7 @@ function renderDashboardSectionVisibility() {
       ["dashboard-section-work-distribution", config.dashboard.showWorkDistribution]
     ],
     compliance: [
-      ["dashboard-section-instruction-hour-pace", true],
+      ["dashboard-section-instruction-hour-pace", config.dashboard.showInstructionHourPace],
       ["dashboard-section-student-attendance", config.dashboard.showStudentAttendance],
       ["dashboard-section-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
       ["dashboard-section-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending]
@@ -5176,7 +5179,9 @@ function renderDashboardSectionVisibility() {
     "dashboard-section-missing-grades",
     "dashboard-execution-placeholder",
     "dashboard-section-grade-risk-watchlist",
+    "dashboard-performance-placeholder",
     "dashboard-section-instruction-hour-pace",
+    "dashboard-compliance-placeholder",
     "dashboard-section-student-performance",
     "dashboard-section-student-attendance",
     "dashboard-section-student-instructional-hours",
@@ -5187,6 +5192,13 @@ function renderDashboardSectionVisibility() {
     "dashboard-section-work-distribution"
   ];
   const visibleSections = new Map(tabSectionMap[visibleTab] || []);
+  if (visibleTab === "execution") {
+    visibleSections.set("dashboard-execution-placeholder", !Array.from(visibleSections.values()).some(Boolean));
+  } else if (visibleTab === "performance") {
+    visibleSections.set("dashboard-performance-placeholder", !Array.from(visibleSections.values()).some(Boolean));
+  } else if (visibleTab === "compliance") {
+    visibleSections.set("dashboard-compliance-placeholder", !Array.from(visibleSections.values()).some(Boolean));
+  }
   allSections.forEach((id) => {
     const node = document.getElementById(id);
     if (node) node.classList.toggle("hidden", !visibleSections.get(id));
@@ -5230,7 +5242,11 @@ function renderAdministration() {
     ["admin-config-school-day-show-needs-completion", config.schoolDay.showNeedsCompletionFilter],
     ["admin-config-school-day-show-needs-grade", config.schoolDay.showNeedsGradeFilter],
     ["admin-config-school-day-show-overridden", config.schoolDay.showOverriddenFilter],
-    ["admin-config-dashboard-show-kpi-cards", config.dashboard.showKpiCards],
+    ["admin-config-dashboard-show-completion-today", config.dashboard.showCompletionToday],
+    ["admin-config-dashboard-show-needs-attention-today", config.dashboard.showNeedsAttentionToday],
+    ["admin-config-dashboard-show-missing-grades", config.dashboard.showMissingGrades],
+    ["admin-config-dashboard-show-grade-risk-watchlist", config.dashboard.showGradeRiskWatchlist],
+    ["admin-config-dashboard-show-instruction-hour-pace", config.dashboard.showInstructionHourPace],
     ["admin-config-dashboard-show-student-performance", config.dashboard.showStudentPerformance],
     ["admin-config-dashboard-show-student-attendance", config.dashboard.showStudentAttendance],
     ["admin-config-dashboard-show-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
@@ -6697,6 +6713,41 @@ function renderSchoolDaySectionVisibility() {
     const anyVisible = Array.from(quickFilters.querySelectorAll("[data-school-day-quick-filter]")).some((btn) => !btn.classList.contains("hidden"));
     quickFilters.classList.toggle("hidden", currentSchoolDayTab !== "daily-schedule" || !anyVisible);
   }
+}
+
+function resetSchoolDayQuickFilters() {
+  schoolDayQuickFilters.needsAttendance = false;
+  schoolDayQuickFilters.needsCompletion = false;
+  schoolDayQuickFilters.needsGrade = false;
+  schoolDayQuickFilters.overridden = false;
+}
+
+function openSchoolDayFromDashboard({
+  date = todayISO(),
+  tab = "daily-schedule",
+  studentIds = [],
+  subjectIds = [],
+  courseIds = [],
+  quickFilter = ""
+} = {}) {
+  const dateInput = document.getElementById("school-day-date");
+  if (dateInput) dateInput.value = date || todayISO();
+  resetSchoolDayQuickFilters();
+  if (quickFilter === "needs-attendance") schoolDayQuickFilters.needsAttendance = true;
+  if (quickFilter === "needs-completion") schoolDayQuickFilters.needsCompletion = true;
+  if (quickFilter === "needs-grade") schoolDayQuickFilters.needsGrade = true;
+  if (quickFilter === "overridden") schoolDayQuickFilters.overridden = true;
+  applySchoolDayFilterSelection({
+    studentIds: Array.isArray(studentIds) ? studentIds : [],
+    subjectIds: Array.isArray(subjectIds) ? subjectIds : [],
+    courseIds: Array.isArray(courseIds) ? courseIds : []
+  });
+  syncSchoolDayFilterSubjectCourseOptions();
+  currentSchoolDayTab = ["daily-schedule", "attendance", "grades"].includes(tab) ? tab : "daily-schedule";
+  schoolDayInlineGradeKey = "";
+  saveSchoolDayPreferences();
+  activateTab("school-day");
+  renderSchoolDay();
 }
 
 function schoolDayGradeKey(studentId, courseId, date) {
@@ -8437,6 +8488,7 @@ function renderDashboardExecutionSummary(snapshot) {
       <td>${entry.completedCount}</td>
       <td>${entry.openCount}</td>
       <td>${(entry.completedMinutes / 60).toFixed(2)}</td>
+      <td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-student-id="${entry.student.id}">Open</button></td>
     </tr>`);
 
   if (completionValue) completionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
@@ -8452,7 +8504,7 @@ function renderDashboardExecutionSummary(snapshot) {
     ? `${snapshot.completedCount} of ${snapshot.scheduledCount} scheduled classes are completed on ${formatDisplayDate(snapshot.date)}.`
     : `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`;
   if (completionFill) completionFill.style.width = `${snapshot.completionPercent.toFixed(1)}%`;
-  rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, "No scheduled classes for today.", 5);
+  rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, "No scheduled classes for today.", 6);
   if (detailAttentionValue) detailAttentionValue.textContent = String(snapshot.attentionTotal);
   if (detailAttentionNote) detailAttentionNote.textContent = snapshot.attentionTotal
     ? `Open today: ${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
@@ -8460,15 +8512,15 @@ function renderDashboardExecutionSummary(snapshot) {
   const chipsHost = document.getElementById("dashboard-needs-attention-chips");
   if (chipsHost) {
     chipsHost.innerHTML = [
-      { label: "Attendance Open", value: snapshot.needsAttendanceCount },
-      { label: "Classes Open", value: snapshot.needsCompletionCount },
-      { label: "Grades Open", value: snapshot.needsGradeCount },
-      { label: "Overrides Active", value: snapshot.overrideCount }
+      { label: "Attendance Open", value: snapshot.needsAttendanceCount, quickFilter: "needs-attendance" },
+      { label: "Classes Open", value: snapshot.needsCompletionCount, quickFilter: "needs-completion" },
+      { label: "Grades Open", value: snapshot.needsGradeCount, quickFilter: "needs-grade" },
+      { label: "Overrides Active", value: snapshot.overrideCount, quickFilter: "overridden" }
     ].map((item) => `
-      <article class="dashboard-chip-card">
+      <button type="button" class="dashboard-chip-card" data-dashboard-open-school-day="1" data-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-school-day-quick-filter="${item.quickFilter}">
         <p class="dashboard-chip-label">${item.label}</p>
         <p class="dashboard-chip-value">${item.value}</p>
-      </article>`).join("");
+      </button>`).join("");
   }
 }
 
@@ -8514,6 +8566,7 @@ function renderDashboardMissingGradesSummary(snapshot) {
       <td>${escapeHtml(row.subjectName)}</td>
       <td>${escapeHtml(row.timeLabel)}</td>
       <td>${escapeHtml(row.statusLabel)}</td>
+      <td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-school-day-tab="grades" data-date="${snapshot.date}" data-student-id="${row.studentId}" data-course-id="${row.courseId}">Open</button></td>
     </tr>`);
   if (overviewValue) overviewValue.textContent = String(snapshot.count);
   if (overviewNote) overviewNote.textContent = snapshot.count
@@ -8523,7 +8576,7 @@ function renderDashboardMissingGradesSummary(snapshot) {
   if (detailNote) detailNote.textContent = snapshot.count
     ? `${snapshot.count} completed class${snapshot.count === 1 ? "" : "es"} are still awaiting grades for ${formatDisplayDate(snapshot.date)}.`
     : `No completed classes are waiting on grades for ${formatDisplayDate(snapshot.date)}.`;
-  rowOrEmpty(document.getElementById("dashboard-missing-grades-table"), rows, "No completed classes are waiting on grades today.", 5);
+  rowOrEmpty(document.getElementById("dashboard-missing-grades-table"), rows, "No completed classes are waiting on grades today.", 6);
 }
 
 function renderDashboardGradeRiskSummary(snapshot) {
@@ -10185,7 +10238,11 @@ function bindEvents() {
         overviewDefault: document.getElementById("admin-config-school-day-overview-default")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.overviewDefault
       },
       dashboard: {
-        showKpiCards: !!document.getElementById("admin-config-dashboard-show-kpi-cards")?.checked,
+        showCompletionToday: !!document.getElementById("admin-config-dashboard-show-completion-today")?.checked,
+        showNeedsAttentionToday: !!document.getElementById("admin-config-dashboard-show-needs-attention-today")?.checked,
+        showMissingGrades: !!document.getElementById("admin-config-dashboard-show-missing-grades")?.checked,
+        showGradeRiskWatchlist: !!document.getElementById("admin-config-dashboard-show-grade-risk-watchlist")?.checked,
+        showInstructionHourPace: !!document.getElementById("admin-config-dashboard-show-instruction-hour-pace")?.checked,
         showStudentPerformance: !!document.getElementById("admin-config-dashboard-show-student-performance")?.checked,
         showStudentAttendance: !!document.getElementById("admin-config-dashboard-show-student-attendance")?.checked,
         showStudentInstructionalHours: !!document.getElementById("admin-config-dashboard-show-student-instructional-hours")?.checked,
@@ -12353,6 +12410,22 @@ function bindEvents() {
         renderTests();
       }
       activateTab(schoolDayOpenTab);
+      return;
+    }
+    const dashboardSchoolDayTarget = t.closest("[data-dashboard-open-school-day]");
+    if (dashboardSchoolDayTarget instanceof HTMLElement) {
+      const date = dashboardSchoolDayTarget.getAttribute("data-date") || todayISO();
+      const schoolDayTab = dashboardSchoolDayTarget.getAttribute("data-school-day-tab") || "daily-schedule";
+      const studentId = dashboardSchoolDayTarget.getAttribute("data-student-id") || "";
+      const courseId = dashboardSchoolDayTarget.getAttribute("data-course-id") || "";
+      const quickFilter = dashboardSchoolDayTarget.getAttribute("data-school-day-quick-filter") || "";
+      openSchoolDayFromDashboard({
+        date,
+        tab: schoolDayTab,
+        studentIds: studentId ? [studentId] : [],
+        courseIds: courseId ? [courseId] : [],
+        quickFilter
+      });
       return;
     }
     const schoolDayAttendanceSaveStudentId = t.getAttribute("data-school-day-attendance-save");

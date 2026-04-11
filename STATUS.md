@@ -1,6 +1,6 @@
 # Status Board
 
-Date: 2026-04-04
+Date: 2026-04-10
 
 ## Done
 - Completed the MVP/local-first app with student, curriculum, planning, attendance, grades, dashboard, and report functionality.
@@ -20,6 +20,30 @@ Date: 2026-04-04
   - Grade Risk / Course Watchlist
   - Missing Grades
 - Reframed the roadmap around a production-ready single-tenant deployment as the prerequisite for later SaaS multi-tenancy.
+- Implemented the first `School Day` hub in the app:
+  - sidebar entry and dedicated workspace
+  - shared date plus student/subject/course filters
+  - internal `Daily Schedule`, `Attendance`, and `Grades` tabs
+  - quick filters, student summaries, and side-by-side daily overview
+  - inline grade entry from schedule rows
+  - same-day instructor/start-time/minutes editing plus reset and reorder actions
+- Implemented the tabbed Dashboard operational slice in the app:
+  - `Overview`, `Execution`, `Performance`, and `Compliance` tabs
+  - Completion Today
+  - Open Items Today / Needs Attention
+  - Missing Grades
+  - Instruction Hour Pace
+  - Grade Risk / Course Watchlist
+- Added the first Dashboard-to-`School Day` drill-down path for operational follow-through:
+  - `Execution` attention chips can open `School Day` with the matching quick filter
+  - `Completion Today` rows can open filtered `School Day` daily schedule for that student/date
+  - `Missing Grades` rows can open filtered `School Day` grades context for that student/course/date
+- Refined `Administration > Workspace Configuration > Dashboard Visibility` so it now:
+  - groups optional dashboard controls by `Execution`, `Performance`, and `Compliance`
+  - keeps `Overview` fixed as the dashboard landing state
+  - persists the new non-Overview gauge toggles correctly in hosted mode
+  - uses more intentional defaults with operational gauges on and denser trend/history extras off until explicitly enabled
+- Implemented the top-level `Administration` workspace so School Day and Dashboard visibility/default settings can be configured directly in the app alongside instructor and user administration.
 
 ## In Progress
 - Milestone 4 planning: production single-tenant platform on Debian, Apache, Node.js, and PostgreSQL.
@@ -562,9 +586,14 @@ Date: 2026-04-04
 - The preferred delivery model is locked in as:
   - `hub model first`
   - `true daily execution layer later`
-- The next coding slice is now clearly defined:
-  - add the `School Day` sidebar entry and shell
-  - introduce shared date/filter context across the new workspace
-  - render the current Calendar daily view inside the new tab
-  - add inline grade entry from daily schedule rows
-  - follow with attendance integration and only then evaluate deeper persistence changes for same-day schedule overrides
+- The first major coding slice is already live in `web/`:
+  - `School Day` sidebar entry and workspace shell
+  - shared daily context with student/subject/course filtering
+  - `Daily Schedule`, `Attendance`, and `Grades` subtabs
+  - inline grade entry from daily schedule rows
+  - attendance integration and same-day schedule editing/reset/reorder actions
+  - optional student summaries and side-by-side overview controlled through Administration workspace settings
+- The next coding slice is now better defined as:
+  - decide whether to prioritize ordered schedule-block cutover or deeper `School Day` execution-layer persistence next
+  - keep `Calendar` and `School Day` generation aligned as the ordered schedule-block work lands
+  - add any remaining daily workflow ergonomics only if they materially improve the shipped hub rather than duplicating existing pages

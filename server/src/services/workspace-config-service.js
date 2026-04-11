@@ -17,15 +17,19 @@ const DEFAULT_WORKSPACE_CONFIG = {
     overviewDefault: "collapsed"
   },
   dashboard: {
-    showKpiCards: true,
+    showCompletionToday: true,
+    showNeedsAttentionToday: true,
+    showMissingGrades: true,
+    showGradeRiskWatchlist: true,
+    showInstructionHourPace: true,
     showStudentPerformance: true,
     showStudentAttendance: true,
     showStudentInstructionalHours: true,
-    showGradeTrending: true,
-    showGpaTrending: true,
-    showInstructionalHoursTrending: true,
-    showGradeTypeVolume: true,
-    showWorkDistribution: true
+    showGradeTrending: false,
+    showGpaTrending: false,
+    showInstructionalHoursTrending: false,
+    showGradeTypeVolume: false,
+    showWorkDistribution: false
   }
 };
 
@@ -80,7 +84,11 @@ function normalizeWorkspaceConfigPayload(input) {
       )
     },
     dashboard: {
-      showKpiCards: normalizeBoolean(dashboard.showKpiCards, DEFAULT_WORKSPACE_CONFIG.dashboard.showKpiCards),
+      showCompletionToday: normalizeBoolean(dashboard.showCompletionToday, DEFAULT_WORKSPACE_CONFIG.dashboard.showCompletionToday),
+      showNeedsAttentionToday: normalizeBoolean(dashboard.showNeedsAttentionToday, DEFAULT_WORKSPACE_CONFIG.dashboard.showNeedsAttentionToday),
+      showMissingGrades: normalizeBoolean(dashboard.showMissingGrades, DEFAULT_WORKSPACE_CONFIG.dashboard.showMissingGrades),
+      showGradeRiskWatchlist: normalizeBoolean(dashboard.showGradeRiskWatchlist, DEFAULT_WORKSPACE_CONFIG.dashboard.showGradeRiskWatchlist),
+      showInstructionHourPace: normalizeBoolean(dashboard.showInstructionHourPace, DEFAULT_WORKSPACE_CONFIG.dashboard.showInstructionHourPace),
       showStudentPerformance: normalizeBoolean(dashboard.showStudentPerformance, DEFAULT_WORKSPACE_CONFIG.dashboard.showStudentPerformance),
       showStudentAttendance: normalizeBoolean(dashboard.showStudentAttendance, DEFAULT_WORKSPACE_CONFIG.dashboard.showStudentAttendance),
       showStudentInstructionalHours: normalizeBoolean(dashboard.showStudentInstructionalHours, DEFAULT_WORKSPACE_CONFIG.dashboard.showStudentInstructionalHours),

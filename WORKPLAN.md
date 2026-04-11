@@ -49,7 +49,7 @@
   - [x] Refactor frontend login/bootstrap to use backend auth
   - [x] Create Debian/Apache deployment assets and runbooks
   - [x] Define PostgreSQL repository transition plan for hosted runtime
-  - [ ] Run production readiness smoke checks
+  - [x] Run staged production-readiness smoke and workflow checks
 
 ## Milestone 5: Multi-Tenant SaaS Foundation (Planned)
 - Owner: CEO Orchestrator
@@ -183,8 +183,15 @@
    - [x] Define the School Day hub concept as an implementation-ready spec package.
    - [x] Decide that the first version should be a hub model, not the full persisted execution layer.
    - [x] Define the phased rollout from shared shell to inline grade entry, attendance integration, and execution-layer-ready daily overrides.
-   - [ ] Confirm the first-pass shared filter set and whether inline attendance lands in the first coding slice.
-   - [ ] Implement Phase 1: `School Day` sidebar entry, page shell, shared date context, and internal tabs.
+   - [x] Confirm the first-pass shared filter set for the initial hub rollout and keep attendance in the dedicated `Attendance` tab rather than adding a separate row-level inline attendance action first.
+   - [x] Implement the `School Day` sidebar entry, page shell, shared date context, and internal tabs.
+   - [x] Implement the first hosted `School Day` hub behaviors:
+     - shared student/subject/course filters and quick filters
+     - `Daily Schedule`, `Attendance`, and `Grades` tabs
+     - inline grade entry from schedule rows
+     - same-day instructor/start-time/minutes editing plus reset/reorder actions
+     - student summary cards and side-by-side overview support
+   - [ ] Decide whether the next `School Day` slice should focus on ordered schedule-block cutover, deeper execution-layer persistence, or additional daily workflow ergonomics.
 12. Prepare the ordered schedule-block replacement for fixed-time lunch and breaks.
    - [x] Define the ordered schedule-block model as an implementation-ready spec package.
    - [x] Decide that lunch, recess, and other breaks should behave like orderable schedule items but remain non-academic blocks under the hood.
@@ -201,6 +208,11 @@
      - Grade Risk / Course Watchlist
      - Missing Grades
    - [x] Decide that Dashboard should add internal tabs grouped by purpose before stacking more gauges onto one page.
-   - [ ] Implement the dashboard tab shell (`Overview`, `Execution`, `Performance`, `Compliance`).
-   - [ ] Implement the `Execution` tab first with Completion Today, Needs Attention Today, and Missing Grades.
-   - [ ] Implement Instruction Hour Pace and Grade Risk / Course Watchlist after the Execution tab lands cleanly.
+   - [x] Implement the dashboard tab shell (`Overview`, `Execution`, `Performance`, `Compliance`).
+   - [x] Implement the `Execution` tab with Completion Today, Needs Attention Today, and Missing Grades.
+   - [x] Implement Instruction Hour Pace and Grade Risk / Course Watchlist on the new tabbed dashboard.
+   - [x] Group `Administration > Workspace Configuration > Dashboard Visibility` by `Execution`, `Performance`, and `Compliance` rather than adding nested configuration tabs.
+   - [x] Make all non-`Overview` dashboard gauges optional and persist those hosted workspace settings correctly.
+   - [x] Tune the default dashboard visibility so the first operational/risk gauges start on while denser trend/history extras start off until explicitly enabled.
+   - [x] Add the first `Execution` drill-down links from Dashboard into `School Day` for open-work follow-through.
+   - [ ] Decide the next dashboard follow-up after the shipped tabbed operational slice, including whether to deepen drill-downs beyond `Execution`, add cross-links into `School Day` from more views, or expand compliance reporting.

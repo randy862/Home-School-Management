@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Mitchell Family Home School Management System</title>
-  <link rel="stylesheet" href="styles.css?v=202604091305">
+  <link rel="stylesheet" href="styles.css?v=202604101700">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -146,7 +146,7 @@
         <div class="progress-bar dashboard-metric-progress"><div id="dashboard-completion-today-fill" class="progress-fill"></div></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Scheduled Classes</th><th>Completed</th><th>Open</th><th>Completed Hours</th></tr></thead>
+            <thead><tr><th>Student</th><th>Scheduled Classes</th><th>Completed</th><th>Open</th><th>Completed Hours</th><th>Actions</th></tr></thead>
             <tbody id="dashboard-completion-today-table"></tbody>
           </table>
         </div>
@@ -173,15 +173,15 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Time</th><th>Status</th></tr></thead>
+            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Time</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="dashboard-missing-grades-table"></tbody>
           </table>
         </div>
       </div>
 
       <div id="dashboard-execution-placeholder" class="dashboard-section dashboard-section-placeholder hidden">
-        <h3>Next Dashboard Slice</h3>
-        <p class="muted">Execution and watchlist gauges are live. This space is reserved for the next dashboard enhancement.</p>
+        <h3>Execution Hidden</h3>
+        <p class="muted">All Execution gauges are currently hidden. Re-enable them in Administration > Workspace Configuration if you want this tab to show daily operational work.</p>
       </div>
 
       <div id="dashboard-section-grade-risk-watchlist" class="dashboard-section dashboard-section-student-performance hidden">
@@ -198,6 +198,11 @@
             <tbody id="dashboard-grade-risk-table"></tbody>
           </table>
         </div>
+      </div>
+
+      <div id="dashboard-performance-placeholder" class="dashboard-section dashboard-section-placeholder hidden">
+        <h3>Performance Hidden</h3>
+        <p class="muted">All Performance gauges are currently hidden. Re-enable them in Administration > Workspace Configuration if you want this tab to show academic trends and watchlists.</p>
       </div>
 
       <div id="dashboard-section-instruction-hour-pace" class="dashboard-section dashboard-section-compliance-detail hidden">
@@ -225,6 +230,11 @@
             <p id="dashboard-hour-pace-variance-note" class="dashboard-summary-note muted">Currently on pace.</p>
           </article>
         </div>
+      </div>
+
+      <div id="dashboard-compliance-placeholder" class="dashboard-section dashboard-section-placeholder hidden">
+        <h3>Compliance Hidden</h3>
+        <p class="muted">All Compliance gauges are currently hidden. Re-enable them in Administration > Workspace Configuration if you want this tab to show pacing and record-keeping metrics.</p>
       </div>
 
       <div id="dashboard-section-student-performance" class="dashboard-section dashboard-section-student-performance">
@@ -515,16 +525,33 @@
 
           <section class="administration-config-card">
             <h4>Dashboard Visibility</h4>
-            <div class="administration-config-grid">
-              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-kpi-cards"> <span>Show KPI Summary</span></label>
-              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-performance"> <span>Show Student Performance</span></label>
-              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-attendance"> <span>Show Student Attendance</span></label>
-              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-instructional-hours"> <span>Show Student Instructional Hours</span></label>
-              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-grade-trending"> <span>Show Grade Trending</span></label>
-              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-gpa-trending"> <span>Show GPA Trending</span></label>
-              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instructional-hours-trending"> <span>Show Instructional Hours Trending</span></label>
-              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-grade-type-volume"> <span>Show Grade Type Volume</span></label>
-              <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-work-distribution"> <span>Show Work Distribution</span></label>
+            <div class="dashboard-visibility-group">
+              <h5>Execution Tab</h5>
+              <div class="administration-config-grid">
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-completion-today"> <span>Show Completion Today</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-needs-attention-today"> <span>Show Open Items Today</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-missing-grades"> <span>Show Missing Grades</span></label>
+              </div>
+            </div>
+            <div class="dashboard-visibility-group">
+              <h5>Performance Tab</h5>
+              <div class="administration-config-grid">
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-grade-risk-watchlist"> <span>Show Course Watchlist</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-performance"> <span>Show Student Performance</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-grade-trending"> <span>Show Grade Trending</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-gpa-trending"> <span>Show GPA Trending</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-grade-type-volume"> <span>Show Grade Type Volume</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-work-distribution"> <span>Show Work Distribution</span></label>
+              </div>
+            </div>
+            <div class="dashboard-visibility-group">
+              <h5>Compliance Tab</h5>
+              <div class="administration-config-grid">
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instruction-hour-pace"> <span>Show Instruction Hour Pace</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-attendance"> <span>Show Student Attendance</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-instructional-hours"> <span>Show Student Instructional Hours</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instructional-hours-trending"> <span>Show Instructional Hours Trending</span></label>
+              </div>
             </div>
           </section>
 
@@ -1389,6 +1416,6 @@
       </div>
     </div>
   </main>
-  <script src="app.js?v=202604091305"></script>
+  <script src="app.js?v=202604101700"></script>
 </body>
 </html>

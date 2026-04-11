@@ -109,17 +109,47 @@ Allow defaults for:
 
 #### Visibility controls
 
-Allow toggles for major dashboard sections and gauges.
+Treat `Overview` as the fixed dashboard landing state and group optional controls by the internal dashboard tabs rather than adding nested tabs inside Administration.
 
-Initial candidates:
+Execution group:
 
-- KPI summary cards
+- Completion Today
+- Open Items Today
+- Missing Grades
+
+Performance group:
+
+- Course Watchlist
 - Student Performance
-- Student Instructional Hours
 - Grade Trending
 - GPA Trending
+- Grade Type Volume
+- Work Distribution
+
+Compliance group:
+
+- Instruction Hour Pace
+- Student Attendance
+- Student Instructional Hours
 - Instructional Hours Trending
-- any current report/summary gauge blocks already present
+
+Recommended defaults:
+
+- keep the first operational/risk gauges on by default:
+  - Completion Today
+  - Open Items Today
+  - Missing Grades
+  - Course Watchlist
+  - Instruction Hour Pace
+  - Student Performance
+  - Student Attendance
+  - Student Instructional Hours
+- keep the denser historical/trend extras off by default until the admin explicitly enables them:
+  - Grade Trending
+  - GPA Trending
+  - Instructional Hours Trending
+  - Grade Type Volume
+  - Work Distribution
 
 #### Future-friendly note
 
@@ -192,12 +222,19 @@ Add a tenant-level configuration document or settings table entry that stores:
     "sideBySideOverviewDefaultExpanded": false
   },
   "dashboard": {
-    "showKpiCards": true,
+    "showCompletionToday": true,
+    "showNeedsAttentionToday": true,
+    "showMissingGrades": true,
+    "showGradeRiskWatchlist": true,
+    "showInstructionHourPace": true,
     "showStudentPerformance": true,
+    "showStudentAttendance": true,
     "showStudentInstructionalHours": true,
-    "showGradeTrending": true,
-    "showGpaTrending": true,
-    "showInstructionalHoursTrending": true
+    "showGradeTrending": false,
+    "showGpaTrending": false,
+    "showInstructionalHoursTrending": false,
+    "showGradeTypeVolume": false,
+    "showWorkDistribution": false
   }
 }
 ```
@@ -236,12 +273,19 @@ Payload:
     "sideBySideOverviewDefaultExpanded": false
   },
   "dashboard": {
-    "showKpiCards": true,
+    "showCompletionToday": true,
+    "showNeedsAttentionToday": true,
+    "showMissingGrades": true,
+    "showGradeRiskWatchlist": true,
+    "showInstructionHourPace": true,
     "showStudentPerformance": true,
+    "showStudentAttendance": true,
     "showStudentInstructionalHours": true,
-    "showGradeTrending": true,
-    "showGpaTrending": true,
-    "showInstructionalHoursTrending": true
+    "showGradeTrending": false,
+    "showGpaTrending": false,
+    "showInstructionalHoursTrending": false,
+    "showGradeTypeVolume": false,
+    "showWorkDistribution": false
   }
 }
 ```
@@ -338,4 +382,5 @@ Mitigation:
    - recommendation: tenant-wide
 3. Should Dashboard support section ordering in v1?
    - recommendation: no, visibility only
-
+4. Should Administration segment Dashboard controls by tab or try to mirror Dashboard with nested tabs?
+   - recommendation: segment with labeled groups (`Execution`, `Performance`, `Compliance`) inside one Dashboard Visibility section

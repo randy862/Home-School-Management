@@ -72,6 +72,9 @@ Contents:
 - School Year Progress
 - Current Quarter Progress
 
+Implementation note:
+- `Overview` remains the fixed dashboard landing state and is not hidden through `Administration > Workspace Configuration`
+
 ### 2. `Execution`
 
 Purpose:
@@ -114,6 +117,18 @@ Tabs solve that by:
 - creating clearer mental models
 - letting the user move between operational, academic, and compliance views
 - aligning naturally with future `Administration > Workspace Configuration` controls
+
+### Administration Alignment
+
+The shipped Administration controls should not introduce nested dashboard tabs inside configuration.
+
+Instead, `Administration > Workspace Configuration > Dashboard Visibility` should present grouped checkbox sections:
+
+- `Execution Tab`
+- `Performance Tab`
+- `Compliance Tab`
+
+That keeps the control surface simple while still matching the internal Dashboard structure.
 
 ## New Gauge Definitions
 
@@ -200,7 +215,7 @@ Supporting tiles or chips:
 ### Visual Recommendation
 
 - grouped status chips or 4 mini cards
-- clicking a category later can deep-link into School Day filtered state
+- clicking a category can deep-link into School Day filtered state
 
 ## 3. Instruction Hour Pace
 
@@ -447,6 +462,8 @@ This is the highest-value first build slice.
 6. Missing Grades provides a useful gap indicator without breaking existing grading features.
 7. Existing dashboard sections continue working within the new grouped-tab structure.
 8. The page remains readable on desktop and mobile.
+9. `Administration > Workspace Configuration` can hide any non-Overview dashboard gauge by grouped tab section without affecting the fixed Overview landing state.
+10. The first `Execution` interactions can jump directly into `School Day` with the relevant date/tab/filter context for follow-through work.
 
 ## Open Questions
 
@@ -454,6 +471,7 @@ This is the highest-value first build slice.
 2. Should Completion Today always use today, or should it optionally follow the School Day reference date?
 3. Should Missing Grades use a stricter rule later than “completed sessions vs recorded grades”?
 4. Should Grade Risk thresholds become configurable in Administration later?
+5. Which non-Execution dashboard views should gain the next deep-link path into School Day or Grades?
 
 ## Recommendation
 
