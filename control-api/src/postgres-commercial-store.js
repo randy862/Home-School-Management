@@ -42,6 +42,47 @@ function mapBillingEventRow(row) {
   };
 }
 
+function mapProvisioningRequestRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    customerAccountId: row.customerAccountId ?? row.customer_account_id,
+    customerSubscriptionId: row.customerSubscriptionId ?? row.customer_subscription_id,
+    commercialPlanId: row.commercialPlanId ?? row.commercial_plan_id,
+    status: row.status,
+    triggerSource: row.triggerSource ?? row.trigger_source,
+    requestedSubdomainLabel: row.requestedSubdomainLabel ?? row.requested_subdomain_label ?? "",
+    tenantId: row.tenantId ?? row.tenant_id ?? null,
+    tenantEnvironmentId: row.tenantEnvironmentId ?? row.tenant_environment_id ?? null,
+    provisioningJobId: row.provisioningJobId ?? row.provisioning_job_id ?? null,
+    resultAccessUrl: row.resultAccessUrl ?? row.result_access_url ?? null,
+    resultSetupTokenIssued: row.resultSetupTokenIssued ?? row.result_setup_token_issued ?? false,
+    failureReason: row.failureReason ?? row.failure_reason ?? null,
+    createdAt: row.createdAt ?? row.created_at ?? null,
+    updatedAt: row.updatedAt ?? row.updated_at ?? null,
+    completedAt: row.completedAt ?? row.completed_at ?? null
+  };
+}
+
+function mapAccessHandoffRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    customerAccountId: row.customerAccountId ?? row.customer_account_id,
+    customerSubscriptionId: row.customerSubscriptionId ?? row.customer_subscription_id,
+    provisioningRequestId: row.provisioningRequestId ?? row.provisioning_request_id,
+    signupStatusToken: row.signupStatusToken ?? row.signup_status_token,
+    tenantUrl: row.tenantUrl ?? row.tenant_url ?? null,
+    adminSetupMode: row.adminSetupMode ?? row.admin_setup_mode,
+    setupToken: row.setupToken ?? row.setup_token ?? null,
+    setupTokenExpiresAt: row.setupTokenExpiresAt ?? row.setup_token_expires_at ?? null,
+    deliveryChannel: row.deliveryChannel ?? row.delivery_channel ?? null,
+    deliveredAt: row.deliveredAt ?? row.delivered_at ?? null,
+    lastViewedAt: row.lastViewedAt ?? row.last_viewed_at ?? null,
+    createdAt: row.createdAt ?? row.created_at ?? null
+  };
+}
+
 function mapCommercialOverviewRow(row) {
   if (!row) return null;
   return {
@@ -130,6 +171,33 @@ async function getPublicCommercialPlanByCode(code) {
   return mapCommercialPlanRow(result.rows[0]);
 }
 
+async function getCommercialPlanById(id) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      code,
+      name,
+      description,
+      billing_interval AS "billingInterval",
+      price_cents AS "priceCents",
+      currency,
+      stripe_product_id AS "stripeProductId",
+      stripe_price_id AS "stripePriceId",
+      is_public AS "isPublic",
+      is_active AS "isActive",
+      sort_order AS "sortOrder",
+      feature_summary_json AS "featureSummary",
+      limits_json AS "limits",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM commercial_plans
+    WHERE id = $1
+    LIMIT 1
+  `, [id]);
+  return mapCommercialPlanRow(result.rows[0]);
+}
+
 function slugify(value) {
   return String(value || "")
     .trim()
@@ -207,6 +275,30 @@ async function createCheckoutCustomerAccount(input) {
   } finally {
     client.release();
   }
+}
+
+async function getCustomerAccountById(id) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      account_name AS "accountName",
+      account_slug AS "accountSlug",
+      status,
+      owner_first_name AS "ownerFirstName",
+      owner_last_name AS "ownerLastName",
+      owner_email AS "ownerEmail",
+      owner_phone AS "ownerPhone",
+      billing_email AS "billingEmail",
+      stripe_customer_id AS "stripeCustomerId",
+      notes,
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM customer_accounts
+    WHERE id = $1
+    LIMIT 1
+  `, [id]);
+  return result.rows[0] || null;
 }
 
 async function createCheckoutSubscription(input) {
@@ -543,6 +635,310 @@ async function updateBillingEventProcessing(stripeEventId, updates = {}) {
   return mapBillingEventRow(result.rows[0]);
 }
 
+async function getProvisioningRequestBySubscriptionId(customerSubscriptionId) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      commercial_plan_id AS "commercialPlanId",
+      status,
+      trigger_source AS "triggerSource",
+      requested_subdomain_label AS "requestedSubdomainLabel",
+      tenant_id AS "tenantId",
+      tenant_environment_id AS "tenantEnvironmentId",
+      provisioning_job_id AS "provisioningJobId",
+      result_access_url AS "resultAccessUrl",
+      result_setup_token_issued AS "resultSetupTokenIssued",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt",
+      completed_at AS "completedAt"
+    FROM provisioning_requests
+    WHERE customer_subscription_id = $1
+    LIMIT 1
+  `, [customerSubscriptionId]);
+  return mapProvisioningRequestRow(result.rows[0]);
+}
+
+async function getProvisioningRequestByJobId(provisioningJobId) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      commercial_plan_id AS "commercialPlanId",
+      status,
+      trigger_source AS "triggerSource",
+      requested_subdomain_label AS "requestedSubdomainLabel",
+      tenant_id AS "tenantId",
+      tenant_environment_id AS "tenantEnvironmentId",
+      provisioning_job_id AS "provisioningJobId",
+      result_access_url AS "resultAccessUrl",
+      result_setup_token_issued AS "resultSetupTokenIssued",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt",
+      completed_at AS "completedAt"
+    FROM provisioning_requests
+    WHERE provisioning_job_id = $1
+    LIMIT 1
+  `, [provisioningJobId]);
+  return mapProvisioningRequestRow(result.rows[0]);
+}
+
+async function getProvisioningRequestByEnvironmentId(tenantEnvironmentId) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      commercial_plan_id AS "commercialPlanId",
+      status,
+      trigger_source AS "triggerSource",
+      requested_subdomain_label AS "requestedSubdomainLabel",
+      tenant_id AS "tenantId",
+      tenant_environment_id AS "tenantEnvironmentId",
+      provisioning_job_id AS "provisioningJobId",
+      result_access_url AS "resultAccessUrl",
+      result_setup_token_issued AS "resultSetupTokenIssued",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt",
+      completed_at AS "completedAt"
+    FROM provisioning_requests
+    WHERE tenant_environment_id = $1
+    LIMIT 1
+  `, [tenantEnvironmentId]);
+  return mapProvisioningRequestRow(result.rows[0]);
+}
+
+async function createProvisioningRequest(input) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    INSERT INTO provisioning_requests (
+      id,
+      customer_account_id,
+      customer_subscription_id,
+      commercial_plan_id,
+      status,
+      trigger_source,
+      requested_subdomain_label,
+      tenant_id,
+      tenant_environment_id,
+      provisioning_job_id,
+      result_access_url,
+      result_setup_token_issued,
+      failure_reason,
+      created_at,
+      updated_at,
+      completed_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW(), $14)
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      commercial_plan_id AS "commercialPlanId",
+      status,
+      trigger_source AS "triggerSource",
+      requested_subdomain_label AS "requestedSubdomainLabel",
+      tenant_id AS "tenantId",
+      tenant_environment_id AS "tenantEnvironmentId",
+      provisioning_job_id AS "provisioningJobId",
+      result_access_url AS "resultAccessUrl",
+      result_setup_token_issued AS "resultSetupTokenIssued",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt",
+      completed_at AS "completedAt"
+  `, [
+    input.id,
+    input.customerAccountId,
+    input.customerSubscriptionId,
+    input.commercialPlanId,
+    input.status,
+    input.triggerSource,
+    input.requestedSubdomainLabel || null,
+    input.tenantId || null,
+    input.tenantEnvironmentId || null,
+    input.provisioningJobId || null,
+    input.resultAccessUrl || null,
+    !!input.resultSetupTokenIssued,
+    input.failureReason || null,
+    input.completedAt || null
+  ]);
+  return mapProvisioningRequestRow(result.rows[0]);
+}
+
+async function updateProvisioningRequest(id, updates = {}) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    UPDATE provisioning_requests
+    SET
+      status = COALESCE($2, status),
+      tenant_id = COALESCE($3, tenant_id),
+      tenant_environment_id = COALESCE($4, tenant_environment_id),
+      provisioning_job_id = COALESCE($5, provisioning_job_id),
+      result_access_url = COALESCE($6, result_access_url),
+      result_setup_token_issued = COALESCE($7, result_setup_token_issued),
+      failure_reason = $8,
+      updated_at = NOW(),
+      completed_at = CASE
+        WHEN $9 IS NOT NULL THEN $9
+        WHEN COALESCE($2, status) IN ('ready', 'failed', 'canceled') THEN COALESCE(completed_at, NOW())
+        ELSE completed_at
+      END
+    WHERE id = $1
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      commercial_plan_id AS "commercialPlanId",
+      status,
+      trigger_source AS "triggerSource",
+      requested_subdomain_label AS "requestedSubdomainLabel",
+      tenant_id AS "tenantId",
+      tenant_environment_id AS "tenantEnvironmentId",
+      provisioning_job_id AS "provisioningJobId",
+      result_access_url AS "resultAccessUrl",
+      result_setup_token_issued AS "resultSetupTokenIssued",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt",
+      completed_at AS "completedAt"
+  `, [
+    id,
+    updates.status || null,
+    updates.tenantId || null,
+    updates.tenantEnvironmentId || null,
+    updates.provisioningJobId || null,
+    updates.resultAccessUrl || null,
+    typeof updates.resultSetupTokenIssued === "boolean" ? updates.resultSetupTokenIssued : null,
+    updates.failureReason || null,
+    updates.completedAt || null
+  ]);
+  return mapProvisioningRequestRow(result.rows[0]);
+}
+
+async function getAccessHandoffByProvisioningRequestId(provisioningRequestId) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      provisioning_request_id AS "provisioningRequestId",
+      signup_status_token AS "signupStatusToken",
+      tenant_url AS "tenantUrl",
+      admin_setup_mode AS "adminSetupMode",
+      setup_token AS "setupToken",
+      setup_token_expires_at AS "setupTokenExpiresAt",
+      delivery_channel AS "deliveryChannel",
+      delivered_at AS "deliveredAt",
+      last_viewed_at AS "lastViewedAt",
+      created_at AS "createdAt"
+    FROM access_handoffs
+    WHERE provisioning_request_id = $1
+    ORDER BY created_at DESC
+    LIMIT 1
+  `, [provisioningRequestId]);
+  return mapAccessHandoffRow(result.rows[0]);
+}
+
+async function createAccessHandoff(input) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    INSERT INTO access_handoffs (
+      id,
+      customer_account_id,
+      customer_subscription_id,
+      provisioning_request_id,
+      signup_status_token,
+      tenant_url,
+      admin_setup_mode,
+      setup_token,
+      setup_token_expires_at,
+      delivery_channel,
+      delivered_at,
+      last_viewed_at,
+      created_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      provisioning_request_id AS "provisioningRequestId",
+      signup_status_token AS "signupStatusToken",
+      tenant_url AS "tenantUrl",
+      admin_setup_mode AS "adminSetupMode",
+      setup_token AS "setupToken",
+      setup_token_expires_at AS "setupTokenExpiresAt",
+      delivery_channel AS "deliveryChannel",
+      delivered_at AS "deliveredAt",
+      last_viewed_at AS "lastViewedAt",
+      created_at AS "createdAt"
+  `, [
+    input.id,
+    input.customerAccountId,
+    input.customerSubscriptionId,
+    input.provisioningRequestId,
+    input.signupStatusToken,
+    input.tenantUrl || null,
+    input.adminSetupMode || "pending",
+    input.setupToken || null,
+    input.setupTokenExpiresAt || null,
+    input.deliveryChannel || null,
+    input.deliveredAt || null,
+    input.lastViewedAt || null
+  ]);
+  return mapAccessHandoffRow(result.rows[0]);
+}
+
+async function updateAccessHandoffByProvisioningRequestId(provisioningRequestId, updates = {}) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    UPDATE access_handoffs
+    SET
+      tenant_url = COALESCE($2, tenant_url),
+      admin_setup_mode = COALESCE($3, admin_setup_mode),
+      setup_token = COALESCE($4, setup_token),
+      setup_token_expires_at = COALESCE($5, setup_token_expires_at),
+      delivery_channel = COALESCE($6, delivery_channel),
+      delivered_at = COALESCE($7, delivered_at),
+      last_viewed_at = COALESCE($8, last_viewed_at)
+    WHERE provisioning_request_id = $1
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      provisioning_request_id AS "provisioningRequestId",
+      signup_status_token AS "signupStatusToken",
+      tenant_url AS "tenantUrl",
+      admin_setup_mode AS "adminSetupMode",
+      setup_token AS "setupToken",
+      setup_token_expires_at AS "setupTokenExpiresAt",
+      delivery_channel AS "deliveryChannel",
+      delivered_at AS "deliveredAt",
+      last_viewed_at AS "lastViewedAt",
+      created_at AS "createdAt"
+  `, [
+    provisioningRequestId,
+    updates.tenantUrl || null,
+    updates.adminSetupMode || null,
+    updates.setupToken || null,
+    updates.setupTokenExpiresAt || null,
+    updates.deliveryChannel || null,
+    updates.deliveredAt || null,
+    updates.lastViewedAt || null
+  ]);
+  return mapAccessHandoffRow(result.rows[0]);
+}
+
 async function getPublicSignupStatusByToken(token) {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -736,20 +1132,30 @@ async function listCommercialOverview() {
 }
 
 module.exports = {
+  createAccessHandoff,
   createBillingEvent,
   createCheckoutCustomerAccount,
   createCheckoutSessionRecord,
   createCheckoutSubscription,
+  createProvisioningRequest,
   getBillingEventByStripeEventId,
+  getCommercialPlanById,
+  getCustomerAccountById,
+  getAccessHandoffByProvisioningRequestId,
   getCheckoutSessionByStripeSessionId,
   getPublicCommercialPlanByCode,
   getPublicSignupStatusByToken,
+  getProvisioningRequestByJobId,
+  getProvisioningRequestByEnvironmentId,
+  getProvisioningRequestBySubscriptionId,
   getSubscriptionByStripeCheckoutSessionId,
   listCommercialOverview,
   listPublicCommercialPlans
   ,
   markCheckoutSessionCompleted,
+  updateAccessHandoffByProvisioningRequestId,
   updateBillingEventProcessing,
   updateCustomerAccountStatus,
+  updateProvisioningRequest,
   updateSubscriptionByStripeCheckoutSessionId
 };

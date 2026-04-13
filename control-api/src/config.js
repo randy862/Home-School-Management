@@ -92,6 +92,19 @@ module.exports = {
     checkoutSuccessUrl: String(process.env.PUBLIC_CHECKOUT_SUCCESS_URL || "").trim(),
     checkoutCancelUrl: String(process.env.PUBLIC_CHECKOUT_CANCEL_URL || "").trim()
   },
+  commercialProvisioning: {
+    environmentKey: String(process.env.CONTROL_COMMERCIAL_ENVIRONMENT_KEY || "production").trim() || "production",
+    environmentDisplayName: String(process.env.CONTROL_COMMERCIAL_ENVIRONMENT_DISPLAY_NAME || "Production").trim() || "Production",
+    appHost: String(process.env.CONTROL_COMMERCIAL_DEFAULT_APP_HOST || "").trim(),
+    webHost: String(process.env.CONTROL_COMMERCIAL_DEFAULT_WEB_HOST || "").trim(),
+    databaseHost: String(process.env.CONTROL_COMMERCIAL_DEFAULT_DATABASE_HOST || "").trim(),
+    databaseName: String(process.env.CONTROL_COMMERCIAL_DEFAULT_DATABASE_NAME || "").trim(),
+    defaultTenantStatus: String(process.env.CONTROL_COMMERCIAL_DEFAULT_TENANT_STATUS || "provisioning").trim().toLowerCase() || "provisioning",
+    defaultEnvironmentStatus: String(process.env.CONTROL_COMMERCIAL_DEFAULT_ENVIRONMENT_STATUS || "provisioning").trim().toLowerCase() || "provisioning",
+    setupTokenTtlHours: Number(process.env.CONTROL_COMMERCIAL_SETUP_TOKEN_TTL_HOURS || 24),
+    provisioningJobMaxAttempts: Number(process.env.CONTROL_COMMERCIAL_PROVISIONING_JOB_MAX_ATTEMPTS || 3),
+    setupTokenJobMaxAttempts: Number(process.env.CONTROL_COMMERCIAL_SETUP_TOKEN_JOB_MAX_ATTEMPTS || 3)
+  },
   postgres: {
     host: process.env.CONTROL_PGHOST || process.env.PGHOST || "127.0.0.1",
     port: Number(process.env.CONTROL_PGPORT || process.env.PGPORT || 5432),

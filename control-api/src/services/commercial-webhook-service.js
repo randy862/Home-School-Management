@@ -1,5 +1,6 @@
 async function processStripeBillingEvent(event, deps) {
   const {
+    ensureCommercialProvisioningForSubscription,
     createBillingEvent,
     getBillingEventByStripeEventId,
     getCheckoutSessionByStripeSessionId,
@@ -27,6 +28,7 @@ async function processStripeBillingEvent(event, deps) {
 
   try {
     const result = await handleStripeEventByType(event, {
+      ensureCommercialProvisioningForSubscription,
       getCheckoutSessionByStripeSessionId,
       getSubscriptionByStripeCheckoutSessionId,
       markCheckoutSessionCompleted,
@@ -70,12 +72,14 @@ async function handleStripeEventByType(event, deps) {
       stripeSubscriptionId: String(object.subscription || "").trim() || null
     });
     await deps.updateCustomerAccountStatus(checkoutSession.customerAccountId, "active");
+    const provisioning = await deps.ensureCommercialProvisioningForSubscription(checkoutSession, subscription);
 
     return {
       processingStatus: "processed",
       customerAccountId: checkoutSession.customerAccountId,
       customerSubscriptionId: subscription?.id || null,
-      checkoutSessionId
+      checkoutSessionId,
+      provisioningRequestId: provisioning?.provisioningRequest?.id || null
     };
   }
 

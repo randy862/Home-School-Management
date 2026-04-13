@@ -72,6 +72,7 @@ function createTenantRuntimeAutomation(config) {
       await fs.mkdir(runtimeBundleDir, { recursive: true });
       await fs.writeFile(tokenPath, `${parsed.token}\n`, { encoding: "utf8", mode: 0o600 });
       return {
+        token: parsed.token,
         tokenPath,
         expiresAt: parsed.expiresAt
       };

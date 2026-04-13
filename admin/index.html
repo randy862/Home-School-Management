@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Home School Management Control Plane</title>
-  <link rel="stylesheet" href="styles.css?v=202604022355">
+  <link rel="stylesheet" href="styles.css?v=202604122120">
 </head>
 <body data-api-base="/control-api">
   <main class="admin-shell">
@@ -129,15 +129,16 @@
           <div id="tenant-panel-head" class="panel-head">
             <div>
               <h2>Customers</h2>
-              <p class="panel-copy">Manage customer organizations, contacts, plan details, and the URLs they use to access the platform.</p>
+              <p class="panel-copy">Manage customer organizations, contacts, plan details, commercial readiness, and the URLs they use to access the platform.</p>
             </div>
             <button id="tenant-open-create-btn" type="button" class="primary-btn">Create Customer</button>
           </div>
+          <div id="tenant-summary" class="mini-metrics-grid"></div>
           <div id="tenant-detail-shell" class="detail-card hidden">
             <div class="detail-toolbar">
               <div>
                 <strong>Customer Details</strong>
-                <p class="detail-copy">Review the selected customer record before editing or creating environments.</p>
+                <p class="detail-copy">Review the selected customer record, commercial snapshot, and environment footing before editing or creating environments.</p>
               </div>
               <div class="operator-actions">
                 <button id="tenant-detail-edit-btn" type="button" class="secondary-btn">Edit</button>
@@ -332,6 +333,6 @@
       </section>
     </section>
   </main>
-  <script src="app.js?v=202604021500"></script>
+  <script src="app.js?v=202604122120"></script>
 </body>
 </html>

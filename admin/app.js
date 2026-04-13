@@ -45,6 +45,7 @@ const refs = {
   attentionSummary: document.getElementById("attention-summary"),
   tenantList: document.getElementById("tenant-list"),
   tenantPanelHead: document.getElementById("tenant-panel-head"),
+  tenantSummary: document.getElementById("tenant-summary"),
   tenantDetailShell: document.getElementById("tenant-detail-shell"),
   tenantDetailBody: document.getElementById("tenant-detail-body"),
   commercialPanelHead: document.getElementById("commercial-panel-head"),
@@ -249,6 +250,7 @@ function renderLists() {
     ? `${failedJobs} operation${failedJobs === 1 ? "" : "s"} need review, with ${inFlightJobs} still in progress.`
     : (inFlightJobs ? `${inFlightJobs} operation${inFlightJobs === 1 ? "" : "s"} currently in progress.` : "No failed or in-progress work needs attention.");
 
+  if (refs.tenantSummary) refs.tenantSummary.innerHTML = renderTenantSummary(state.tenants, state.commercialRecords);
   refs.tenantList.innerHTML = renderTenantTable(state.tenants);
   if (refs.commercialSummary) refs.commercialSummary.innerHTML = renderCommercialSummary(state.commercialRecords, activeSubscriptions, provisioningAttention);
   if (refs.commercialList) refs.commercialList.innerHTML = renderCommercialTable(state.commercialRecords);
@@ -290,6 +292,7 @@ function renderTenantTable(tenants) {
             <th>Tenant URL</th>
             <th>Status</th>
             <th>Plan</th>
+            <th>Commercial</th>
             <th></th>
           </tr>
         </thead>
@@ -302,8 +305,9 @@ function renderTenantTable(tenants) {
               <td data-label="Contact Name">${escapeHtml(tenant.primaryContactName || "Not recorded")}</td>
               <td data-label="Contact Email">${escapeHtml(tenant.primaryContactEmail || "Not recorded")}</td>
               <td data-label="Tenant URL">${tenant.primaryDomain ? `<a href="http://${escapeHtml(tenant.primaryDomain)}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded"}</td>
-              <td data-label="Status">${renderStatusTag(tenant.status, "tenant")}</td>
+              <td data-label="Status">${renderStatusTag(tenant.status, "tenant", formatTenantStatus(tenant.status))}</td>
               <td data-label="Plan">${escapeHtml(tenant.planCode || "standard")}</td>
+              <td data-label="Commercial">${renderTenantCommercialCell(tenant)}</td>
               <td data-label="Actions">
                 <div class="table-actions">
                   <button type="button" class="secondary-btn table-action-btn" data-tenant-detail-id="${escapeHtml(tenant.id)}">Details</button>
@@ -318,6 +322,8 @@ function renderTenantTable(tenants) {
 }
 
 function renderTenantDetail(tenant) {
+  const commercialRecord = findCommercialRecordForTenant(tenant.id);
+  const tenantEnvironments = state.environments.filter((environment) => environment.tenantId === tenant.id);
   refs.tenantDetailShell.classList.remove("hidden");
   syncTenantWorkspaceFocus();
   refs.tenantDetailBody.innerHTML = `
@@ -325,8 +331,8 @@ function renderTenantDetail(tenant) {
       ${renderDetailField("Organization Name", tenant.displayName || "Not recorded")}
       ${renderDetailField("Slug", tenant.slug || "Not recorded")}
       ${renderDetailFieldHtml("Tenant URL", tenant.primaryDomain ? `<a href="http://${escapeHtml(tenant.primaryDomain)}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded")}
-      ${renderDetailField("Domain Type", startCase(tenant.primaryDomainType || "platform_subdomain"))}
-      ${renderDetailField("Status", startCase(tenant.status || "draft"))}
+      ${renderDetailField("Domain Type", formatDomainType(tenant.primaryDomainType || "platform_subdomain"))}
+      ${renderDetailField("Status", formatTenantStatus(tenant.status || "draft"))}
       ${renderDetailField("Subscription Plan", tenant.planCode || "standard")}
       ${renderDetailField("Contact Name", tenant.primaryContactName || "Not recorded")}
       ${renderDetailField("Contact Email", tenant.primaryContactEmail || "Not recorded")}
@@ -335,9 +341,125 @@ function renderTenantDetail(tenant) {
       ${renderDetailField("Updated", formatDateTime(tenant.updatedAt))}
     </div>
     <section class="history-block">
+      <h4>Commercial Snapshot</h4>
+      <div class="detail-grid detail-grid-compact">
+        ${renderDetailField("Commercial Account", commercialRecord?.accountName || "No commercial profile linked")}
+        ${renderDetailField("Billing Contact", commercialRecord ? (commercialRecord.billingEmail || commercialRecord.ownerEmail || "Not recorded") : "Not recorded")}
+        ${renderDetailField("Subscription", commercialRecord?.subscriptionStatus ? formatSubscriptionStatus(commercialRecord.subscriptionStatus) : "Not started")}
+        ${renderDetailField("Provisioning", commercialRecord?.provisioningStatus ? formatProvisioningStatus(commercialRecord.provisioningStatus) : "No provisioning request")}
+        ${renderDetailFieldHtml("Tenant Access", commercialRecord?.tenantUrl || commercialRecord?.resultAccessUrl ? `<a href="${escapeHtml(commercialRecord.tenantUrl || commercialRecord.resultAccessUrl)}" target="_blank" rel="noreferrer">${escapeHtml(commercialRecord.tenantUrl || commercialRecord.resultAccessUrl)}</a>` : "Not issued")}
+        ${renderDetailField("Signup Status Token", commercialRecord?.signupStatusToken || "Not issued")}
+      </div>
+    </section>
+    <section class="history-block">
+      <h4>Environment Footprint</h4>
+      ${renderTenantEnvironmentSummary(tenantEnvironments)}
+    </section>
+    <section class="history-block">
       <h4>Operator Activity</h4>
       ${renderAuditTrail(tenant.auditEntries || [], "No operator activity recorded for this customer yet.")}
     </section>
+  `;
+}
+
+function renderTenantSummary(tenants, records) {
+  const linkedTenantIds = new Set(records.map((record) => String(record.tenantId || "").trim()).filter(Boolean));
+  const billingAttentionCount = records.filter((record) => ["past_due", "unpaid"].includes(String(record.subscriptionStatus || "").toLowerCase())).length;
+  const noCommercialProfileCount = tenants.filter((tenant) => !linkedTenantIds.has(String(tenant.id || "").trim())).length;
+  const readyForHandoffCount = records.filter((record) => ["ready", "awaiting_customer_setup"].includes(String(record.provisioningStatus || "").toLowerCase())).length;
+  const tiles = [
+    {
+      kicker: "Commercially Linked",
+      value: linkedTenantIds.size,
+      copy: linkedTenantIds.size ? `${linkedTenantIds.size} customer${linkedTenantIds.size === 1 ? "" : "s"} already have a commercial profile tied to the control plane.` : "No customer records are linked to a commercial profile yet."
+    },
+    {
+      kicker: "Billing Attention",
+      value: billingAttentionCount,
+      copy: billingAttentionCount ? `${billingAttentionCount} subscription${billingAttentionCount === 1 ? "" : "s"} are past due or unpaid.` : "No linked customers currently show billing trouble."
+    },
+    {
+      kicker: "Ready Handoffs",
+      value: readyForHandoffCount,
+      copy: readyForHandoffCount ? `${readyForHandoffCount} signup${readyForHandoffCount === 1 ? "" : "s"} are ready or awaiting customer setup.` : "No customer handoffs are currently waiting in the final stretch."
+    },
+    {
+      kicker: "Directly Managed",
+      value: noCommercialProfileCount,
+      copy: noCommercialProfileCount ? `${noCommercialProfileCount} customer${noCommercialProfileCount === 1 ? "" : "s"} still exist without a linked commercial profile.` : "Every current customer record is linked to the commercial layer."
+    }
+  ];
+
+  return tiles.map((tile) => `
+    <article class="metric-card mini-metric-card">
+      <span class="status-kicker">${escapeHtml(tile.kicker)}</span>
+      <strong>${escapeHtml(String(tile.value))}</strong>
+      <p class="metric-copy">${escapeHtml(tile.copy)}</p>
+    </article>
+  `).join("");
+}
+
+function findCommercialRecordForTenant(tenantId) {
+  return state.commercialRecords.find((record) => String(record.tenantId || "").trim() === String(tenantId || "").trim()) || null;
+}
+
+function renderTenantCommercialCell(tenant) {
+  const record = findCommercialRecordForTenant(tenant.id);
+  if (!record) {
+    return `
+      <span class="tag commercial-tag">No commercial profile</span>
+      <div class="table-subcopy">Customer is currently managed only through the control plane.</div>
+    `;
+  }
+
+  return `
+    <div class="inline-tag-list">
+      ${record.subscriptionStatus ? renderStatusTag(record.subscriptionStatus, "tenant", formatSubscriptionStatus(record.subscriptionStatus)) : '<span class="tag commercial-tag">Subscription Pending</span>'}
+      ${record.provisioningStatus ? renderStateTag(record.provisioningStatus, "setup", formatProvisioningStatus(record.provisioningStatus)) : '<span class="tag commercial-tag">Provisioning Not Queued</span>'}
+    </div>
+    <div class="table-subcopy">${escapeHtml(record.billingEmail || record.ownerEmail || "No billing email recorded")}</div>
+  `;
+}
+
+function renderTenantEnvironmentSummary(environments) {
+  if (!environments.length) {
+    return '<div class="empty-state">No environments are attached to this customer yet.</div>';
+  }
+
+  return `
+    <div class="environment-footprint-list">
+      ${environments.map((environment) => `
+        <article class="mini-item environment-footprint-card">
+          <div class="environment-footprint-header">
+            <div class="environment-footprint-heading">
+              <span class="eyebrow">Environment</span>
+              <h5>${escapeHtml(environment.displayName || environment.environmentKey || "Environment")}</h5>
+              <p class="environment-footprint-subcopy">${escapeHtml(formatEnvironmentKey(environment.environmentKey) || "No key recorded")}</p>
+            </div>
+            <div class="environment-footprint-status">
+              <div class="environment-footprint-status-group">
+                <span class="detail-label">Runtime Status</span>
+                <div class="detail-badges detail-badges-compact">
+                  ${renderStatusTag(environment.status, "environment", formatEnvironmentStatus(environment.status))}
+                </div>
+              </div>
+              <div class="environment-footprint-status-group">
+                <span class="detail-label">Setup State</span>
+                <div class="detail-badges detail-badges-compact">
+                  ${renderStatusTag(environment.setupState || "uninitialized", "setup", formatSetupState(environment.setupState || "uninitialized"))}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="detail-grid detail-grid-compact">
+            ${renderDetailField("App Base URL", environment.appBaseUrl || "Not recorded")}
+            ${renderDetailField("App Server", environment.appHost || "Not recorded")}
+            ${renderDetailField("Web Server", environment.webHost || "Not recorded")}
+            ${renderDetailField("Database", [environment.databaseHost, environment.databaseName, environment.databaseSchema].filter(Boolean).join(" / ") || "Not recorded")}
+          </div>
+        </article>
+      `).join("")}
+    </div>
   `;
 }
 
@@ -402,8 +524,8 @@ function renderCommercialTable(records) {
                 ${escapeHtml(record.planName || "Plan pending")}
                 <div class="table-subcopy">${escapeHtml(record.planCode || "No plan code")}</div>
               </td>
-              <td data-label="Subscription">${record.subscriptionStatus ? renderStatusTag(record.subscriptionStatus, "tenant") : '<span class="tag">pending</span>'}</td>
-              <td data-label="Provisioning">${record.provisioningStatus ? renderStateTag(record.provisioningStatus, "setup", startCase(record.provisioningStatus)) : '<span class="tag">not queued</span>'}</td>
+              <td data-label="Subscription">${record.subscriptionStatus ? renderStatusTag(record.subscriptionStatus, "tenant", formatSubscriptionStatus(record.subscriptionStatus)) : '<span class="tag">Pending</span>'}</td>
+              <td data-label="Provisioning">${record.provisioningStatus ? renderStateTag(record.provisioningStatus, "setup", formatProvisioningStatus(record.provisioningStatus)) : '<span class="tag">Not Queued</span>'}</td>
               <td data-label="Tenant Access">
                 ${record.tenantUrl || record.resultAccessUrl ? `<a href="${escapeHtml(record.tenantUrl || record.resultAccessUrl)}" target="_blank" rel="noreferrer">${escapeHtml(record.tenantUrl || record.resultAccessUrl)}</a>` : "Not issued"}
                 ${record.signupStatusToken ? `<div class="table-subcopy">Status token: ${escapeHtml(record.signupStatusToken)}</div>` : ""}
@@ -440,10 +562,10 @@ function renderEnvironmentTable(environments) {
               </td>
               <td data-label="Environment">
                 <strong>${escapeHtml(environment.displayName || "Environment")}</strong>
-                <div class="table-subcopy">${escapeHtml(environment.environmentKey || "No key recorded")}</div>
+                <div class="table-subcopy">${escapeHtml(formatEnvironmentKey(environment.environmentKey) || "No key recorded")}</div>
               </td>
               <td data-label="App URL">${environment.appBaseUrl ? `<a href="${escapeHtml(environment.appBaseUrl)}" target="_blank" rel="noreferrer">${escapeHtml(environment.appBaseUrl)}</a>` : "Not recorded"}</td>
-              <td data-label="Status">${renderStatusTag(environment.status, "environment")}</td>
+              <td data-label="Status">${renderStatusTag(environment.status, "environment", formatEnvironmentStatus(environment.status))}</td>
               <td data-label="Setup">${renderStateTag(environment.setupState || "uninitialized", "setup", formatSetupState(environment.setupState || "uninitialized"))}</td>
               <td data-label="Actions">
                 <div class="table-actions">
@@ -480,9 +602,9 @@ function renderJobTable(jobs) {
                 <button type="button" class="text-link-btn" data-job-detail-id="${escapeHtml(job.id)}">${escapeHtml(formatCustomerDisplayName(resolveJobTenantName(job)))}</button>
               </td>
               <td data-label="Operation">${escapeHtml(formatJobType(job.jobType))}</td>
-              <td data-label="Environment">${escapeHtml(resolveEnvironmentName(job.tenantEnvironmentId) || job.tenantEnvironmentId || "Not recorded")}</td>
+              <td data-label="Environment">${escapeHtml(resolveEnvironmentName(job.tenantEnvironmentId) || formatRecordReference("Environment", job.tenantEnvironmentId) || "Not recorded")}</td>
               <td data-label="Requested">${escapeHtml(formatDateTime(job.requestedAt) || "Not recorded")}</td>
-              <td data-label="Status">${renderStatusTag(job.status, "job")}</td>
+              <td data-label="Status">${renderStatusTag(job.status, "job", formatJobStatus(job.status))}</td>
               <td data-label="Actions">
                 <div class="table-actions">
                   <button type="button" class="secondary-btn table-action-btn" data-job-detail-id="${escapeHtml(job.id)}">Details</button>
@@ -521,7 +643,7 @@ function renderUserTable(users) {
               <td data-label="First Name">${escapeHtml(user.firstName || "Not recorded")}</td>
               <td data-label="Last Name">${escapeHtml(user.lastName || "Not recorded")}</td>
               <td data-label="Account Type">${escapeHtml(user.accountType || "Read Only")}</td>
-              <td data-label="Status">${renderStatusTag(user.isActive ? "active" : "inactive", "tenant")}</td>
+              <td data-label="Status">${renderStatusTag(user.isActive ? "active" : "inactive", "tenant", user.isActive ? "Active" : "Inactive")}</td>
               <td data-label="Last Login">${escapeHtml(formatDateTime(user.lastLoginAt) || "Never")}</td>
               <td data-label="Actions">
                 <div class="table-actions">
@@ -574,7 +696,7 @@ function renderEnvironmentDetail(environment) {
     <div class="detail-toolbar">
       <div>
         <strong>Environment Overview</strong>
-        <p class="detail-copy">${escapeHtml(environment.tenantDisplayName || environment.tenantId || "Unknown tenant")} / ${escapeHtml(environment.environmentKey || "environment")}</p>
+        <p class="detail-copy">${escapeHtml(environment.tenantDisplayName || environment.tenantId || "Unknown tenant")} / ${escapeHtml(formatEnvironmentKeyShort(environment.environmentKey) || "Environment")}</p>
       </div>
       <div class="operator-actions">
         <button id="environment-detail-refresh" type="button" class="secondary-btn">Refresh Detail</button>
@@ -582,27 +704,29 @@ function renderEnvironmentDetail(environment) {
       </div>
     </div>
     <div class="detail-badges">
-      ${renderStatusTag(environment.status, "environment")}
-      ${renderStatusTag(environment.setupState || "uninitialized", "setup")}
-      <span class="tag">${escapeHtml(environment.appHost || "no-app-host")}</span>
-      <span class="tag">${escapeHtml(environment.webHost || "no-web-host")}</span>
+      ${renderStatusTag(environment.status, "environment", formatEnvironmentStatus(environment.status))}
+      ${renderStatusTag(environment.setupState || "uninitialized", "setup", formatSetupState(environment.setupState || "uninitialized"))}
+      <span class="tag">${escapeHtml(environment.appHost ? `App Server: ${environment.appHost}` : "App Server Not Assigned")}</span>
+      <span class="tag">${escapeHtml(environment.webHost ? `Web Server: ${environment.webHost}` : "Web Server Not Assigned")}</span>
     </div>
     <div class="detail-grid">
       ${renderDetailField("App Base URL", environment.appBaseUrl)}
+      ${renderDetailField("App Server", environment.appHost || "Not recorded")}
+      ${renderDetailField("Web Server", environment.webHost || "Not recorded")}
       ${renderDetailField("Database", [environment.databaseHost, environment.databaseName, environment.databaseSchema].filter(Boolean).join(" / "))}
       ${renderDetailField("Created", formatDateTime(environment.createdAt))}
       ${renderDetailField("Updated", formatDateTime(environment.updatedAt))}
       ${renderDetailField("Initialized", formatDateTime(environment.initializedAt))}
-      ${renderDetailField("Health", environment.lastHealthStatus ? `${environment.lastHealthStatus} at ${formatDateTime(environment.lastHealthCheckAt)}` : "No health check recorded")}
+      ${renderDetailField("Health", environment.lastHealthStatus ? `${formatHealthStatus(environment.lastHealthStatus)} at ${formatDateTime(environment.lastHealthCheckAt)}` : "No health check recorded")}
     </div>
     <section class="history-block">
       <h4>Action History</h4>
       ${renderTimeline([
         { label: "Environment record created", when: environment.createdAt, tone: "info" },
-        { label: `Runtime status set to ${environment.status || "unknown"}`, when: environment.updatedAt, tone: environment.status === "ready" ? "success" : "info" },
-        { label: `Setup state is ${environment.setupState || "uninitialized"}`, when: environment.updatedAt, tone: environment.setupState === "token_issued" ? "warn" : "info" },
+        { label: `Runtime status updated to ${formatEnvironmentStatus(environment.status) || "Unknown"}`, when: environment.updatedAt, tone: environment.status === "ready" ? "success" : "info" },
+        { label: `Setup state updated to ${formatSetupState(environment.setupState) || "Unknown"}`, when: environment.updatedAt, tone: environment.setupState === "token_issued" ? "warn" : "info" },
         { label: "Environment initialized", when: environment.initializedAt, tone: "success" },
-        { label: `Last health check: ${environment.lastHealthStatus || "unknown"}`, when: environment.lastHealthCheckAt, tone: environment.lastHealthStatus === "healthy" ? "success" : "warn" }
+        { label: `Latest health check: ${formatHealthStatus(environment.lastHealthStatus) || "Unknown"}`, when: environment.lastHealthCheckAt, tone: environment.lastHealthStatus === "healthy" ? "success" : "warn" }
       ])}
     </section>
     <section class="history-block">
@@ -656,28 +780,28 @@ function renderJobDetail(job) {
       </div>
     </div>
     <div class="detail-badges">
-      ${renderStatusTag(job.status, "job")}
-      <span class="tag">${escapeHtml(job.tenantEnvironmentId || "no-environment")}</span>
-      <span class="tag">${escapeHtml(job.tenantId || "no-tenant")}</span>
+      ${renderStatusTag(job.status, "job", formatJobStatus(job.status))}
+      <span class="tag">${escapeHtml(job.tenantEnvironmentId ? formatRecordReference("Environment", job.tenantEnvironmentId) : "Environment Not Linked")}</span>
+      <span class="tag">${escapeHtml(job.tenantId ? formatRecordReference("Customer", job.tenantId) : "Customer Not Linked")}</span>
     </div>
     <div class="detail-grid">
       ${renderDetailField("Requested", formatDateTime(job.requestedAt))}
       ${renderDetailField("Started", formatDateTime(job.startedAt))}
       ${renderDetailField("Completed", formatDateTime(job.completedAt))}
-      ${renderDetailField("Requested By", job.requestedByOperatorUserId)}
+      ${renderDetailField("Requested By", job.requestedByOperatorUserId ? formatRecordReference("Operator", job.requestedByOperatorUserId) : "System")}
       ${renderDetailField("Error", job.errorMessage || job.errorCode || "None")}
-      ${renderDetailField("Idempotency", job.idempotencyKey || "None")}
+      ${renderDetailField("Request Key", job.idempotencyKey || "None")}
     </div>
     ${renderJobDiagnostics(job)}
     ${renderJobResultSummary(job.result || {})}
     ${renderDeploymentSummary(deployment)}
     <section class="history-block">
-      <h4>Lifecycle</h4>
+      <h4>Timeline</h4>
       ${renderTimeline([
         { label: "Operation requested", when: job.requestedAt, tone: "info" },
         { label: "Operation started", when: job.startedAt, tone: "warn" },
         { label: "Operation completed", when: job.completedAt, tone: "success" },
-        { label: `Operation status is ${job.status || "unknown"}`, when: job.completedAt || job.startedAt || job.requestedAt, tone: ["completed", "succeeded"].includes(job.status) ? "success" : "info" }
+        { label: `Operation status is ${formatJobStatus(job.status) || "Unknown"}`, when: job.completedAt || job.startedAt || job.requestedAt, tone: ["completed", "succeeded"].includes(job.status) ? "success" : "info" }
       ])}
     </section>
     <section class="history-block">
@@ -689,11 +813,11 @@ function renderJobDetail(job) {
       ${renderAuditTrail(job.auditEntries || [], "No operator activity recorded for this job yet.")}
     </section>
     <section class="history-block">
-      <h4>Payload</h4>
+      <h4>Request Details</h4>
       <pre>${escapeHtml(JSON.stringify(job.payload || {}, null, 2))}</pre>
     </section>
     <section class="history-block">
-      <h4>Result</h4>
+      <h4>Result Details</h4>
       <pre>${escapeHtml(JSON.stringify(job.result || {}, null, 2))}</pre>
     </section>
   `;
@@ -1460,8 +1584,8 @@ function collectUserPermissions() {
   };
 }
 
-function renderStatusTag(value, kind = "neutral") {
-  return `<span class="tag tag-${escapeHtml(kind)} tag-${escapeHtml(String(value || "unknown").toLowerCase().replace(/[^a-z0-9-]/g, "-"))}">${escapeHtml(value || "unknown")}</span>`;
+function renderStatusTag(value, kind = "neutral", label = null) {
+  return `<span class="tag tag-${escapeHtml(kind)} tag-${escapeHtml(String(value || "unknown").toLowerCase().replace(/[^a-z0-9-]/g, "-"))}">${escapeHtml(label || value || "unknown")}</span>`;
 }
 
 function renderStateTag(value, kind, label) {
@@ -1489,7 +1613,7 @@ function renderDetailFieldHtml(label, value) {
 function renderTimeline(events) {
   const visibleEvents = events.filter((event) => event.when);
   if (!visibleEvents.length) {
-    return '<div class="empty-state">No action history recorded yet.</div>';
+    return '<div class="empty-state">No timeline entries recorded yet.</div>';
   }
   return `
     <div class="timeline">
@@ -1569,7 +1693,7 @@ function renderJobDiagnostics(job) {
   if (!entries.length) return "";
   return `
     <section class="history-block">
-      <h4>Operational Diagnostics</h4>
+      <h4>Support Guidance</h4>
       <p class="panel-copy">${escapeHtml(buildJobDiagnosticSummary(job, childRetries.length))}</p>
       <div class="info-chip-grid">
         ${entries.map((entry) => renderInfoChip(entry.label, entry.value)).join("")}
@@ -1584,7 +1708,7 @@ function renderEventDetails(event) {
   const hasRaw = Object.keys(details).length > 0;
   return `
     ${detailEntries.length ? `<div class="event-meta">${detailEntries.map(({ label, value }) => renderInfoChip(label, value)).join("")}</div>` : ""}
-    ${hasRaw ? `<details class="raw-details compact-details"><summary>Event Details</summary><pre>${escapeHtml(JSON.stringify(details, null, 2))}</pre></details>` : ""}
+    ${hasRaw ? `<details class="raw-details compact-details"><summary>Technical Details</summary><pre>${escapeHtml(JSON.stringify(details, null, 2))}</pre></details>` : ""}
   `;
 }
 
@@ -1615,7 +1739,7 @@ function renderDeploymentSummary(deployment) {
   return `
     <section class="history-block">
       <h4>Deployment</h4>
-      <p class="panel-copy">This job can restart the tenant app on the app host and publish the hosted web assets on the web host.</p>
+      <p class="panel-copy">This operation can update the tenant app on the app server and publish hosted web assets on the web server.</p>
       <div class="deployment-grid">
         ${renderDeploymentCard("App Deploy", deployment.app)}
         ${renderDeploymentCard("Web Deploy", deployment.web)}
@@ -1650,7 +1774,7 @@ function renderDeploymentCard(title, step) {
     <article class="deploy-card">
       <div class="deploy-head">
         <h5>${escapeHtml(title)}</h5>
-        ${renderStatusTag(status, "job")}
+        ${renderStatusTag(status, "job", formatDeploymentStepStatus(status))}
       </div>
       <p class="panel-copy">${escapeHtml(buildDeploySummary(title, step, status))}</p>
       <div class="info-chip-grid">
@@ -1699,7 +1823,7 @@ function eventTone(eventType) {
 function buildJobOutcomeSummary(result) {
   const env = formatEnvironmentStatus(result.environmentStatus) || "Unknown";
   const setup = formatSetupState(result.setupState) || "Unknown";
-  const health = result.health || "unknown";
+  const health = formatHealthStatus(result.health) || "Unknown";
   return `Environment is ${env.toLowerCase()}, setup is ${setup.toLowerCase()}, and runtime health is ${String(health).toLowerCase()}.`;
 }
 
@@ -1753,6 +1877,115 @@ function formatEnvironmentStatus(value) {
   if (normalized === "provisioning") return "Provisioning";
   if (normalized === "pending") return "Pending";
   if (normalized === "degraded") return "Degraded";
+  if (normalized === "archived") return "Archived";
+  return startCase(value);
+}
+
+function formatEnvironmentKey(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  return `Environment Key: ${normalized}`;
+}
+
+function formatEnvironmentKeyShort(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  return startCase(normalized);
+}
+
+function formatTenantStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "draft") return "Draft";
+  if (normalized === "active") return "Active";
+  if (normalized === "suspended") return "Suspended";
+  if (normalized === "decommissioned") return "Decommissioned";
+  if (normalized === "provisioning") return "Provisioning";
+  return startCase(value);
+}
+
+function formatDomainType(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "platform_subdomain") return "Platform Subdomain";
+  if (normalized === "custom_domain") return "Custom Domain";
+  return startCase(value);
+}
+
+function formatSubscriptionStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "active") return "Active";
+  if (normalized === "trialing") return "Trialing";
+  if (normalized === "incomplete") return "Checkout Incomplete";
+  if (normalized === "past_due") return "Past Due";
+  if (normalized === "unpaid") return "Unpaid";
+  if (normalized === "canceled") return "Canceled";
+  return startCase(value);
+}
+
+function formatProvisioningStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "pending_billing_confirmation") return "Waiting For Billing Confirmation";
+  if (normalized === "queued") return "Queued";
+  if (normalized === "provisioning") return "Provisioning In Progress";
+  if (normalized === "awaiting_customer_setup") return "Waiting For Customer Setup";
+  if (normalized === "ready") return "Ready For Customer";
+  if (normalized === "failed") return "Needs Attention";
+  if (normalized === "canceled") return "Canceled";
+  return startCase(value);
+}
+
+function formatJobStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "queued") return "Queued";
+  if (normalized === "running") return "In Progress";
+  if (normalized === "succeeded") return "Completed Successfully";
+  if (normalized === "completed") return "Completed";
+  if (normalized === "failed") return "Needs Attention";
+  if (normalized === "canceled") return "Canceled";
+  return startCase(value);
+}
+
+function formatHealthStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "healthy") return "Healthy";
+  if (normalized === "degraded") return "Degraded";
+  if (normalized === "unhealthy") return "Unhealthy";
+  return startCase(value);
+}
+
+function formatRecordReference(label, value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  return `${label} Record: ${normalized}`;
+}
+
+function formatAuditTarget(targetType, targetId) {
+  const typeLabel = String(targetType || "").trim().toLowerCase();
+  if (!targetId && !typeLabel) return "";
+  if (typeLabel === "tenant") return formatRecordReference("Customer", targetId);
+  if (typeLabel === "tenant_environment") return formatRecordReference("Environment", targetId);
+  if (typeLabel === "provisioning_job") return formatRecordReference("Operation", targetId);
+  if (typeLabel === "operator_user") return formatRecordReference("Operator", targetId);
+  return [startCase(targetType), targetId].filter(Boolean).join(": ");
+}
+
+function formatAuditActionSentence(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "tenant_created") return "created a customer record";
+  if (normalized === "tenant_updated") return "updated a customer record";
+  if (normalized === "environment_created") return "created an environment";
+  if (normalized === "environment_updated") return "updated an environment";
+  if (normalized === "job_created") return "queued an operation";
+  if (normalized === "job_retried") return "queued a follow-up retry";
+  if (normalized === "operator_created") return "created an operator account";
+  if (normalized === "operator_updated") return "updated an operator account";
+  return `recorded ${formatJobType(value).toLowerCase()}`;
+}
+
+function formatDeploymentStepStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "attempted") return "Completed";
+  if (normalized === "skipped") return "Skipped";
+  if (normalized === "pending") return "Not Started";
   return startCase(value);
 }
 
@@ -1774,10 +2007,14 @@ function formatDateTime(value) {
 }
 
 function formatJobType(value) {
-  return String(value || "job")
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "provision_environment") return "Provision Environment";
+  if (normalized === "issue_setup_token") return "Issue Setup Token";
+  if (normalized === "deploy_release") return "Deploy Release";
+  if (normalized === "suspend_tenant") return "Suspend Customer Access";
+  if (normalized === "resume_tenant") return "Resume Customer Access";
+  if (normalized === "decommission_tenant") return "Decommission Customer";
+  return startCase(value || "job");
 }
 
 function formatCustomerDisplayName(value) {
@@ -1787,21 +2024,37 @@ function formatCustomerDisplayName(value) {
 }
 
 function formatJobEventType(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "database_prepared") return "Database Prepared";
+  if (normalized === "runtime_allocated") return "Runtime Assigned";
+  if (normalized === "token_issued") return "Setup Token Issued";
+  if (normalized === "release_registered") return "Release Registered";
+  if (normalized === "app_deploy_completed") return "App Update Completed";
+  if (normalized === "web_deploy_completed") return "Web Update Completed";
   return formatJobType(value);
 }
 
 function formatAuditAction(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "tenant_created") return "Created Customer Record";
+  if (normalized === "tenant_updated") return "Updated Customer Record";
+  if (normalized === "environment_created") return "Created Environment";
+  if (normalized === "environment_updated") return "Updated Environment";
+  if (normalized === "job_created") return "Queued Operation";
+  if (normalized === "job_retried") return "Queued Follow-Up Retry";
+  if (normalized === "operator_created") return "Created Operator Account";
+  if (normalized === "operator_updated") return "Updated Operator Account";
   return formatJobType(value);
 }
 
 function buildAuditSummary(entry) {
   const actor = entry.operatorUsername ? `${entry.operatorUsername}${entry.operatorRole ? ` (${entry.operatorRole})` : ""}` : "System";
-  const target = [entry.targetType, entry.targetId].filter(Boolean).join(" ");
-  return `${actor} recorded ${formatAuditAction(entry.actionType)}${target ? ` on ${target}.` : "."}`;
+  const target = formatAuditTarget(entry.targetType, entry.targetId);
+  return `${actor} ${formatAuditActionSentence(entry.actionType)}${target ? ` for ${target}.` : "."}`;
 }
 
 function buildJobDiagnosticSummary(job, childRetryCount) {
-  const parts = [`This ${formatJobType(job.jobType).toLowerCase()} job is currently ${String(job.status || "unknown").toLowerCase()}.`];
+  const parts = [`This ${formatJobType(job.jobType).toLowerCase()} is currently ${String(formatJobStatus(job.status) || "unknown").toLowerCase()}.`];
   if (job.errorMessage || job.errorCode) {
     parts.push(`Latest failure: ${job.errorMessage || job.errorCode}.`);
   }

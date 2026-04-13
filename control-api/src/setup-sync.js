@@ -7,6 +7,7 @@ function createSetupSyncService(deps) {
     internalConfig,
     listSetupSyncCandidates,
     markTenantEnvironmentInitialized,
+    onEnvironmentInitialized,
     timeoutMs
   } = deps;
 
@@ -17,11 +18,15 @@ function createSetupSyncService(deps) {
       for (const environment of environments) {
         const status = await fetchSetupStatus(environment.appBaseUrl, timeoutMs, internalConfig);
         if (status?.initialized) {
-          updates.push(await markTenantEnvironmentInitialized(environment.id, {
+          const updatedEnvironment = await markTenantEnvironmentInitialized(environment.id, {
             source: "runtime_setup_status",
             appBaseUrl: environment.appBaseUrl,
             setupCompletedAt: status.setupCompletedAt || null
-          }));
+          });
+          if (updatedEnvironment && onEnvironmentInitialized) {
+            await onEnvironmentInitialized(updatedEnvironment);
+          }
+          updates.push(updatedEnvironment);
         }
       }
       return updates.filter(Boolean);
@@ -41,6 +46,9 @@ function createSetupSyncService(deps) {
         appBaseUrl: environment.appBaseUrl,
         setupCompletedAt: status.setupCompletedAt || null
       });
+      if (updatedEnvironment && onEnvironmentInitialized) {
+        await onEnvironmentInitialized(updatedEnvironment);
+      }
       return {
         synchronized: true,
         initialized: true,

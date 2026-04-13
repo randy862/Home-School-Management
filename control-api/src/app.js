@@ -2,6 +2,7 @@ const express = require("express");
 const {
   app: appConfig,
   automation: automationConfig,
+  commercialProvisioning: commercialProvisioningConfig,
   internal: internalConfig,
   session: sessionConfig,
   public: publicConfig,
@@ -50,16 +51,26 @@ const {
   createCheckoutSessionRecord,
   createCheckoutSubscription,
   getBillingEventByStripeEventId,
+  getCommercialPlanById,
+  getCustomerAccountById,
+  getAccessHandoffByProvisioningRequestId,
   getCheckoutSessionByStripeSessionId,
   getPublicCommercialPlanByCode,
   getPublicSignupStatusByToken,
+  getProvisioningRequestByEnvironmentId,
+  getProvisioningRequestByJobId,
+  getProvisioningRequestBySubscriptionId,
   getSubscriptionByStripeCheckoutSessionId,
   listCommercialOverview,
   listPublicCommercialPlans
   ,
+  createAccessHandoff,
+  createProvisioningRequest,
   markCheckoutSessionCompleted,
+  updateAccessHandoffByProvisioningRequestId,
   updateBillingEventProcessing,
   updateCustomerAccountStatus,
+  updateProvisioningRequest,
   updateSubscriptionByStripeCheckoutSessionId
 } = require("./postgres-commercial-store");
 const { applyCors, createOperatorAuthContextMiddleware } = require("./middleware/auth-context");
@@ -75,6 +86,7 @@ const { registerPublicSaasRoutes } = require("./routes/public-saas-routes");
 const { registerRuntimeRoutes } = require("./routes/runtime-routes");
 const { registerTenantRoutes } = require("./routes/tenant-routes");
 const { processStripeBillingEvent } = require("./services/commercial-webhook-service");
+const { createCommercialProvisioningService } = require("./services/commercial-provisioning-service");
 const { createStripeService } = require("./services/stripe-service");
 const { startProvisioningWorker } = require("./provisioning-worker");
 const { createTenantRuntimeAutomation } = require("./tenant-runtime-automation");
@@ -83,10 +95,28 @@ const { createSetupSyncService } = require("./setup-sync");
 const app = express();
 const stripeService = createStripeService(stripeConfig);
 const runtimeAutomation = createTenantRuntimeAutomation(automationConfig);
+const commercialProvisioningService = createCommercialProvisioningService({
+  commercialProvisioningConfig,
+  publicConfig,
+  createAccessHandoff,
+  createProvisioningRequest,
+  createTenant,
+  createTenantEnvironment,
+  getAccessHandoffByProvisioningRequestId,
+  getCommercialPlanById,
+  getCustomerAccountById,
+  getProvisioningRequestByEnvironmentId,
+  getProvisioningRequestByJobId,
+  getProvisioningRequestBySubscriptionId,
+  queueProvisioningJob,
+  updateAccessHandoffByProvisioningRequestId,
+  updateProvisioningRequest
+});
 const setupSyncService = createSetupSyncService({
   internalConfig,
   listSetupSyncCandidates,
   markTenantEnvironmentInitialized,
+  onEnvironmentInitialized: (environment) => commercialProvisioningService.handleEnvironmentInitialized(environment),
   timeoutMs: automationConfig.setupSyncRequestTimeoutMs
 });
 
@@ -124,6 +154,7 @@ registerPublicSaasRoutes(app, {
   listPublicCommercialPlans,
   markCheckoutSessionCompleted,
   processStripeBillingEvent: (event) => processStripeBillingEvent(event, {
+    ensureCommercialProvisioningForSubscription: (checkoutSession, subscription) => commercialProvisioningService.ensureProvisioningForSubscription(checkoutSession, subscription),
     createBillingEvent,
     getBillingEventByStripeEventId,
     getCheckoutSessionByStripeSessionId,
@@ -191,12 +222,14 @@ app.use(errorHandler);
 async function executeProvisioningJob(job) {
   try {
     if (job.jobType === "provision_environment") {
+      await commercialProvisioningService.markProvisioningStarted(job);
       const environment = await getTenantEnvironmentById(job.tenantEnvironmentId);
       if (!environment) {
         throw Object.assign(new Error("Environment not found for provisioning job."), { code: "environment_not_found" });
       }
       const automationResult = await runtimeAutomation.provisionEnvironment(environment, job.payload || {});
-      await completeProvisionEnvironmentJob(job, automationResult);
+      const completed = await completeProvisionEnvironmentJob(job, automationResult);
+      await commercialProvisioningService.handleProvisioningSucceeded(job, completed?.environment || environment);
       return;
     }
     if (job.jobType === "deploy_release") {
@@ -215,6 +248,7 @@ async function executeProvisioningJob(job) {
       }
       const automationResult = await runtimeAutomation.issueSetupToken(environment);
       await completeSetupTokenJob(job, automationResult);
+      await commercialProvisioningService.handleSetupTokenIssued(job, automationResult);
       return;
     }
     if (job.jobType === "suspend_tenant" || job.jobType === "resume_tenant" || job.jobType === "decommission_tenant") {
@@ -260,6 +294,7 @@ async function executeProvisioningJob(job) {
       attemptCount: job.attemptCount || 0,
       maxAttempts: job.maxAttempts || 1
     });
+    await commercialProvisioningService.handleProvisioningFailed(job, error);
   }
 }
 
