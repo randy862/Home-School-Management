@@ -1,5 +1,6 @@
 function registerCurriculumRoutes(app, deps) {
   const {
+    commercialPolicyService,
     curriculumService,
     isPostgresMode,
   } = deps;
@@ -139,6 +140,9 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
+      if (commercialPolicyService) {
+        await commercialPolicyService.assertEnrollmentCreateAllowed(req.body);
+      }
       res.status(201).json(await curriculumService.createEnrollment(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
@@ -161,6 +165,9 @@ function registerCurriculumRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
+      if (commercialPolicyService) {
+        await commercialPolicyService.assertEnrollmentUpdateAllowed({ ...req.body, id: req.params.id });
+      }
       const updated = await curriculumService.updateEnrollment(req.params.id, req.body);
       if (!updated) {
         res.status(404).json({ error: "Enrollment not found." });

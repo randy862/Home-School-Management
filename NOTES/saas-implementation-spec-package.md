@@ -3,6 +3,9 @@
 Date: 2026-04-02
 Owner: Product Architect
 Related: `NOTES/saas-commercial-roadmap.md`
+Also see:
+- `NOTES/saas-backend-schema-and-api.md`
+- `NOTES/subscription-billing-policy.md`
 
 ## Purpose
 
@@ -85,6 +88,7 @@ Fields:
 Notes:
 - `featureSummaryJson` stores landing-page bullets and comparison-table content
 - `limitsJson` stores product constraints such as student count, storage, or support tier when those exist
+- The current pricing and billable-student policy is defined in `NOTES/subscription-billing-policy.md`.
 
 ### 2. Customer Account
 
@@ -252,12 +256,19 @@ Mapping:
 9. `canceled`
    - subscription ended and service is no longer commercially active
 
+10. `dormant`
+   - tenant remains preserved between active school periods
+   - historical reads/reporting remain available
+   - new academic activity is restricted until reactivation
+
 ### Lifecycle Rules
 
 - Browser success redirect does not activate provisioning by itself.
 - Stripe webhook confirmation is the authoritative trigger for `active`.
 - Only `active` or approved `trialing` subscriptions are provisionable.
 - A provisioning failure does not cancel the subscription automatically; it moves the provisioning request to `failed` and requires retry/support handling.
+- Dormant entry is allowed only after the current billing cycle ends.
+- Dormant is a commercial state and policy surface, not a tenant rebuild path.
 - `past_due` does not immediately suspend runtime access.
 - `suspended` should route through control-plane suspend actions.
 - Payment restoration should route through control-plane resume actions.

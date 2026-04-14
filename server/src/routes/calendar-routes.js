@@ -1,6 +1,7 @@
 function registerCalendarRoutes(app, deps) {
   const {
     calendarService,
+    commercialPolicyService,
     isPostgresMode
   } = deps;
 
@@ -274,6 +275,14 @@ function registerCalendarRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
+      const plansPayload = Array.isArray(req.body?.plans)
+        ? req.body.plans
+        : (Array.isArray(req.body) ? req.body : [req.body]);
+      if (commercialPolicyService) {
+        for (const plan of plansPayload) {
+          await commercialPolicyService.assertPlanWriteAllowed(plan);
+        }
+      }
       res.status(201).json(await calendarService.createPlans(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
@@ -285,6 +294,9 @@ function registerCalendarRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
+      if (commercialPolicyService) {
+        await commercialPolicyService.assertPlanWriteAllowed({ ...req.body, id: req.params.id });
+      }
       const updated = await calendarService.updatePlan(req.params.id, req.body);
       if (!updated) {
         res.status(404).json({ error: "Plan not found." });

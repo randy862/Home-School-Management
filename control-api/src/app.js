@@ -48,10 +48,12 @@ const {
 const {
   createCheckoutCustomerAccount,
   createBillingEvent,
+  createCancellationExportRequest,
   createCheckoutSessionRecord,
   createCheckoutSubscription,
   getBillingEventByStripeEventId,
   getCommercialPlanById,
+  getCommercialSubscriptionById,
   getCustomerAccountById,
   getAccessHandoffByProvisioningRequestId,
   getCheckoutSessionByStripeSessionId,
@@ -61,6 +63,7 @@ const {
   getProvisioningRequestByJobId,
   getProvisioningRequestBySubscriptionId,
   getSubscriptionByStripeCheckoutSessionId,
+  listCancellationExportRequestsBySubscriptionId,
   listCommercialOverview,
   listPublicCommercialPlans
   ,
@@ -69,6 +72,7 @@ const {
   markCheckoutSessionCompleted,
   updateAccessHandoffByProvisioningRequestId,
   updateBillingEventProcessing,
+  updateCommercialSubscription,
   updateCustomerAccountStatus,
   updateProvisioningRequest,
   updateSubscriptionByStripeCheckoutSessionId
@@ -174,7 +178,12 @@ registerAuditRoutes(app, {
   listOperatorAuditLog
 });
 registerControlCommercialRoutes(app, {
+  createCancellationExportRequest,
+  getCommercialSubscriptionById,
+  listCancellationExportRequestsBySubscriptionId,
   listCommercialOverview
+  ,
+  updateCommercialSubscription
 });
 registerOperatorAuthRoutes(app, {
   countOperators,

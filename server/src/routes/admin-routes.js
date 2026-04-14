@@ -22,6 +22,7 @@ function registerAdminRoutes(app, deps) {
     updateStudent,
     updateUser,
     createStudent,
+    commercialPolicyService,
     getWorkspaceConfig,
     saveWorkspaceConfig
   } = deps;
@@ -158,6 +159,9 @@ function registerAdminRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
+      if (commercialPolicyService) {
+        await commercialPolicyService.assertStudentCreateAllowed();
+      }
       res.status(201).json(await createStudent(normalizeStudentPayload(req.body)));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });

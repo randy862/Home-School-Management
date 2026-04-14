@@ -1,5 +1,6 @@
 function registerRecordsRoutes(app, deps) {
   const {
+    commercialPolicyService,
     isPostgresMode,
     recordsService
   } = deps;
@@ -31,6 +32,9 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
+      if (commercialPolicyService) {
+        await commercialPolicyService.assertAttendanceWriteAllowed(req.body);
+      }
       res.status(201).json(await recordsService.createAttendance(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
@@ -53,6 +57,9 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
+      if (commercialPolicyService) {
+        await commercialPolicyService.assertAttendanceWriteAllowed({ ...req.body, id: req.params.id });
+      }
       const updated = await recordsService.updateAttendance(req.params.id, req.body);
       if (!updated) {
         res.status(404).json({ error: "Attendance record not found." });
@@ -128,6 +135,9 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
+      if (commercialPolicyService) {
+        await commercialPolicyService.assertTestWriteAllowed(req.body);
+      }
       res.status(201).json(await recordsService.createTest(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
@@ -139,6 +149,9 @@ function registerRecordsRoutes(app, deps) {
     if (!ensureAdmin(req, res)) return;
 
     try {
+      if (commercialPolicyService) {
+        await commercialPolicyService.assertTestWriteAllowed({ ...req.body, id: req.params.id });
+      }
       const updated = await recordsService.updateTest(req.params.id, req.body);
       if (!updated) {
         res.status(404).json({ error: "Test not found." });

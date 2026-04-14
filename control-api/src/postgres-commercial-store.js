@@ -96,8 +96,16 @@ function mapCommercialOverviewRow(row) {
     commercialPlanId: row.commercialPlanId ?? row.commercial_plan_id ?? null,
     planCode: row.planCode ?? row.plan_code ?? "",
     planName: row.planName ?? row.plan_name ?? "",
+    planPriceCents: Number(row.planPriceCents ?? row.plan_price_cents ?? 0),
     subscriptionId: row.subscriptionId ?? row.subscription_id ?? null,
     subscriptionStatus: row.subscriptionStatus ?? row.subscription_status ?? "",
+    dormantStatus: row.dormantStatus ?? row.dormant_status ?? "active",
+    basePriceCents: Number(row.basePriceCents ?? row.base_price_cents ?? 0),
+    includedBillableStudents: Number(row.includedBillableStudents ?? row.included_billable_students ?? 0),
+    perStudentOverageCents: Number(row.perStudentOverageCents ?? row.per_student_overage_cents ?? 0),
+    currentBillableStudentCount: Number(row.currentBillableStudentCount ?? row.current_billable_student_count ?? 0),
+    currentOverageStudentCount: Number(row.currentOverageStudentCount ?? row.current_overage_student_count ?? 0),
+    lastBillableCountCalculatedAt: row.lastBillableCountCalculatedAt ?? row.last_billable_count_calculated_at ?? null,
     stripeSubscriptionId: row.stripeSubscriptionId ?? row.stripe_subscription_id ?? null,
     checkoutSessionId: row.checkoutSessionId ?? row.checkout_session_id ?? null,
     checkoutStatus: row.checkoutStatus ?? row.checkout_status ?? "",
@@ -109,6 +117,53 @@ function mapCommercialOverviewRow(row) {
     tenantId: row.tenantId ?? row.tenant_id ?? null,
     tenantEnvironmentId: row.tenantEnvironmentId ?? row.tenant_environment_id ?? null,
     signupStatusToken: row.signupStatusToken ?? row.signup_status_token ?? null,
+    createdAt: row.createdAt ?? row.created_at ?? null,
+    updatedAt: row.updatedAt ?? row.updated_at ?? null
+  };
+}
+
+function mapCustomerSubscriptionRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    customerAccountId: row.customerAccountId ?? row.customer_account_id,
+    commercialPlanId: row.commercialPlanId ?? row.commercial_plan_id,
+    status: row.status,
+    dormantStatus: row.dormantStatus ?? row.dormant_status ?? "active",
+    stripeSubscriptionId: row.stripeSubscriptionId ?? row.stripe_subscription_id ?? null,
+    stripeCheckoutSessionId: row.stripeCheckoutSessionId ?? row.stripe_checkout_session_id ?? null,
+    currentPeriodStart: row.currentPeriodStart ?? row.current_period_start ?? null,
+    currentPeriodEnd: row.currentPeriodEnd ?? row.current_period_end ?? null,
+    cancelAtPeriodEnd: row.cancelAtPeriodEnd ?? row.cancel_at_period_end ?? false,
+    canceledAt: row.canceledAt ?? row.canceled_at ?? null,
+    trialEndsAt: row.trialEndsAt ?? row.trial_ends_at ?? null,
+    gracePeriodEndsAt: row.gracePeriodEndsAt ?? row.grace_period_ends_at ?? null,
+    basePriceCents: Number(row.basePriceCents ?? row.base_price_cents ?? 0),
+    includedBillableStudents: Number(row.includedBillableStudents ?? row.included_billable_students ?? 0),
+    perStudentOverageCents: Number(row.perStudentOverageCents ?? row.per_student_overage_cents ?? 0),
+    currentBillableStudentCount: Number(row.currentBillableStudentCount ?? row.current_billable_student_count ?? 0),
+    currentOverageStudentCount: Number(row.currentOverageStudentCount ?? row.current_overage_student_count ?? 0),
+    lastBillableCountCalculatedAt: row.lastBillableCountCalculatedAt ?? row.last_billable_count_calculated_at ?? null,
+    createdAt: row.createdAt ?? row.created_at ?? null,
+    updatedAt: row.updatedAt ?? row.updated_at ?? null
+  };
+}
+
+function mapCancellationExportRequestRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    customerAccountId: row.customerAccountId ?? row.customer_account_id,
+    customerSubscriptionId: row.customerSubscriptionId ?? row.customer_subscription_id,
+    status: row.status,
+    priceCents: Number(row.priceCents ?? row.price_cents ?? 0),
+    currency: row.currency || "usd",
+    requestedByEmail: row.requestedByEmail ?? row.requested_by_email ?? null,
+    paymentReference: row.paymentReference ?? row.payment_reference ?? null,
+    exportJobId: row.exportJobId ?? row.export_job_id ?? null,
+    artifactPath: row.artifactPath ?? row.artifact_path ?? null,
+    artifactExpiresAt: row.artifactExpiresAt ?? row.artifact_expires_at ?? null,
+    failureReason: row.failureReason ?? row.failure_reason ?? null,
     createdAt: row.createdAt ?? row.created_at ?? null,
     updatedAt: row.updatedAt ?? row.updated_at ?? null
   };
@@ -303,6 +358,9 @@ async function getCustomerAccountById(id) {
 
 async function createCheckoutSubscription(input) {
   const pool = getPostgresPool();
+  const plan = await getCommercialPlanById(input.commercialPlanId);
+  const includedBillableStudents = Number(plan?.limits?.includedBillableStudents || 0);
+  const perStudentOverageCents = Number(plan?.limits?.perStudentOverageCents || 0);
   const result = await pool.query(`
     INSERT INTO customer_subscriptions (
       id,
@@ -310,15 +368,20 @@ async function createCheckoutSubscription(input) {
       commercial_plan_id,
       status,
       stripe_checkout_session_id,
+      dormant_status,
+      base_price_cents,
+      included_billable_students,
+      per_student_overage_cents,
       created_at,
       updated_at
     )
-    VALUES ($1, $2, $3, 'incomplete', $4, NOW(), NOW())
+    VALUES ($1, $2, $3, 'incomplete', $4, 'active', $5, $6, $7, NOW(), NOW())
     RETURNING
       id,
       customer_account_id AS "customerAccountId",
       commercial_plan_id AS "commercialPlanId",
       status,
+      dormant_status AS "dormantStatus",
       stripe_subscription_id AS "stripeSubscriptionId",
       stripe_checkout_session_id AS "stripeCheckoutSessionId",
       current_period_start AS "currentPeriodStart",
@@ -327,15 +390,24 @@ async function createCheckoutSubscription(input) {
       canceled_at AS "canceledAt",
       trial_ends_at AS "trialEndsAt",
       grace_period_ends_at AS "gracePeriodEndsAt",
+      base_price_cents AS "basePriceCents",
+      included_billable_students AS "includedBillableStudents",
+      per_student_overage_cents AS "perStudentOverageCents",
+      current_billable_student_count AS "currentBillableStudentCount",
+      current_overage_student_count AS "currentOverageStudentCount",
+      last_billable_count_calculated_at AS "lastBillableCountCalculatedAt",
       created_at AS "createdAt",
       updated_at AS "updatedAt"
   `, [
     `sub-${randomUUID()}`,
     input.customerAccountId,
     input.commercialPlanId,
-    input.stripeCheckoutSessionId
+    input.stripeCheckoutSessionId,
+    Number(plan?.priceCents || 0),
+    includedBillableStudents,
+    perStudentOverageCents
   ]);
-  return result.rows[0];
+  return mapCustomerSubscriptionRow(result.rows[0]);
 }
 
 async function createCheckoutSessionRecord(input) {
@@ -438,6 +510,7 @@ async function getSubscriptionByStripeCheckoutSessionId(stripeCheckoutSessionId)
       customer_account_id AS "customerAccountId",
       commercial_plan_id AS "commercialPlanId",
       status,
+      dormant_status AS "dormantStatus",
       stripe_subscription_id AS "stripeSubscriptionId",
       stripe_checkout_session_id AS "stripeCheckoutSessionId",
       current_period_start AS "currentPeriodStart",
@@ -446,13 +519,19 @@ async function getSubscriptionByStripeCheckoutSessionId(stripeCheckoutSessionId)
       canceled_at AS "canceledAt",
       trial_ends_at AS "trialEndsAt",
       grace_period_ends_at AS "gracePeriodEndsAt",
+      base_price_cents AS "basePriceCents",
+      included_billable_students AS "includedBillableStudents",
+      per_student_overage_cents AS "perStudentOverageCents",
+      current_billable_student_count AS "currentBillableStudentCount",
+      current_overage_student_count AS "currentOverageStudentCount",
+      last_billable_count_calculated_at AS "lastBillableCountCalculatedAt",
       created_at AS "createdAt",
       updated_at AS "updatedAt"
     FROM customer_subscriptions
     WHERE stripe_checkout_session_id = $1
     LIMIT 1
   `, [stripeCheckoutSessionId]);
-  return result.rows[0] || null;
+  return mapCustomerSubscriptionRow(result.rows[0]);
 }
 
 async function updateSubscriptionByStripeCheckoutSessionId(stripeCheckoutSessionId, updates = {}) {
@@ -468,6 +547,10 @@ async function updateSubscriptionByStripeCheckoutSessionId(stripeCheckoutSession
       canceled_at = COALESCE($7, canceled_at),
       trial_ends_at = COALESCE($8, trial_ends_at),
       grace_period_ends_at = COALESCE($9, grace_period_ends_at),
+      dormant_status = COALESCE($10, dormant_status),
+      current_billable_student_count = COALESCE($11, current_billable_student_count),
+      current_overage_student_count = COALESCE($12, current_overage_student_count),
+      last_billable_count_calculated_at = COALESCE($13, last_billable_count_calculated_at),
       updated_at = NOW()
     WHERE stripe_checkout_session_id = $1
     RETURNING
@@ -475,6 +558,7 @@ async function updateSubscriptionByStripeCheckoutSessionId(stripeCheckoutSession
       customer_account_id AS "customerAccountId",
       commercial_plan_id AS "commercialPlanId",
       status,
+      dormant_status AS "dormantStatus",
       stripe_subscription_id AS "stripeSubscriptionId",
       stripe_checkout_session_id AS "stripeCheckoutSessionId",
       current_period_start AS "currentPeriodStart",
@@ -483,6 +567,12 @@ async function updateSubscriptionByStripeCheckoutSessionId(stripeCheckoutSession
       canceled_at AS "canceledAt",
       trial_ends_at AS "trialEndsAt",
       grace_period_ends_at AS "gracePeriodEndsAt",
+      base_price_cents AS "basePriceCents",
+      included_billable_students AS "includedBillableStudents",
+      per_student_overage_cents AS "perStudentOverageCents",
+      current_billable_student_count AS "currentBillableStudentCount",
+      current_overage_student_count AS "currentOverageStudentCount",
+      last_billable_count_calculated_at AS "lastBillableCountCalculatedAt",
       created_at AS "createdAt",
       updated_at AS "updatedAt"
   `, [
@@ -494,9 +584,177 @@ async function updateSubscriptionByStripeCheckoutSessionId(stripeCheckoutSession
     typeof updates.cancelAtPeriodEnd === "boolean" ? updates.cancelAtPeriodEnd : null,
     updates.canceledAt || null,
     updates.trialEndsAt || null,
-    updates.gracePeriodEndsAt || null
+    updates.gracePeriodEndsAt || null,
+    updates.dormantStatus || null,
+    Number.isInteger(updates.currentBillableStudentCount) ? updates.currentBillableStudentCount : null,
+    Number.isInteger(updates.currentOverageStudentCount) ? updates.currentOverageStudentCount : null,
+    updates.lastBillableCountCalculatedAt || null
   ]);
-  return result.rows[0] || null;
+  return mapCustomerSubscriptionRow(result.rows[0]);
+}
+
+async function getCommercialSubscriptionById(id) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      commercial_plan_id AS "commercialPlanId",
+      status,
+      dormant_status AS "dormantStatus",
+      stripe_subscription_id AS "stripeSubscriptionId",
+      stripe_checkout_session_id AS "stripeCheckoutSessionId",
+      current_period_start AS "currentPeriodStart",
+      current_period_end AS "currentPeriodEnd",
+      cancel_at_period_end AS "cancelAtPeriodEnd",
+      canceled_at AS "canceledAt",
+      trial_ends_at AS "trialEndsAt",
+      grace_period_ends_at AS "gracePeriodEndsAt",
+      base_price_cents AS "basePriceCents",
+      included_billable_students AS "includedBillableStudents",
+      per_student_overage_cents AS "perStudentOverageCents",
+      current_billable_student_count AS "currentBillableStudentCount",
+      current_overage_student_count AS "currentOverageStudentCount",
+      last_billable_count_calculated_at AS "lastBillableCountCalculatedAt",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM customer_subscriptions
+    WHERE id = $1
+    LIMIT 1
+  `, [id]);
+  return mapCustomerSubscriptionRow(result.rows[0]);
+}
+
+async function updateCommercialSubscription(id, updates = {}) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    UPDATE customer_subscriptions
+    SET
+      status = COALESCE($2, status),
+      dormant_status = COALESCE($3, dormant_status),
+      current_period_start = COALESCE($4, current_period_start),
+      current_period_end = COALESCE($5, current_period_end),
+      base_price_cents = COALESCE($6, base_price_cents),
+      included_billable_students = COALESCE($7, included_billable_students),
+      per_student_overage_cents = COALESCE($8, per_student_overage_cents),
+      current_billable_student_count = COALESCE($9, current_billable_student_count),
+      current_overage_student_count = COALESCE($10, current_overage_student_count),
+      last_billable_count_calculated_at = COALESCE($11, last_billable_count_calculated_at),
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      commercial_plan_id AS "commercialPlanId",
+      status,
+      dormant_status AS "dormantStatus",
+      stripe_subscription_id AS "stripeSubscriptionId",
+      stripe_checkout_session_id AS "stripeCheckoutSessionId",
+      current_period_start AS "currentPeriodStart",
+      current_period_end AS "currentPeriodEnd",
+      cancel_at_period_end AS "cancelAtPeriodEnd",
+      canceled_at AS "canceledAt",
+      trial_ends_at AS "trialEndsAt",
+      grace_period_ends_at AS "gracePeriodEndsAt",
+      base_price_cents AS "basePriceCents",
+      included_billable_students AS "includedBillableStudents",
+      per_student_overage_cents AS "perStudentOverageCents",
+      current_billable_student_count AS "currentBillableStudentCount",
+      current_overage_student_count AS "currentOverageStudentCount",
+      last_billable_count_calculated_at AS "lastBillableCountCalculatedAt",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+  `, [
+    id,
+    updates.status || null,
+    updates.dormantStatus || null,
+    updates.currentPeriodStart || null,
+    updates.currentPeriodEnd || null,
+    Number.isInteger(updates.basePriceCents) ? updates.basePriceCents : null,
+    Number.isInteger(updates.includedBillableStudents) ? updates.includedBillableStudents : null,
+    Number.isInteger(updates.perStudentOverageCents) ? updates.perStudentOverageCents : null,
+    Number.isInteger(updates.currentBillableStudentCount) ? updates.currentBillableStudentCount : null,
+    Number.isInteger(updates.currentOverageStudentCount) ? updates.currentOverageStudentCount : null,
+    updates.lastBillableCountCalculatedAt || null
+  ]);
+  return mapCustomerSubscriptionRow(result.rows[0]);
+}
+
+async function createCancellationExportRequest(input) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    INSERT INTO cancellation_export_requests (
+      id,
+      customer_account_id,
+      customer_subscription_id,
+      status,
+      price_cents,
+      currency,
+      requested_by_email,
+      payment_reference,
+      export_job_id,
+      artifact_path,
+      artifact_expires_at,
+      failure_reason,
+      created_at,
+      updated_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      status,
+      price_cents AS "priceCents",
+      currency,
+      requested_by_email AS "requestedByEmail",
+      payment_reference AS "paymentReference",
+      export_job_id AS "exportJobId",
+      artifact_path AS "artifactPath",
+      artifact_expires_at AS "artifactExpiresAt",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+  `, [
+    input.id || `cancel-export-${randomUUID()}`,
+    input.customerAccountId,
+    input.customerSubscriptionId,
+    input.status || "pending_payment",
+    Number(input.priceCents || 1999),
+    input.currency || "usd",
+    input.requestedByEmail || null,
+    input.paymentReference || null,
+    input.exportJobId || null,
+    input.artifactPath || null,
+    input.artifactExpiresAt || null,
+    input.failureReason || null
+  ]);
+  return mapCancellationExportRequestRow(result.rows[0]);
+}
+
+async function listCancellationExportRequestsBySubscriptionId(customerSubscriptionId) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      status,
+      price_cents AS "priceCents",
+      currency,
+      requested_by_email AS "requestedByEmail",
+      payment_reference AS "paymentReference",
+      export_job_id AS "exportJobId",
+      artifact_path AS "artifactPath",
+      artifact_expires_at AS "artifactExpiresAt",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM cancellation_export_requests
+    WHERE customer_subscription_id = $1
+    ORDER BY created_at DESC
+  `, [customerSubscriptionId]);
+  return result.rows.map(mapCancellationExportRequestRow);
 }
 
 async function updateCustomerAccountStatus(customerAccountId, status) {
@@ -961,8 +1219,10 @@ async function getPublicSignupStatusByToken(token) {
       plan.id AS "commercialPlanId",
       plan.code AS "planCode",
       plan.name AS "planName",
+      plan.price_cents AS "planPriceCents",
       subscription.id AS "subscriptionId",
       subscription.status AS "subscriptionStatus",
+      subscription.dormant_status AS "dormantStatus",
       subscription.current_period_end AS "currentPeriodEnd",
       provisioning.id AS "provisioningRequestId",
       provisioning.status AS "provisioningStatus",
@@ -1056,6 +1316,7 @@ async function getPublicSignupStatusByToken(token) {
     subscription: row.subscriptionId ? {
       id: row.subscriptionId,
       status: row.subscriptionStatus,
+      dormantStatus: row.dormantStatus,
       currentPeriodEnd: row.currentPeriodEnd
     } : null,
     provisioning: row.provisioningRequestId ? {
@@ -1092,8 +1353,16 @@ async function listCommercialOverview() {
       plan.id AS "commercialPlanId",
       plan.code AS "planCode",
       plan.name AS "planName",
+      plan.price_cents AS "planPriceCents",
       subscription.id AS "subscriptionId",
       subscription.status AS "subscriptionStatus",
+      subscription.dormant_status AS "dormantStatus",
+      subscription.base_price_cents AS "basePriceCents",
+      subscription.included_billable_students AS "includedBillableStudents",
+      subscription.per_student_overage_cents AS "perStudentOverageCents",
+      subscription.current_billable_student_count AS "currentBillableStudentCount",
+      subscription.current_overage_student_count AS "currentOverageStudentCount",
+      subscription.last_billable_count_calculated_at AS "lastBillableCountCalculatedAt",
       subscription.stripe_subscription_id AS "stripeSubscriptionId",
       checkout.stripe_checkout_session_id AS "checkoutSessionId",
       checkout.status AS "checkoutStatus",
@@ -1134,12 +1403,14 @@ async function listCommercialOverview() {
 module.exports = {
   createAccessHandoff,
   createBillingEvent,
+  createCancellationExportRequest,
   createCheckoutCustomerAccount,
   createCheckoutSessionRecord,
   createCheckoutSubscription,
   createProvisioningRequest,
   getBillingEventByStripeEventId,
   getCommercialPlanById,
+  getCommercialSubscriptionById,
   getCustomerAccountById,
   getAccessHandoffByProvisioningRequestId,
   getCheckoutSessionByStripeSessionId,
@@ -1149,12 +1420,14 @@ module.exports = {
   getProvisioningRequestByEnvironmentId,
   getProvisioningRequestBySubscriptionId,
   getSubscriptionByStripeCheckoutSessionId,
+  listCancellationExportRequestsBySubscriptionId,
   listCommercialOverview,
   listPublicCommercialPlans
   ,
   markCheckoutSessionCompleted,
   updateAccessHandoffByProvisioningRequestId,
   updateBillingEventProcessing,
+  updateCommercialSubscription,
   updateCustomerAccountStatus,
   updateProvisioningRequest,
   updateSubscriptionByStripeCheckoutSessionId

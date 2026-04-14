@@ -6,6 +6,7 @@ Related:
 - `NOTES/saas-implementation-spec-package.md`
 - `NOTES/saas-commercial-roadmap.md`
 - `NOTES/control-plane-provisioning-workflow.md`
+- `NOTES/subscription-billing-policy.md`
 
 ## Purpose
 
@@ -89,6 +90,14 @@ Recommendation:
 Purpose:
 - source of truth for public plans and Stripe price mapping
 
+Current first-release pricing policy:
+
+- `Starter`: `$9.99/month` for `1-3` billable students
+- `Growth`: `$14.99/month` for `4-10` billable students
+- `Large`: `$14.99/month` plus `$0.99` per billable student over `10`
+
+See `NOTES/subscription-billing-policy.md` for the exact definition of `billable student`.
+
 Columns:
 - `id TEXT PRIMARY KEY`
 - `code TEXT NOT NULL UNIQUE`
@@ -156,6 +165,16 @@ Columns:
 - `grace_period_ends_at TIMESTAMPTZ NULL`
 - `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 - `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+
+Recommended additions for the billing-policy implementation:
+
+- `dormant_status TEXT NOT NULL DEFAULT 'active' CHECK (dormant_status IN ('active', 'pending_dormant', 'dormant', 'pending_reactivation'))`
+- `base_price_cents INTEGER NOT NULL DEFAULT 0`
+- `included_billable_students INTEGER NOT NULL DEFAULT 0`
+- `per_student_overage_cents INTEGER NOT NULL DEFAULT 0`
+- `current_billable_student_count INTEGER NOT NULL DEFAULT 0`
+- `current_overage_student_count INTEGER NOT NULL DEFAULT 0`
+- `last_billable_count_calculated_at TIMESTAMPTZ NULL`
 
 Indexes:
 - index on `customer_account_id`
@@ -263,6 +282,70 @@ Columns:
 Indexes:
 - unique on `signup_status_token`
 - index on `provisioning_request_id`
+
+### 8. billable_student_periods
+
+Purpose:
+- durable per-period record of which students counted toward billing
+
+Recommended columns:
+- `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
+- `customer_subscription_id TEXT NOT NULL REFERENCES customer_subscriptions(id) ON DELETE CASCADE`
+- `tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE`
+- `billing_period_start TIMESTAMPTZ NOT NULL`
+- `billing_period_end TIMESTAMPTZ NOT NULL`
+- `student_id TEXT NOT NULL`
+- `first_reason TEXT NOT NULL`
+- `counted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+
+Recommended indexes:
+- unique on `(customer_subscription_id, billing_period_start, billing_period_end, student_id)`
+- index on `(tenant_id, billing_period_start, billing_period_end)`
+
+### 9. billable_student_events
+
+Purpose:
+- auditable trail of why a student became billable
+
+Recommended columns:
+- `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
+- `customer_subscription_id TEXT NOT NULL REFERENCES customer_subscriptions(id) ON DELETE CASCADE`
+- `tenant_id TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE`
+- `student_id TEXT NOT NULL`
+- `billing_period_start TIMESTAMPTZ NOT NULL`
+- `billing_period_end TIMESTAMPTZ NOT NULL`
+- `event_type TEXT NOT NULL`
+- `event_source TEXT NOT NULL`
+- `source_record_id TEXT NULL`
+- `payload_json JSONB NOT NULL DEFAULT '{}'::jsonb`
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+
+Recommended event types:
+- `current_year_enrollment`
+- `attendance_write`
+- `grade_write`
+
+### 10. cancellation_export_requests
+
+Purpose:
+- paid offboarding/export request tracking
+
+Recommended columns:
+- `id TEXT PRIMARY KEY`
+- `customer_account_id TEXT NOT NULL REFERENCES customer_accounts(id) ON DELETE CASCADE`
+- `customer_subscription_id TEXT NOT NULL REFERENCES customer_subscriptions(id) ON DELETE CASCADE`
+- `status TEXT NOT NULL CHECK (status IN ('pending_payment', 'paid', 'queued', 'processing', 'ready', 'failed', 'expired'))`
+- `price_cents INTEGER NOT NULL`
+- `currency TEXT NOT NULL DEFAULT 'usd'`
+- `requested_by_email TEXT NULL`
+- `payment_reference TEXT NULL`
+- `export_job_id TEXT NULL REFERENCES provisioning_jobs(id) ON DELETE SET NULL`
+- `artifact_path TEXT NULL`
+- `artifact_expires_at TIMESTAMPTZ NULL`
+- `failure_reason TEXT NULL`
+- `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
+- `updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`
 
 ## Migration Strategy
 

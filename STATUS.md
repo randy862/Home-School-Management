@@ -536,6 +536,17 @@ Date: 2026-04-10
   - the retired user units `home-school-management.service` and `home-school-management-control-api.service` were both disabled
   - the live `hsm-api.service` matched the repo template
   - the live `hsm-control-api.service` included additional internal-auth, deployment, and commercial default environment settings, so the repo template was updated to match
+- Completed a matching read-only WEB001/Apache audit from this workspace:
+  - `apache2.service` was active and enabled
+  - the enabled Apache site on `WEB001` matched `infra/apache/home-school-management.conf`
+  - local proxy checks for `/health` and `/control-api/health` both returned `200 OK`
+  - `/saas.html` and `/signup-status.html` were both live on the public host
+  - the standalone `home-school-management-control-plane.conf` file exists in repo but is not enabled on `WEB001`, which is acceptable because the main site already serves `/control/` and `/control-api/`
+- Finalized the next commercial policy layer in `NOTES/subscription-billing-policy.md`:
+  - pricing now uses billable students rather than users
+  - billable students count from current-school-year enrollment plus current-period historical attendance/grade usage
+  - dormant is allowed only after a billing cycle ends and keeps tenant history/reporting intact at 25% of normal monthly base price
+  - cancellation can offer a paid `$19.99` CSV export path
 
 ## 2026-04-02
 

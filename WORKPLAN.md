@@ -176,9 +176,11 @@
    - [x] Capture the first implementation-ready spec package for subscription lifecycle, checkout flow, provisioning handoff, and landing-page structure.
    - [x] Decide that Stripe Checkout is the recommended first payment path for the commercial SaaS slice.
    - [x] Define the first implementation-ready backend schema and public API contract for the commercial SaaS slice.
+   - [x] Finalize the first public monthly plan set around billable students instead of users.
+   - [x] Define exact billable-student, dormant, and cancellation-export policy language for implementation.
    - [ ] Decide the first-release public-site hosting/runtime approach.
-   - [ ] Finalize the first public plan set, pricing, and whether launch includes monthly only or monthly plus annual billing.
-   - [ ] Implement the first control-plane commercial migration and public plan API.
+   - [ ] Decide whether launch remains monthly-only or adds annual billing.
+   - [ ] Implement the first control-plane commercial migration, billable-student tracking model, and public plan API.
 11. Prepare the next hosted-app workflow consolidation slice: the School Day hub.
    - [x] Define the School Day hub concept as an implementation-ready spec package.
    - [x] Decide that the first version should be a hub model, not the full persisted execution layer.

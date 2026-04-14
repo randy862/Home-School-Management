@@ -1,5 +1,5 @@
 const express = require("express");
-const { app: appConfig, internal: internalConfig, session: sessionConfig } = require("./config");
+const { app: appConfig, commercial: commercialConfig, internal: internalConfig, session: sessionConfig } = require("./config");
 const { getPool } = require("./db");
 const { getPostgresPool } = require("./postgres-db");
 const { applyCors, createAuthContextMiddleware } = require("./middleware/auth-context");
@@ -54,11 +54,18 @@ const { createRecordsRepository } = require("./repositories/postgres/records-rep
 const { createCalendarService } = require("./services/calendar-service");
 const { createCurriculumService } = require("./services/curriculum-service");
 const { createGradingService } = require("./services/grading-service");
+const { createCommercialPolicyService } = require("./services/commercial-policy-service");
 const { createRecordsService } = require("./services/records-service");
 const { createWorkspaceConfigService } = require("./services/workspace-config-service");
 
 const app = express();
 const isPostgresMode = appConfig.dbClient === "postgres";
+const commercialPolicyService = isPostgresMode
+  ? createCommercialPolicyService({
+    commercialConfig,
+    getPostgresPool
+  })
+  : null;
 const authRouteDeps = {
   createSession,
   getUserByUsername,
@@ -88,6 +95,7 @@ const adminRouteDeps = {
   updateStudent,
   updateUser,
   createStudent,
+  commercialPolicyService,
   ...createWorkspaceConfigService({
     workspaceConfigStore: {
       getWorkspaceConfig,
@@ -101,6 +109,7 @@ const curriculumRouteDeps = {
       getPostgresPool
     })
   }),
+  commercialPolicyService,
   isPostgresMode,
 };
 const calendarRouteDeps = {
@@ -109,6 +118,7 @@ const calendarRouteDeps = {
       getPostgresPool
     })
   }),
+  commercialPolicyService,
   isPostgresMode,
 };
 const gradingRouteDeps = {
@@ -120,6 +130,7 @@ const gradingRouteDeps = {
   isPostgresMode,
 };
 const recordsRouteDeps = {
+  commercialPolicyService,
   isPostgresMode,
   recordsService: createRecordsService({
     recordsRepository: createRecordsRepository({

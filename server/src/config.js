@@ -66,5 +66,10 @@ module.exports = {
       if (mode === "disable") return false;
       return { rejectUnauthorized: mode === "verify-full" };
     })()
+  },
+  commercial: {
+    tenantId: String(process.env.TENANT_ID || "").trim(),
+    tenantEnvironmentId: String(process.env.TENANT_ENVIRONMENT_ID || "").trim(),
+    controlSchema: String(process.env.CONTROL_COMMERCIAL_SCHEMA || "hsm_control_staging").trim() || "hsm_control_staging"
   }
 };
