@@ -183,6 +183,11 @@
    - [x] Implement the first control-plane commercial migration, billable-student tracking model, and public plan API.
    - [x] Add operator-facing commercial API support for subscription detail, dormant/reactivate actions, cancellation-export requests, and related audit/lifecycle wiring.
    - [x] Implement the operator-console commercial UI on top of the new control-plane subscription endpoints.
+   - [x] Deploy the live staged `/control/` Commercial UI and confirm the hosted control path is serving the new workspace.
+   - [x] Reconcile the staged control-plane schema on `APP001` with the deployed commercial billing-policy code by applying `005_subscription_billing_policy.sql`.
+   - [x] Run a live staged Commercial smoke pass using a temporary smoke-test commercial record.
+   - [ ] Configure live staged Stripe keys, prices, and webhook settings on `APP001`.
+   - [ ] Validate one real Stripe checkout session and webhook flow end to end against the staged commercial stack.
 11. Prepare the next hosted-app workflow consolidation slice: the School Day hub.
    - [x] Define the School Day hub concept as an implementation-ready spec package.
    - [x] Decide that the first version should be a hub model, not the full persisted execution layer.

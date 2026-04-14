@@ -197,6 +197,14 @@ Date: 2026-04-10
   - selectable commercial account list with billable-student visibility
   - commercial detail view with subscription state, export history, and operator audit trail
   - dormant/reactivate/export actions wired to the control-plane commercial endpoints
+- Reconciled the live staged commercial environment with the shipped control-plane code:
+  - deployed the updated `/control/` Commercial UI assets to `WEB001`
+  - redeployed the current `control-api/` runtime to `APP001` and verified `http://192.168.1.210/control-api/health`
+  - completed a live `/control/` smoke pass and confirmed the new Commercial workspace is loading correctly from the hosted path
+  - discovered the staged control-plane database on `APP001` was missing `control-api/migrations/postgres/005_subscription_billing_policy.sql` even though the deployed code expected those columns
+  - applied the missing billing-policy migration to the live staged control-plane schema `hsm_control_staging` on `APP001`
+  - seeded one temporary smoke-test commercial account/subscription to exercise the live Commercial detail and action flows, then validated that the operator UI could read those records successfully
+  - confirmed the next commercial implementation step is live Stripe configuration and integration against the now-aligned staged control-plane runtime
 - Added first control-plane scaffolding:
   - `admin/` operator-console placeholder
   - `control-api/` placeholder
