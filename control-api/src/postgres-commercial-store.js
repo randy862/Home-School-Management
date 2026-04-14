@@ -625,6 +625,66 @@ async function getCommercialSubscriptionById(id) {
   return mapCustomerSubscriptionRow(result.rows[0]);
 }
 
+async function getCommercialOverviewBySubscriptionId(id) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      account.id AS "customerAccountId",
+      account.account_name AS "accountName",
+      account.account_slug AS "accountSlug",
+      account.status AS "accountStatus",
+      TRIM(CONCAT(account.owner_first_name, ' ', account.owner_last_name)) AS "ownerName",
+      account.owner_email AS "ownerEmail",
+      account.billing_email AS "billingEmail",
+      account.created_at AS "createdAt",
+      account.updated_at AS "updatedAt",
+      plan.id AS "commercialPlanId",
+      plan.code AS "planCode",
+      plan.name AS "planName",
+      plan.price_cents AS "planPriceCents",
+      subscription.id AS "subscriptionId",
+      subscription.status AS "subscriptionStatus",
+      subscription.dormant_status AS "dormantStatus",
+      subscription.base_price_cents AS "basePriceCents",
+      subscription.included_billable_students AS "includedBillableStudents",
+      subscription.per_student_overage_cents AS "perStudentOverageCents",
+      subscription.current_billable_student_count AS "currentBillableStudentCount",
+      subscription.current_overage_student_count AS "currentOverageStudentCount",
+      subscription.last_billable_count_calculated_at AS "lastBillableCountCalculatedAt",
+      subscription.stripe_subscription_id AS "stripeSubscriptionId",
+      checkout.stripe_checkout_session_id AS "checkoutSessionId",
+      checkout.status AS "checkoutStatus",
+      provisioning.id AS "provisioningRequestId",
+      provisioning.status AS "provisioningStatus",
+      provisioning.requested_subdomain_label AS "requestedSubdomainLabel",
+      provisioning.result_access_url AS "resultAccessUrl",
+      provisioning.tenant_id AS "tenantId",
+      provisioning.tenant_environment_id AS "tenantEnvironmentId",
+      access.tenant_url AS "tenantUrl",
+      access.signup_status_token AS "signupStatusToken"
+    FROM customer_subscriptions subscription
+    JOIN customer_accounts account
+      ON account.id = subscription.customer_account_id
+    LEFT JOIN commercial_plans plan
+      ON plan.id = subscription.commercial_plan_id
+    LEFT JOIN LATERAL (
+      SELECT *
+      FROM checkout_sessions cs
+      WHERE cs.customer_account_id = account.id
+      ORDER BY cs.created_at DESC
+      LIMIT 1
+    ) checkout ON TRUE
+    LEFT JOIN provisioning_requests provisioning
+      ON provisioning.customer_subscription_id = subscription.id
+    LEFT JOIN access_handoffs access
+      ON access.provisioning_request_id = provisioning.id
+    WHERE subscription.id = $1
+    ORDER BY provisioning.created_at DESC NULLS LAST
+    LIMIT 1
+  `, [id]);
+  return mapCommercialOverviewRow(result.rows[0]);
+}
+
 async function updateCommercialSubscription(id, updates = {}) {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -1411,6 +1471,7 @@ module.exports = {
   getBillingEventByStripeEventId,
   getCommercialPlanById,
   getCommercialSubscriptionById,
+  getCommercialOverviewBySubscriptionId,
   getCustomerAccountById,
   getAccessHandoffByProvisioningRequestId,
   getCheckoutSessionByStripeSessionId,

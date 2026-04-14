@@ -16,6 +16,7 @@ const {
   completeSetupTokenJob,
   completeTenantLifecycleJob,
   countOperators,
+  createOperatorAuditEntry,
   createBootstrapOperator,
   createOperatorUser,
   createOperatorSession,
@@ -54,6 +55,7 @@ const {
   getBillingEventByStripeEventId,
   getCommercialPlanById,
   getCommercialSubscriptionById,
+  getCommercialOverviewBySubscriptionId,
   getCustomerAccountById,
   getAccessHandoffByProvisioningRequestId,
   getCheckoutSessionByStripeSessionId,
@@ -179,10 +181,14 @@ registerAuditRoutes(app, {
 });
 registerControlCommercialRoutes(app, {
   createCancellationExportRequest,
+  createOperatorAuditEntry,
   getCommercialSubscriptionById,
+  getCommercialOverviewBySubscriptionId,
   listCancellationExportRequestsBySubscriptionId,
   listCommercialOverview
   ,
+  listOperatorAuditLog,
+  queueProvisioningJob,
   updateCommercialSubscription
 });
 registerOperatorAuthRoutes(app, {

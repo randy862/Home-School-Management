@@ -10,6 +10,7 @@ const state = {
   jobs: [],
   activeWorkspace: "tenants",
   selectedTenantId: "",
+  selectedCommercialSubscriptionId: "",
   selectedEnvironmentId: "",
   selectedJobId: "",
   selectedUserId: ""
@@ -50,6 +51,8 @@ const refs = {
   tenantDetailBody: document.getElementById("tenant-detail-body"),
   commercialPanelHead: document.getElementById("commercial-panel-head"),
   commercialSummary: document.getElementById("commercial-summary"),
+  commercialDetailShell: document.getElementById("commercial-detail-shell"),
+  commercialDetailBody: document.getElementById("commercial-detail-body"),
   commercialList: document.getElementById("commercial-list"),
   environmentPanelHead: document.getElementById("environment-panel-head"),
   environmentList: document.getElementById("environment-list"),
@@ -113,6 +116,8 @@ const refs = {
   tenantOpenCreateBtn: document.getElementById("tenant-open-create-btn"),
   tenantDetailEditBtn: document.getElementById("tenant-detail-edit-btn"),
   tenantDetailCloseBtn: document.getElementById("tenant-detail-close-btn"),
+  commercialDetailRefreshBtn: document.getElementById("commercial-detail-refresh-btn"),
+  commercialDetailCloseBtn: document.getElementById("commercial-detail-close-btn"),
   environmentOpenCreateBtn: document.getElementById("environment-open-create-btn"),
   environmentResetBtn: document.getElementById("environment-reset-btn"),
   jobOpenCreateBtn: document.getElementById("job-open-create-btn"),
@@ -150,12 +155,12 @@ async function apiFetch(path, options = {}) {
 }
 
 function setFlash(kind, message) {
-  if (!message || (kind && kind !== "error")) {
+  if (!message) {
     refs.flash.className = "flash hidden";
     refs.flash.textContent = "";
     return;
   }
-  refs.flash.className = `flash ${kind}`;
+  refs.flash.className = `flash ${kind || "info"}`;
   refs.flash.textContent = message;
 }
 
@@ -176,6 +181,10 @@ function canManage(permission) {
 
 function canViewUserManagement() {
   return canManage("manageUsers");
+}
+
+function canViewCommercial() {
+  return canManage("manageCustomers");
 }
 
 function renderAuthState() {
@@ -206,8 +215,13 @@ function renderOperator() {
   refs.environmentForm.classList.toggle("hidden", !canManage("manageEnvironments"));
   refs.jobForm.classList.toggle("hidden", !canManage("manageOperations"));
   refs.userForm.classList.toggle("hidden", !canManage("manageUsers"));
+  refs.tabCommercial?.classList.toggle("hidden", !canViewCommercial());
   refs.tabUsers?.classList.toggle("hidden", !canViewUserManagement());
   refs.userOpenCreateBtn?.classList.toggle("hidden", !canManage("manageUsers"));
+  if (!canViewCommercial() && state.activeWorkspace === "commercial") {
+    state.activeWorkspace = "tenants";
+    state.selectedCommercialSubscriptionId = "";
+  }
   if (!canViewUserManagement() && state.activeWorkspace === "users") {
     state.activeWorkspace = "tenants";
     state.selectedUserId = "";
@@ -504,16 +518,17 @@ function renderCommercialTable(records) {
             <th>Owner</th>
             <th>Plan</th>
             <th>Subscription</th>
+            <th>Billable Students</th>
             <th>Provisioning</th>
             <th>Tenant Access</th>
-            <th>Created</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           ${records.map((record) => `
-            <tr>
+            <tr class="${record.subscriptionId === state.selectedCommercialSubscriptionId ? "selected-row" : ""}">
               <td data-label="Account">
-                <strong>${escapeHtml(formatCustomerDisplayName(record.accountName) || record.accountName || "Not recorded")}</strong>
+                <button type="button" class="text-link-btn" data-commercial-detail-id="${escapeHtml(record.subscriptionId || "")}">${escapeHtml(formatCustomerDisplayName(record.accountName) || record.accountName || "Not recorded")}</button>
                 <div class="table-subcopy">${escapeHtml(record.accountSlug || "No slug recorded")}</div>
               </td>
               <td data-label="Owner">
@@ -522,15 +537,28 @@ function renderCommercialTable(records) {
               </td>
               <td data-label="Plan">
                 ${escapeHtml(record.planName || "Plan pending")}
-                <div class="table-subcopy">${escapeHtml(record.planCode || "No plan code")}</div>
+                <div class="table-subcopy">${escapeHtml(formatMoney(record.basePriceCents || record.planPriceCents || 0))}${record.perStudentOverageCents ? ` base + ${escapeHtml(formatMoney(record.perStudentOverageCents))}/student overage` : ""}</div>
               </td>
-              <td data-label="Subscription">${record.subscriptionStatus ? renderStatusTag(record.subscriptionStatus, "tenant", formatSubscriptionStatus(record.subscriptionStatus)) : '<span class="tag">Pending</span>'}</td>
+              <td data-label="Subscription">
+                <div class="inline-tag-list">
+                  ${record.subscriptionStatus ? renderStatusTag(record.subscriptionStatus, "tenant", formatSubscriptionStatus(record.subscriptionStatus)) : '<span class="tag">Pending</span>'}
+                  ${record.dormantStatus ? renderStateTag(record.dormantStatus, "setup", formatDormantStatus(record.dormantStatus)) : ""}
+                </div>
+              </td>
+              <td data-label="Billable Students">
+                ${escapeHtml(formatBillableSummary(record))}
+                ${Number(record.currentOverageStudentCount || 0) > 0 ? `<div class="table-subcopy">${escapeHtml(`${record.currentOverageStudentCount} over included range`)}</div>` : ""}
+              </td>
               <td data-label="Provisioning">${record.provisioningStatus ? renderStateTag(record.provisioningStatus, "setup", formatProvisioningStatus(record.provisioningStatus)) : '<span class="tag">Not Queued</span>'}</td>
               <td data-label="Tenant Access">
                 ${record.tenantUrl || record.resultAccessUrl ? `<a href="${escapeHtml(record.tenantUrl || record.resultAccessUrl)}" target="_blank" rel="noreferrer">${escapeHtml(record.tenantUrl || record.resultAccessUrl)}</a>` : "Not issued"}
                 ${record.signupStatusToken ? `<div class="table-subcopy">Status token: ${escapeHtml(record.signupStatusToken)}</div>` : ""}
               </td>
-              <td data-label="Created">${escapeHtml(formatDateTime(record.createdAt) || "Not recorded")}</td>
+              <td data-label="Actions">
+                <div class="table-actions">
+                  <button type="button" class="secondary-btn table-action-btn" data-commercial-detail-id="${escapeHtml(record.subscriptionId || "")}" ${record.subscriptionId ? "" : "disabled"}>Details</button>
+                </div>
+              </td>
             </tr>
           `).join("")}
         </tbody>
@@ -833,25 +861,33 @@ function renderJobDetail(job) {
 }
 
 function renderWorkspaceTabs() {
+  const allowCommercial = canViewCommercial();
   const allowUsers = canViewUserManagement();
+  if (!allowCommercial && state.activeWorkspace === "commercial") {
+    state.activeWorkspace = "tenants";
+  }
   if (!allowUsers && state.activeWorkspace === "users") {
     state.activeWorkspace = "tenants";
   }
   const active = state.activeWorkspace || "tenants";
   refs.tabTenants?.classList.toggle("active", active === "tenants");
-  refs.tabCommercial?.classList.toggle("active", active === "commercial");
+  refs.tabCommercial?.classList.toggle("active", allowCommercial && active === "commercial");
+  refs.tabCommercial?.classList.toggle("hidden", !allowCommercial);
   refs.tabEnvironments?.classList.toggle("active", active === "environments");
   refs.tabJobs?.classList.toggle("active", active === "jobs");
   refs.tabUsers?.classList.toggle("active", allowUsers && active === "users");
   refs.tabUsers?.classList.toggle("hidden", !allowUsers);
   refs.workspaceTenants?.classList.toggle("hidden", active !== "tenants");
-  refs.workspaceCommercial?.classList.toggle("hidden", active !== "commercial");
+  refs.workspaceCommercial?.classList.toggle("hidden", !allowCommercial || active !== "commercial");
   refs.workspaceEnvironments?.classList.toggle("hidden", active !== "environments");
   refs.workspaceJobs?.classList.toggle("hidden", active !== "jobs");
   refs.workspaceUsers?.classList.toggle("hidden", !allowUsers || active !== "users");
 }
 
 function setActiveWorkspace(workspace) {
+  if (workspace === "commercial" && !canViewCommercial()) {
+    workspace = "tenants";
+  }
   if (workspace === "users" && !canViewUserManagement()) {
     workspace = "tenants";
   }
@@ -870,6 +906,13 @@ function bindRecordClicks() {
       await selectTenant(element.getAttribute("data-tenant-id"));
     });
   });
+  refs.commercialList.querySelectorAll("[data-commercial-detail-id]").forEach((element) => {
+    element.addEventListener("click", async () => {
+      const subscriptionId = element.getAttribute("data-commercial-detail-id");
+      if (!subscriptionId) return;
+      await loadCommercialDetail(subscriptionId);
+    });
+  });
   refs.environmentList.querySelectorAll("[data-environment-detail-id]").forEach((element) => {
     element.addEventListener("click", async () => {
       await loadEnvironmentDetail(element.getAttribute("data-environment-detail-id"));
@@ -885,6 +928,150 @@ function bindRecordClicks() {
       await loadUserDetail(element.getAttribute("data-user-detail-id"));
     });
   });
+}
+
+async function loadCommercialDetail(subscriptionId, silent = false) {
+  state.selectedCommercialSubscriptionId = subscriptionId;
+  renderLists();
+  syncCommercialWorkspaceFocus();
+  try {
+    const detail = await apiFetch(`/api/control/commercial/subscriptions/${encodeURIComponent(subscriptionId)}`);
+    renderCommercialDetail(detail);
+    if (!silent) {
+      setFlash("info", `Loaded commercial detail for ${detail?.overview?.accountName || "subscription"}.`);
+    }
+  } catch (error) {
+    setFlash("error", error.message);
+  }
+}
+
+function renderCommercialDetail(detail) {
+  if (!detail) {
+    refs.commercialDetailShell.classList.add("hidden");
+    refs.commercialDetailBody.innerHTML = "";
+    syncCommercialWorkspaceFocus();
+    return;
+  }
+
+  const overview = detail.overview || {};
+  const subscription = detail.subscription || {};
+  const exportRequests = Array.isArray(detail.exportRequests) ? detail.exportRequests : [];
+  const auditEntries = Array.isArray(detail.auditEntries) ? detail.auditEntries : [];
+  const actionButtons = [];
+  const requiresOperations = !!overview.tenantEnvironmentId;
+  const canRunLifecycle = !requiresOperations || canManage("manageOperations");
+  const lifecycleDisabledAttr = canRunLifecycle ? "" : 'disabled title="Manage Operations permission is required to change live tenant access."';
+
+  if (String(subscription.dormantStatus || "active").toLowerCase() === "active") {
+    actionButtons.push(`<button id="commercial-mark-dormant-btn" type="button" class="secondary-btn" ${lifecycleDisabledAttr}>Mark Dormant</button>`);
+  } else {
+    actionButtons.push(`<button id="commercial-reactivate-btn" type="button" class="primary-btn" ${lifecycleDisabledAttr}>Reactivate</button>`);
+  }
+  actionButtons.push(`<button id="commercial-request-export-btn" type="button" class="secondary-btn">Request CSV Export</button>`);
+
+  refs.commercialDetailShell.classList.remove("hidden");
+  syncCommercialWorkspaceFocus();
+  refs.commercialDetailBody.innerHTML = `
+    <div class="detail-badges">
+      ${subscription.status ? renderStatusTag(subscription.status, "tenant", formatSubscriptionStatus(subscription.status)) : '<span class="tag">Pending</span>'}
+      ${subscription.dormantStatus ? renderStateTag(subscription.dormantStatus, "setup", formatDormantStatus(subscription.dormantStatus)) : ""}
+      ${overview.provisioningStatus ? renderStateTag(overview.provisioningStatus, "setup", formatProvisioningStatus(overview.provisioningStatus)) : '<span class="tag">Provisioning Not Queued</span>'}
+      <span class="tag">${escapeHtml(formatBillableSummary(overview))}</span>
+    </div>
+    <div class="detail-grid">
+      ${renderDetailField("Account", overview.accountName || "Not recorded")}
+      ${renderDetailField("Account Slug", overview.accountSlug || "Not recorded")}
+      ${renderDetailField("Owner", overview.ownerName || "Not recorded")}
+      ${renderDetailField("Billing Email", overview.billingEmail || overview.ownerEmail || "Not recorded")}
+      ${renderDetailField("Plan", overview.planName || "Pending")}
+      ${renderDetailField("Base Price", formatMoney(subscription.basePriceCents || overview.planPriceCents || 0))}
+      ${renderDetailField("Included Billable Students", String(subscription.includedBillableStudents ?? overview.includedBillableStudents ?? 0))}
+      ${renderDetailField("Per-Student Overage", Number(subscription.perStudentOverageCents ?? overview.perStudentOverageCents ?? 0) > 0 ? formatMoney(subscription.perStudentOverageCents ?? overview.perStudentOverageCents ?? 0) : "None")}
+      ${renderDetailField("Current Billable Students", String(subscription.currentBillableStudentCount ?? overview.currentBillableStudentCount ?? 0))}
+      ${renderDetailField("Current Overage Students", String(subscription.currentOverageStudentCount ?? overview.currentOverageStudentCount ?? 0))}
+      ${renderDetailField("Billing Period Start", formatDateTime(subscription.currentPeriodStart) || "Not recorded")}
+      ${renderDetailField("Billing Period End", formatDateTime(subscription.currentPeriodEnd) || "Not recorded")}
+      ${renderDetailField("Last Count Refresh", formatDateTime(subscription.lastBillableCountCalculatedAt || overview.lastBillableCountCalculatedAt) || "Not recorded")}
+      ${renderDetailField("Provisioning Tenant", overview.tenantId || "Not linked")}
+      ${renderDetailField("Environment", overview.tenantEnvironmentId || "Not linked")}
+      ${renderDetailFieldHtml("Tenant Access", overview.tenantUrl || overview.resultAccessUrl ? `<a href="${escapeHtml(overview.tenantUrl || overview.resultAccessUrl)}" target="_blank" rel="noreferrer">${escapeHtml(overview.tenantUrl || overview.resultAccessUrl)}</a>` : "Not issued")}
+    </div>
+    <section class="history-block">
+      <div class="detail-toolbar">
+        <div>
+          <h4>Actions</h4>
+          <p class="detail-copy">Use these actions to transition dormant state or request paid offboarding exports.</p>
+        </div>
+        <div class="operator-actions">
+          ${actionButtons.join("")}
+        </div>
+      </div>
+      <form id="commercial-action-form" class="stack-form action-form">
+        <label><span>Operator Note</span><input id="commercial-action-notes" placeholder="Optional note for the audit trail or lifecycle job"></label>
+        <label><span>Export Request Email</span><input id="commercial-export-email" type="email" value="${escapeHtml(overview.billingEmail || overview.ownerEmail || "")}"></label>
+      </form>
+    </section>
+    <section class="history-block">
+      <h4>Cancellation Export Requests</h4>
+      ${renderCommercialExportRequests(exportRequests)}
+    </section>
+    <section class="history-block">
+      <h4>Operator Activity</h4>
+      ${renderAuditTrail(auditEntries, "No operator activity recorded for this subscription yet.")}
+    </section>
+    <section class="history-block">
+      <h4>Commercial Snapshot</h4>
+      <pre>${escapeHtml(JSON.stringify({ overview, subscription }, null, 2))}</pre>
+    </section>
+  `;
+
+  document.getElementById("commercial-mark-dormant-btn")?.addEventListener("click", async () => {
+    await submitCommercialAction(subscription.id, "dormant");
+  });
+  document.getElementById("commercial-reactivate-btn")?.addEventListener("click", async () => {
+    await submitCommercialAction(subscription.id, "reactivate");
+  });
+  document.getElementById("commercial-request-export-btn")?.addEventListener("click", async () => {
+    await submitCommercialAction(subscription.id, "cancellation-export");
+  });
+}
+
+function renderCommercialExportRequests(requests) {
+  if (!requests.length) {
+    return '<div class="empty-state">No cancellation export requests have been recorded for this subscription.</div>';
+  }
+  return `
+    <div class="table-shell">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Requested By</th>
+            <th>Price</th>
+            <th>Requested</th>
+            <th>Artifact</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${requests.map((request) => `
+            <tr>
+              <td data-label="Status">${renderStatusTag(request.status || "pending_payment", "job", formatExportRequestStatus(request.status))}</td>
+              <td data-label="Requested By">${escapeHtml(request.requestedByEmail || "Not recorded")}</td>
+              <td data-label="Price">${escapeHtml(formatMoney(request.priceCents || 0))}</td>
+              <td data-label="Requested">${escapeHtml(formatDateTime(request.createdAt) || "Not recorded")}</td>
+              <td data-label="Artifact">${escapeHtml(request.artifactPath || request.failureReason || "Not yet available")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function syncCommercialWorkspaceFocus() {
+  const detailOpen = !refs.commercialDetailShell.classList.contains("hidden");
+  refs.commercialPanelHead.classList.toggle("hidden", detailOpen);
+  refs.commercialList.classList.toggle("hidden", detailOpen);
 }
 
 async function loadTenantDetail(tenantId, silent = false) {
@@ -1199,7 +1386,7 @@ async function refreshData(showFlash = true) {
   const results = await Promise.allSettled([
     canViewUserManagement() ? apiFetch("/api/control/operators") : Promise.resolve([]),
     apiFetch("/api/control/tenants"),
-    apiFetch("/api/control/commercial/overview"),
+    canViewCommercial() ? apiFetch("/api/control/commercial/overview") : Promise.resolve([]),
     apiFetch("/api/control/environments"),
     apiFetch("/api/control/jobs")
   ]);
@@ -1245,6 +1432,7 @@ async function refreshData(showFlash = true) {
   renderOperator();
   renderLists();
   syncJobFormMode();
+  if (state.selectedCommercialSubscriptionId) await loadCommercialDetail(state.selectedCommercialSubscriptionId, true);
   if (state.selectedEnvironmentId) await loadEnvironmentDetail(state.selectedEnvironmentId, true);
   if (state.selectedJobId) await loadJobDetail(state.selectedJobId, true);
   if (state.selectedUserId) await loadUserDetail(state.selectedUserId, true);
@@ -1309,6 +1497,7 @@ function bindEvents() {
       state.environments = [];
       state.jobs = [];
       state.selectedTenantId = "";
+      state.selectedCommercialSubscriptionId = "";
       state.selectedEnvironmentId = "";
       state.selectedJobId = "";
       state.selectedUserId = "";
@@ -1395,6 +1584,20 @@ function bindEvents() {
     refs.tenantDetailBody.innerHTML = "";
     state.selectedTenantId = "";
     syncTenantWorkspaceFocus();
+    renderLists();
+    setFlash(null, "");
+  });
+
+  refs.commercialDetailRefreshBtn?.addEventListener("click", async () => {
+    if (!state.selectedCommercialSubscriptionId) return;
+    await loadCommercialDetail(state.selectedCommercialSubscriptionId, true);
+  });
+
+  refs.commercialDetailCloseBtn?.addEventListener("click", () => {
+    refs.commercialDetailShell.classList.add("hidden");
+    refs.commercialDetailBody.innerHTML = "";
+    state.selectedCommercialSubscriptionId = "";
+    syncCommercialWorkspaceFocus();
     renderLists();
     setFlash(null, "");
   });
@@ -1921,6 +2124,14 @@ function formatSubscriptionStatus(value) {
   return startCase(value);
 }
 
+function formatDormantStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "active") return "Active";
+  if (normalized === "pending_dormant") return "Pending Dormant";
+  if (normalized === "dormant") return "Dormant";
+  return startCase(value);
+}
+
 function formatProvisioningStatus(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "pending_billing_confirmation") return "Waiting For Billing Confirmation";
@@ -1944,6 +2155,17 @@ function formatJobStatus(value) {
   return startCase(value);
 }
 
+function formatExportRequestStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "pending_payment") return "Pending Payment";
+  if (normalized === "paid") return "Paid";
+  if (normalized === "queued") return "Queued";
+  if (normalized === "running") return "In Progress";
+  if (normalized === "completed") return "Completed";
+  if (normalized === "failed") return "Needs Attention";
+  return startCase(value);
+}
+
 function formatHealthStatus(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "healthy") return "Healthy";
@@ -1962,6 +2184,7 @@ function formatAuditTarget(targetType, targetId) {
   const typeLabel = String(targetType || "").trim().toLowerCase();
   if (!targetId && !typeLabel) return "";
   if (typeLabel === "tenant") return formatRecordReference("Customer", targetId);
+  if (typeLabel === "customer_subscription") return formatRecordReference("Subscription", targetId);
   if (typeLabel === "tenant_environment") return formatRecordReference("Environment", targetId);
   if (typeLabel === "provisioning_job") return formatRecordReference("Operation", targetId);
   if (typeLabel === "operator_user") return formatRecordReference("Operator", targetId);
@@ -1972,6 +2195,10 @@ function formatAuditActionSentence(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "tenant_created") return "created a customer record";
   if (normalized === "tenant_updated") return "updated a customer record";
+  if (normalized === "mark_subscription_pending_dormant") return "marked a subscription to become dormant at period end";
+  if (normalized === "mark_subscription_dormant") return "marked a subscription dormant";
+  if (normalized === "reactivate_subscription") return "reactivated a subscription";
+  if (normalized === "request_cancellation_export") return "requested a cancellation export";
   if (normalized === "environment_created") return "created an environment";
   if (normalized === "environment_updated") return "updated an environment";
   if (normalized === "job_created") return "queued an operation";
@@ -2006,6 +2233,25 @@ function formatDateTime(value) {
   });
 }
 
+function formatMoney(cents, currency = "USD") {
+  const normalized = Number(cents || 0) / 100;
+  try {
+    return new Intl.NumberFormat([], {
+      style: "currency",
+      currency: String(currency || "USD").toUpperCase()
+    }).format(normalized);
+  } catch (_error) {
+    return `$${normalized.toFixed(2)}`;
+  }
+}
+
+function formatBillableSummary(record) {
+  const current = Number(record.currentBillableStudentCount || 0);
+  const included = Number(record.includedBillableStudents || 0);
+  if (!included) return `${current} billable`;
+  return `${current} of ${included} included`;
+}
+
 function formatJobType(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "provision_environment") return "Provision Environment";
@@ -2038,6 +2284,10 @@ function formatAuditAction(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "tenant_created") return "Created Customer Record";
   if (normalized === "tenant_updated") return "Updated Customer Record";
+  if (normalized === "mark_subscription_pending_dormant") return "Marked Subscription Pending Dormant";
+  if (normalized === "mark_subscription_dormant") return "Marked Subscription Dormant";
+  if (normalized === "reactivate_subscription") return "Reactivated Subscription";
+  if (normalized === "request_cancellation_export") return "Requested Cancellation Export";
   if (normalized === "environment_created") return "Created Environment";
   if (normalized === "environment_updated") return "Updated Environment";
   if (normalized === "job_created") return "Queued Operation";
@@ -2116,6 +2366,48 @@ async function fetchAuditEntries(filters = {}) {
   if (filters.limit) params.set("limit", String(filters.limit));
   const query = params.toString();
   return apiFetch(`/api/control/audit${query ? `?${query}` : ""}`);
+}
+
+async function submitCommercialAction(subscriptionId, action) {
+  const notes = document.getElementById("commercial-action-notes")?.value.trim() || "";
+  const requestedByEmail = document.getElementById("commercial-export-email")?.value.trim() || "";
+  const actionLabels = {
+    dormant: "Marking subscription dormant...",
+    reactivate: "Reactivating subscription...",
+    "cancellation-export": "Requesting cancellation export..."
+  };
+  const successLabels = {
+    dormant: "Subscription updated for dormant handling.",
+    reactivate: "Subscription reactivated.",
+    "cancellation-export": "Cancellation export request created."
+  };
+
+  setFlash("info", actionLabels[action] || "Submitting commercial action...");
+  try {
+    if (action === "dormant") {
+      await apiFetch(`/api/control/commercial/subscriptions/${encodeURIComponent(subscriptionId)}/dormant`, {
+        method: "POST",
+        body: JSON.stringify({ notes })
+      });
+    } else if (action === "reactivate") {
+      await apiFetch(`/api/control/commercial/subscriptions/${encodeURIComponent(subscriptionId)}/reactivate`, {
+        method: "POST",
+        body: JSON.stringify({ notes })
+      });
+    } else if (action === "cancellation-export") {
+      await apiFetch(`/api/control/commercial/subscriptions/${encodeURIComponent(subscriptionId)}/cancellation-export`, {
+        method: "POST",
+        body: JSON.stringify({ requestedByEmail, notes })
+      });
+    } else {
+      throw new Error("Unsupported commercial action.");
+    }
+    await refreshData(false);
+    await loadCommercialDetail(subscriptionId, true);
+    setFlash("success", successLabels[action] || "Commercial action completed.");
+  } catch (error) {
+    setFlash("error", error.message);
+  }
 }
 
 function resolveEnvironmentName(environmentId) {

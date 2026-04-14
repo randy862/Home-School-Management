@@ -1032,6 +1032,38 @@ async function listOperatorAuditLog(filters = {}) {
   return result.rows.map(mapOperatorAuditLogRow);
 }
 
+async function createOperatorAuditEntry(entry = {}) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    INSERT INTO operator_audit_log (
+      operator_user_id,
+      action_type,
+      target_type,
+      target_id,
+      tenant_id,
+      details_json
+    )
+    VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+    RETURNING
+      id,
+      operator_user_id AS "operatorUserId",
+      action_type AS "actionType",
+      target_type AS "targetType",
+      target_id AS "targetId",
+      tenant_id AS "tenantId",
+      details_json AS "details",
+      created_at AS "createdAt"
+  `, [
+    entry.operatorUserId || null,
+    String(entry.actionType || "").trim(),
+    String(entry.targetType || "").trim(),
+    entry.targetId || null,
+    entry.tenantId || null,
+    JSON.stringify(entry.details || {})
+  ]);
+  return mapOperatorAuditLogRow(result.rows[0]);
+}
+
 async function queueProvisioningJob(job, context = {}) {
   const pool = getPostgresPool();
   const client = await pool.connect();
@@ -2204,6 +2236,7 @@ module.exports = {
   completeSetupTokenJob,
   completeTenantLifecycleJob,
   countOperators,
+  createOperatorAuditEntry,
   createBootstrapOperator,
   createOperatorUser,
   createOperatorSession,

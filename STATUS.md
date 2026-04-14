@@ -188,6 +188,15 @@ Date: 2026-04-10
   - automated paid-signup-to-tenant provisioning
   - recurring billing and delinquency handling
   - billing-aware control-plane operations
+- Implemented the first commercial billing-policy backend slices:
+  - PostgreSQL commercial migration and billable-student tracking tables
+  - tenant-runtime enforcement for student, enrollment, plan, attendance, and grade/test writes
+  - control-plane commercial routes for subscription overview/detail, dormant/reactivate actions, and cancellation-export requests
+  - operator audit logging and lifecycle-job queueing for commercial dormant/reactivation actions
+- Extended the `/control/` operator console Commercial workspace:
+  - selectable commercial account list with billable-student visibility
+  - commercial detail view with subscription state, export history, and operator audit trail
+  - dormant/reactivate/export actions wired to the control-plane commercial endpoints
 - Added first control-plane scaffolding:
   - `admin/` operator-console placeholder
   - `control-api/` placeholder

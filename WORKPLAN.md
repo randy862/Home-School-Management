@@ -180,7 +180,9 @@
    - [x] Define exact billable-student, dormant, and cancellation-export policy language for implementation.
    - [ ] Decide the first-release public-site hosting/runtime approach.
    - [ ] Decide whether launch remains monthly-only or adds annual billing.
-   - [ ] Implement the first control-plane commercial migration, billable-student tracking model, and public plan API.
+   - [x] Implement the first control-plane commercial migration, billable-student tracking model, and public plan API.
+   - [x] Add operator-facing commercial API support for subscription detail, dormant/reactivate actions, cancellation-export requests, and related audit/lifecycle wiring.
+   - [x] Implement the operator-console commercial UI on top of the new control-plane subscription endpoints.
 11. Prepare the next hosted-app workflow consolidation slice: the School Day hub.
    - [x] Define the School Day hub concept as an implementation-ready spec package.
    - [x] Decide that the first version should be a hub model, not the full persisted execution layer.
