@@ -517,6 +517,26 @@ Date: 2026-04-10
 - Production cutover is now structurally documented, but the first live window still depends on real owner assignments, hostname/TLS choices, and secret/config confirmations that are not yet filled in.
 - The new actual instructional minute workflow now passes staged deploy/API/workflow validation, but a hands-on browser review of the day-view editing experience and downstream hour displays is still worth doing before production cutover resumes.
 
+## 2026-04-13
+
+- Aligned the repo with APP001's post-incident service hardening:
+  - APP001 now runs system-level `hsm-api.service` and `hsm-control-api.service`
+  - hosted operations should no longer assume lingering user services or `systemctl --user`
+  - current deployment/recovery docs now use `sudo systemctl` and `sudo journalctl`
+- Updated the control-plane deployment defaults so future hosted deploy jobs target the system-managed tenant app service on APP001 instead of the retired user-session unit model.
+- Current impact assessment:
+  - the service-model change does not alter tenant app request handling, database routing, or public proxy paths by itself
+  - the main project risk was operational drift in deployment automation and runbooks, not an expected runtime performance regression
+  - that drift is now reduced by matching the repo to the live APP001 layout
+- Completed a direct read-only APP001 audit from this workspace:
+  - public `http://192.168.1.210/health` and `http://192.168.1.210/control-api/health` both returned `200 OK` on `2026-04-13`
+  - local `127.0.0.1:3000/health` and `127.0.0.1:3100/health` were both healthy on `APP001`
+  - `hsm-api.service` and `hsm-control-api.service` were both active as system units, enabled at boot, and running under `/system.slice/`
+  - `loginctl show-user debian -p Linger` returned `Linger=no`
+  - the retired user units `home-school-management.service` and `home-school-management-control-api.service` were both disabled
+  - the live `hsm-api.service` matched the repo template
+  - the live `hsm-control-api.service` included additional internal-auth, deployment, and commercial default environment settings, so the repo template was updated to match
+
 ## 2026-04-02
 
 - Shifted the next planning session onto the commercial SaaS layer and converted the high-level roadmap into an implementation-ready spec package in `NOTES/saas-implementation-spec-package.md`.

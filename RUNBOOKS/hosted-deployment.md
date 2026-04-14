@@ -12,10 +12,11 @@ This runbook reflects the current staged production-like shape, not the original
 
 ### APP001
 - Tenant app path: `/home/debian/apps/home-school-management/server`
-- Tenant app service: `home-school-management.service`
+- Tenant app service: `hsm-api.service`
 - Control API path: `/home/debian/apps/home-school-management/control-api`
-- Control API service: `home-school-management-control-api.service`
+- Control API service: `hsm-control-api.service`
 - Runtime override bundle: `/home/debian/apps/home-school-management/server/.env.runtime`
+- APP001 service model: system-level `systemd` units under `debian`, independent of user linger/session state
 
 ### WEB001
 - Tenant web path: `/var/www/home-school-management/web`
@@ -49,7 +50,7 @@ This runbook reflects the current staged production-like shape, not the original
   - `server/src/repositories/postgres/`
   - `server/src/legacy/`
 - If deployment includes systemd unit changes, also sync:
-  - `infra/systemd/home-school-management.service`
+  - `infra/systemd/hsm-api.service`
 
 ### 3. Deploy Tenant Web Assets To WEB001
 - Copy updated `web/` assets into:
@@ -63,23 +64,23 @@ This runbook reflects the current staged production-like shape, not the original
 - Copy updated `admin/` assets into:
   - `/var/www/home-school-management/control`
 - Restart control API only if its code or config changed:
-  - `systemctl --user restart home-school-management-control-api.service`
+  - `sudo systemctl restart hsm-control-api.service`
 
 ### 5. Restart Order
 - Restart only after all required files for that service are fully copied.
 - Tenant app:
-  - `systemctl --user restart home-school-management.service`
+  - `sudo systemctl restart hsm-api.service`
 - Control API if included:
-  - `systemctl --user restart home-school-management-control-api.service`
+  - `sudo systemctl restart hsm-control-api.service`
 
 Do not restart midway through a partial copy. One real staged failure came from restarting before the corrected `services/` files had finished syncing.
 
 ## Required Post-Deploy Validation
 
 ### APP001 Local Checks
-- `systemctl --user is-active home-school-management.service`
+- `sudo systemctl is-active hsm-api.service`
 - `curl http://127.0.0.1:3000/health`
-- `systemctl --user status home-school-management.service --no-pager -l`
+- `sudo systemctl status hsm-api.service --no-pager -l`
 
 ### Public Hosted Checks
 - `curl http://192.168.1.210/health`
@@ -124,7 +125,7 @@ This file is the current source of truth for:
 ### Validate Runtime Schema
 - `curl http://127.0.0.1:3000/api/setup/status`
 - if needed:
-  - `systemctl --user show home-school-management.service --property=EnvironmentFiles --property=Environment | grep PGOPTIONS`
+  - `sudo systemctl show hsm-api.service --property=EnvironmentFiles --property=Environment | grep PGOPTIONS`
 
 If the wrong tenant schema is loaded, the public app can silently point at PostgreSQL `public` instead of the intended tenant schema.
 
@@ -137,13 +138,13 @@ Likely causes:
 - app restarted before required files were fully copied
 
 Check:
-- `ssh debian@192.168.1.200 "systemctl --user status home-school-management.service --no-pager -l | head -n 80"`
-- `ssh debian@192.168.1.200 "journalctl --user -u home-school-management.service -n 80 --no-pager"`
+- `ssh debian@192.168.1.200 "sudo systemctl status hsm-api.service --no-pager -l | head -n 80"`
+- `ssh debian@192.168.1.200 "sudo journalctl -u hsm-api.service -n 80 --no-pager"`
 - `ssh debian@192.168.1.210 "curl -s -i http://192.168.1.200:3000/health"`
 
 Recovery:
 - finish any incomplete file sync
-- restart `home-school-management.service`
+- restart `hsm-api.service`
 - recheck local health
 - recheck public `/health`
 
@@ -154,7 +155,7 @@ Likely causes already seen:
 - stale runtime file/config mismatch
 
 Check:
-- `journalctl --user -u home-school-management.service -n 80 --no-pager`
+- `sudo journalctl -u hsm-api.service -n 80 --no-pager`
 
 Examples already encountered:
 - missing `server/src/legacy/local-state-bridge.js`
@@ -172,7 +173,7 @@ Symptoms:
 
 Check:
 - `.env.runtime` exists
-- `EnvironmentFile=` is present in `home-school-management.service`
+- `EnvironmentFile=` is present in `hsm-api.service`
 - `PGOPTIONS` is quoted correctly for systemd consumption
 
 Recovery:
@@ -195,7 +196,7 @@ Recovery:
 ### E. Bad Release Rollout
 If the public app regresses after a backend-only release:
 - redeploy the previously known-good backend files to `APP001`
-- restart `home-school-management.service`
+- restart `hsm-api.service`
 - re-run local and public health
 - repeat the hosted smoke pass on the previous known-good version
 
@@ -257,10 +258,10 @@ Optional parameters:
 ## Rehearsed Release / Rollback Drill
 The current release path has been exercised on staging with a controlled backend-only control-api change:
 - deployed a tiny `control-api` health-route change to `APP001`
-- restarted `home-school-management-control-api.service`
+- restarted `hsm-control-api.service`
 - ran `scripts\Invoke-HostedReleaseGate.ps1` successfully against the live staged app and control plane
 - restored the previously committed control-api route file to `APP001`
-- restarted `home-school-management-control-api.service` again
+- restarted `hsm-control-api.service` again
 - reran `scripts\Invoke-HostedReleaseGate.ps1` successfully after rollback
 
 This means the staged operator path is no longer just theoretical:

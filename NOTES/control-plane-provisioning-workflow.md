@@ -69,7 +69,7 @@ Define the first end-to-end provisioning workflow that turns the current hosted 
   - session config
 - Worker restarts the tenant app service and verifies `/health`.
 - Current implementation note:
-  - the staged control plane now has an opt-in deployment executor that can copy `server/` into the configured app deploy directory, write `.env.runtime`, restart `home-school-management.service`, verify app health, and push `web/` assets to the configured web host over `scp`/`ssh`
+  - the staged control plane now has an opt-in deployment executor that can copy `server/` into the configured app deploy directory, write `.env.runtime`, restart the configured tenant app service, verify app health, and push `web/` assets to the configured web host over `scp`/`ssh`
   - cross-host execution still depends on trusted `APP001 -> WEB001` SSH access; the worker intentionally keeps strict host verification and fails closed if that trust path is not established
 
 ### 6. Register Release

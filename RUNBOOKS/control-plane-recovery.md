@@ -166,13 +166,13 @@ Treat this as a hosted runtime recovery issue after control-plane triage is comp
 ## Host-Level Checks
 
 ### APP001
-- `systemctl --user status home-school-management.service --no-pager -l`
-- `journalctl --user -u home-school-management.service -n 80 --no-pager`
+- `sudo systemctl status hsm-api.service --no-pager -l`
+- `sudo journalctl -u hsm-api.service -n 80 --no-pager`
 - `curl http://127.0.0.1:3000/health`
 
 ### Control API On APP001
-- `systemctl --user status home-school-management-control-api.service --no-pager -l`
-- `journalctl --user -u home-school-management-control-api.service -n 80 --no-pager`
+- `sudo systemctl status hsm-control-api.service --no-pager -l`
+- `sudo journalctl -u hsm-control-api.service -n 80 --no-pager`
 - `curl http://127.0.0.1:3100/health`
 
 ### WEB001
@@ -182,7 +182,7 @@ Treat this as a hosted runtime recovery issue after control-plane triage is comp
 ## Known Failure Lessons From Staging
 
 ### Restart Only After File Sync Completes
-One real failure came from restarting `home-school-management.service` before corrected remote files had fully copied. This created a false runtime mismatch even though the final file content was correct.
+One real failure came from restarting the tenant app service before corrected remote files had fully copied. This created a false runtime mismatch even though the final file content was correct.
 
 ### Missing New Module Paths Cause Immediate Startup Failure
 When a new module or directory is introduced, confirm it exists on `APP001` before restart.

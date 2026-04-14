@@ -8,6 +8,11 @@ function toBool(value, fallback) {
   return String(value).toLowerCase() === "true";
 }
 
+function normalizeServiceScope(value, fallback = "system") {
+  const normalized = String(value || fallback).trim().toLowerCase();
+  return normalized === "user" ? "user" : "system";
+}
+
 function parseAliasMap(value) {
   return String(value || "")
     .split(",")
@@ -63,7 +68,9 @@ module.exports = {
     appSourceDir: process.env.CONTROL_DEPLOY_APP_SOURCE_DIR || path.resolve(__dirname, "../../server"),
     appDeployDir: process.env.CONTROL_DEPLOY_APP_DIR || "/home/debian/apps/home-school-management/server",
     appRuntimeEnvFilename: process.env.CONTROL_DEPLOY_APP_RUNTIME_ENV_FILENAME || ".env.runtime",
-    appServiceName: process.env.CONTROL_DEPLOY_APP_SERVICE || "home-school-management.service",
+    appServiceName: process.env.CONTROL_DEPLOY_APP_SERVICE || "hsm-api.service",
+    appServiceScope: normalizeServiceScope(process.env.CONTROL_DEPLOY_APP_SERVICE_SCOPE || "system"),
+    appServiceUseSudo: toBool(process.env.CONTROL_DEPLOY_APP_SERVICE_USE_SUDO, true),
     appHealthCheckUrl: process.env.CONTROL_DEPLOY_APP_HEALTH_URL || "http://127.0.0.1:3000/health",
     webSourceDir: process.env.CONTROL_DEPLOY_WEB_SOURCE_DIR || path.resolve(__dirname, "../../web"),
     webDeployDir: process.env.CONTROL_DEPLOY_WEB_DIR || "/var/www/home-school-management/web",

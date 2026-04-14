@@ -179,7 +179,7 @@ async function deployAppRelease(config, environment, bundlePath) {
       });
     }
     await fs.copyFile(bundlePath, path.join(config.appDeployDir, config.appRuntimeEnvFilename));
-    await runCommand("systemctl", ["--user", "restart", config.appServiceName]);
+    await restartLocalService(config, config.appServiceName);
     await waitForCommand("curl", ["-fsS", config.appHealthCheckUrl], config);
     return {
       attempted: true,
@@ -199,7 +199,7 @@ async function deployAppRelease(config, environment, bundlePath) {
   await runCommand(config.sshBin, buildSshArgs(config, sshTarget, `mkdir -p ${quoteShellArg(config.appDeployDir)}`));
   await copyDirectoryViaScp(config, config.appSourceDir, `${sshTarget}:${config.appDeployDir}`);
   await copyFileViaScp(config, bundlePath, `${sshTarget}:${path.posix.join(config.appDeployDir, config.appRuntimeEnvFilename)}`);
-  await runCommand(config.sshBin, buildSshArgs(config, sshTarget, `systemctl --user restart ${quoteShellArg(config.appServiceName)}`));
+  await runCommand(config.sshBin, buildSshArgs(config, sshTarget, buildRemoteRestartCommand(config, config.appServiceName)));
   await waitForCommand(config.sshBin, buildSshArgs(config, sshTarget, `curl -fsS ${quoteShellArg(config.appHealthCheckUrl)}`), config);
   return {
     attempted: true,
@@ -387,6 +387,26 @@ async function waitForCommand(command, args, config) {
     }
   }
   throw lastError || new Error("Command retry failed.");
+}
+
+async function restartLocalService(config, serviceName) {
+  const useSudo = Boolean(config.appServiceUseSudo);
+  const scope = String(config.appServiceScope || "system").toLowerCase();
+  const command = useSudo ? "sudo" : "systemctl";
+  const args = useSudo ? ["systemctl"] : [];
+  if (scope === "user") {
+    args.push("--user");
+  }
+  args.push("restart", serviceName);
+  await runCommand(command, args);
+}
+
+function buildRemoteRestartCommand(config, serviceName) {
+  const useSudo = Boolean(config.appServiceUseSudo);
+  const scope = String(config.appServiceScope || "system").toLowerCase();
+  const prefix = useSudo ? "sudo systemctl" : "systemctl";
+  const scopeArg = scope === "user" ? " --user" : "";
+  return `${prefix}${scopeArg} restart ${quoteShellArg(serviceName)}`;
 }
 
 function parseSetupTokenOutput(stdout) {

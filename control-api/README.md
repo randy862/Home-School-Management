@@ -66,7 +66,9 @@ Deployment-related environment variables:
 - `CONTROL_DEPLOY_LOCAL_HOSTS=APP001,192.168.1.200,127.0.0.1,localhost` to tell the worker when the app host should be treated as local
 - `CONTROL_HOST_ALIASES=APP001=192.168.1.200,WEB001=192.168.1.210,DB001=192.168.1.202` to resolve control-plane host labels on the worker host
 - `CONTROL_DEPLOY_APP_DIR=/home/debian/apps/home-school-management/server`
-- `CONTROL_DEPLOY_APP_SERVICE=home-school-management.service`
+- `CONTROL_DEPLOY_APP_SERVICE=hsm-api.service`
+- `CONTROL_DEPLOY_APP_SERVICE_SCOPE=system`
+- `CONTROL_DEPLOY_APP_SERVICE_USE_SUDO=true`
 - `CONTROL_DEPLOY_APP_HEALTH_URL=http://127.0.0.1:3000/health`
 - `CONTROL_DEPLOY_WEB_DIR=/var/www/home-school-management/web`
 - `CONTROL_DEPLOY_WEB_HEALTH_URL=http://127.0.0.1/health`
@@ -75,6 +77,11 @@ Deployment-related environment variables:
 - `CONTROL_DEPLOY_SSH_USER=debian`
 - `CONTROL_DEPLOY_SSH_PORT=22`
 - `CONTROL_DEPLOY_SSH_CONNECT_TIMEOUT_SECONDS=10`
+
+Current APP001 assumption:
+- the tenant runtime is managed by system-level `systemd` units, not lingering user services
+- the control-plane worker uses `sudo systemctl restart ...` for app restarts during hosted deployment automation
+- if a legacy environment still uses user units, override `CONTROL_DEPLOY_APP_SERVICE_SCOPE=user` and `CONTROL_DEPLOY_APP_SERVICE_USE_SUDO=false`
 
 Validation helper:
 - `src/scripts/validate-deployment.js` manually exercises `tenant-runtime-automation.provisionEnvironment(...)` using environment metadata passed through env vars

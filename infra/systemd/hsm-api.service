@@ -5,6 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+User=debian
+Group=debian
 WorkingDirectory=/home/debian/apps/home-school-management/server
 Environment=APP_ENV=production
 Environment=DB_CLIENT=postgres
@@ -31,4 +33,4 @@ Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target

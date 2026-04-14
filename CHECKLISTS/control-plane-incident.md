@@ -21,12 +21,12 @@
 
 ## If App Runtime Is Affected
 - Check `http://192.168.1.210/health`
-- Check `home-school-management.service` on `APP001`
+- Check `hsm-api.service` on `APP001`
 - Check `.env.runtime` / `PGOPTIONS` if tenant state looks wrong
 
 ## If Control Plane Is Affected
 - Check `http://192.168.1.210/control-api/health`
-- Check `home-school-management-control-api.service` on `APP001`
+- Check `hsm-control-api.service` on `APP001`
 
 ## Escalate To Host-Level Checks When
 - deploy step failed
