@@ -16,8 +16,8 @@ Environment=SESSION_COOKIE_NAME=hsm_session
 Environment=SESSION_COOKIE_SECURE=false
 Environment=SESSION_COOKIE_SAMESITE=Lax
 Environment=SESSION_TTL_HOURS=168
-Environment=CONTROL_PLANE_INTERNAL_KEY=HSM_CONTROL_PLANE_SYNC_KEY
-Environment=CONTROL_PLANE_INTERNAL_AUTH_SECRET=HSM_CTRL_SVC_20260329_Ff2nq4V7xB9mLc3pRe6sTu8wYz1Ka5Qh
+Environment=CONTROL_PLANE_INTERNAL_KEY=CHANGEME
+Environment=CONTROL_PLANE_INTERNAL_AUTH_SECRET=CHANGEME
 Environment=CONTROL_PLANE_INTERNAL_AUTH_ISSUER=control-plane
 Environment=CONTROL_PLANE_INTERNAL_AUTH_AUDIENCE=tenant-runtime-internal
 Environment=CONTROL_PLANE_INTERNAL_AUTH_CLOCK_SKEW_SECONDS=30
@@ -25,8 +25,8 @@ Environment=CONTROL_PLANE_ALLOW_LEGACY_INTERNAL_KEY=false
 Environment=PGHOST=192.168.1.202
 Environment=PGPORT=5432
 Environment=PGDATABASE=appdb
-Environment=PGUSER=appuser
-Environment=PGPASSWORD=StrongPassword123!
+Environment=PGUSER=CHANGEME
+Environment=PGPASSWORD=CHANGEME
 EnvironmentFile=-/home/debian/apps/home-school-management/server/.env.runtime
 ExecStart=/usr/bin/node src/app.js
 Restart=always
