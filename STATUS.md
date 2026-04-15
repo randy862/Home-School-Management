@@ -205,6 +205,17 @@ Date: 2026-04-10
   - applied the missing billing-policy migration to the live staged control-plane schema `hsm_control_staging` on `APP001`
   - seeded one temporary smoke-test commercial account/subscription to exercise the live Commercial detail and action flows, then validated that the operator UI could read those records successfully
   - confirmed the next commercial implementation step is live Stripe configuration and integration against the now-aligned staged control-plane runtime
+- Completed the first Stripe dashboard setup pass for the staged commercial slice:
+  - created the Stripe account-side recurring product/price records for the current monthly subscription model
+  - created the first webhook destination in Stripe Workbench for account-level events
+  - confirmed the app should map Stripe `price_...` IDs, not `prod_...` IDs, into `commercial_plans.stripe_price_id`
+  - confirmed the current implementation should validate `Starter` and `Growth` first and leave the `Large` overage-backed plan for a follow-up billing implementation slice
+  - identified the remaining staged infrastructure prerequisites before Stripe can be exercised end to end:
+    - acquire a real public hosted URL for the staged path
+    - map firewall `443` from the public edge to `WEB001`
+    - apply a valid TLS certificate on `WEB001` for the staged public host
+    - load the staged Stripe test keys, webhook signing secret, and Starter/Growth `price_...` IDs into `APP001`
+    - run one real Stripe test-mode checkout plus webhook validation against the staged stack
 - Added first control-plane scaffolding:
   - `admin/` operator-console placeholder
   - `control-api/` placeholder

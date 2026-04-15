@@ -7,9 +7,9 @@
   --edge-strong: rgba(198, 211, 228, 0.96);
   --text: #1f2f45;
   --muted: #627389;
-  --accent: #9a622c;
-  --accent-deep: #7e4b1a;
-  --accent-soft: #f4e5d2;
+  --accent: #1761ae;
+  --accent-deep: #0f4a87;
+  --accent-soft: #e7f2ff;
   --shadow-soft: 0 20px 48px rgba(31, 47, 69, 0.08);
   --shadow-float: 0 28px 60px rgba(31, 47, 69, 0.14);
 }
@@ -28,7 +28,7 @@ body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background:
     radial-gradient(circle at top left, rgba(181, 212, 239, 0.28), transparent 34%),
-    radial-gradient(circle at top right, rgba(255, 233, 205, 0.38), transparent 28%),
+    radial-gradient(circle at top right, rgba(90, 173, 72, 0.16), transparent 28%),
     linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 52%, #e8eef5 100%);
 }
 
@@ -141,7 +141,7 @@ img {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.78rem 1rem;
+  padding: 0.68rem 1rem;
   margin-bottom: 1rem;
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.88);
@@ -151,20 +151,33 @@ img {
 .brand-lockup {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
 .brand-logo {
-  width: min(420px, 100%);
-  max-height: 84px;
+  width: min(760px, 58vw);
+  height: 96px;
+  max-height: 96px;
   object-fit: contain;
+  object-position: left center;
 }
 
 .site-nav {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   gap: 0.5rem;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 0;
+}
+
+.header-cta {
+  margin-left: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .site-nav a,
@@ -191,7 +204,7 @@ img {
 .disabled-submit {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
   color: #fff;
-  box-shadow: 0 16px 30px rgba(154, 98, 44, 0.22);
+  box-shadow: 0 16px 30px rgba(23, 97, 174, 0.22);
 }
 
 .secondary-link {
@@ -589,7 +602,14 @@ h3 {
   }
 
   .site-nav {
+    position: static;
+    transform: none;
     justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .header-cta {
+    margin-left: 0;
   }
 }
 
@@ -618,7 +638,9 @@ h3 {
   }
 
   .brand-logo {
-    width: min(320px, 100%);
+    width: min(100%, 440px);
+    height: 78px;
+    max-height: 78px;
   }
 
   .hero-actions,

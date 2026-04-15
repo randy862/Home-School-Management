@@ -1,11 +1,14 @@
 :root {
-  --bg: #f1ece3;
+  --bg: #eef5fb;
   --panel: #ffffff;
-  --edge: #d7c8ad;
-  --text: #2f1f14;
-  --muted: #6c5847;
-  --accent: #875422;
-  --danger: #8a3434;
+  --edge: #c8d9ea;
+  --edge-strong: #adc6df;
+  --text: #1f3551;
+  --muted: #59718d;
+  --accent: #1761ae;
+  --accent-strong: #0f4a87;
+  --success: #4f9a2f;
+  --danger: #b04040;
 }
 
 * {
@@ -17,8 +20,8 @@ body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at 10% 0%, #efe4d2 0, transparent 40%),
-    radial-gradient(circle at 100% 100%, #e6d8be 0, transparent 35%),
+    radial-gradient(circle at 10% 0%, rgba(90, 173, 72, 0.16) 0, transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(23, 97, 174, 0.14) 0, transparent 35%),
     var(--bg);
 }
 
@@ -96,7 +99,7 @@ body {
   object-fit: contain;
   object-position: center top;
   border-radius: 12px;
-  border: 1px solid #cfb086;
+  border: 1px solid var(--edge-strong);
   box-shadow: 0 8px 20px rgba(95, 63, 27, 0.22);
 }
 
@@ -356,7 +359,7 @@ h3 {
 .progress-fill {
   width: 0;
   height: 100%;
-  background: linear-gradient(90deg, #875422, #b67a31);
+  background: linear-gradient(90deg, var(--accent), #5aad48);
   transition: width 240ms ease;
 }
 
@@ -1367,7 +1370,7 @@ td {
 }
 
 .trend-line {
-  stroke: #875422;
+  stroke: var(--accent);
   stroke-width: 2.25;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -1375,7 +1378,7 @@ td {
 
 .trend-point {
   fill: #b67a31;
-  stroke: #875422;
+  stroke: var(--accent);
   stroke-width: 1;
 }
 
@@ -2048,7 +2051,7 @@ td {
 #school-day-table tr.school-day-row-needs-attendance td:first-child::before,
 #school-day-table tr.school-day-row-needs-grade td:first-child::before,
 #school-day-table tr.school-day-row-needs-completion td:first-child::before {
-  background: #ee9a1a;
+  background: #1761ae;
 }
 
 #school-day-table tr.school-day-row-completed td:first-child::before {
@@ -2058,7 +2061,7 @@ td {
 #school-day-table tr.school-day-row-needs-attendance td,
 #school-day-table tr.school-day-row-needs-grade td,
 #school-day-table tr.school-day-row-needs-completion td {
-  background: #fffdf8;
+  background: #f7fbff;
 }
 
 #school-day-table tr.school-day-row-completed td {
@@ -2084,8 +2087,8 @@ td {
 }
 
 .school-day-status-badge.warning {
-  background: #ffe7bf;
-  color: #8f4e00;
+  background: #e7f2ff;
+  color: #1761ae;
 }
 
 .school-day-status-badge.complete {
@@ -3198,8 +3201,8 @@ td {
   --edge-strong: #c9d5e6;
   --text: #1f2f45;
   --muted: #627389;
-  --accent: #9a622c;
-  --accent-strong: #7e4b1a;
+  --accent: #1761ae;
+  --accent-strong: #0f4a87;
   --accent-soft: #f4e6d4;
   --danger: #b04040;
   --shadow-soft: 0 18px 42px rgba(31, 47, 69, 0.08);
@@ -3264,12 +3267,14 @@ body {
 }
 
 #app-shell .app-brand-lockup .title-logo {
-  width: min(420px, 100%);
-  max-height: 84px;
+  width: min(760px, 60vw);
+  height: 96px;
+  max-height: 96px;
   margin: 0;
   filter: none;
   display: block;
   object-fit: contain;
+  object-position: left center;
 }
 
 .session-bar {
@@ -3363,7 +3368,7 @@ body {
 .subtab-btn.active {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
   border-color: transparent;
-  box-shadow: 0 16px 30px rgba(154, 98, 44, 0.24);
+  box-shadow: 0 16px 30px rgba(23, 97, 174, 0.24);
   color: #fff;
 }
 
@@ -3493,9 +3498,9 @@ h4 {
   justify-content: center;
   min-width: 92px;
   padding: 0.45rem 0.75rem;
-  border: 1px solid #d5c4aa;
+  border: 1px solid #c7d8ea;
   border-radius: 999px;
-  background: #fffaf0;
+  background: #f4f9ff;
   color: var(--accent-strong);
   font-size: 0.95rem;
   font-weight: 700;
@@ -3516,8 +3521,8 @@ h4 {
 
 .dashboard-pill-metric.on-pace,
 .dashboard-pill-metric.starting {
-  border-color: #d5c4aa;
-  background: #fffaf0;
+  border-color: #c7d8ea;
+  background: #f4f9ff;
   color: var(--accent-strong);
 }
 
@@ -3601,7 +3606,7 @@ h4 {
 }
 
 .progress-fill {
-  background: linear-gradient(90deg, #cf8d44 0%, #9a622c 100%);
+  background: linear-gradient(90deg, #5aad48 0%, #1761ae 100%);
 }
 
 input:not([type="checkbox"]):not([type="radio"]),
@@ -3633,7 +3638,7 @@ button {
   border-radius: 14px;
   padding: 0.62rem 0.96rem;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
-  box-shadow: 0 12px 24px rgba(154, 98, 44, 0.22);
+  box-shadow: 0 12px 24px rgba(23, 97, 174, 0.22);
   font-weight: 600;
   transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
 }
@@ -3641,7 +3646,7 @@ button {
 button:hover {
   transform: translateY(-1px);
   filter: none;
-  box-shadow: 0 16px 30px rgba(154, 98, 44, 0.25);
+  box-shadow: 0 16px 30px rgba(23, 97, 174, 0.25);
 }
 
 button.secondary-btn {
@@ -3780,8 +3785,9 @@ tbody tr:hover {
   }
 
   #app-shell .app-brand-lockup .title-logo {
-    width: min(570px, 100%);
-    max-height: 114px;
+    width: min(640px, 72vw);
+    height: 88px;
+    max-height: 88px;
   }
 }
 
@@ -3803,8 +3809,9 @@ tbody tr:hover {
   }
 
   #app-shell .app-brand-lockup .title-logo {
-    width: min(100%, 410px);
-    max-height: 82px;
+    width: min(100%, 440px);
+    height: 78px;
+    max-height: 78px;
     margin: 0;
   }
 

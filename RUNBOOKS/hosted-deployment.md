@@ -30,6 +30,18 @@ This runbook reflects the current staged production-like shape, not the original
 
 ## Standard Release Flow
 
+### Public HTTPS Prerequisite For Stripe/Webhooks
+- Stripe webhook validation requires a publicly reachable `https://...` hosted URL.
+- Before attempting staged Stripe Checkout or webhook validation:
+  - acquire a public hostname or other stable public HTTPS entrypoint for the staged hosted path
+  - map firewall `443` from the public edge to `WEB001`
+  - install and verify a valid TLS certificate on `WEB001`
+  - confirm the following public URLs succeed externally over HTTPS:
+    - `https://<public-host>/health`
+    - `https://<public-host>/control-api/health`
+  - use the staged webhook URL:
+    - `https://<public-host>/control-api/api/public/billing/webhook`
+
 ### 1. Pre-Deploy Checks
 - Confirm repo is at the intended commit.
 - Preferred quick gate from this workstation:

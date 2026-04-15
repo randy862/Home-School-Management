@@ -4523,21 +4523,21 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
   <meta charset="utf-8">
   <title>Student Report</title>
   <style>
-    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #2f1f14; margin: 0; background: #f4efe7; }
+    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #1f3551; margin: 0; background: #eef5fb; }
     .report-shell { max-width: 1100px; margin: 0 auto; padding: 24px; }
     .report-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .report-toolbar button { border: 0; border-radius: 8px; padding: 10px 16px; background: #875422; color: #fff; font: inherit; cursor: pointer; }
-    .report-page { background: #fff; border: 1px solid #d7c8ad; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(24, 33, 20, 0.08); }
+    .report-toolbar button { border: 0; border-radius: 8px; padding: 10px 16px; background: #1761ae; color: #fff; font: inherit; cursor: pointer; }
+    .report-page { background: #fff; border: 1px solid #c8d9ea; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(31, 47, 69, 0.08); }
     .report-page.report-page-break { page-break-after: always; }
     h1 { margin: 0 0 8px; font-size: 28px; }
     h2 { margin: 20px 0 8px; font-size: 20px; }
     .report-subsection-grade-weighting { margin-top: 20px; }
-    .report-meta { margin: 0 0 18px; color: #6c5847; }
+    .report-meta { margin: 0 0 18px; color: #59718d; }
     table { width: 100%; border-collapse: collapse; }
     .report-page table + table { margin-top: 18px; }
     .report-table { table-layout: fixed; }
-    th, td { border: 1px solid #d9cdb7; padding: 8px 10px; text-align: left; vertical-align: top; }
-    th { background: #f6f1e7; }
+    th, td { border: 1px solid #c8d9ea; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f4f9ff; }
     @media print {
       body { background: #fff; }
       .report-shell { max-width: none; padding: 0; }
@@ -4613,18 +4613,18 @@ function buildPrintableInstructorReportHtml({ range, instructorId = "all" }) {
   <meta charset="utf-8">
   <title>Instructor Report</title>
   <style>
-    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #2f1f14; margin: 0; background: #f4efe7; }
+    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #1f3551; margin: 0; background: #eef5fb; }
     .report-shell { max-width: 1100px; margin: 0 auto; padding: 24px; }
     .report-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .report-toolbar button { border: 0; border-radius: 8px; padding: 10px 16px; background: #875422; color: #fff; font: inherit; cursor: pointer; }
-    .report-page { background: #fff; border: 1px solid #d7c8ad; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(24, 33, 20, 0.08); }
+    .report-toolbar button { border: 0; border-radius: 8px; padding: 10px 16px; background: #1761ae; color: #fff; font: inherit; cursor: pointer; }
+    .report-page { background: #fff; border: 1px solid #c8d9ea; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(31, 47, 69, 0.08); }
     .report-page.report-page-break { page-break-after: always; }
     h1 { margin: 0 0 8px; font-size: 28px; }
-    .report-meta { margin: 0 0 18px; color: #6c5847; }
+    .report-meta { margin: 0 0 18px; color: #59718d; }
     table { width: 100%; border-collapse: collapse; }
     .report-page table + table { margin-top: 18px; }
-    th, td { border: 1px solid #d9cdb7; padding: 8px 10px; text-align: left; vertical-align: top; }
-    th { background: #f6f1e7; }
+    th, td { border: 1px solid #c8d9ea; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f4f9ff; }
     @media print {
       body { background: #fff; }
       .report-shell { max-width: none; padding: 0; }
