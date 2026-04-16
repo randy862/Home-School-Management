@@ -9415,7 +9415,9 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
       const isEditing = editingInstructionActualKey === editKey;
       const canEditActualMinutes = isAdminUser();
       const instructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
-      const startTimeValue = effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, block.plannedStart);
+      const startTimeValue = Number.isFinite(block.start)
+        ? block.start
+        : effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, block.plannedStart);
       const hourCell = isEditing
         ? `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Start Time<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-instruction-actual-start="${editKey}"></label></div>`
         : actualRange;
