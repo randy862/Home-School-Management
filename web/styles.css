@@ -200,10 +200,10 @@ body {
 
 .auth-top .subtitle {
   grid-area: subtitle;
-  width: min(500px, 100%);
+  width: min(520px, calc(100% - 210px));
   margin: 0;
   margin-top: -0.12rem;
-  margin-left: 0;
+  margin-left: 69px;
   justify-self: start;
   text-align: center;
   font-size: 0.9rem;
