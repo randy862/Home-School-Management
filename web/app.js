@@ -101,6 +101,8 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showMissingGrades: true,
     showGradeRiskWatchlist: true,
     showInstructionHourPace: true,
+    showComplianceHoursMonthly: true,
+    showComplianceDaysMonthly: true,
     showStudentPerformance: true,
     showStudentAttendance: true,
     showStudentInstructionalHours: true,
@@ -273,6 +275,19 @@ function toDate(s) {
 function toISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 function todayISO() { return toISO(new Date()); }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+function niceTickStep(maxValue, targetTickCount = 6) {
+  const safeMax = Math.max(Number(maxValue) || 0, 1);
+  const roughStep = safeMax / Math.max(targetTickCount, 2);
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalized = roughStep / magnitude;
+  let niceNormalized = 10;
+  if (normalized <= 1) niceNormalized = 1;
+  else if (normalized <= 2) niceNormalized = 2;
+  else if (normalized <= 2.5) niceNormalized = 2.5;
+  else if (normalized <= 5) niceNormalized = 5;
+  return niceNormalized * magnitude;
+}
 
 function normalizeApiDate(value) {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -954,6 +969,8 @@ const studentPerformanceSelectedGradeMethods = new Set(STUDENT_PERFORMANCE_GRADE
 const trendSelectedStudentIds = new Set();
 const gpaTrendSelectedStudentIds = new Set();
 const instructionHoursTrendSelectedStudentIds = new Set();
+const complianceHoursSelectedStudentIds = new Set();
+const complianceDaysSelectedStudentIds = new Set();
 const volumeSelectedStudentIds = new Set();
 const workSelectedStudentIds = new Set();
 const workDistributionSelectedGradeTypes = new Set();
@@ -3481,6 +3498,8 @@ function renderSelects() {
   renderTrendStudentChecklist(Array.from(trendSelectedStudentIds));
   renderGpaTrendStudentChecklist(Array.from(gpaTrendSelectedStudentIds));
   renderInstructionHoursTrendStudentChecklist(Array.from(instructionHoursTrendSelectedStudentIds));
+  renderComplianceHoursStudentChecklist(Array.from(complianceHoursSelectedStudentIds));
+  renderComplianceDaysStudentChecklist(Array.from(complianceDaysSelectedStudentIds));
   renderVolumeStudentChecklist(Array.from(volumeSelectedStudentIds));
   renderWorkStudentChecklist(Array.from(workSelectedStudentIds));
 
@@ -3556,6 +3575,8 @@ function renderSelects() {
     "trend-filter-instructor",
     "gpa-trend-filter-instructor",
     "instruction-hours-trend-filter-instructor",
+    "compliance-hours-filter-instructor",
+    "compliance-days-filter-instructor",
     "volume-filter-instructor",
     "work-filter-instructor",
     "grades-filter-instructor",
@@ -3737,6 +3758,32 @@ function renderSelects() {
       instructionHoursTrendSubjectSelect.appendChild(option);
     });
     if (Array.from(instructionHoursTrendSubjectSelect.options).some((o) => o.value === current)) instructionHoursTrendSubjectSelect.value = current;
+  }
+
+  const complianceHoursQuarterSelect = document.getElementById("compliance-hours-filter-quarter");
+  if (complianceHoursQuarterSelect) {
+    const current = complianceHoursQuarterSelect.value || "all";
+    complianceHoursQuarterSelect.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      complianceHoursQuarterSelect.appendChild(option);
+    });
+    if (Array.from(complianceHoursQuarterSelect.options).some((o) => o.value === current)) complianceHoursQuarterSelect.value = current;
+  }
+
+  const complianceDaysQuarterSelect = document.getElementById("compliance-days-filter-quarter");
+  if (complianceDaysQuarterSelect) {
+    const current = complianceDaysQuarterSelect.value || "all";
+    complianceDaysQuarterSelect.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      complianceDaysQuarterSelect.appendChild(option);
+    });
+    if (Array.from(complianceDaysQuarterSelect.options).some((o) => o.value === current)) complianceDaysQuarterSelect.value = current;
   }
 
   const volumeQuarterSelect = document.getElementById("volume-filter-quarter");
@@ -4780,6 +4827,56 @@ function getInstructionHoursTrendSelectedStudentIds() {
   return Array.from(document.querySelectorAll(".instruction-hours-trend-student-checkbox:checked")).map((el) => el.value);
 }
 
+function renderComplianceHoursStudentChecklist(preselectedStudentIds = []) {
+  const container = document.getElementById("compliance-hours-student-dropdown");
+  const optionsWrap = document.getElementById("compliance-hours-student-options");
+  if (!container || !optionsWrap) return;
+  const selected = new Set(preselectedStudentIds);
+  const checkboxes = visibleStudents().map((s, idx) => {
+    const checked = selected.has(s.id) ? " checked" : "";
+    const inputId = `compliance-hours-student-${idx}-${s.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="compliance-hours-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
+  updateComplianceHoursStudentSummary();
+}
+
+function updateComplianceHoursStudentSummary() {
+  const summary = document.getElementById("compliance-hours-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".compliance-hours-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getComplianceHoursSelectedStudentIds() {
+  return Array.from(document.querySelectorAll(".compliance-hours-student-checkbox:checked")).map((el) => el.value);
+}
+
+function renderComplianceDaysStudentChecklist(preselectedStudentIds = []) {
+  const container = document.getElementById("compliance-days-student-dropdown");
+  const optionsWrap = document.getElementById("compliance-days-student-options");
+  if (!container || !optionsWrap) return;
+  const selected = new Set(preselectedStudentIds);
+  const checkboxes = visibleStudents().map((s, idx) => {
+    const checked = selected.has(s.id) ? " checked" : "";
+    const inputId = `compliance-days-student-${idx}-${s.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="compliance-days-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
+  updateComplianceDaysStudentSummary();
+}
+
+function updateComplianceDaysStudentSummary() {
+  const summary = document.getElementById("compliance-days-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".compliance-days-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getComplianceDaysSelectedStudentIds() {
+  return Array.from(document.querySelectorAll(".compliance-days-student-checkbox:checked")).map((el) => el.value);
+}
+
 function renderVolumeStudentChecklist(preselectedStudentIds = []) {
   const container = document.getElementById("volume-student-dropdown");
   const optionsWrap = document.getElementById("volume-student-options");
@@ -5168,6 +5265,8 @@ function renderDashboardSectionVisibility() {
     ],
     compliance: [
       ["dashboard-section-instruction-hour-pace", config.dashboard.showInstructionHourPace],
+      ["dashboard-section-compliance-hours-monthly", config.dashboard.showComplianceHoursMonthly],
+      ["dashboard-section-compliance-days-monthly", config.dashboard.showComplianceDaysMonthly],
       ["dashboard-section-student-attendance", config.dashboard.showStudentAttendance],
       ["dashboard-section-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
       ["dashboard-section-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending]
@@ -5182,6 +5281,8 @@ function renderDashboardSectionVisibility() {
     "dashboard-section-grade-risk-watchlist",
     "dashboard-performance-placeholder",
     "dashboard-section-instruction-hour-pace",
+    "dashboard-section-compliance-hours-monthly",
+    "dashboard-section-compliance-days-monthly",
     "dashboard-compliance-placeholder",
     "dashboard-section-student-performance",
     "dashboard-section-student-attendance",
@@ -5248,6 +5349,8 @@ function renderAdministration() {
     ["admin-config-dashboard-show-missing-grades", config.dashboard.showMissingGrades],
     ["admin-config-dashboard-show-grade-risk-watchlist", config.dashboard.showGradeRiskWatchlist],
     ["admin-config-dashboard-show-instruction-hour-pace", config.dashboard.showInstructionHourPace],
+    ["admin-config-dashboard-show-compliance-hours-monthly", config.dashboard.showComplianceHoursMonthly],
+    ["admin-config-dashboard-show-compliance-days-monthly", config.dashboard.showComplianceDaysMonthly],
     ["admin-config-dashboard-show-student-performance", config.dashboard.showStudentPerformance],
     ["admin-config-dashboard-show-student-attendance", config.dashboard.showStudentAttendance],
     ["admin-config-dashboard-show-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
@@ -6938,18 +7041,44 @@ function removeGradeCalculatorRow(sourceRowId) {
   if (calcRow) calcRow.remove();
 }
 
-function toggleGradeCalculatorRow(row) {
+function setInlineGradeCalculateButtonVisibility(target, visible) {
+  let calculateBtn = null;
+  if (target?.matches?.("[data-grade-calc-toggle]")) {
+    calculateBtn = target;
+  } else if (target?.matches?.("tr")) {
+    calculateBtn = target.querySelector("[data-grade-calc-toggle]");
+  } else if (target) {
+    calculateBtn = target.querySelector?.("[data-grade-calc-toggle]") || null;
+  }
+  if (!calculateBtn) return;
+  calculateBtn.hidden = !visible;
+  calculateBtn.disabled = !visible;
+  calculateBtn.style.display = visible ? "" : "none";
+}
+
+function findInlineGradeActionRow(rowId, sourceRow) {
+  if (sourceRow?.nextElementSibling?.getAttribute("data-grade-action-for") === rowId) {
+    return sourceRow.nextElementSibling;
+  }
+  return Array.from(sourceRow?.parentElement?.querySelectorAll?.("tr[data-grade-action-for]") || [])
+    .find((candidate) => candidate.getAttribute("data-grade-action-for") === rowId) || null;
+}
+
+function toggleGradeCalculatorRow(row, triggerBtn) {
   if (!row) return;
   const rowId = row.getAttribute("data-grade-entry-row-id");
   if (!rowId) return;
+  const actionRow = findInlineGradeActionRow(rowId, row);
   const existing = document.querySelector(`tr[data-grade-calc-for="${rowId}"]`);
   if (existing) {
     existing.remove();
+    setInlineGradeCalculateButtonVisibility(triggerBtn || actionRow, true);
     return;
   }
   removeGradeCalculatorRow(rowId);
   const calcRow = buildGradeCalculatorRow(rowId);
   row.insertAdjacentElement("afterend", calcRow);
+  setInlineGradeCalculateButtonVisibility(triggerBtn || actionRow, false);
   calcRow.querySelector(".grade-calc-total")?.focus();
 }
 
@@ -7179,7 +7308,7 @@ function renderGradeTrending() {
 
   const width = 960;
   const height = 260;
-  const margin = { top: 62, right: 20, bottom: 48, left: 52 };
+  const margin = { top: 62, right: 20, bottom: 48, left: 68 };
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
   const xPad = 16;
@@ -7587,7 +7716,7 @@ function renderInstructionHoursTrending() {
   const plottedValues = series.flatMap((lineSeries) => lineSeries.monthly.map((row) => row.hours));
   const rawMax = plottedValues.length ? Math.max(...plottedValues) : 0;
   const yMax = rawMax > 0 ? Math.ceil((rawMax + Math.max(2, rawMax * 0.08)) / 5) * 5 : 10;
-  const yTickStep = yMax <= 20 ? 2 : (yMax <= 60 ? 5 : (yMax <= 120 ? 10 : 20));
+  const yTickStep = niceTickStep(yMax, 6);
   const yTicks = [];
   for (let tick = 0; tick <= yMax; tick += yTickStep) yTicks.push(tick);
   if (yTicks[yTicks.length - 1] !== yMax) yTicks.push(yMax);
@@ -7700,9 +7829,199 @@ function renderInstructionHoursTrending() {
       ${valueLabelSvg}
       ${noData}
       <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
-      <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Instruction Hours</text>
+      <text x="12" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 12 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Instruction Hours</text>
     </svg>
     ${legendHtml}`;
+}
+
+function buildComplianceMonthlySeries(selectedStudentIds = [], options = {}) {
+  const allowedStudentIds = visibleStudentIds();
+  const sy = state.settings.schoolYear;
+  const syEnd = toDate(sy.endDate);
+  const today = toDate(todayISO());
+  const effectiveEnd = syEnd < today ? syEnd : today;
+  const months = schoolYearMonths(sy.startDate, toISO(effectiveEnd));
+  const quarterFilter = options.quarterFilter || "all";
+  const instructorFilter = options.instructorFilter || "all";
+  const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter) || null;
+  let monthStartIso = sy.startDate;
+  let monthEndIso = toISO(effectiveEnd);
+  if (quarterRange && quarterFilter !== "all") {
+    if (toDate(quarterRange.startDate) > toDate(monthStartIso)) monthStartIso = quarterRange.startDate;
+    if (toDate(quarterRange.endDate) < toDate(monthEndIso)) monthEndIso = quarterRange.endDate;
+  }
+  const filteredMonths = schoolYearMonths(monthStartIso, monthEndIso);
+  const targetStudentIds = selectedStudentIds.length
+    ? selectedStudentIds.filter((studentId) => allowedStudentIds.has(studentId))
+    : Array.from(allowedStudentIds);
+  if (!filteredMonths.length || !targetStudentIds.length) {
+    return { months: filteredMonths, series: [] };
+  }
+
+  const targetStudentIdSet = new Set(targetStudentIds);
+  const attendanceByStudentDate = new Map();
+  state.attendance.forEach((record) => {
+    if (!allowedStudentIds.has(record.studentId)) return;
+    const key = `${record.studentId}||${record.date}`;
+    if (!attendanceByStudentDate.has(key)) {
+      attendanceByStudentDate.set(key, !!record.present);
+      return;
+    }
+    if (attendanceByStudentDate.get(key) && !record.present) attendanceByStudentDate.set(key, false);
+  });
+
+  const monthlyHours = new Map(targetStudentIds.map((studentId) => [studentId, new Map(filteredMonths.map((month) => [`${month.year}-${month.month}`, 0]))]));
+  const monthlyDays = new Map(targetStudentIds.map((studentId) => [studentId, new Map(filteredMonths.map((month) => [`${month.year}-${month.month}`, new Set()]))]));
+  const cursor = new Date(toDate(monthStartIso));
+  while (cursor <= effectiveEnd && toISO(cursor) <= monthEndIso) {
+    const dateKey = toISO(cursor);
+    const blocksByStudent = dailyScheduledBlocks(dateKey, targetStudentIds);
+    Array.from(blocksByStudent.values()).flat().forEach((block) => {
+      if (block.type !== "instruction" || !targetStudentIdSet.has(block.studentId)) return;
+      if (quarterRange && quarterFilter !== "all" && !inRange(dateKey, quarterRange.startDate, quarterRange.endDate)) return;
+      if (attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) !== true) return;
+      if (!instructionMatchesInstructorFilter(block.studentId, block.courseId, dateKey, instructorFilter)) return;
+      if (!instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)) return;
+      const hours = Number(block.actualMinutes || 0) / 60;
+      if (!(hours > 0)) return;
+      const monthKey = `${cursor.getFullYear()}-${cursor.getMonth()}`;
+      monthlyHours.get(block.studentId)?.set(monthKey, (monthlyHours.get(block.studentId)?.get(monthKey) || 0) + hours);
+      monthlyDays.get(block.studentId)?.get(monthKey)?.add(dateKey);
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
+  const series = targetStudentIds.map((studentId, idx) => ({
+    id: studentId,
+    label: getStudentName(studentId),
+    color: palette[idx % palette.length],
+    monthly: filteredMonths.map((monthEntry) => ({
+      label: new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0).toLocaleDateString(undefined, { month: "short" }),
+      hours: Number(monthlyHours.get(studentId)?.get(`${monthEntry.year}-${monthEntry.month}`) || 0),
+      days: Number(monthlyDays.get(studentId)?.get(`${monthEntry.year}-${monthEntry.month}`)?.size || 0)
+    }))
+  }));
+  return { months: filteredMonths, series };
+}
+
+function renderComplianceMonthlyBarChart(chartHostId, valueKey, emptyMessage, ariaLabel, yAxisTitle, selectedStudentIds = [], options = {}) {
+  const chartHost = document.getElementById(chartHostId);
+  if (!chartHost) return;
+  const sy = state.settings.schoolYear;
+  const syStart = toDate(sy.startDate);
+  const today = toDate(todayISO());
+  const { months, series } = buildComplianceMonthlySeries(selectedStudentIds, options);
+  if (!months.length) {
+    chartHost.innerHTML = syStart > today
+      ? "<p class='muted'>School year has not started yet.</p>"
+      : "<p class='muted'>No school year range set.</p>";
+    return;
+  }
+  if (!series.length) {
+    chartHost.innerHTML = "<p class='muted'>No visible students for the current filter.</p>";
+    return;
+  }
+
+  const plottedValues = series.flatMap((entry) => entry.monthly.map((row) => Number(row[valueKey] || 0)));
+  const rawMax = plottedValues.length ? Math.max(...plottedValues) : 0;
+  const yMax = rawMax > 0 ? Math.ceil((rawMax + Math.max(2, rawMax * 0.08)) / 5) * 5 : 10;
+  const yTickStep = yMax <= 20 ? 2 : (yMax <= 60 ? 5 : (yMax <= 120 ? 10 : 20));
+  const yTicks = [];
+  for (let tick = 0; tick <= yMax; tick += yTickStep) yTicks.push(tick);
+  if (yTicks[yTicks.length - 1] !== yMax) yTicks.push(yMax);
+
+  const width = 960;
+  const height = 320;
+  const margin = { top: 42, right: 20, bottom: 52, left: 52 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const groupGap = 18;
+  const monthSlot = plotW / Math.max(months.length, 1);
+  const groupWidth = Math.max(24, monthSlot - groupGap);
+  const barGap = 6;
+  const barWidth = Math.max(10, (groupWidth - (Math.max(series.length - 1, 0) * barGap)) / Math.max(series.length, 1));
+  const totalGroupWidth = (series.length * barWidth) + (Math.max(series.length - 1, 0) * barGap);
+  const xForGroup = (idx) => margin.left + (monthSlot * idx) + ((monthSlot - totalGroupWidth) / 2);
+  const yFor = (value) => {
+    const clamped = clamp(value, 0, yMax);
+    return margin.top + ((yMax - clamped) / Math.max(yMax, 1)) * plotH;
+  };
+
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${tick.toFixed(1)}</text></g>`;
+  }).join("");
+
+  const xTickSvg = months.map((row, idx) => {
+    const monthStart = new Date(row.year, row.month, 1, 12, 0, 0);
+    const x = xForGroup(idx) + (totalGroupWidth / 2);
+    return `<text x="${x.toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${monthStart.toLocaleDateString(undefined, { month: "short" })}</text>`;
+  }).join("");
+
+  const barSvg = series.flatMap((studentSeries, seriesIdx) => studentSeries.monthly.map((row, monthIdx) => {
+    const x = xForGroup(monthIdx) + (seriesIdx * (barWidth + barGap));
+    const value = Number(row[valueKey] || 0);
+    const y = yFor(value);
+    const barHeight = Math.max(0, height - margin.bottom - y);
+    const unitLabel = valueKey === "days" ? `${value.toFixed(1)} days` : `${value.toFixed(1)} hours`;
+    return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${barHeight.toFixed(2)}" rx="3" ry="3" style="fill:${studentSeries.color}"><title>${studentSeries.label} ${row.label}: ${unitLabel}</title></rect>`;
+  })).join("");
+
+  const legendHtml = `
+    <div class="trend-legend">
+      ${series.map((studentSeries) => `
+        <span class="trend-legend-item">
+          <span class="volume-legend-box" style="background:${studentSeries.color}"></span>
+          <span>${studentSeries.label}</span>
+        </span>`).join("")}
+    </div>`;
+
+  const hasData = series.some((studentSeries) => studentSeries.monthly.some((row) => Number(row[valueKey] || 0) > 0));
+  const noData = hasData ? "" : `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">${escapeHtml(emptyMessage)}</text>`;
+
+  chartHost.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="${escapeHtml(ariaLabel)}">
+      <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      ${yTickSvg}
+      ${xTickSvg}
+      ${barSvg}
+      ${noData}
+      <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
+      <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">${escapeHtml(yAxisTitle)}</text>
+    </svg>
+    ${legendHtml}`;
+}
+
+function renderComplianceHoursMonthlyChart() {
+  renderComplianceMonthlyBarChart(
+    "compliance-hours-monthly-chart",
+    "hours",
+    "No completed instructional hours for the selected filters",
+    "Monthly instruction hours bar chart",
+    "Hours",
+    getComplianceHoursSelectedStudentIds(),
+    {
+      quarterFilter: document.getElementById("compliance-hours-filter-quarter")?.value || "all",
+      instructorFilter: document.getElementById("compliance-hours-filter-instructor")?.value || "all"
+    }
+  );
+}
+
+function renderComplianceDaysMonthlyChart() {
+  renderComplianceMonthlyBarChart(
+    "compliance-days-monthly-chart",
+    "days",
+    "No completed instruction days for the selected filters",
+    "Monthly instruction days bar chart",
+    "Days",
+    getComplianceDaysSelectedStudentIds(),
+    {
+      quarterFilter: document.getElementById("compliance-days-filter-quarter")?.value || "all",
+      instructorFilter: document.getElementById("compliance-days-filter-instructor")?.value || "all"
+    }
+  );
 }
 
 function renderGradeTypeVolumeChart() {
@@ -8094,7 +8413,7 @@ function renderDashboardExpandableTables() {
     const absentCount = summary.absent;
     const attendanceAverage = totalAttendanceDays > 0 ? (presentCount / totalAttendanceDays) * 100 : 0;
     const expandedAttendance = expandedStudentAttendanceRows.has(student.id);
-    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${student.id}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${student.firstName} ${student.lastName}</td><td>${totalAttendanceDays}</td><td>${presentCount}</td><td>${absentCount}</td><td>${totalAttendanceDays > 0 ? `${attendanceAverage.toFixed(1)}%` : "No days yet"}</td><td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="attendance" data-date="${todayISO()}" data-student-id="${student.id}" data-dashboard-context-label="Student attendance">Open</button></td></tr>`;
+    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${student.id}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${student.firstName} ${student.lastName}</td><td>${totalAttendanceDays}</td><td>${presentCount}</td><td>${absentCount}</td><td>${totalAttendanceDays > 0 ? `${attendanceAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
     if (!expandedAttendance) return [studentRow];
     const quarterRows = state.settings.quarters.map((quarter) => {
       const quarterDates = attendanceDatesThroughToday.filter((d) => inRange(d, quarter.startDate, quarter.endDate));
@@ -8103,11 +8422,11 @@ function renderDashboardExpandableTables() {
       const quarterPresent = quarterSummary.attended;
       const quarterAbsent = quarterSummary.absent;
       const quarterAverage = quarterTotalDays > 0 ? (quarterPresent / quarterTotalDays) * 100 : 0;
-      return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarterTotalDays}</td><td>${quarterPresent}</td><td>${quarterAbsent}</td><td>${quarterTotalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td><td></td></tr>`;
+      return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarterTotalDays}</td><td>${quarterPresent}</td><td>${quarterAbsent}</td><td>${quarterTotalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
     });
     return [studentRow, ...quarterRows];
   });
-  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 6);
+  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
 
   const instructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { instructorId: studentInstructionalHoursInstructorFilter });
   const instructionalHourRows = dashboardStudents
@@ -8119,13 +8438,13 @@ function renderDashboardExpandableTables() {
       const expanded = expandedStudentInstructionalHourRows.has(student.id);
       const detailRows = Array.from(studentSummary.subjects.values())
         .sort((a, b) => (b.buckets.total.earned - a.buckets.total.earned) || getSubjectName(a.subjectId).localeCompare(getSubjectName(b.subjectId)))
-        .map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${getSubjectName(subjectSummary.subjectId)}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}<td></td></tr>`)
+        .map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${getSubjectName(subjectSummary.subjectId)}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}</tr>`)
         .join("");
       return {
         studentName: `${student.firstName} ${student.lastName}`,
         earnedTotal: studentSummary.buckets.total.earned,
-        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${student.firstName} ${student.lastName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(studentSummary.buckets[bucket.key])}</td>`).join("")}<td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${todayISO()}" data-student-id="${student.id}" data-dashboard-context-label="Student instructional hours">Open</button></td></tr>`,
-        detailRow: expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='7' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : ""
+        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${student.firstName} ${student.lastName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(studentSummary.buckets[bucket.key])}</td>`).join("")}</tr>`,
+        detailRow: expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : ""
       };
     })
     .sort((a, b) => b.earnedTotal - a.earnedTotal || a.studentName.localeCompare(b.studentName));
@@ -8133,7 +8452,7 @@ function renderDashboardExpandableTables() {
     document.getElementById("dashboard-student-instructional-hours-table"),
     instructionalHourRows.flatMap((entry) => entry.detailRow ? [entry.row, entry.detailRow] : [entry.row]),
     "No students added yet.",
-    7
+    6
   );
 }
 
@@ -8318,7 +8637,7 @@ function renderDashboardExpandableTablesFast() {
 
   const studentAttendanceRows = attendanceMetrics.flatMap((entry) => {
     const expandedAttendance = expandedStudentAttendanceRows.has(entry.studentId);
-    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${entry.studentId}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${entry.studentName}</td><td>${entry.totalDays}</td><td>${entry.present}</td><td>${entry.absent}</td><td>${entry.totalDays > 0 ? `${entry.attendanceAverage.toFixed(1)}%` : "No days yet"}</td><td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="attendance" data-date="${todayISO()}" data-student-id="${entry.studentId}" data-dashboard-context-label="Student attendance">Open</button></td></tr>`;
+    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${entry.studentId}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${entry.studentName}</td><td>${entry.totalDays}</td><td>${entry.present}</td><td>${entry.absent}</td><td>${entry.totalDays > 0 ? `${entry.attendanceAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
     if (!expandedAttendance) return [studentRow];
     const quarterRows = entry.quarters.map((quarter) => {
       const quarterAverage = quarter.totalDays > 0 ? (quarter.present / quarter.totalDays) * 100 : 0;
@@ -8326,16 +8645,16 @@ function renderDashboardExpandableTablesFast() {
     });
     return [studentRow, ...quarterRows];
   });
-  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 6);
+  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
 
   const instructionalHourRows = instructionalHourMetrics.flatMap((entry) => {
     const expanded = expandedStudentInstructionalHourRows.has(entry.studentId);
     const detailRows = entry.subjects.map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${subjectSummary.subjectName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}<td></td></tr>`).join("");
-    const row = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${entry.studentName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(entry.buckets[bucket.key])}</td>`).join("")}<td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${todayISO()}" data-student-id="${entry.studentId}" data-dashboard-context-label="Student instructional hours">Open</button></td></tr>`;
+    const row = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${entry.studentName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(entry.buckets[bucket.key])}</td>`).join("")}</tr>`;
     const detailRow = expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='7' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : "";
     return detailRow ? [row, detailRow] : [row];
   });
-  rowOrEmpty(document.getElementById("dashboard-student-instructional-hours-table"), instructionalHourRows, "No students added yet.", 7);
+  rowOrEmpty(document.getElementById("dashboard-student-instructional-hours-table"), instructionalHourRows, "No students added yet.", 6);
 }
 
 function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
@@ -8516,7 +8835,6 @@ function renderDashboardExecutionSummary(snapshot) {
       <td>${entry.completedCount}</td>
       <td>${entry.openCount}</td>
       <td>${(entry.completedMinutes / 60).toFixed(2)}</td>
-      <td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-student-id="${entry.student.id}">Open</button></td>
     </tr>`);
 
   if (completionValue) completionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
@@ -8532,7 +8850,7 @@ function renderDashboardExecutionSummary(snapshot) {
     ? `${snapshot.completedCount} of ${snapshot.scheduledCount} scheduled classes are completed on ${formatDisplayDate(snapshot.date)}.`
     : `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`;
   if (completionFill) completionFill.style.width = `${snapshot.completionPercent.toFixed(1)}%`;
-  rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, "No scheduled classes for today.", 6);
+  rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, "No scheduled classes for today.", 5);
   if (detailAttentionValue) detailAttentionValue.textContent = String(snapshot.attentionTotal);
   if (detailAttentionNote) detailAttentionNote.textContent = snapshot.attentionTotal
     ? `Open today: ${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
@@ -8594,7 +8912,6 @@ function renderDashboardMissingGradesSummary(snapshot) {
       <td>${escapeHtml(row.subjectName)}</td>
       <td>${escapeHtml(row.timeLabel)}</td>
       <td>${escapeHtml(row.statusLabel)}</td>
-      <td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="grades" data-date="${snapshot.date}" data-student-id="${row.studentId}" data-course-id="${row.courseId}">Open</button></td>
     </tr>`);
   if (overviewValue) overviewValue.textContent = String(snapshot.count);
   if (overviewNote) overviewNote.textContent = snapshot.count
@@ -8604,7 +8921,7 @@ function renderDashboardMissingGradesSummary(snapshot) {
   if (detailNote) detailNote.textContent = snapshot.count
     ? `${snapshot.count} completed class${snapshot.count === 1 ? "" : "es"} are still awaiting grades for ${formatDisplayDate(snapshot.date)}.`
     : `No completed classes are waiting on grades for ${formatDisplayDate(snapshot.date)}.`;
-  rowOrEmpty(document.getElementById("dashboard-missing-grades-table"), rows, "No completed classes are waiting on grades today.", 6);
+  rowOrEmpty(document.getElementById("dashboard-missing-grades-table"), rows, "No completed classes are waiting on grades today.", 5);
 }
 
 function renderDashboardGradeRiskSummary(snapshot) {
@@ -8619,13 +8936,12 @@ function renderDashboardGradeRiskSummary(snapshot) {
       <td>${escapeHtml(row.letterGrade)}</td>
       <td>${row.gpa.toFixed(2)}</td>
       <td>${escapeHtml(row.riskLevel)}</td>
-      <td><button type="button" class="dashboard-link-btn" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="grades" data-date="${todayISO()}" data-student-id="${row.studentId}" data-course-id="${row.courseId}" data-dashboard-context-label="Course watchlist">Open</button></td>
     </tr>`);
   if (riskValue) riskValue.textContent = String(snapshot.count);
   if (riskNote) riskNote.textContent = snapshot.count
     ? `${snapshot.count} course${snapshot.count === 1 ? "" : "s"} are below 85% in ${snapshot.quarterName}.`
     : `No courses are currently below 85% in ${snapshot.quarterName}.`;
-  rowOrEmpty(document.getElementById("dashboard-grade-risk-table"), riskRows, "No at-risk courses right now.", 8);
+  rowOrEmpty(document.getElementById("dashboard-grade-risk-table"), riskRows, "No at-risk courses right now.", 7);
 }
 
 function renderDashboard() {
@@ -8699,6 +9015,12 @@ function renderDashboard() {
   Array.from(trendSelectedStudentIds).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) trendSelectedStudentIds.delete(studentId);
   });
+  Array.from(complianceHoursSelectedStudentIds).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) complianceHoursSelectedStudentIds.delete(studentId);
+  });
+  Array.from(complianceDaysSelectedStudentIds).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) complianceDaysSelectedStudentIds.delete(studentId);
+  });
   Array.from(gpaTrendSelectedStudentIds).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) gpaTrendSelectedStudentIds.delete(studentId);
   });
@@ -8739,6 +9061,8 @@ function renderDashboard() {
   renderDashboardExpandableTablesFast();
 
   renderGradeTrending();
+  renderComplianceHoursMonthlyChart();
+  renderComplianceDaysMonthlyChart();
   renderGpaTrending();
   renderInstructionHoursTrending();
   renderGradeTypeVolumeChart();
@@ -9473,8 +9797,8 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
           <tr class="school-day-inline-grade-action-table-row" data-grade-action-for="${gradeRowId}">
             <td colspan="7">
               <div class="grade-entry-action-row">
-                <button type="button" data-grade-calc-toggle="1">Calculate</button>
                 <button type="button" data-grade-save="1">Save</button>
+                <button type="button" data-grade-calc-toggle="1">Calculate</button>
                 <button type="button" data-grade-cancel="1">Cancel</button>
               </div>
             </td>
@@ -10277,6 +10601,8 @@ function bindEvents() {
         showMissingGrades: !!document.getElementById("admin-config-dashboard-show-missing-grades")?.checked,
         showGradeRiskWatchlist: !!document.getElementById("admin-config-dashboard-show-grade-risk-watchlist")?.checked,
         showInstructionHourPace: !!document.getElementById("admin-config-dashboard-show-instruction-hour-pace")?.checked,
+        showComplianceHoursMonthly: !!document.getElementById("admin-config-dashboard-show-compliance-hours-monthly")?.checked,
+        showComplianceDaysMonthly: !!document.getElementById("admin-config-dashboard-show-compliance-days-monthly")?.checked,
         showStudentPerformance: !!document.getElementById("admin-config-dashboard-show-student-performance")?.checked,
         showStudentAttendance: !!document.getElementById("admin-config-dashboard-show-student-attendance")?.checked,
         showStudentInstructionalHours: !!document.getElementById("admin-config-dashboard-show-student-instructional-hours")?.checked,
@@ -11936,6 +12262,40 @@ function bindEvents() {
       renderInstructionHoursTrending();
     });
   }
+  ["compliance-hours-filter-quarter", "compliance-hours-filter-instructor"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderComplianceHoursMonthlyChart());
+  });
+  const complianceHoursClearFiltersBtn = document.getElementById("compliance-hours-clear-filters-btn");
+  if (complianceHoursClearFiltersBtn) {
+    complianceHoursClearFiltersBtn.addEventListener("click", () => {
+      const quarterFilter = document.getElementById("compliance-hours-filter-quarter");
+      const instructorFilter = document.getElementById("compliance-hours-filter-instructor");
+      if (quarterFilter) quarterFilter.value = "all";
+      if (instructorFilter) instructorFilter.value = "all";
+      complianceHoursSelectedStudentIds.clear();
+      document.querySelectorAll(".compliance-hours-student-checkbox").forEach((el) => { el.checked = false; });
+      updateComplianceHoursStudentSummary();
+      renderComplianceHoursMonthlyChart();
+    });
+  }
+  ["compliance-days-filter-quarter", "compliance-days-filter-instructor"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderComplianceDaysMonthlyChart());
+  });
+  const complianceDaysClearFiltersBtn = document.getElementById("compliance-days-clear-filters-btn");
+  if (complianceDaysClearFiltersBtn) {
+    complianceDaysClearFiltersBtn.addEventListener("click", () => {
+      const quarterFilter = document.getElementById("compliance-days-filter-quarter");
+      const instructorFilter = document.getElementById("compliance-days-filter-instructor");
+      if (quarterFilter) quarterFilter.value = "all";
+      if (instructorFilter) instructorFilter.value = "all";
+      complianceDaysSelectedStudentIds.clear();
+      document.querySelectorAll(".compliance-days-student-checkbox").forEach((el) => { el.checked = false; });
+      updateComplianceDaysStudentSummary();
+      renderComplianceDaysMonthlyChart();
+    });
+  }
   ["volume-filter-quarter", "volume-filter-subject", "volume-filter-instructor", "volume-filter-grade-type"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGradeTypeVolumeChart());
@@ -11997,6 +12357,20 @@ function bindEvents() {
       getGpaTrendSelectedStudentIds().forEach((id) => gpaTrendSelectedStudentIds.add(id));
       updateGpaTrendStudentSummary();
       renderGpaTrending();
+      return;
+    }
+    if (t.classList.contains("compliance-hours-student-checkbox")) {
+      complianceHoursSelectedStudentIds.clear();
+      getComplianceHoursSelectedStudentIds().forEach((id) => complianceHoursSelectedStudentIds.add(id));
+      updateComplianceHoursStudentSummary();
+      renderComplianceHoursMonthlyChart();
+      return;
+    }
+    if (t.classList.contains("compliance-days-student-checkbox")) {
+      complianceDaysSelectedStudentIds.clear();
+      getComplianceDaysSelectedStudentIds().forEach((id) => complianceDaysSelectedStudentIds.add(id));
+      updateComplianceDaysStudentSummary();
+      renderComplianceDaysMonthlyChart();
       return;
     }
     if (t.classList.contains("instruction-hours-trend-student-checkbox")) {
@@ -12926,7 +13300,7 @@ function bindEvents() {
       const row = actionForRowId
         ? document.querySelector(`tr[data-grade-entry-row-id="${actionForRowId}"]`)
         : clickedRow;
-      toggleGradeCalculatorRow(row);
+      toggleGradeCalculatorRow(row, t);
       return;
     }
 
@@ -12942,7 +13316,12 @@ function bindEvents() {
     if (closeGradeCalc) {
       if (!ensureAdminAction()) return;
       const calcRow = t.closest("tr");
-      if (calcRow) calcRow.remove();
+      if (calcRow) {
+        const rowId = calcRow.getAttribute("data-grade-calc-for");
+        const sourceRow = rowId ? document.querySelector(`tr[data-grade-entry-row-id="${rowId}"]`) : null;
+        setInlineGradeCalculateButtonVisibility(findInlineGradeActionRow(rowId, sourceRow), true);
+        calcRow.remove();
+      }
       return;
     }
 

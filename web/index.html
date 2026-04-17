@@ -69,13 +69,13 @@
         <nav class="tabs app-sidebar-nav" aria-label="Primary">
           <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
           <button class="tab-btn" data-tab="school-day" type="button">School Day</button>
-          <button class="tab-btn" data-tab="administration" type="button">Administration</button>
+          <button class="tab-btn" data-tab="grades" type="button">Grades</button>
+          <button class="tab-btn" data-tab="attendance" type="button">Attendance</button>
           <button class="tab-btn" data-tab="students" type="button">Students</button>
           <button class="tab-btn" data-tab="management" type="button">Cirriculum</button>
           <button class="tab-btn" data-tab="planning" type="button">Schedule</button>
           <button class="tab-btn" data-tab="calendar" type="button">Calendar</button>
-          <button class="tab-btn" data-tab="attendance" type="button">Attendance</button>
-          <button class="tab-btn" data-tab="grades" type="button">Grades</button>
+          <button class="tab-btn" data-tab="administration" type="button">Administration</button>
           <button class="tab-btn" data-tab="reports" type="button">Reports</button>
         </nav>
       </aside>
@@ -146,7 +146,7 @@
         <div class="progress-bar dashboard-metric-progress"><div id="dashboard-completion-today-fill" class="progress-fill"></div></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Scheduled Classes</th><th>Completed</th><th>Open</th><th>Completed Hours</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Student</th><th>Scheduled Classes</th><th>Completed</th><th>Open</th><th>Completed Hours</th></tr></thead>
             <tbody id="dashboard-completion-today-table"></tbody>
           </table>
         </div>
@@ -173,7 +173,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Time</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Time</th><th>Status</th></tr></thead>
             <tbody id="dashboard-missing-grades-table"></tbody>
           </table>
         </div>
@@ -194,7 +194,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Average</th><th>Letter</th><th>GPA</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Average</th><th>Letter</th><th>GPA</th><th>Status</th></tr></thead>
             <tbody id="dashboard-grade-risk-table"></tbody>
           </table>
         </div>
@@ -263,7 +263,7 @@
         <h3>Student Attendance</h3>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Total Days</th><th>Days Present</th><th>Days Absence</th><th>Attendance Average</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Student</th><th>Total Days</th><th>Days Present</th><th>Days Absence</th><th>Attendance Average</th></tr></thead>
             <tbody id="dashboard-student-attendance-table"></tbody>
           </table>
         </div>
@@ -282,10 +282,58 @@
         </form>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Total</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Student</th><th>Total</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
             <tbody id="dashboard-student-instructional-hours-table"></tbody>
           </table>
         </div>
+      </div>
+
+      <div id="dashboard-section-compliance-hours-monthly" class="dashboard-section dashboard-section-compliance-detail hidden">
+        <h3>Instruction Hours Per Month</h3>
+        <form id="compliance-hours-filter-form" class="grid-form">
+          <label class="trend-student-field">Student
+            <details id="compliance-hours-student-dropdown" class="multi-select-dropdown">
+              <summary id="compliance-hours-student-summary">Students (0 selected)</summary>
+              <div id="compliance-hours-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label>Quarter
+            <select id="compliance-hours-filter-quarter">
+              <option value="all">All Quarters</option>
+            </select>
+          </label>
+          <label>Instructor
+            <select id="compliance-hours-filter-instructor">
+              <option value="all">All Instructors</option>
+            </select>
+          </label>
+          <button id="compliance-hours-clear-filters-btn" type="button">Clear Filters</button>
+        </form>
+        <div id="compliance-hours-monthly-chart" class="chart-wrap"></div>
+      </div>
+
+      <div id="dashboard-section-compliance-days-monthly" class="dashboard-section dashboard-section-compliance-detail hidden">
+        <h3>Instruction Days Per Month</h3>
+        <form id="compliance-days-filter-form" class="grid-form">
+          <label class="trend-student-field">Student
+            <details id="compliance-days-student-dropdown" class="multi-select-dropdown">
+              <summary id="compliance-days-student-summary">Students (0 selected)</summary>
+              <div id="compliance-days-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label>Quarter
+            <select id="compliance-days-filter-quarter">
+              <option value="all">All Quarters</option>
+            </select>
+          </label>
+          <label>Instructor
+            <select id="compliance-days-filter-instructor">
+              <option value="all">All Instructors</option>
+            </select>
+          </label>
+          <button id="compliance-days-clear-filters-btn" type="button">Clear Filters</button>
+        </form>
+        <div id="compliance-days-monthly-chart" class="chart-wrap"></div>
       </div>
 
       <div id="dashboard-section-grade-trending" class="dashboard-section dashboard-section-trending">
@@ -548,6 +596,8 @@
               <h5>Compliance Tab</h5>
               <div class="administration-config-grid">
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instruction-hour-pace"> <span>Show Instruction Hour Pace</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-compliance-hours-monthly"> <span>Show Compliance Hours Per Month</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-compliance-days-monthly"> <span>Show Instruction Days Per Month</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-attendance"> <span>Show Student Attendance</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-instructional-hours"> <span>Show Student Instructional Hours</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instructional-hours-trending"> <span>Show Instructional Hours Trending</span></label>
@@ -1423,6 +1473,6 @@
       </div>
     </div>
   </main>
-  <script src="app.js?v=202604151140"></script>
+  <script src="app.js?v=202604162147"></script>
   </body>
   </html>

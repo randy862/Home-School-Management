@@ -118,6 +118,72 @@ Tabs solve that by:
 - letting the user move between operational, academic, and compliance views
 - aligning naturally with future `Administration > Workspace Configuration` controls
 
+## Future Slice: Early Warning Analytics
+
+Date logged: 2026-04-16
+Status: backlog idea
+
+The next meaningful dashboard upgrade should introduce risk-oriented analytics that surface students and courses drifting off track before they become compliance or performance problems.
+
+### Primary Warning Indicators
+
+1. Students not on track to meet required instructional days
+2. Students not on track to meet required instructional hours
+3. Students with failing GPA or failing course averages
+
+### Recommended Product Shape
+
+Add an `Early Warnings` or `Critical Indicators` dashboard section that favors concise, operational summaries over heavy reporting.
+
+Recommended first-pass components:
+
+1. `Instructional Days Risk`
+   - Shows students whose projected completed school days will miss the required total by year end
+   - Includes current completed days, required days, projected year-end days, and deficit
+2. `Instructional Hours Risk`
+   - Shows students whose current pace suggests they will miss required hours by year end
+   - Includes completed hours, required hours, projected year-end hours, and deficit
+3. `Academic Risk`
+   - Shows students with failing GPA and/or courses below a configurable passing threshold
+   - Includes failing courses, current averages, and recent grade-entry recency signals
+
+### Suggested Risk Logic
+
+For compliance indicators, projection should be based on current pace against elapsed instructional calendar time rather than only raw totals completed to date.
+
+Recommended severity model:
+
+- `Watch`: slightly behind pace
+- `At Risk`: materially behind pace
+- `Critical`: projected miss at year end if no change occurs
+
+Example heuristics for later refinement:
+
+- instructional days projected below required total
+- instructional hours projected below required total
+- course average below passing threshold
+- GPA below passing threshold
+- no recent grades entered for an active course
+
+### Suggested Filters And Drill-Down
+
+To keep the warnings actionable, each indicator should support:
+
+- student filter
+- quarter filter where applicable
+- instructor filter
+- drill-down into the underlying classes, missing work, or pacing records
+
+### UX Suggestions
+
+The most useful presentation may be a compact combination of:
+
+1. top-level warning counts by severity
+2. a short ranked list of the highest-risk students
+3. one-click navigation into the relevant student, course, grades, attendance, or school day view
+
+Avoid making this a passive reporting area. The value is in helping the administrator know who needs attention now, why, and what to do next.
+
 ### Administration Alignment
 
 The shipped Administration controls should not introduce nested dashboard tabs inside configuration.
