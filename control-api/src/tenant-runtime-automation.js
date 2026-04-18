@@ -223,8 +223,26 @@ async function deployWebRelease(config, environment) {
 
   const sshTarget = buildSshTarget(config, resolvedHost);
   await verifySshAccess(config, sshTarget);
-  await runCommand(config.sshBin, buildSshArgs(config, sshTarget, `mkdir -p ${quoteShellArg(config.webDeployDir)}`));
-  await copyDirectoryViaScp(config, config.webSourceDir, `${sshTarget}:${config.webDeployDir}`);
+  const stagingDir = (await runCommand(
+    config.sshBin,
+    buildSshArgs(config, sshTarget, "mktemp -d /tmp/hsm-web-deploy.XXXXXX")
+  )).stdout.trim();
+  if (!stagingDir) {
+    throw new Error("Could not allocate a remote staging directory for web deployment.");
+  }
+
+  try {
+    await copyDirectoryViaScp(config, config.webSourceDir, `${sshTarget}:${stagingDir}`);
+    await runCommand(
+      config.sshBin,
+      buildSshArgs(config, sshTarget, buildRemoteWebPublishCommand(config, stagingDir))
+    );
+  } finally {
+    await runCommand(
+      config.sshBin,
+      buildSshArgs(config, sshTarget, `rm -rf ${quoteShellArg(stagingDir)}`)
+    ).catch(() => {});
+  }
   await waitForCommand(config.sshBin, buildSshArgs(config, sshTarget, `curl -fsS ${quoteShellArg(config.webHealthCheckUrl)}`), config);
   return {
     attempted: true,
@@ -233,6 +251,7 @@ async function deployWebRelease(config, environment) {
     resolvedHost,
     sshTarget,
     deployDir: config.webDeployDir,
+    stagingDir,
     healthCheckUrl: config.webHealthCheckUrl
   };
 }
@@ -407,6 +426,20 @@ function buildRemoteRestartCommand(config, serviceName) {
   const prefix = useSudo ? "sudo systemctl" : "systemctl";
   const scopeArg = scope === "user" ? " --user" : "";
   return `${prefix}${scopeArg} restart ${quoteShellArg(serviceName)}`;
+}
+
+function buildRemoteWebPublishCommand(config, stagingDir) {
+  const useSudo = Boolean(config.webDeployUseSudo);
+  const deployDir = quoteShellArg(config.webDeployDir);
+  const stagedContents = quoteShellArg(path.posix.join(stagingDir, "."));
+  const deployUser = quoteShellArg(config.sshUser);
+  const prefix = useSudo ? "sudo " : "";
+  const commands = [
+    `${prefix}mkdir -p ${deployDir}`,
+    `${prefix}cp -R ${stagedContents} ${deployDir}/`,
+    `${prefix}chown -R ${deployUser}:${deployUser} ${deployDir}`
+  ];
+  return commands.join(" && ");
 }
 
 function parseSetupTokenOutput(stdout) {

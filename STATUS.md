@@ -575,6 +575,22 @@ Date: 2026-04-10
   - billable students count from current-school-year enrollment plus current-period historical attendance/grade usage
   - dormant is allowed only after a billing cycle ends and keeps tenant history/reporting intact at 25% of normal monthly base price
   - cancellation can offer a paid `$19.99` CSV export path
+- Validated the Starter-plan enforcement path on clean staged signup data:
+  - `stripe-test1` was confirmed as a drifted/bad-state tenant after earlier runtime and billing-state issues
+  - a fresh Starter tenant `stripe-test2` correctly blocked the 4th billable student on first grade write
+  - this confirmed the current Starter enforcement logic works on a clean tenant and that `stripe-test1` was not the right validation baseline
+- Cleaned up the bad-state staged tenant `stripe-test1` end to end:
+  - canceled Stripe test subscription `sub_1TNMV2HmC4B1JXWvZTun18Ty`
+  - deleted the linked control-plane customer-account and tenant records
+  - dropped PostgreSQL schema `tenant_stripe_test1`
+  - directly verified the old tenant id, account id, and slug no longer exist in control-plane tables
+- Captured the next tenant-facing commercial UX direction in `NOTES/tenant-account-subscription-settings-spec-package.md`:
+  - do not bury subscription management under `Administration`
+  - use a top-right header account affordance instead of a dedicated admin panel
+  - make `Signed in as ...` clickable or pair it with an avatar/account icon and menu
+  - add an account view containing profile details, password action, subscription plan, billable-student usage, and an `Upgrade Subscription` CTA
+  - place `Make Account Dormant` and `Request Data Export` as secondary account-lifecycle actions in that same account area
+  - prefer a custom in-app change-subscription checkout/session flow for upgrades rather than generic customer-portal redirection
 
 ## 2026-04-02
 

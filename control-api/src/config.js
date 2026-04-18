@@ -74,6 +74,7 @@ module.exports = {
     appHealthCheckUrl: process.env.CONTROL_DEPLOY_APP_HEALTH_URL || "http://127.0.0.1:3000/health",
     webSourceDir: process.env.CONTROL_DEPLOY_WEB_SOURCE_DIR || path.resolve(__dirname, "../../web"),
     webDeployDir: process.env.CONTROL_DEPLOY_WEB_DIR || "/var/www/home-school-management/web",
+    webDeployUseSudo: toBool(process.env.CONTROL_DEPLOY_WEB_USE_SUDO, true),
     webHealthCheckUrl: process.env.CONTROL_DEPLOY_WEB_HEALTH_URL || "http://127.0.0.1/health",
     healthCheckRetries: Number(process.env.CONTROL_DEPLOY_HEALTH_RETRIES || 10),
     healthCheckDelayMs: Number(process.env.CONTROL_DEPLOY_HEALTH_DELAY_MS || 2000),

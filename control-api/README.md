@@ -71,6 +71,7 @@ Deployment-related environment variables:
 - `CONTROL_DEPLOY_APP_SERVICE_USE_SUDO=true`
 - `CONTROL_DEPLOY_APP_HEALTH_URL=http://127.0.0.1:3000/health`
 - `CONTROL_DEPLOY_WEB_DIR=/var/www/home-school-management/web`
+- `CONTROL_DEPLOY_WEB_USE_SUDO=true`
 - `CONTROL_DEPLOY_WEB_HEALTH_URL=http://127.0.0.1/health`
 - `CONTROL_DEPLOY_HEALTH_RETRIES=10`
 - `CONTROL_DEPLOY_HEALTH_DELAY_MS=2000`

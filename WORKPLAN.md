@@ -190,6 +190,18 @@
    - [ ] Expose the staged hosted path publicly over HTTPS by mapping firewall `443` to `WEB001`.
    - [ ] Acquire and apply a valid TLS certificate for the staged public hosted/webhook URL on `WEB001`.
    - [ ] Validate one real Stripe test-mode checkout session and webhook flow end to end against the staged commercial stack.
+   - [x] Validate that Starter-plan enforcement blocks the 4th billable student on a clean staged tenant (`stripe-test2`) and isolate `stripe-test1` as bad-state tenant drift rather than a global Starter-plan failure.
+   - [x] Clean up the drifted staged tenant `stripe-test1` after confirming `stripe-test2` as the clean enforcement baseline.
+   - [x] Capture the next tenant-facing commercial UX slice in `NOTES/tenant-account-subscription-settings-spec-package.md`, covering:
+     - header account menu
+     - account/profile view
+     - password-management entry
+     - subscription and billable-student visibility
+     - custom in-app upgrade-session flow
+     - dormant/export actions in the account area
+   - [ ] Implement the first tenant-facing account menu and account-view shell in the hosted app.
+   - [ ] Add a tenant-facing authenticated account/commercial summary API for current user, subscription, and billable-student usage.
+   - [ ] Implement a custom tenant-facing subscription-upgrade session flow for existing subscriptions instead of routing upgrades through new-account public signup.
 11. Prepare the next hosted-app workflow consolidation slice: the School Day hub.
    - [x] Define the School Day hub concept as an implementation-ready spec package.
    - [x] Decide that the first version should be a hub model, not the full persisted execution layer.
