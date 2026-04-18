@@ -188,11 +188,15 @@ registerControlCommercialRoutes(app, {
   createOperatorAuditEntry,
   getCommercialSubscriptionById,
   getCommercialOverviewBySubscriptionId,
+  getCommercialPlanById,
+  internalConfig,
   listCancellationExportRequestsBySubscriptionId,
   listCommercialOverview
   ,
+  listPublicCommercialPlans,
   listOperatorAuditLog,
   queueProvisioningJob,
+  stripeService,
   updateCommercialSubscription
 });
 registerOperatorAuthRoutes(app, {

@@ -57,6 +57,78 @@ class StripeService {
     };
   }
 
+  async getSubscription(subscriptionId) {
+    this.ensureConfigured();
+    const normalizedId = String(subscriptionId || "").trim();
+    if (!normalizedId) {
+      const error = new Error("Stripe subscription id is required.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const response = await fetch(`${this.apiBaseUrl}/subscriptions/${encodeURIComponent(normalizedId)}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.secretKey}`
+      }
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      const error = new Error(payload?.error?.message || `Stripe subscription fetch failed (${response.status}).`);
+      error.statusCode = 502;
+      error.details = payload;
+      throw error;
+    }
+    return payload;
+  }
+
+  async updateSubscriptionPlan(input) {
+    this.ensureConfigured();
+    const subscriptionId = String(input?.subscriptionId || "").trim();
+    const priceId = String(input?.priceId || "").trim();
+    if (!subscriptionId || !priceId) {
+      const error = new Error("Stripe subscription id and target price id are required.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const subscription = await this.getSubscription(subscriptionId);
+    const primaryItem = subscription?.items?.data?.[0];
+    if (!primaryItem?.id) {
+      const error = new Error("Stripe subscription item details were not available for this subscription.");
+      error.statusCode = 502;
+      throw error;
+    }
+
+    const params = new URLSearchParams();
+    params.set("items[0][id]", primaryItem.id);
+    params.set("items[0][price]", priceId);
+    params.set("proration_behavior", input.prorationBehavior || "create_prorations");
+    params.set("cancel_at_period_end", "false");
+
+    Object.entries(input.metadata || {}).forEach(([key, value]) => {
+      if (value == null || value === "") return;
+      params.set(`metadata[${key}]`, String(value));
+    });
+
+    const response = await fetch(`${this.apiBaseUrl}/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.secretKey}`,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: params.toString()
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      const error = new Error(payload?.error?.message || `Stripe subscription update failed (${response.status}).`);
+      error.statusCode = 502;
+      error.details = payload;
+      throw error;
+    }
+    return payload;
+  }
+
   verifyWebhookEvent(payloadBuffer, signatureHeader) {
     if (!this.webhookSecret) {
       const error = new Error("Stripe webhook secret is not configured.");

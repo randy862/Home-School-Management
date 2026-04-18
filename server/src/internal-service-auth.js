@@ -1,5 +1,26 @@
 const crypto = require("crypto");
 
+function createInternalServiceToken({ secret, issuer, audience, subject, ttlSeconds = 120, issuedAt = Math.floor(Date.now() / 1000) }) {
+  const normalizedSecret = String(secret || "").trim();
+  if (!normalizedSecret) {
+    throw new Error("A service-auth secret is required to sign internal service tokens.");
+  }
+
+  const header = { alg: "HS256", typ: "JWT" };
+  const payload = {
+    iss: String(issuer || "").trim() || "control-plane",
+    aud: String(audience || "").trim(),
+    sub: String(subject || "").trim() || "internal-service",
+    iat: issuedAt,
+    exp: issuedAt + Math.max(Number(ttlSeconds) || 120, 30)
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signature = signToken(`${encodedHeader}.${encodedPayload}`, normalizedSecret);
+  return `${encodedHeader}.${encodedPayload}.${signature}`;
+}
+
 function verifyInternalServiceToken(token, options = {}) {
   const normalizedToken = String(token || "").trim();
   const normalizedSecret = String(options.secret || "").trim();
@@ -73,6 +94,10 @@ function base64UrlDecode(value) {
   return Buffer.from(`${normalized}${padding}`, "base64").toString("utf8");
 }
 
+function base64UrlEncode(value) {
+  return base64UrlFromBuffer(Buffer.from(String(value || ""), "utf8"));
+}
+
 function base64UrlFromBuffer(buffer) {
   return Buffer.from(buffer)
     .toString("base64")
@@ -82,6 +107,7 @@ function base64UrlFromBuffer(buffer) {
 }
 
 module.exports = {
+  createInternalServiceToken,
   parseBearerToken,
   verifyInternalServiceToken
 };

@@ -20,16 +20,26 @@ function createCommercialPolicyService(deps) {
       SELECT
         pr.tenant_id AS "tenantId",
         pr.tenant_environment_id AS "tenantEnvironmentId",
+        account.account_name AS "accountName",
+        account.owner_email AS "ownerEmail",
+        account.billing_email AS "billingEmail",
         sub.id AS "subscriptionId",
         sub.status AS "subscriptionStatus",
         sub.dormant_status AS "dormantStatus",
         sub.current_period_start AS "currentPeriodStart",
         sub.current_period_end AS "currentPeriodEnd",
+        sub.base_price_cents AS "basePriceCents",
         sub.included_billable_students AS "includedBillableStudents",
         sub.per_student_overage_cents AS "perStudentOverageCents",
         sub.current_billable_student_count AS "currentBillableStudentCount",
+        sub.current_overage_student_count AS "currentOverageStudentCount",
+        sub.last_billable_count_calculated_at AS "lastBillableCountCalculatedAt",
         account.status AS "accountStatus",
-        plan.name AS "planName"
+        plan.id AS "planId",
+        plan.code AS "planCode",
+        plan.name AS "planName",
+        plan.billing_interval AS "billingInterval",
+        plan.currency AS "currency"
       FROM ${schema}.provisioning_requests pr
       JOIN ${schema}.customer_subscriptions sub
         ON sub.id = pr.customer_subscription_id
@@ -126,7 +136,162 @@ function createCommercialPolicyService(deps) {
     });
   }
 
+  async function getTenantCommercialSummary() {
+    return withCommercialContext(async (client, context) => {
+      if (!context) return null;
+      let currentBillableStudentCount = Number(context.currentBillableStudentCount || 0);
+      let currentOverageStudentCount = Number(context.currentOverageStudentCount || 0);
+      if (client && context.subscriptionId && context.tenantId) {
+        const refreshed = await refreshBillableCounts(client, context);
+        currentBillableStudentCount = refreshed.total;
+        currentOverageStudentCount = refreshed.overage;
+      }
+      return {
+        tenantId: context.tenantId,
+        tenantEnvironmentId: context.tenantEnvironmentId,
+        accountName: context.accountName || "",
+        ownerEmail: context.ownerEmail || "",
+        billingEmail: context.billingEmail || "",
+        accountStatus: context.accountStatus || "",
+        subscriptionId: context.subscriptionId,
+        subscriptionStatus: context.subscriptionStatus || "",
+        dormantStatus: context.dormantStatus || "active",
+        currentPeriodStart: context.currentPeriodStart || null,
+        currentPeriodEnd: context.currentPeriodEnd || null,
+        basePriceCents: Number(context.basePriceCents || 0),
+        includedBillableStudents: Number(context.includedBillableStudents || 0),
+        perStudentOverageCents: Number(context.perStudentOverageCents || 0),
+        currentBillableStudentCount,
+        currentOverageStudentCount,
+        lastBillableCountCalculatedAt: context.lastBillableCountCalculatedAt || null,
+        planId: context.planId || "",
+        planCode: context.planCode || "",
+        planName: context.planName || "",
+        billingInterval: context.billingInterval || "month",
+        currency: context.currency || "usd"
+      };
+    });
+  }
+
+  async function listEligibleUpgradePlans() {
+    return withCommercialContext(async (client, context) => {
+      if (!client || !context?.planId) return [];
+      const currentPlanResult = await client.query(`
+        SELECT
+          id,
+          code,
+          name,
+          description,
+          billing_interval AS "billingInterval",
+          price_cents AS "priceCents",
+          currency,
+          stripe_price_id AS "stripePriceId",
+          sort_order AS "sortOrder",
+          feature_summary_json AS "featureSummary",
+          limits_json AS "limits"
+        FROM ${schema}.commercial_plans
+        WHERE id = $1
+        LIMIT 1
+      `, [context.planId]);
+      const currentPlan = mapCommercialPlanRow(currentPlanResult.rows[0]);
+      if (!currentPlan) return [];
+
+      const result = await client.query(`
+        SELECT
+          id,
+          code,
+          name,
+          description,
+          billing_interval AS "billingInterval",
+          price_cents AS "priceCents",
+          currency,
+          stripe_price_id AS "stripePriceId",
+          sort_order AS "sortOrder",
+          feature_summary_json AS "featureSummary",
+          limits_json AS "limits"
+        FROM ${schema}.commercial_plans
+        WHERE is_public = TRUE
+          AND is_active = TRUE
+          AND billing_interval = $2
+          AND id <> $1
+        ORDER BY sort_order ASC, price_cents ASC, name ASC
+      `, [context.planId, currentPlan.billingInterval]);
+
+      return result.rows
+        .map(mapCommercialPlanRow)
+        .filter((plan) => isHigherPlan(plan, currentPlan));
+    });
+  }
+
+  async function listRecentBillingEvents(limit = 5) {
+    return withCommercialContext(async (client, context) => {
+      if (!client || !context?.subscriptionId) return [];
+      const result = await client.query(`
+        SELECT
+          id,
+          event_type AS "eventType",
+          event_source AS "eventSource",
+          stripe_event_id AS "stripeEventId",
+          occurred_at AS "occurredAt",
+          processing_status AS "processingStatus",
+          processing_error AS "processingError",
+          created_at AS "createdAt"
+        FROM ${schema}.billing_events
+        WHERE customer_subscription_id = $1
+        ORDER BY occurred_at DESC NULLS LAST, created_at DESC
+        LIMIT $2
+      `, [context.subscriptionId, normalizePositiveLimit(limit, 5)]);
+      return result.rows.map((row) => ({
+        id: row.id,
+        eventType: row.eventType,
+        eventSource: row.eventSource,
+        stripeEventId: row.stripeEventId,
+        occurredAt: row.occurredAt,
+        processingStatus: row.processingStatus,
+        processingError: row.processingError,
+        createdAt: row.createdAt
+      }));
+    });
+  }
+
+  async function listRecentExportRequests(limit = 5) {
+    return withCommercialContext(async (client, context) => {
+      if (!client || !context?.subscriptionId) return [];
+      const result = await client.query(`
+        SELECT
+          id,
+          status,
+          price_cents AS "priceCents",
+          currency,
+          requested_by_email AS "requestedByEmail",
+          artifact_expires_at AS "artifactExpiresAt",
+          failure_reason AS "failureReason",
+          created_at AS "createdAt",
+          updated_at AS "updatedAt"
+        FROM ${schema}.cancellation_export_requests
+        WHERE customer_subscription_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2
+      `, [context.subscriptionId, normalizePositiveLimit(limit, 5)]);
+      return result.rows.map((row) => ({
+        id: row.id,
+        status: row.status,
+        priceCents: Number(row.priceCents || 0),
+        currency: row.currency || "usd",
+        requestedByEmail: row.requestedByEmail || "",
+        artifactExpiresAt: row.artifactExpiresAt || null,
+        failureReason: row.failureReason || "",
+        createdAt: row.createdAt || null,
+        updatedAt: row.updatedAt || null
+      }));
+    });
+  }
+
   return {
+    getTenantCommercialSummary,
+    listEligibleUpgradePlans,
+    listRecentBillingEvents,
+    listRecentExportRequests,
     assertStudentCreateAllowed,
     assertEnrollmentCreateAllowed,
     assertEnrollmentUpdateAllowed,
@@ -440,6 +605,36 @@ function createCommercialPolicyService(deps) {
     const error = new Error(`${capitalizeLabel(label)} record not found.`);
     error.statusCode = 404;
     throw error;
+  }
+
+  function mapCommercialPlanRow(row) {
+    if (!row) return null;
+    return {
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      description: row.description || "",
+      billingInterval: row.billingInterval || "month",
+      priceCents: Number(row.priceCents || 0),
+      currency: row.currency || "usd",
+      stripePriceId: row.stripePriceId || "",
+      sortOrder: Number(row.sortOrder || 0),
+      featureSummary: Array.isArray(row.featureSummary) ? row.featureSummary : [],
+      limits: row.limits && typeof row.limits === "object" ? row.limits : {}
+    };
+  }
+
+  function isHigherPlan(plan, currentPlan) {
+    const currentIncluded = Number(currentPlan?.limits?.includedBillableStudents || 0);
+    const nextIncluded = Number(plan?.limits?.includedBillableStudents || 0);
+    return Number(plan?.sortOrder || 0) > Number(currentPlan?.sortOrder || 0)
+      || Number(plan?.priceCents || 0) > Number(currentPlan?.priceCents || 0)
+      || nextIncluded > currentIncluded;
+  }
+
+  function normalizePositiveLimit(value, fallback) {
+    const normalized = Number(value);
+    return Number.isFinite(normalized) && normalized > 0 ? Math.floor(normalized) : fallback;
   }
 }
 

@@ -592,6 +592,37 @@ Date: 2026-04-10
   - place `Make Account Dormant` and `Request Data Export` as secondary account-lifecycle actions in that same account area
   - prefer a custom in-app change-subscription checkout/session flow for upgrades rather than generic customer-portal redirection
 
+## 2026-04-18
+
+- Implemented the first tenant-facing account/subscription UX slice in the hosted app:
+  - replaced the plain top-right session text with an account menu affordance
+  - added `View Account`, `Change Password`, and `Sign Out` account-menu actions
+  - added the first hosted account modal showing signed-in identity details, subscription plan, billable-student usage, billing-period context, and an `Upgrade Subscription` placeholder
+  - added secondary dormant/export placeholders in the account surface so the lifecycle actions have a defined home without shipping the mutations yet
+- Added tenant-facing authenticated account API support in the tenant runtime:
+  - `GET /api/account` now returns current user basics, tenant/account ids, subscription plan/status, billable-student usage, and commercial-management permissions
+  - `POST /api/account/password` now supports self-service password changes for the signed-in tenant user
+- Extended the tenant commercial-policy read path so account surfaces can read the current tenant commercial context and refresh billable-student counts before rendering the summary.
+- Extended the tenant commercial/account slice into the first real self-service commercial flow:
+  - `GET /api/account` now also returns eligible upgrade plans plus recent billing events and export-request history for the signed-in tenant
+  - `POST /api/account/subscription/upgrade` now upgrades the current Stripe-backed subscription in place through an internal control-plane mutation instead of pointing users back to public signup
+  - `POST /api/account/options/dormant` and `POST /api/account/options/export-request` now record real tenant-initiated dormant/export requests through internal control-plane routes with audit entries
+- Extended the control plane for tenant-self-service commercial mutations:
+  - added internal authenticated commercial routes for upgrade, dormant, and cancellation-export requests
+  - extended the Stripe service wrapper to fetch and update an existing subscription's price directly
+  - extended commercial storage helpers so subscription plan changes and recent billing-event reads can be reflected immediately after a tenant-triggered upgrade
+- Refined the hosted tenant account UI again:
+  - split `Account Options` into its own admin-only menu destination and modal
+  - replaced the `Upgrade Subscription` placeholder with a real plan-selection modal
+  - added a lightweight `Recent Billing Activity` section showing recent billing events and export requests
+  - kept `Change Password` as its own dedicated modal while preserving the separate account/options surfaces
+- Deployed the updated tenant runtime, control plane, and hosted assets to staged `APP001` / `WEB001`, and verified:
+  - `hsm-api.service` is active and local `http://127.0.0.1:3000/health` returns `{"ok":true}`
+  - `hsm-control-api.service` is active and local `http://127.0.0.1:3100/health` returns `{"ok":true}`
+  - the hosted page is serving `styles.css?v=202604181845` and `app.js?v=202604181845`
+  - unauthenticated `GET /api/account` still returns `401 Authentication required`, confirming the tenant account surface remains protected
+- I did not run a full authenticated hosted smoke for the new upgrade/dormant/export flows from this shell because I do not have tenant credentials available here.
+
 ## 2026-04-02
 
 - Shifted the next planning session onto the commercial SaaS layer and converted the high-level roadmap into an implementation-ready spec package in `NOTES/saas-implementation-spec-package.md`.

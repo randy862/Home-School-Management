@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202604171120">
+  <link rel="stylesheet" href="styles.css?v=202604181845">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -58,8 +58,18 @@
         <img class="title-logo" src="assets/Mitchell_Logo.png" alt="Navigrader teach more, manage less">
       </div>
       <div class="session-bar">
-        <p id="session-summary" class="muted">Not signed in</p>
-        <button id="logout-btn" type="button">Logout</button>
+        <div id="account-menu-shell" class="account-menu-shell hidden">
+          <button id="account-menu-trigger" class="account-menu-trigger" type="button" aria-expanded="false" aria-haspopup="menu">
+            <span id="session-summary" class="muted">Not signed in</span>
+            <span class="account-menu-caret" aria-hidden="true">▾</span>
+          </button>
+          <div id="account-menu" class="account-menu hidden" role="menu" aria-label="Account menu">
+            <button id="account-menu-view-btn" type="button" role="menuitem">View Account</button>
+            <button id="account-menu-options-btn" type="button" role="menuitem">Account Options</button>
+            <button id="account-menu-password-btn" type="button" role="menuitem">Change Password</button>
+            <button id="account-menu-logout-btn" type="button" role="menuitem">Sign Out</button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -1472,6 +1482,70 @@
       </div>
     </div>
   </main>
-  <script src="app.js?v=202604162147"></script>
+  <div id="account-modal" class="account-modal hidden" aria-hidden="true">
+    <div id="account-modal-backdrop" class="account-modal-backdrop"></div>
+    <section class="account-modal-panel panel" role="dialog" aria-modal="true" aria-labelledby="account-modal-title">
+      <div class="account-modal-header">
+        <div>
+          <h2 id="account-modal-title">Account</h2>
+          <p class="muted">Profile and subscription details for the signed-in user.</p>
+        </div>
+        <button id="account-modal-close-btn" class="account-modal-close-btn" type="button" aria-label="Close account view">Close</button>
+      </div>
+      <p id="account-view-message" class="status-text hidden"></p>
+      <div id="account-modal-body" class="account-modal-body"></div>
+    </section>
+  </div>
+  <div id="account-password-modal" class="account-modal hidden" aria-hidden="true">
+    <div id="account-password-modal-backdrop" class="account-modal-backdrop"></div>
+    <section class="account-modal-panel account-password-modal-panel panel" role="dialog" aria-modal="true" aria-labelledby="account-password-modal-title">
+      <div class="account-modal-header">
+        <div>
+          <h2 id="account-password-modal-title">Change Password</h2>
+          <p class="muted">Update the password for the signed-in account.</p>
+        </div>
+        <button id="account-password-modal-close-btn" class="account-modal-close-btn" type="button" aria-label="Close change password">Close</button>
+      </div>
+      <form id="account-password-form" class="grid-form account-password-form">
+        <label>Current Password<input id="account-password-current" type="password" autocomplete="current-password" required></label>
+        <label>New Password<input id="account-password-new" type="password" autocomplete="new-password" required></label>
+        <label>Confirm Password<input id="account-password-confirm" type="password" autocomplete="new-password" required></label>
+        <div class="account-inline-actions">
+          <button type="submit">Save Password</button>
+          <button id="account-password-cancel-btn" type="button">Cancel</button>
+        </div>
+      </form>
+      <p id="account-password-message" class="status-text hidden"></p>
+    </section>
+  </div>
+  <div id="account-upgrade-modal" class="account-modal hidden" aria-hidden="true">
+    <div id="account-upgrade-modal-backdrop" class="account-modal-backdrop"></div>
+    <section class="account-modal-panel account-upgrade-modal-panel panel" role="dialog" aria-modal="true" aria-labelledby="account-upgrade-modal-title">
+      <div class="account-modal-header">
+        <div>
+          <h2 id="account-upgrade-modal-title">Upgrade Subscription</h2>
+          <p class="muted">Choose a higher-tier plan with more billable-student capacity.</p>
+        </div>
+        <button id="account-upgrade-modal-close-btn" class="account-modal-close-btn" type="button" aria-label="Close subscription upgrade">Close</button>
+      </div>
+      <p id="account-upgrade-message" class="status-text hidden"></p>
+      <div id="account-upgrade-modal-body" class="account-modal-body"></div>
+    </section>
+  </div>
+  <div id="account-options-modal" class="account-modal hidden" aria-hidden="true">
+    <div id="account-options-modal-backdrop" class="account-modal-backdrop"></div>
+    <section class="account-modal-panel account-options-modal-panel panel" role="dialog" aria-modal="true" aria-labelledby="account-options-modal-title">
+      <div class="account-modal-header">
+        <div>
+          <h2 id="account-options-modal-title">Account Options</h2>
+          <p class="muted">Manage tenant lifecycle and lower-frequency account actions.</p>
+        </div>
+        <button id="account-options-modal-close-btn" class="account-modal-close-btn" type="button" aria-label="Close account options">Close</button>
+      </div>
+      <p id="account-options-message" class="status-text hidden"></p>
+      <div id="account-options-modal-body" class="account-modal-body"></div>
+    </section>
+  </div>
+  <script src="app.js?v=202604181845"></script>
   </body>
   </html>

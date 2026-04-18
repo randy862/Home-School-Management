@@ -16,6 +16,7 @@ module.exports = {
     dbClient: String(process.env.DB_CLIENT || "mssql").toLowerCase()
   },
   internal: {
+    controlPlaneBaseUrl: String(process.env.CONTROL_PLANE_BASE_URL || "http://127.0.0.1:3100").trim() || "http://127.0.0.1:3100",
     controlPlaneKey: String(process.env.CONTROL_PLANE_INTERNAL_KEY || "").trim(),
     serviceAuthSecret: String(process.env.CONTROL_PLANE_INTERNAL_AUTH_SECRET || "").trim(),
     controlPlaneIssuer: String(process.env.CONTROL_PLANE_INTERNAL_AUTH_ISSUER || "control-plane").trim() || "control-plane",

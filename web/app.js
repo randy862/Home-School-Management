@@ -5,6 +5,11 @@ const LEGACY_STATE_BRIDGE_ENDPOINT = `${API_BASE_URL}/api/state`;
 const API_AUTH_LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login`;
 const API_AUTH_LOGOUT_ENDPOINT = `${API_BASE_URL}/api/auth/logout`;
 const API_ME_ENDPOINT = `${API_BASE_URL}/api/me`;
+const API_ACCOUNT_ENDPOINT = `${API_BASE_URL}/api/account`;
+const API_ACCOUNT_PASSWORD_ENDPOINT = `${API_BASE_URL}/api/account/password`;
+const API_ACCOUNT_SUBSCRIPTION_UPGRADE_ENDPOINT = `${API_BASE_URL}/api/account/subscription/upgrade`;
+const API_ACCOUNT_DORMANT_ENDPOINT = `${API_BASE_URL}/api/account/options/dormant`;
+const API_ACCOUNT_EXPORT_REQUEST_ENDPOINT = `${API_BASE_URL}/api/account/options/export-request`;
 const API_SETUP_STATUS_ENDPOINT = `${API_BASE_URL}/api/setup/status`;
 const API_SETUP_INITIALIZE_ENDPOINT = `${API_BASE_URL}/api/setup/initialize`;
 const API_USERS_ENDPOINT = `${API_BASE_URL}/api/users`;
@@ -1042,6 +1047,16 @@ let reportSelectedContentIds = new Set(STUDENT_REPORT_CONTENT_OPTIONS.map((optio
 let loginMessageKind = "";
 let setupMessageKind = "";
 let userFormMessageKind = "";
+let accountMenuOpen = false;
+let accountViewOpen = false;
+let accountPasswordModalOpen = false;
+let accountOptionsModalOpen = false;
+let accountUpgradeModalOpen = false;
+let accountSummary = createEmptyAccountSummary();
+let accountViewMessageState = { kind: "", text: "" };
+let accountPasswordMessageState = { kind: "", text: "" };
+let accountOptionsMessageState = { kind: "", text: "" };
+let accountUpgradeMessageState = { kind: "", text: "" };
 let hostedSetupChecked = false;
 let hostedSetupInitialized = true;
 function cloneGradeTypes(items) {
@@ -1058,6 +1073,38 @@ function saveSession() {
     return;
   }
   sessionStorage.setItem(SESSION_KEY, JSON.stringify({ currentUserId }));
+}
+
+function createEmptyAccountSummary() {
+  return {
+    user: null,
+    tenant: null,
+    permissions: {
+      canChangePassword: false,
+      canManageSubscription: false,
+      canRequestDormant: false,
+      canRequestExport: false
+    },
+    subscription: null,
+    upgradeOptions: [],
+    activity: {
+      billingEvents: [],
+      exportRequests: []
+    }
+  };
+}
+
+function resetAccountUiState() {
+  accountMenuOpen = false;
+  accountViewOpen = false;
+  accountPasswordModalOpen = false;
+  accountOptionsModalOpen = false;
+  accountUpgradeModalOpen = false;
+  accountViewMessageState = { kind: "", text: "" };
+  accountPasswordMessageState = { kind: "", text: "" };
+  accountOptionsMessageState = { kind: "", text: "" };
+  accountUpgradeMessageState = { kind: "", text: "" };
+  accountSummary = createEmptyAccountSummary();
 }
 
 function loadSession() {
@@ -1209,6 +1256,7 @@ function updateCurrentUserFromSummary(userSummary) {
   if (!userSummary || !userSummary.id) {
     currentUserId = "";
     hostedSessionResumeHint = false;
+    resetAccountUiState();
     return;
   }
 
@@ -1226,6 +1274,35 @@ function updateCurrentUserFromSummary(userSummary) {
   state.users.push(merged);
   currentUserId = merged.id;
   hostedSessionResumeHint = false;
+  accountSummary = {
+    ...accountSummary,
+    user: {
+      id: merged.id,
+      username: merged.username,
+      role: merged.role,
+      studentId: merged.studentId || "",
+      email: accountSummary?.user?.email || null,
+      mustChangePassword: !!merged.mustChangePassword
+    },
+    permissions: {
+      ...(accountSummary?.permissions || {}),
+      canChangePassword: true,
+      canManageSubscription: merged.role === "admin",
+      canRequestDormant: merged.role === "admin",
+      canRequestExport: merged.role === "admin"
+    }
+  };
+}
+
+async function refreshHostedAccountSummary() {
+  const response = await authFetch(API_ACCOUNT_ENDPOINT);
+  if (!response.ok) throw new Error(`Account fetch failed (${response.status})`);
+  const payload = await response.json();
+  accountSummary = {
+    ...createEmptyAccountSummary(),
+    ...(payload || {})
+  };
+  return accountSummary;
 }
 
 async function refreshHostedUsers() {
@@ -1963,6 +2040,7 @@ function upsertHostedTestState(row) {
 async function hydrateHostedDomainState() {
   if (!currentUser()) return;
   await Promise.all([
+    refreshHostedAccountSummary(),
     refreshHostedWorkspaceConfig(),
     refreshHostedStudents(),
     refreshHostedInstructors(),
@@ -2416,6 +2494,9 @@ function renderSessionChrome() {
   const setupCard = document.getElementById("setup-card");
   const loginForm = document.getElementById("login-form");
   const sessionSummary = document.getElementById("session-summary");
+  const accountMenuShell = document.getElementById("account-menu-shell");
+  const accountMenuTrigger = document.getElementById("account-menu-trigger");
+  const accountMenu = document.getElementById("account-menu");
   const defaultAdminNote = document.getElementById("login-default-admin-note");
   const userBanner = document.getElementById("users-default-admin-banner");
   const user = currentUser();
@@ -2444,6 +2525,12 @@ function renderSessionChrome() {
     else if (isAdminUser(user)) sessionSummary.textContent = `Signed in as ${user.username} | Administrator`;
     else sessionSummary.textContent = `Signed in as ${user.username} | Student`;
   }
+  if (accountMenuShell) accountMenuShell.classList.toggle("hidden", !signedIn);
+  if (accountMenuTrigger) accountMenuTrigger.setAttribute("aria-expanded", accountMenuOpen ? "true" : "false");
+  if (accountMenu) accountMenu.classList.toggle("hidden", !signedIn || !accountMenuOpen);
+  const accountOptionsMenuButton = document.getElementById("account-menu-options-btn");
+  const canOpenAccountOptions = !!(accountSubscriptionSummary().permissions?.canRequestDormant || accountSubscriptionSummary().permissions?.canRequestExport);
+  if (accountOptionsMenuButton) accountOptionsMenuButton.classList.toggle("hidden", !signedIn || !canOpenAccountOptions);
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     const tabName = btn.dataset.tab || "";
@@ -2456,6 +2543,584 @@ function renderSessionChrome() {
   if (studentView && studentInfo) selectedStudentId = studentInfo.id;
   if (!canAccessTab(currentTab)) setActiveTab("dashboard");
   else setActiveTab(currentTab);
+  renderAccountSurface();
+  renderAccountPasswordSurface();
+  renderAccountOptionsSurface();
+  renderAccountUpgradeSurface();
+}
+
+function roleDisplayLabel(role) {
+  return role === "student" ? "Student" : "Administrator";
+}
+
+function accountSubscriptionSummary() {
+  if (hostedModeEnabled) return accountSummary;
+  const user = currentUser();
+  return {
+    user: user ? {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      studentId: user.studentId || "",
+      email: null,
+      mustChangePassword: !!user.mustChangePassword
+    } : null,
+    tenant: null,
+    permissions: {
+      canChangePassword: false,
+      canManageSubscription: false,
+      canRequestDormant: false,
+      canRequestExport: false
+    },
+    subscription: null
+  };
+}
+
+function formatAccountDateTime(value) {
+  if (!value) return "Not available";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  }).format(parsed);
+}
+
+function formatMoneyCents(amount, currency = "usd") {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: String(currency || "usd").toUpperCase(),
+    minimumFractionDigits: 2
+  }).format((Number(amount || 0) || 0) / 100);
+}
+
+function formatSubscriptionStatusLabel(status) {
+  const normalized = String(status || "").trim().toLowerCase();
+  switch (normalized) {
+    case "trialing":
+      return "Trialing";
+    case "past_due":
+      return "Past Due";
+    case "unpaid":
+      return "Unpaid";
+    case "canceled":
+      return "Canceled";
+    case "incomplete":
+      return "Incomplete";
+    case "active":
+      return "Active";
+    default:
+      return normalized ? normalized.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "Unknown";
+  }
+}
+
+function formatDormantStatusLabel(status) {
+  const normalized = String(status || "").trim().toLowerCase();
+  switch (normalized) {
+    case "dormant":
+      return "Dormant";
+    case "pending_dormant":
+      return "Dormant Pending";
+    case "pending_reactivation":
+      return "Reactivation Pending";
+    case "active":
+      return "Active";
+    default:
+      return normalized ? normalized.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "Unknown";
+  }
+}
+
+function buildBillableUsageCopy(subscription) {
+  if (!subscription?.billableStudents) {
+    return {
+      tone: "neutral",
+      text: hostedModeEnabled
+        ? "Subscription details are not available for this tenant yet."
+        : "Prototype mode does not include a hosted subscription summary."
+    };
+  }
+  const included = Number(subscription.billableStudents.included || 0);
+  const current = Number(subscription.billableStudents.current || 0);
+  if (current > included) {
+    return {
+      tone: "warning",
+      text: `Your recorded usage is above the current plan limit. ${current} billable students are recorded against ${included} included seats.`
+    };
+  }
+  if (included > 0 && current >= included) {
+    return {
+      tone: "warning",
+      text: `You are using all ${included} included billable students. Upgrade before adding another billable student.`
+    };
+  }
+  return {
+    tone: "neutral",
+    text: `You are using ${current} of ${included} included billable students.`
+  };
+}
+
+function formatBillingEventLabel(eventType) {
+  const normalized = String(eventType || "").trim().toLowerCase();
+  switch (normalized) {
+    case "customer.subscription.created":
+      return "Subscription Created";
+    case "customer.subscription.updated":
+      return "Subscription Updated";
+    case "customer.subscription.deleted":
+      return "Subscription Canceled";
+    case "checkout.session.completed":
+      return "Checkout Completed";
+    case "invoice.payment_failed":
+      return "Payment Failed";
+    default:
+      return normalized ? normalized.replace(/\./g, " ").replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "Billing Activity";
+  }
+}
+
+function formatExportRequestStatusLabel(status) {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (!normalized) return "Unknown";
+  return normalized.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function setAccountViewMessage(kind, text) {
+  accountViewMessageState = { kind: kind || "", text: text || "" };
+}
+
+function setAccountPasswordMessage(kind, text) {
+  accountPasswordMessageState = { kind: kind || "", text: text || "" };
+}
+
+function setAccountOptionsMessage(kind, text) {
+  accountOptionsMessageState = { kind: kind || "", text: text || "" };
+}
+
+function setAccountUpgradeMessage(kind, text) {
+  accountUpgradeMessageState = { kind: kind || "", text: text || "" };
+}
+
+function applyStatusState(element, state) {
+  if (!element) return;
+  const kind = String(state?.kind || "").trim();
+  const text = String(state?.text || "").trim();
+  element.textContent = text;
+  element.className = `status-text${kind ? ` ${kind}` : ""}${text ? "" : " hidden"}`;
+}
+
+function openAccountView() {
+  accountViewOpen = true;
+  accountPasswordModalOpen = false;
+  accountOptionsModalOpen = false;
+  accountUpgradeModalOpen = false;
+  accountMenuOpen = false;
+  setAccountViewMessage("", "");
+  setAccountPasswordMessage("", "");
+  setAccountOptionsMessage("", "");
+  setAccountUpgradeMessage("", "");
+  renderSessionChrome();
+  if (hostedModeEnabled) {
+    refreshHostedAccountSummary()
+      .then(() => renderAccountSurface())
+      .catch((error) => {
+        setAccountViewMessage("error", error.message || "Unable to refresh account details.");
+        renderAccountSurface();
+      });
+  }
+}
+
+function closeAccountView() {
+  accountViewOpen = false;
+  accountUpgradeModalOpen = false;
+  setAccountViewMessage("", "");
+  setAccountUpgradeMessage("", "");
+  renderSessionChrome();
+}
+
+function openAccountPasswordView() {
+  accountMenuOpen = false;
+  accountViewOpen = false;
+  accountPasswordModalOpen = true;
+  accountOptionsModalOpen = false;
+  accountUpgradeModalOpen = false;
+  setAccountPasswordMessage("", "");
+  setAccountOptionsMessage("", "");
+  setAccountUpgradeMessage("", "");
+  renderSessionChrome();
+  const form = document.getElementById("account-password-form");
+  form?.reset();
+  document.getElementById("account-password-current")?.focus();
+}
+
+function closeAccountPasswordView() {
+  accountPasswordModalOpen = false;
+  setAccountPasswordMessage("", "");
+  const form = document.getElementById("account-password-form");
+  form?.reset();
+  renderSessionChrome();
+}
+
+function openAccountOptionsView() {
+  accountMenuOpen = false;
+  accountViewOpen = false;
+  accountPasswordModalOpen = false;
+  accountOptionsModalOpen = true;
+  accountUpgradeModalOpen = false;
+  setAccountOptionsMessage("", "");
+  setAccountUpgradeMessage("", "");
+  renderSessionChrome();
+}
+
+function closeAccountOptionsView() {
+  accountOptionsModalOpen = false;
+  setAccountOptionsMessage("", "");
+  renderSessionChrome();
+}
+
+function openAccountUpgradeView() {
+  accountMenuOpen = false;
+  accountPasswordModalOpen = false;
+  accountOptionsModalOpen = false;
+  accountUpgradeModalOpen = true;
+  setAccountUpgradeMessage("", "");
+  renderSessionChrome();
+}
+
+function closeAccountUpgradeView() {
+  accountUpgradeModalOpen = false;
+  setAccountUpgradeMessage("", "");
+  renderSessionChrome();
+}
+
+async function changeHostedPassword(currentPassword, newPassword) {
+  const response = await authFetch(API_ACCOUNT_PASSWORD_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword })
+  });
+  return parseApiResponse(response, `Password change failed (${response.status})`);
+}
+
+async function upgradeHostedSubscription(targetPlanCode) {
+  const response = await authFetch(API_ACCOUNT_SUBSCRIPTION_UPGRADE_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ targetPlanCode })
+  });
+  return parseApiResponse(response, `Upgrade failed (${response.status})`);
+}
+
+async function requestHostedDormantStatus(notes = "") {
+  const response = await authFetch(API_ACCOUNT_DORMANT_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes })
+  });
+  return parseApiResponse(response, `Dormant request failed (${response.status})`);
+}
+
+async function requestHostedExportRequest() {
+  const response = await authFetch(API_ACCOUNT_EXPORT_REQUEST_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
+  });
+  return parseApiResponse(response, `Export request failed (${response.status})`);
+}
+
+function renderAccountSurface() {
+  const modal = document.getElementById("account-modal");
+  const body = document.getElementById("account-modal-body");
+  const viewMessage = document.getElementById("account-view-message");
+  const summary = accountSubscriptionSummary();
+  const signedIn = !!currentUser();
+  if (modal) {
+    modal.classList.toggle("hidden", !signedIn || !accountViewOpen);
+    modal.setAttribute("aria-hidden", !signedIn || !accountViewOpen ? "true" : "false");
+  }
+  applyStatusState(viewMessage, accountViewMessageState);
+  if (!body) return;
+  if (!signedIn || !accountViewOpen) {
+    body.innerHTML = "";
+    return;
+  }
+
+  const user = summary.user || {};
+  const subscription = summary.subscription;
+  const permissions = summary.permissions || {};
+  const activity = summary.activity || { billingEvents: [], exportRequests: [] };
+  const usageCopy = buildBillableUsageCopy(subscription);
+  const mayManageSubscription = !!permissions.canManageSubscription && !!subscription;
+  const billingEvents = Array.isArray(activity.billingEvents) ? activity.billingEvents : [];
+  const exportRequests = Array.isArray(activity.exportRequests) ? activity.exportRequests : [];
+  const activityHtml = billingEvents.length || exportRequests.length ? `
+    <section class="account-card account-card-history">
+      <div class="account-card-heading">
+        <h3>Recent Billing Activity</h3>
+        <p class="muted">Latest subscription and export-related events tied to this account.</p>
+      </div>
+      <div class="account-activity-grid">
+        <div>
+          <h4 class="account-mini-heading">Billing Events</h4>
+          <ul class="account-activity-list">
+            ${billingEvents.length ? billingEvents.map((event) => `
+              <li>
+                <strong>${escapeHtml(formatBillingEventLabel(event.eventType))}</strong>
+                <span>${escapeHtml(formatAccountDateTime(event.occurredAt || event.createdAt))}</span>
+              </li>
+            `).join("") : `<li><span>No billing events have been recorded yet.</span></li>`}
+          </ul>
+        </div>
+        <div>
+          <h4 class="account-mini-heading">Export Requests</h4>
+          <ul class="account-activity-list">
+            ${exportRequests.length ? exportRequests.map((request) => `
+              <li>
+                <strong>${escapeHtml(formatExportRequestStatusLabel(request.status))}</strong>
+                <span>${escapeHtml(formatMoneyCents(request.priceCents, request.currency || "usd"))} | ${escapeHtml(formatAccountDateTime(request.createdAt))}</span>
+              </li>
+            `).join("") : `<li><span>No export requests have been recorded yet.</span></li>`}
+          </ul>
+        </div>
+      </div>
+    </section>
+  ` : `
+    <section class="account-card account-card-history">
+      <div class="account-card-heading">
+        <h3>Recent Billing Activity</h3>
+        <p class="muted">Billing events and export requests will appear here once activity is recorded.</p>
+      </div>
+    </section>
+  `;
+
+  body.innerHTML = `
+    <div class="account-overview-grid">
+      <section class="account-card account-card-profile">
+        <div class="account-card-heading">
+          <h3>Profile</h3>
+          <p class="muted">Identity details for the currently signed-in user.</p>
+        </div>
+        <dl class="account-detail-list">
+          <div><dt>Username</dt><dd>${escapeHtml(user.username || "Unknown")}</dd></div>
+          <div><dt>Role</dt><dd>${escapeHtml(roleDisplayLabel(user.role))}</dd></div>
+          <div><dt>Email</dt><dd>${escapeHtml(user.email || "Not available yet")}</dd></div>
+          <div><dt>Password</dt><dd>${user.mustChangePassword ? "Password reset required" : "Managed in your account"}</dd></div>
+        </dl>
+        <div class="account-inline-actions">
+          <button id="account-change-password-btn" type="button">Change Password</button>
+        </div>
+      </section>
+      <section class="account-card account-card-subscription">
+        <div class="account-card-heading">
+          <h3>Subscription</h3>
+          <p class="muted">Current plan, billing period, and billable-student usage.</p>
+        </div>
+        ${subscription ? `
+          <div class="account-plan-banner">
+            <p class="account-plan-meta"><strong>Plan:</strong> ${escapeHtml(subscription.plan?.name || "Current Plan")}</p>
+            <p class="account-plan-meta"><strong>Subscription:</strong> ${escapeHtml(formatSubscriptionStatusLabel(subscription.status))}</p>
+            <p class="account-plan-meta"><strong>Site Status:</strong> ${escapeHtml(formatDormantStatusLabel(subscription.dormantStatus))}</p>
+          </div>
+          <dl class="account-detail-list">
+            <div><dt>Base Price</dt><dd>${formatMoneyCents(subscription.plan?.basePriceCents, subscription.plan?.currency || "usd")} / ${escapeHtml(subscription.plan?.billingInterval || "month")}</dd></div>
+            <div><dt>Included Billable Students</dt><dd>${Number(subscription.billableStudents?.included || 0)}</dd></div>
+            <div><dt>Current Billable Students</dt><dd>${Number(subscription.billableStudents?.current || 0)}</dd></div>
+            <div><dt>Current Over Plan</dt><dd>${Number(subscription.billableStudents?.overage || 0)}</dd></div>
+            <div><dt>Billing Period Start</dt><dd>${escapeHtml(formatAccountDateTime(subscription.billingPeriod?.start))}</dd></div>
+            <div><dt>Billing Period End</dt><dd>${escapeHtml(formatAccountDateTime(subscription.billingPeriod?.end))}</dd></div>
+          </dl>
+          <p class="account-usage-note ${usageCopy.tone === "warning" ? "warning-text" : "muted"}">${escapeHtml(usageCopy.text)}</p>
+          ${mayManageSubscription ? `
+            <div class="account-inline-actions">
+              <button id="account-upgrade-btn" type="button">Upgrade Subscription</button>
+            </div>
+          ` : `
+            <p class="muted">Only tenant administrators can manage subscription changes.</p>
+          `}
+        ` : `
+          <p class="muted">${escapeHtml(usageCopy.text)}</p>
+        `}
+      </section>
+    </div>
+    ${activityHtml}
+  `;
+
+  document.getElementById("account-change-password-btn")?.addEventListener("click", () => {
+    openAccountPasswordView();
+  });
+  document.getElementById("account-upgrade-btn")?.addEventListener("click", () => {
+    openAccountUpgradeView();
+  });
+}
+
+function renderAccountPasswordSurface() {
+  const modal = document.getElementById("account-password-modal");
+  const message = document.getElementById("account-password-message");
+  const form = document.getElementById("account-password-form");
+  const signedIn = !!currentUser();
+  if (modal) {
+    modal.classList.toggle("hidden", !signedIn || !accountPasswordModalOpen);
+    modal.setAttribute("aria-hidden", !signedIn || !accountPasswordModalOpen ? "true" : "false");
+  }
+  applyStatusState(message, accountPasswordMessageState);
+  if (!form) return;
+  Array.from(form.elements).forEach((element) => {
+    element.disabled = !signedIn || !accountPasswordModalOpen;
+  });
+}
+
+function renderAccountOptionsSurface() {
+  const modal = document.getElementById("account-options-modal");
+  const body = document.getElementById("account-options-modal-body");
+  const message = document.getElementById("account-options-message");
+  const summary = accountSubscriptionSummary();
+  const signedIn = !!currentUser();
+  const permissions = summary.permissions || {};
+  const mayOpen = !!(permissions.canRequestDormant || permissions.canRequestExport);
+  if (modal) {
+    modal.classList.toggle("hidden", !signedIn || !accountOptionsModalOpen || !mayOpen);
+    modal.setAttribute("aria-hidden", !signedIn || !accountOptionsModalOpen || !mayOpen ? "true" : "false");
+  }
+  applyStatusState(message, accountOptionsMessageState);
+  if (!body) return;
+  if (!signedIn || !accountOptionsModalOpen || !mayOpen) {
+    body.innerHTML = "";
+    return;
+  }
+
+  body.innerHTML = `
+    <section class="account-card account-card-actions">
+      <div class="account-card-heading">
+        <h3>Account Options</h3>
+        <p class="muted">Lower-frequency lifecycle actions live here so the main account view can stay focused on profile and subscription detail.</p>
+      </div>
+      <p class="muted">Dormant keeps the tenant history intact but pauses normal runtime activity. Export requests create a paid offboarding/export record for follow-up processing.</p>
+      <div class="account-inline-actions">
+        ${permissions.canRequestDormant ? `<button id="account-dormant-btn" type="button">Make Account Dormant</button>` : ""}
+        ${permissions.canRequestExport ? `<button id="account-export-btn" type="button">Request Data Export</button>` : ""}
+      </div>
+    </section>
+  `;
+
+  document.getElementById("account-dormant-btn")?.addEventListener("click", async () => {
+    if (!hostedModeEnabled) {
+      setAccountOptionsMessage("info", "Prototype mode does not include hosted dormant requests.");
+      renderAccountOptionsSurface();
+      return;
+    }
+    const confirmed = window.confirm("Make this tenant account dormant after the current billing period? Dormant status pauses normal academic activity until the subscription is reactivated.");
+    if (!confirmed) return;
+    try {
+      const result = await requestHostedDormantStatus();
+      await refreshHostedAccountSummary();
+      setAccountOptionsMessage("success", result?.message || "Dormant request recorded.");
+      renderAccountOptionsSurface();
+      renderAccountSurface();
+    } catch (error) {
+      setAccountOptionsMessage("error", error.message || "Unable to record the dormant request.");
+      renderAccountOptionsSurface();
+    }
+  });
+  document.getElementById("account-export-btn")?.addEventListener("click", async () => {
+    if (!hostedModeEnabled) {
+      setAccountOptionsMessage("info", "Prototype mode does not include hosted export requests.");
+      renderAccountOptionsSurface();
+      return;
+    }
+    const confirmed = window.confirm("Create a paid data export request for this account? The request will be recorded now and the payment/delivery flow will follow in a later slice.");
+    if (!confirmed) return;
+    try {
+      const result = await requestHostedExportRequest();
+      await refreshHostedAccountSummary();
+      setAccountOptionsMessage("success", result?.message || "Export request recorded.");
+      renderAccountOptionsSurface();
+      renderAccountSurface();
+    } catch (error) {
+      setAccountOptionsMessage("error", error.message || "Unable to record the export request.");
+      renderAccountOptionsSurface();
+    }
+  });
+}
+
+function renderAccountUpgradeSurface() {
+  const modal = document.getElementById("account-upgrade-modal");
+  const body = document.getElementById("account-upgrade-modal-body");
+  const message = document.getElementById("account-upgrade-message");
+  const summary = accountSubscriptionSummary();
+  const signedIn = !!currentUser();
+  const subscription = summary.subscription;
+  const upgradeOptions = Array.isArray(summary.upgradeOptions) ? summary.upgradeOptions : [];
+  const mayManageSubscription = !!summary.permissions?.canManageSubscription && !!subscription;
+  if (modal) {
+    modal.classList.toggle("hidden", !signedIn || !accountUpgradeModalOpen || !mayManageSubscription);
+    modal.setAttribute("aria-hidden", !signedIn || !accountUpgradeModalOpen || !mayManageSubscription ? "true" : "false");
+  }
+  applyStatusState(message, accountUpgradeMessageState);
+  if (!body) return;
+  if (!signedIn || !accountUpgradeModalOpen || !mayManageSubscription) {
+    body.innerHTML = "";
+    return;
+  }
+
+  body.innerHTML = `
+    <section class="account-card account-card-subscription">
+      <div class="account-card-heading">
+        <h3>Available Upgrades</h3>
+        <p class="muted">Choose a higher-tier subscription for more billable-student capacity.</p>
+      </div>
+      <div class="account-plan-banner">
+        <p class="account-plan-meta"><strong>Current Plan:</strong> ${escapeHtml(subscription.plan?.name || "Current Plan")}</p>
+        <p class="account-plan-meta"><strong>Current Included Billable Students:</strong> ${Number(subscription.billableStudents?.included || 0)}</p>
+      </div>
+      ${upgradeOptions.length ? `
+        <div class="account-upgrade-grid">
+          ${upgradeOptions.map((plan) => `
+            <article class="account-upgrade-option">
+              <h4>${escapeHtml(plan.name || "Upgrade Plan")}</h4>
+              <p class="account-upgrade-price">${escapeHtml(formatMoneyCents(plan.priceCents, plan.currency || "usd"))} / ${escapeHtml(plan.billingInterval || "month")}</p>
+              <p class="muted">${escapeHtml(plan.description || "")}</p>
+              <p class="account-plan-meta"><strong>Included Billable Students:</strong> ${Number(plan.limits?.includedBillableStudents || 0)}</p>
+              ${Number(plan.limits?.perStudentOverageCents || 0) > 0 ? `<p class="account-plan-meta"><strong>Overage:</strong> ${escapeHtml(formatMoneyCents(plan.limits?.perStudentOverageCents || 0, plan.currency || "usd"))} per billable student</p>` : ""}
+              ${Array.isArray(plan.featureSummary) && plan.featureSummary.length ? `
+                <ul class="account-feature-list">
+                  ${plan.featureSummary.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+                </ul>
+              ` : ""}
+              <div class="account-inline-actions">
+                <button class="account-upgrade-select-btn" data-plan-code="${escapeHtml(plan.code || "")}" type="button">Upgrade To ${escapeHtml(plan.name || "This Plan")}</button>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      ` : `
+        <p class="muted">No higher-tier upgrade plans are currently available for this subscription.</p>
+      `}
+    </section>
+  `;
+
+  body.querySelectorAll(".account-upgrade-select-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const targetPlanCode = button.dataset.planCode || "";
+      if (!targetPlanCode) return;
+      const confirmed = window.confirm("Apply this subscription upgrade now? Any Stripe proration or billing adjustment will follow the configured subscription rules.");
+      if (!confirmed) return;
+      if (!hostedModeEnabled) {
+        setAccountUpgradeMessage("info", "Prototype mode does not include hosted subscription upgrades.");
+        renderAccountUpgradeSurface();
+        return;
+      }
+      try {
+        const result = await upgradeHostedSubscription(targetPlanCode);
+        await refreshHostedAccountSummary();
+        closeAccountUpgradeView();
+        setAccountViewMessage("success", result?.message || "Subscription upgraded successfully.");
+        renderAccountSurface();
+      } catch (error) {
+        setAccountUpgradeMessage("error", error.message || "Unable to upgrade the subscription.");
+        renderAccountUpgradeSurface();
+      }
+    });
+  });
 }
 
 async function logout() {
@@ -2464,6 +3129,7 @@ async function logout() {
   }
   currentUserId = "";
   hostedSessionResumeHint = false;
+  resetAccountUiState();
   saveSession();
   resetLoginMessage();
   renderSessionChrome();
@@ -10720,8 +11386,86 @@ function bindEvents() {
     }
   });
 
-  const logoutBtn = document.getElementById("logout-btn");
-  if (logoutBtn) logoutBtn.addEventListener("click", async () => logout());
+  document.getElementById("account-menu-trigger")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    accountMenuOpen = !accountMenuOpen;
+    renderSessionChrome();
+  });
+  document.getElementById("account-menu-view-btn")?.addEventListener("click", () => openAccountView());
+  document.getElementById("account-menu-options-btn")?.addEventListener("click", () => openAccountOptionsView());
+  document.getElementById("account-menu-password-btn")?.addEventListener("click", () => openAccountPasswordView());
+  document.getElementById("account-menu-logout-btn")?.addEventListener("click", async () => logout());
+  document.getElementById("account-modal-close-btn")?.addEventListener("click", () => closeAccountView());
+  document.getElementById("account-modal-backdrop")?.addEventListener("click", () => closeAccountView());
+  document.getElementById("account-password-modal-close-btn")?.addEventListener("click", () => closeAccountPasswordView());
+  document.getElementById("account-password-modal-backdrop")?.addEventListener("click", () => closeAccountPasswordView());
+  document.getElementById("account-password-cancel-btn")?.addEventListener("click", () => closeAccountPasswordView());
+  document.getElementById("account-options-modal-close-btn")?.addEventListener("click", () => closeAccountOptionsView());
+  document.getElementById("account-options-modal-backdrop")?.addEventListener("click", () => closeAccountOptionsView());
+  document.getElementById("account-upgrade-modal-close-btn")?.addEventListener("click", () => closeAccountUpgradeView());
+  document.getElementById("account-upgrade-modal-backdrop")?.addEventListener("click", () => closeAccountUpgradeView());
+  document.getElementById("account-password-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!hostedModeEnabled) {
+      setAccountPasswordMessage("info", "Prototype mode does not include hosted self-service password changes.");
+      renderAccountPasswordSurface();
+      return;
+    }
+    const currentPassword = document.getElementById("account-password-current")?.value || "";
+    const newPassword = document.getElementById("account-password-new")?.value || "";
+    const confirmPassword = document.getElementById("account-password-confirm")?.value || "";
+    if (!currentPassword || !newPassword) {
+      setAccountPasswordMessage("error", "Current password and new password are required.");
+      renderAccountPasswordSurface();
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setAccountPasswordMessage("error", "New password and confirmation do not match.");
+      renderAccountPasswordSurface();
+      return;
+    }
+    try {
+      await changeHostedPassword(currentPassword, newPassword);
+      if (accountSummary?.user) accountSummary.user.mustChangePassword = false;
+      const current = currentUser();
+      if (current) current.mustChangePassword = false;
+      const form = document.getElementById("account-password-form");
+      form?.reset();
+      setAccountPasswordMessage("success", "Password updated successfully.");
+      renderAccountPasswordSurface();
+    } catch (error) {
+      setAccountPasswordMessage("error", error.message || "Unable to change password.");
+      renderAccountPasswordSurface();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    const shell = document.getElementById("account-menu-shell");
+    if (!accountMenuOpen || !shell || shell.contains(event.target)) return;
+    accountMenuOpen = false;
+    renderSessionChrome();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && accountUpgradeModalOpen) {
+      closeAccountUpgradeView();
+      return;
+    }
+    if (event.key === "Escape" && accountOptionsModalOpen) {
+      closeAccountOptionsView();
+      return;
+    }
+    if (event.key === "Escape" && accountPasswordModalOpen) {
+      closeAccountPasswordView();
+      return;
+    }
+    if (event.key === "Escape" && accountViewOpen) {
+      closeAccountView();
+      return;
+    }
+    if (event.key === "Escape" && accountMenuOpen) {
+      accountMenuOpen = false;
+      renderSessionChrome();
+    }
+  });
 
   const userRoleSelect = document.getElementById("user-role");
   if (userRoleSelect) userRoleSelect.addEventListener("change", () => ensureStudentSelection());

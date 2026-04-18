@@ -199,9 +199,12 @@
      - subscription and billable-student visibility
      - custom in-app upgrade-session flow
      - dormant/export actions in the account area
-   - [ ] Implement the first tenant-facing account menu and account-view shell in the hosted app.
-   - [ ] Add a tenant-facing authenticated account/commercial summary API for current user, subscription, and billable-student usage.
-   - [ ] Implement a custom tenant-facing subscription-upgrade session flow for existing subscriptions instead of routing upgrades through new-account public signup.
+   - [x] Implement the first tenant-facing account menu and account-view shell in the hosted app.
+   - [x] Add a tenant-facing authenticated account/commercial summary API for current user, subscription, and billable-student usage.
+   - [x] Implement the first tenant-facing in-app subscription-upgrade flow for existing subscriptions on top of the current Stripe subscription record instead of routing upgrades through new-account public signup.
+   - [x] Split tenant `Account Options` into its own surface and wire the first real dormant/export request mutations through the tenant runtime and control plane.
+   - [x] Add the first lightweight billing/activity history section to the tenant account view.
+   - [ ] Run a full authenticated hosted smoke pass covering tenant account upgrade and account-options flows after the new commercial self-service slice.
 11. Prepare the next hosted-app workflow consolidation slice: the School Day hub.
    - [x] Define the School Day hub concept as an implementation-ready spec package.
    - [x] Decide that the first version should be a hub model, not the full persisted execution layer.

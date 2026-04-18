@@ -39,6 +39,7 @@ const {
   saveWorkspaceConfig
 } = require("./postgres-workspace-config-store");
 const { registerCalendarRoutes } = require("./routes/calendar-routes");
+const { registerAccountRoutes } = require("./routes/account-routes");
 const { registerAdminRoutes } = require("./routes/admin-routes");
 const { registerAuthRoutes } = require("./routes/auth-routes");
 const { registerCurriculumRoutes } = require("./routes/curriculum-routes");
@@ -55,6 +56,7 @@ const { createCalendarService } = require("./services/calendar-service");
 const { createCurriculumService } = require("./services/curriculum-service");
 const { createGradingService } = require("./services/grading-service");
 const { createCommercialPolicyService } = require("./services/commercial-policy-service");
+const { createControlPlaneClient } = require("./services/control-plane-client");
 const { createRecordsService } = require("./services/records-service");
 const { createWorkspaceConfigService } = require("./services/workspace-config-service");
 
@@ -73,6 +75,16 @@ const authRouteDeps = {
   revokeSessionByTokenHash,
   sessionConfig,
   updateLastLogin
+};
+const accountRouteDeps = {
+  commercialPolicyService,
+  controlPlaneClient: createControlPlaneClient({
+    internalConfig
+  }),
+  getUserById,
+  internalConfig,
+  isPostgresMode,
+  updateUser
 };
 const adminRouteDeps = {
   countAdmins,
@@ -170,6 +182,8 @@ registerInfraRoutes(app, {
 registerSetupRoutes(app, setupRouteDeps);
 
 registerAuthRoutes(app, authRouteDeps);
+
+registerAccountRoutes(app, accountRouteDeps);
 
 registerAdminRoutes(app, adminRouteDeps);
 

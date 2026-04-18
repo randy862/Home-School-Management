@@ -3833,3 +3833,314 @@ tbody tr:hover {
     padding: 1rem;
   }
 }
+
+.account-menu-shell {
+  position: relative;
+}
+
+.account-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid #b7c9de;
+  background: linear-gradient(180deg, #f7fbff 0%, #eaf2fb 100%);
+  box-shadow: 0 12px 28px rgba(31, 47, 69, 0.08);
+  color: #20344f;
+}
+
+.account-menu-trigger .muted {
+  margin: 0;
+  color: #20344f;
+  font-weight: 600;
+  opacity: 1;
+}
+
+.account-menu-caret {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.account-menu {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  min-width: 200px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.45rem;
+  border: 1px solid #c2d1e2;
+  border-radius: 18px;
+  background: rgba(247, 251, 255, 0.98);
+  box-shadow: 0 20px 42px rgba(31, 47, 69, 0.16);
+  z-index: 120;
+}
+
+.account-menu button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  border-radius: 12px;
+  border-color: transparent;
+  background: #f1f6fc;
+  color: #20344f;
+  font-size: 0.86rem;
+  font-weight: 500;
+  padding: 0.52rem 0.7rem;
+  box-shadow: none;
+}
+
+.account-menu button:hover {
+  background: #e5eef9;
+  transform: none;
+  box-shadow: none;
+}
+
+.account-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+}
+
+.account-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(25, 39, 58, 0.34);
+  backdrop-filter: blur(3px);
+}
+
+.account-modal-panel {
+  position: relative;
+  width: min(920px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  margin: 1rem auto;
+  overflow: auto;
+  padding: 1.1rem 1.15rem;
+  z-index: 1;
+}
+
+.account-password-modal-panel {
+  width: min(760px, calc(100vw - 2rem));
+  padding: 1.5rem 1.6rem 1.35rem;
+}
+
+.account-upgrade-modal-panel {
+  width: min(920px, calc(100vw - 2rem));
+}
+
+.account-options-modal-panel {
+  width: min(720px, calc(100vw - 2rem));
+}
+
+.account-modal-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.account-modal-body {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.account-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.account-card {
+  padding: 1rem 1.05rem;
+  border: 1px solid #d9e2ee;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 250, 253, 0.98) 100%);
+}
+
+.account-card-profile {
+  background: linear-gradient(180deg, #fff8ed 0%, #fffdf8 100%);
+}
+
+.account-card-subscription {
+  background: linear-gradient(180deg, #eef6ff 0%, #f8fbff 100%);
+}
+
+.account-card-actions {
+  background: linear-gradient(180deg, #f6f8fb 0%, #fbfcfe 100%);
+}
+
+.account-card-history {
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.account-card-heading {
+  margin-bottom: 0.8rem;
+}
+
+.account-card-heading h3,
+.account-plan-name {
+  margin: 0;
+}
+
+.account-card-heading .muted,
+.account-plan-meta,
+.account-usage-note {
+  margin: 0.2rem 0 0;
+}
+
+.account-detail-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem 1rem;
+  margin: 0;
+}
+
+.account-detail-list div {
+  min-width: 0;
+}
+
+.account-detail-list dt {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.account-detail-list dd {
+  margin: 0.2rem 0 0;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.account-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.account-plan-banner {
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #d6e4f4;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  margin-bottom: 0.85rem;
+}
+
+.account-activity-grid,
+.account-upgrade-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.account-mini-heading {
+  margin: 0 0 0.55rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.account-activity-list,
+.account-feature-list {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.account-activity-list li,
+.account-feature-list li {
+  margin: 0.35rem 0;
+  color: var(--ink);
+}
+
+.account-activity-list li span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.account-upgrade-option {
+  padding: 1rem 1.05rem;
+  border: 1px solid #d7e2ef;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(244,249,255,0.98) 100%);
+}
+
+.account-upgrade-option h4,
+.account-upgrade-price {
+  margin: 0;
+}
+
+.account-upgrade-price {
+  margin-top: 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1f5ea8;
+}
+
+.account-password-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.2rem 1.15rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.account-password-form > label {
+  display: grid;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.account-password-form input {
+  min-height: 46px;
+  padding: 0.8rem 0.95rem;
+}
+
+.account-password-form .account-inline-actions {
+  grid-column: 1 / -1;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 980px) {
+  .account-overview-grid,
+  .account-activity-grid,
+  .account-upgrade-grid,
+  .account-detail-list,
+  .account-password-form {
+    grid-template-columns: 1fr;
+  }
+
+  .account-password-form .account-inline-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .account-menu {
+    right: auto;
+    left: 0;
+    min-width: min(240px, calc(100vw - 2rem));
+  }
+
+  .account-menu-trigger {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .account-modal-panel {
+    width: calc(100vw - 1rem);
+    margin: 0.5rem auto;
+    max-height: calc(100vh - 1rem);
+  }
+
+  .account-modal-header {
+    flex-direction: column;
+  }
+}

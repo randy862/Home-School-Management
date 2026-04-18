@@ -253,6 +253,33 @@ async function getCommercialPlanById(id) {
   return mapCommercialPlanRow(result.rows[0]);
 }
 
+async function getCommercialPlanByStripePriceId(stripePriceId) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      code,
+      name,
+      description,
+      billing_interval AS "billingInterval",
+      price_cents AS "priceCents",
+      currency,
+      stripe_product_id AS "stripeProductId",
+      stripe_price_id AS "stripePriceId",
+      is_public AS "isPublic",
+      is_active AS "isActive",
+      sort_order AS "sortOrder",
+      feature_summary_json AS "featureSummary",
+      limits_json AS "limits",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM commercial_plans
+    WHERE stripe_price_id = $1
+    LIMIT 1
+  `, [stripePriceId]);
+  return mapCommercialPlanRow(result.rows[0]);
+}
+
 function slugify(value) {
   return String(value || "")
     .trim()
@@ -781,16 +808,17 @@ async function updateCommercialSubscription(id, updates = {}) {
   const result = await pool.query(`
     UPDATE customer_subscriptions
     SET
-      status = COALESCE($2, status),
-      dormant_status = COALESCE($3, dormant_status),
-      current_period_start = COALESCE($4, current_period_start),
-      current_period_end = COALESCE($5, current_period_end),
-      base_price_cents = COALESCE($6, base_price_cents),
-      included_billable_students = COALESCE($7, included_billable_students),
-      per_student_overage_cents = COALESCE($8, per_student_overage_cents),
-      current_billable_student_count = COALESCE($9, current_billable_student_count),
-      current_overage_student_count = COALESCE($10, current_overage_student_count),
-      last_billable_count_calculated_at = COALESCE($11, last_billable_count_calculated_at),
+      commercial_plan_id = COALESCE($2, commercial_plan_id),
+      status = COALESCE($3, status),
+      dormant_status = COALESCE($4, dormant_status),
+      current_period_start = COALESCE($5, current_period_start),
+      current_period_end = COALESCE($6, current_period_end),
+      base_price_cents = COALESCE($7, base_price_cents),
+      included_billable_students = COALESCE($8, included_billable_students),
+      per_student_overage_cents = COALESCE($9, per_student_overage_cents),
+      current_billable_student_count = COALESCE($10, current_billable_student_count),
+      current_overage_student_count = COALESCE($11, current_overage_student_count),
+      last_billable_count_calculated_at = COALESCE($12, last_billable_count_calculated_at),
       updated_at = NOW()
     WHERE id = $1
     RETURNING
@@ -817,6 +845,7 @@ async function updateCommercialSubscription(id, updates = {}) {
       updated_at AS "updatedAt"
   `, [
     id,
+    updates.commercialPlanId || null,
     updates.status || null,
     updates.dormantStatus || null,
     updates.currentPeriodStart || null,
@@ -956,6 +985,34 @@ async function getBillingEventByStripeEventId(stripeEventId) {
     LIMIT 1
   `, [stripeEventId]);
   return mapBillingEventRow(result.rows[0]);
+}
+
+async function listBillingEventsBySubscriptionId(customerSubscriptionId, options = {}) {
+  const pool = getPostgresPool();
+  const normalizedLimit = Number.isFinite(Number(options.limit)) && Number(options.limit) > 0
+    ? Math.floor(Number(options.limit))
+    : 10;
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      event_type AS "eventType",
+      event_source AS "eventSource",
+      stripe_event_id AS "stripeEventId",
+      stripe_object_id AS "stripeObjectId",
+      occurred_at AS "occurredAt",
+      payload_json AS "payload",
+      processed_at AS "processedAt",
+      processing_status AS "processingStatus",
+      processing_error AS "processingError",
+      created_at AS "createdAt"
+    FROM billing_events
+    WHERE customer_subscription_id = $1
+    ORDER BY occurred_at DESC NULLS LAST, created_at DESC
+    LIMIT $2
+  `, [customerSubscriptionId, normalizedLimit]);
+  return result.rows.map(mapBillingEventRow);
 }
 
 async function createBillingEvent(input) {
@@ -1561,6 +1618,7 @@ module.exports = {
   createProvisioningRequest,
   getBillingEventByStripeEventId,
   getCommercialPlanById,
+  getCommercialPlanByStripePriceId,
   getCommercialSubscriptionById,
   getCommercialOverviewBySubscriptionId,
   getCustomerAccountById,
@@ -1573,6 +1631,7 @@ module.exports = {
   getProvisioningRequestBySubscriptionId,
   getSubscriptionByStripeCheckoutSessionId,
   getSubscriptionByStripeSubscriptionId,
+  listBillingEventsBySubscriptionId,
   listCancellationExportRequestsBySubscriptionId,
   listCommercialOverview,
   listPublicCommercialPlans
