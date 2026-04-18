@@ -17,7 +17,8 @@ function formatPrice(cents, currency = "usd") {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: String(currency || "usd").toUpperCase(),
-    maximumFractionDigits: 0
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(Number(cents || 0) / 100);
 }
 
