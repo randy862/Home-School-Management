@@ -5,10 +5,12 @@ async function processStripeBillingEvent(event, deps) {
     getBillingEventByStripeEventId,
     getCheckoutSessionByStripeSessionId,
     getSubscriptionByStripeCheckoutSessionId,
+    getSubscriptionByStripeSubscriptionId,
     markCheckoutSessionCompleted,
     updateBillingEventProcessing,
     updateCustomerAccountStatus,
-    updateSubscriptionByStripeCheckoutSessionId
+    updateSubscriptionByStripeCheckoutSessionId,
+    updateSubscriptionByStripeSubscriptionId
   } = deps;
 
   const existingEvent = await getBillingEventByStripeEventId(event.id);
@@ -31,9 +33,11 @@ async function processStripeBillingEvent(event, deps) {
       ensureCommercialProvisioningForSubscription,
       getCheckoutSessionByStripeSessionId,
       getSubscriptionByStripeCheckoutSessionId,
+      getSubscriptionByStripeSubscriptionId,
       markCheckoutSessionCompleted,
       updateCustomerAccountStatus,
-      updateSubscriptionByStripeCheckoutSessionId
+      updateSubscriptionByStripeCheckoutSessionId,
+      updateSubscriptionByStripeSubscriptionId
     });
 
     await updateBillingEventProcessing(event.id, {
@@ -84,14 +88,21 @@ async function handleStripeEventByType(event, deps) {
   }
 
   if (event.type === "invoice.payment_failed") {
-    const checkoutSessionId = String(object.subscription_details?.metadata?.checkout_session_id || "").trim();
-    if (!checkoutSessionId) {
+    const stripeSubscriptionId = String(object.subscription || "").trim();
+    if (!stripeSubscriptionId) {
       return {
         processingStatus: "ignored",
-        reason: "checkout_session_metadata_missing"
+        reason: "stripe_subscription_id_missing"
       };
     }
-    const subscription = await deps.updateSubscriptionByStripeCheckoutSessionId(checkoutSessionId, {
+    const existingSubscription = await deps.getSubscriptionByStripeSubscriptionId(stripeSubscriptionId);
+    if (!existingSubscription) {
+      return {
+        processingStatus: "ignored",
+        reason: "stripe_subscription_not_found"
+      };
+    }
+    const subscription = await deps.updateSubscriptionByStripeSubscriptionId(stripeSubscriptionId, {
       status: "past_due"
     });
     if (subscription?.customerAccountId) {

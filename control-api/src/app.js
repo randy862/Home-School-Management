@@ -65,6 +65,7 @@ const {
   getProvisioningRequestByJobId,
   getProvisioningRequestBySubscriptionId,
   getSubscriptionByStripeCheckoutSessionId,
+  getSubscriptionByStripeSubscriptionId,
   listCancellationExportRequestsBySubscriptionId,
   listCommercialOverview,
   listPublicCommercialPlans
@@ -77,7 +78,8 @@ const {
   updateCommercialSubscription,
   updateCustomerAccountStatus,
   updateProvisioningRequest,
-  updateSubscriptionByStripeCheckoutSessionId
+  updateSubscriptionByStripeCheckoutSessionId,
+  updateSubscriptionByStripeSubscriptionId
 } = require("./postgres-commercial-store");
 const { applyCors, createOperatorAuthContextMiddleware } = require("./middleware/auth-context");
 const { errorHandler } = require("./middleware/error-handler");
@@ -165,10 +167,12 @@ registerPublicSaasRoutes(app, {
     getBillingEventByStripeEventId,
     getCheckoutSessionByStripeSessionId,
     getSubscriptionByStripeCheckoutSessionId,
+    getSubscriptionByStripeSubscriptionId,
     markCheckoutSessionCompleted,
     updateBillingEventProcessing,
     updateCustomerAccountStatus,
-    updateSubscriptionByStripeCheckoutSessionId
+    updateSubscriptionByStripeCheckoutSessionId,
+    updateSubscriptionByStripeSubscriptionId
   }),
   publicConfig: {
     ...publicConfig,

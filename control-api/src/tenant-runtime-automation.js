@@ -411,11 +411,15 @@ function buildRemoteRestartCommand(config, serviceName) {
 
 function parseSetupTokenOutput(stdout) {
   const token = stdout.match(/^Token:\s*(.+)$/m)?.[1]?.trim();
-  const expiresAt = stdout.match(/^Expires:\s*(.+)$/m)?.[1]?.trim();
-  if (!token || !expiresAt) {
+  const rawExpiresAt = stdout.match(/^Expires:\s*(.+)$/m)?.[1]?.trim();
+  if (!token || !rawExpiresAt) {
     throw new Error("Setup token output could not be parsed.");
   }
-  return { token, expiresAt };
+  const parsedExpiresAt = new Date(rawExpiresAt);
+  if (Number.isNaN(parsedExpiresAt.getTime())) {
+    throw new Error("Setup token expiration output could not be parsed into a valid timestamp.");
+  }
+  return { token, expiresAt: parsedExpiresAt.toISOString() };
 }
 
 function escapeIdentifier(value) {

@@ -102,8 +102,8 @@ VALUES
   (
     'plan-growth-monthly',
     'growth_monthly',
-    'Growth',
-    'Hosted access for families or learning groups with up to ten billable students in the current billing period.',
+    'Extra Credit',
+    'Hosted access for families or learning groups with up to ten billable students in the current billing period, framed with stronger scholastic branding.',
     'month',
     1499,
     'usd',
@@ -118,8 +118,8 @@ VALUES
   (
     'plan-support-plus-monthly',
     'large_monthly',
-    'Large',
-    'Hosted access for larger schools with a monthly base plus per-student overage after ten billable students.',
+    'Valedictorian',
+    'Hosted access for larger schools with a monthly base plus per-student overage after ten billable students, framed as the top scholastic tier.',
     'month',
     1499,
     'usd',

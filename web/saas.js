@@ -33,10 +33,11 @@ function escapeHtml(value) {
 function getPlanMarketingCopy(planCode) {
   const copyByCode = {
     starter_monthly: "For a family that wants the full hosted system without extra operational overhead.",
-    growth_monthly: "For families or small learning groups that want more operating room and a smoother support path.",
-    support_plus_monthly: "For higher-touch onboarding and support when the hosted platform needs to feel more hands-on."
+    growth_monthly: "For families or small learning groups that want more operating room with a more polished academic feel.",
+    large_monthly: "For larger schools that need stronger capacity and a premium, institution-ready hosted footprint.",
+    support_plus_monthly: "For larger schools that need stronger capacity and a premium, institution-ready hosted footprint."
   };
-  return copyByCode[planCode] || "Hosted access for the Mitchell Family Home School Management platform.";
+  return copyByCode[planCode] || "Hosted access for the Navigrader Homeschool Records Management platform.";
 }
 
 function renderPricingCards(plans) {

@@ -78,6 +78,23 @@ Deployment-related environment variables:
 - `CONTROL_DEPLOY_SSH_PORT=22`
 - `CONTROL_DEPLOY_SSH_CONNECT_TIMEOUT_SECONDS=10`
 
+Commercial checkout / public-host environment variables:
+- `STRIPE_PUBLISHABLE_KEY=<pk_test_...>` for the public checkout bootstrap response
+- `STRIPE_SECRET_KEY=<sk_test_...>` for Stripe Checkout session creation
+- `STRIPE_WEBHOOK_SECRET=<whsec_...>` for webhook signature verification
+- `PUBLIC_APP_BASE_URL=https://navigrader.com` for public checkout and hosted tenant URL generation
+- `PUBLIC_SIGNUP_STATUS_BASE_URL=https://navigrader.com` when signup-status should resolve from the same public host
+- `PUBLIC_CHECKOUT_SUCCESS_URL=https://navigrader.com/signup-status.html?checkout=success`
+- `PUBLIC_CHECKOUT_CANCEL_URL=https://navigrader.com/signup-status.html?checkout=cancel`
+- `PUBLIC_DEFAULT_DOMAIN_SUFFIX=navigrader.com` so commercial provisioning allocates `*.navigrader.com` instead of `school.local`
+
+Current commercial plan-code mapping:
+- `starter_monthly` -> `Starter`
+- `growth_monthly` -> `Extra Credit`
+- `large_monthly` -> `Valedictorian`
+
+The public-facing names can change without changing the internal plan codes, but the `commercial_plans.stripe_price_id` values must be mapped to those three internal codes correctly.
+
 Current APP001 assumption:
 - the tenant runtime is managed by system-level `systemd` units, not lingering user services
 - the control-plane worker uses `sudo systemctl restart ...` for app restarts during hosted deployment automation

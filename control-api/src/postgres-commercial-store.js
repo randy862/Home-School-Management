@@ -534,6 +534,38 @@ async function getSubscriptionByStripeCheckoutSessionId(stripeCheckoutSessionId)
   return mapCustomerSubscriptionRow(result.rows[0]);
 }
 
+async function getSubscriptionByStripeSubscriptionId(stripeSubscriptionId) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      commercial_plan_id AS "commercialPlanId",
+      status,
+      dormant_status AS "dormantStatus",
+      stripe_subscription_id AS "stripeSubscriptionId",
+      stripe_checkout_session_id AS "stripeCheckoutSessionId",
+      current_period_start AS "currentPeriodStart",
+      current_period_end AS "currentPeriodEnd",
+      cancel_at_period_end AS "cancelAtPeriodEnd",
+      canceled_at AS "canceledAt",
+      trial_ends_at AS "trialEndsAt",
+      grace_period_ends_at AS "gracePeriodEndsAt",
+      base_price_cents AS "basePriceCents",
+      included_billable_students AS "includedBillableStudents",
+      per_student_overage_cents AS "perStudentOverageCents",
+      current_billable_student_count AS "currentBillableStudentCount",
+      current_overage_student_count AS "currentOverageStudentCount",
+      last_billable_count_calculated_at AS "lastBillableCountCalculatedAt",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM customer_subscriptions
+    WHERE stripe_subscription_id = $1
+    LIMIT 1
+  `, [stripeSubscriptionId]);
+  return mapCustomerSubscriptionRow(result.rows[0]);
+}
+
 async function updateSubscriptionByStripeCheckoutSessionId(stripeCheckoutSessionId, updates = {}) {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -579,6 +611,65 @@ async function updateSubscriptionByStripeCheckoutSessionId(stripeCheckoutSession
     stripeCheckoutSessionId,
     updates.status || null,
     updates.stripeSubscriptionId || null,
+    updates.currentPeriodStart || null,
+    updates.currentPeriodEnd || null,
+    typeof updates.cancelAtPeriodEnd === "boolean" ? updates.cancelAtPeriodEnd : null,
+    updates.canceledAt || null,
+    updates.trialEndsAt || null,
+    updates.gracePeriodEndsAt || null,
+    updates.dormantStatus || null,
+    Number.isInteger(updates.currentBillableStudentCount) ? updates.currentBillableStudentCount : null,
+    Number.isInteger(updates.currentOverageStudentCount) ? updates.currentOverageStudentCount : null,
+    updates.lastBillableCountCalculatedAt || null
+  ]);
+  return mapCustomerSubscriptionRow(result.rows[0]);
+}
+
+async function updateSubscriptionByStripeSubscriptionId(stripeSubscriptionId, updates = {}) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    UPDATE customer_subscriptions
+    SET
+      status = COALESCE($2, status),
+      stripe_checkout_session_id = COALESCE($3, stripe_checkout_session_id),
+      current_period_start = COALESCE($4, current_period_start),
+      current_period_end = COALESCE($5, current_period_end),
+      cancel_at_period_end = COALESCE($6, cancel_at_period_end),
+      canceled_at = COALESCE($7, canceled_at),
+      trial_ends_at = COALESCE($8, trial_ends_at),
+      grace_period_ends_at = COALESCE($9, grace_period_ends_at),
+      dormant_status = COALESCE($10, dormant_status),
+      current_billable_student_count = COALESCE($11, current_billable_student_count),
+      current_overage_student_count = COALESCE($12, current_overage_student_count),
+      last_billable_count_calculated_at = COALESCE($13, last_billable_count_calculated_at),
+      updated_at = NOW()
+    WHERE stripe_subscription_id = $1
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      commercial_plan_id AS "commercialPlanId",
+      status,
+      dormant_status AS "dormantStatus",
+      stripe_subscription_id AS "stripeSubscriptionId",
+      stripe_checkout_session_id AS "stripeCheckoutSessionId",
+      current_period_start AS "currentPeriodStart",
+      current_period_end AS "currentPeriodEnd",
+      cancel_at_period_end AS "cancelAtPeriodEnd",
+      canceled_at AS "canceledAt",
+      trial_ends_at AS "trialEndsAt",
+      grace_period_ends_at AS "gracePeriodEndsAt",
+      base_price_cents AS "basePriceCents",
+      included_billable_students AS "includedBillableStudents",
+      per_student_overage_cents AS "perStudentOverageCents",
+      current_billable_student_count AS "currentBillableStudentCount",
+      current_overage_student_count AS "currentOverageStudentCount",
+      last_billable_count_calculated_at AS "lastBillableCountCalculatedAt",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+  `, [
+    stripeSubscriptionId,
+    updates.status || null,
+    updates.stripeCheckoutSessionId || null,
     updates.currentPeriodStart || null,
     updates.currentPeriodEnd || null,
     typeof updates.cancelAtPeriodEnd === "boolean" ? updates.cancelAtPeriodEnd : null,
@@ -1106,7 +1197,7 @@ async function updateProvisioningRequest(id, updates = {}) {
       failure_reason = $8,
       updated_at = NOW(),
       completed_at = CASE
-        WHEN $9 IS NOT NULL THEN $9
+        WHEN $9::timestamptz IS NOT NULL THEN $9::timestamptz
         WHEN COALESCE($2, status) IN ('ready', 'failed', 'canceled') THEN COALESCE(completed_at, NOW())
         ELSE completed_at
       END
@@ -1481,6 +1572,7 @@ module.exports = {
   getProvisioningRequestByEnvironmentId,
   getProvisioningRequestBySubscriptionId,
   getSubscriptionByStripeCheckoutSessionId,
+  getSubscriptionByStripeSubscriptionId,
   listCancellationExportRequestsBySubscriptionId,
   listCommercialOverview,
   listPublicCommercialPlans
@@ -1491,5 +1583,6 @@ module.exports = {
   updateCommercialSubscription,
   updateCustomerAccountStatus,
   updateProvisioningRequest,
-  updateSubscriptionByStripeCheckoutSessionId
+  updateSubscriptionByStripeCheckoutSessionId,
+  updateSubscriptionByStripeSubscriptionId
 };
