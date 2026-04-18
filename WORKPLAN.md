@@ -204,7 +204,15 @@
    - [x] Implement the first tenant-facing in-app subscription-upgrade flow for existing subscriptions on top of the current Stripe subscription record instead of routing upgrades through new-account public signup.
    - [x] Split tenant `Account Options` into its own surface and wire the first real dormant/export request mutations through the tenant runtime and control plane.
    - [x] Add the first lightweight billing/activity history section to the tenant account view.
-   - [ ] Run a full authenticated hosted smoke pass covering tenant account upgrade and account-options flows after the new commercial self-service slice.
+   - [x] Add tenant self-service reactivation plus dormant-aware account-option button states so dormant tenants can make the account active again.
+   - [x] Display a support-friendly `Site ID` in tenant account settings using the canonical tenant identifier.
+   - [x] Add tenant-facing `Valedictorian` usage and overage messaging in `Account` and `Upgrade Subscription` so the plan clearly reads as `10 included + automatic $0.99/student overage`.
+   - [x] Sync `Valedictorian` overage student counts into Stripe from tenant billable-count refreshes using a recurring overage subscription item/quantity model.
+   - [ ] Define the outbound email delivery plan for hosted/commercial flows, including provider choice, environment secrets, templates, audit expectations, and staged-vs-production send behavior.
+   - [ ] Replace setup-token-on-screen behavior with emailed activation/setup links as the default onboarding path for newly provisioned tenants.
+   - [ ] Add tenant-facing password-reset email flow instead of relying only on signed-in password changes.
+   - [ ] Add system email handling for subscription lifecycle notices, billing/support notifications, and export/offboarding updates.
+   - [ ] Deploy and run a full authenticated hosted smoke pass covering tenant account view, account options, password change, upgrade, dormant, reactivation, and export flows after the latest self-service update.
 11. Prepare the next hosted-app workflow consolidation slice: the School Day hub.
    - [x] Define the School Day hub concept as an implementation-ready spec package.
    - [x] Decide that the first version should be a hub model, not the full persisted execution layer.

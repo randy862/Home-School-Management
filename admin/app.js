@@ -2198,6 +2198,9 @@ function formatAuditActionSentence(value) {
   if (normalized === "mark_subscription_pending_dormant") return "marked a subscription to become dormant at period end";
   if (normalized === "mark_subscription_dormant") return "marked a subscription dormant";
   if (normalized === "reactivate_subscription") return "reactivated a subscription";
+  if (normalized === "tenant_reactivate_subscription") return "reactivated a subscription from the tenant account";
+  if (normalized === "tenant_upgrade_subscription") return "upgraded a subscription from the tenant account";
+  if (normalized === "tenant_request_cancellation_export") return "requested a cancellation export from the tenant account";
   if (normalized === "request_cancellation_export") return "requested a cancellation export";
   if (normalized === "environment_created") return "created an environment";
   if (normalized === "environment_updated") return "updated an environment";
@@ -2287,6 +2290,9 @@ function formatAuditAction(value) {
   if (normalized === "mark_subscription_pending_dormant") return "Marked Subscription Pending Dormant";
   if (normalized === "mark_subscription_dormant") return "Marked Subscription Dormant";
   if (normalized === "reactivate_subscription") return "Reactivated Subscription";
+  if (normalized === "tenant_reactivate_subscription") return "Tenant Reactivated Subscription";
+  if (normalized === "tenant_upgrade_subscription") return "Tenant Upgraded Subscription";
+  if (normalized === "tenant_request_cancellation_export") return "Tenant Requested Cancellation Export";
   if (normalized === "request_cancellation_export") return "Requested Cancellation Export";
   if (normalized === "environment_created") return "Created Environment";
   if (normalized === "environment_updated") return "Updated Environment";

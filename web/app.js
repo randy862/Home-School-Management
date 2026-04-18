@@ -9,6 +9,7 @@ const API_ACCOUNT_ENDPOINT = `${API_BASE_URL}/api/account`;
 const API_ACCOUNT_PASSWORD_ENDPOINT = `${API_BASE_URL}/api/account/password`;
 const API_ACCOUNT_SUBSCRIPTION_UPGRADE_ENDPOINT = `${API_BASE_URL}/api/account/subscription/upgrade`;
 const API_ACCOUNT_DORMANT_ENDPOINT = `${API_BASE_URL}/api/account/options/dormant`;
+const API_ACCOUNT_REACTIVATE_ENDPOINT = `${API_BASE_URL}/api/account/options/reactivate`;
 const API_ACCOUNT_EXPORT_REQUEST_ENDPOINT = `${API_BASE_URL}/api/account/options/export-request`;
 const API_SETUP_STATUS_ENDPOINT = `${API_BASE_URL}/api/setup/status`;
 const API_SETUP_INITIALIZE_ENDPOINT = `${API_BASE_URL}/api/setup/initialize`;
@@ -2529,7 +2530,11 @@ function renderSessionChrome() {
   if (accountMenuTrigger) accountMenuTrigger.setAttribute("aria-expanded", accountMenuOpen ? "true" : "false");
   if (accountMenu) accountMenu.classList.toggle("hidden", !signedIn || !accountMenuOpen);
   const accountOptionsMenuButton = document.getElementById("account-menu-options-btn");
-  const canOpenAccountOptions = !!(accountSubscriptionSummary().permissions?.canRequestDormant || accountSubscriptionSummary().permissions?.canRequestExport);
+  const canOpenAccountOptions = !!(
+    accountSubscriptionSummary().permissions?.canRequestDormant
+    || accountSubscriptionSummary().permissions?.canReactivate
+    || accountSubscriptionSummary().permissions?.canRequestExport
+  );
   if (accountOptionsMenuButton) accountOptionsMenuButton.classList.toggle("hidden", !signedIn || !canOpenAccountOptions);
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -2570,6 +2575,7 @@ function accountSubscriptionSummary() {
       canChangePassword: false,
       canManageSubscription: false,
       canRequestDormant: false,
+      canReactivate: false,
       canRequestExport: false
     },
     subscription: null
@@ -2642,6 +2648,21 @@ function buildBillableUsageCopy(subscription) {
   }
   const included = Number(subscription.billableStudents.included || 0);
   const current = Number(subscription.billableStudents.current || 0);
+  const overage = Number(subscription.billableStudents.overage || 0);
+  const perStudentOverageCents = Number(subscription.billableStudents.perStudentOverageCents || 0);
+  const estimatedOverageCents = overage * perStudentOverageCents;
+  if (perStudentOverageCents > 0 && overage > 0) {
+    return {
+      tone: "warning",
+      text: `You are using ${current} billable students with ${included} included on this plan. ${overage} additional student${overage === 1 ? "" : "s"} are billed automatically at ${formatMoneyCents(perStudentOverageCents, subscription.plan?.currency || "usd")} each, for an estimated ${formatMoneyCents(estimatedOverageCents, subscription.plan?.currency || "usd")} this period.`
+    };
+  }
+  if (perStudentOverageCents > 0 && included > 0 && current >= included) {
+    return {
+      tone: "neutral",
+      text: `You are using all ${included} included billable students. Any additional billable students will be added automatically at ${formatMoneyCents(perStudentOverageCents, subscription.plan?.currency || "usd")} each this billing period.`
+    };
+  }
   if (current > included) {
     return {
       tone: "warning",
@@ -2819,6 +2840,15 @@ async function requestHostedDormantStatus(notes = "") {
   return parseApiResponse(response, `Dormant request failed (${response.status})`);
 }
 
+async function requestHostedReactivation(notes = "") {
+  const response = await authFetch(API_ACCOUNT_REACTIVATE_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes })
+  });
+  return parseApiResponse(response, `Reactivation failed (${response.status})`);
+}
+
 async function requestHostedExportRequest() {
   const response = await authFetch(API_ACCOUNT_EXPORT_REQUEST_ENDPOINT, {
     method: "POST",
@@ -2847,9 +2877,11 @@ function renderAccountSurface() {
 
   const user = summary.user || {};
   const subscription = summary.subscription;
+  const tenant = summary.tenant || {};
   const permissions = summary.permissions || {};
   const activity = summary.activity || { billingEvents: [], exportRequests: [] };
   const usageCopy = buildBillableUsageCopy(subscription);
+  const overageEstimateCents = Number(subscription?.billableStudents?.overage || 0) * Number(subscription?.billableStudents?.perStudentOverageCents || 0);
   const mayManageSubscription = !!permissions.canManageSubscription && !!subscription;
   const billingEvents = Array.isArray(activity.billingEvents) ? activity.billingEvents : [];
   const exportRequests = Array.isArray(activity.exportRequests) ? activity.exportRequests : [];
@@ -2904,6 +2936,7 @@ function renderAccountSurface() {
           <div><dt>Username</dt><dd>${escapeHtml(user.username || "Unknown")}</dd></div>
           <div><dt>Role</dt><dd>${escapeHtml(roleDisplayLabel(user.role))}</dd></div>
           <div><dt>Email</dt><dd>${escapeHtml(user.email || "Not available yet")}</dd></div>
+          <div><dt>Site ID</dt><dd>${escapeHtml(tenant.siteId || tenant.tenantId || "Not available yet")}</dd></div>
           <div><dt>Password</dt><dd>${user.mustChangePassword ? "Password reset required" : "Managed in your account"}</dd></div>
         </dl>
         <div class="account-inline-actions">
@@ -2926,6 +2959,7 @@ function renderAccountSurface() {
             <div><dt>Included Billable Students</dt><dd>${Number(subscription.billableStudents?.included || 0)}</dd></div>
             <div><dt>Current Billable Students</dt><dd>${Number(subscription.billableStudents?.current || 0)}</dd></div>
             <div><dt>Current Over Plan</dt><dd>${Number(subscription.billableStudents?.overage || 0)}</dd></div>
+            ${Number(subscription.billableStudents?.perStudentOverageCents || 0) > 0 ? `<div><dt>Estimated Overage This Period</dt><dd>${formatMoneyCents(overageEstimateCents, subscription.plan?.currency || "usd")}</dd></div>` : ""}
             <div><dt>Billing Period Start</dt><dd>${escapeHtml(formatAccountDateTime(subscription.billingPeriod?.start))}</dd></div>
             <div><dt>Billing Period End</dt><dd>${escapeHtml(formatAccountDateTime(subscription.billingPeriod?.end))}</dd></div>
           </dl>
@@ -2976,7 +3010,12 @@ function renderAccountOptionsSurface() {
   const summary = accountSubscriptionSummary();
   const signedIn = !!currentUser();
   const permissions = summary.permissions || {};
-  const mayOpen = !!(permissions.canRequestDormant || permissions.canRequestExport);
+  const dormantStatus = String(summary.subscription?.dormantStatus || "").trim().toLowerCase();
+  const canRequestDormant = !!permissions.canRequestDormant
+    && !["dormant", "pending_dormant", "pending_reactivation"].includes(dormantStatus);
+  const canReactivate = !!permissions.canReactivate
+    && ["dormant", "pending_dormant", "pending_reactivation"].includes(dormantStatus);
+  const mayOpen = !!(permissions.canRequestDormant || permissions.canReactivate || permissions.canRequestExport);
   if (modal) {
     modal.classList.toggle("hidden", !signedIn || !accountOptionsModalOpen || !mayOpen);
     modal.setAttribute("aria-hidden", !signedIn || !accountOptionsModalOpen || !mayOpen ? "true" : "false");
@@ -2994,9 +3033,10 @@ function renderAccountOptionsSurface() {
         <h3>Account Options</h3>
         <p class="muted">Lower-frequency lifecycle actions live here so the main account view can stay focused on profile and subscription detail.</p>
       </div>
-      <p class="muted">Dormant keeps the tenant history intact but pauses normal runtime activity. Export requests create a paid offboarding/export record for follow-up processing.</p>
+      <p class="muted">${escapeHtml(buildAccountLifecycleHelpText(dormantStatus))}</p>
       <div class="account-inline-actions">
-        ${permissions.canRequestDormant ? `<button id="account-dormant-btn" type="button">Make Account Dormant</button>` : ""}
+        ${canRequestDormant ? `<button id="account-dormant-btn" type="button">Make Account Dormant</button>` : ""}
+        ${canReactivate ? `<button id="account-reactivate-btn" type="button">Make Account Active</button>` : ""}
         ${permissions.canRequestExport ? `<button id="account-export-btn" type="button">Request Data Export</button>` : ""}
       </div>
     </section>
@@ -3021,6 +3061,25 @@ function renderAccountOptionsSurface() {
       renderAccountOptionsSurface();
     }
   });
+  document.getElementById("account-reactivate-btn")?.addEventListener("click", async () => {
+    if (!hostedModeEnabled) {
+      setAccountOptionsMessage("info", "Prototype mode does not include hosted reactivation.");
+      renderAccountOptionsSurface();
+      return;
+    }
+    const confirmed = window.confirm("Make this tenant account active again? This clears dormant handling and resumes normal activity immediately when the site is already dormant.");
+    if (!confirmed) return;
+    try {
+      const result = await requestHostedReactivation();
+      await refreshHostedAccountSummary();
+      setAccountOptionsMessage("success", result?.message || "Account reactivated.");
+      renderAccountOptionsSurface();
+      renderAccountSurface();
+    } catch (error) {
+      setAccountOptionsMessage("error", error.message || "Unable to reactivate the account.");
+      renderAccountOptionsSurface();
+    }
+  });
   document.getElementById("account-export-btn")?.addEventListener("click", async () => {
     if (!hostedModeEnabled) {
       setAccountOptionsMessage("info", "Prototype mode does not include hosted export requests.");
@@ -3040,6 +3099,13 @@ function renderAccountOptionsSurface() {
       renderAccountOptionsSurface();
     }
   });
+}
+
+function buildAccountLifecycleHelpText(dormantStatus) {
+  if (["dormant", "pending_dormant", "pending_reactivation"].includes(dormantStatus)) {
+    return "This site is currently in dormant handling. Make Account Active to resume normal activity or clear a pending dormant transition. Export requests still create a paid offboarding/export record for follow-up processing.";
+  }
+  return "Dormant keeps the tenant history intact but pauses normal runtime activity. Export requests create a paid offboarding/export record for follow-up processing.";
 }
 
 function renderAccountUpgradeSurface() {
@@ -3081,6 +3147,7 @@ function renderAccountUpgradeSurface() {
               <p class="muted">${escapeHtml(plan.description || "")}</p>
               <p class="account-plan-meta"><strong>Included Billable Students:</strong> ${Number(plan.limits?.includedBillableStudents || 0)}</p>
               ${Number(plan.limits?.perStudentOverageCents || 0) > 0 ? `<p class="account-plan-meta"><strong>Overage:</strong> ${escapeHtml(formatMoneyCents(plan.limits?.perStudentOverageCents || 0, plan.currency || "usd"))} per billable student</p>` : ""}
+              ${Number(plan.limits?.perStudentOverageCents || 0) > 0 ? `<p class="muted">After the included students are used, additional billable students are added automatically and billed through the hosted subscription.</p>` : ""}
               ${Array.isArray(plan.featureSummary) && plan.featureSummary.length ? `
                 <ul class="account-feature-list">
                   ${plan.featureSummary.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}

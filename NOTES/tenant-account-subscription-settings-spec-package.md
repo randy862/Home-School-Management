@@ -13,6 +13,30 @@ Define the next tenant-facing commercial/account-management slice so a signed-in
 - initiate a subscription upgrade from inside the app
 - optionally trigger account-lifecycle actions such as dormant and export requests
 
+## Outbound Email Requirement
+
+This account/commercial direction should explicitly assume outbound email is part of the production product, not an optional nice-to-have.
+
+The hosted/commercial plan should include email-backed flows for:
+
+- tenant activation and first-admin setup delivery
+- password reset and account-recovery requests
+- subscription/billing lifecycle notifications
+- setup/export/offboarding follow-up messages
+
+Product direction:
+
+- do not rely on presenting raw setup tokens on-screen as the long-term onboarding experience
+- prefer emailing a setup or activation link to the intended account owner/admin
+- keep staged/dev behavior configurable so we can use safe non-production delivery modes while preserving the same product flow shape
+
+This means the account/commercial roadmap still needs:
+
+- outbound email provider selection
+- environment-secret wiring for delivery credentials
+- template/content definitions for each message type
+- audit/replay expectations for support visibility
+
 This note captures the intended UX, product rationale, and implementation plan so the next session can move directly into execution.
 
 ## Product Direction

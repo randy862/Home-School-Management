@@ -4,6 +4,7 @@ const { getPool } = require("./db");
 const { getPostgresPool } = require("./postgres-db");
 const { applyCors, createAuthContextMiddleware } = require("./middleware/auth-context");
 const { errorHandler } = require("./middleware/error-handler");
+const { createTenantRuntimeContextMiddleware } = require("./middleware/tenant-runtime-context");
 const { readLegacyBridgeState, writeLegacyBridgeState } = require("./legacy/local-state-bridge");
 const {
   countAdmins,
@@ -62,9 +63,13 @@ const { createWorkspaceConfigService } = require("./services/workspace-config-se
 
 const app = express();
 const isPostgresMode = appConfig.dbClient === "postgres";
+const controlPlaneClient = createControlPlaneClient({
+  internalConfig
+});
 const commercialPolicyService = isPostgresMode
   ? createCommercialPolicyService({
     commercialConfig,
+    controlPlaneClient,
     getPostgresPool
   })
   : null;
@@ -78,9 +83,7 @@ const authRouteDeps = {
 };
 const accountRouteDeps = {
   commercialPolicyService,
-  controlPlaneClient: createControlPlaneClient({
-    internalConfig
-  }),
+  controlPlaneClient,
   getUserById,
   internalConfig,
   isPostgresMode,
@@ -170,6 +173,10 @@ const setupRouteDeps = {
 
 applyCors(app, appConfig);
 app.use(express.json({ limit: "5mb" }));
+app.use(createTenantRuntimeContextMiddleware({
+  commercialConfig,
+  isPostgresMode
+}));
 app.use(createAuthContextMiddleware({
   getSessionByTokenHash,
   isPostgresMode,

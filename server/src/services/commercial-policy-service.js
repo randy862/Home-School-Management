@@ -1,21 +1,23 @@
+const { getTenantRuntimeContext } = require("../request-context");
+
 function createCommercialPolicyService(deps) {
-  const { getPostgresPool, commercialConfig } = deps;
+  const { controlPlaneClient, getPostgresPool, commercialConfig } = deps;
   const schema = qualifySchema(commercialConfig.controlSchema || "hsm_control_staging");
-  const tenantEnvironmentId = String(commercialConfig.tenantEnvironmentId || "").trim();
 
   async function withCommercialContext(work) {
+    const tenantEnvironmentId = resolveTenantEnvironmentId();
     if (!tenantEnvironmentId) return work(null, null);
     const pool = getPostgresPool();
     const client = await pool.connect();
     try {
-      const context = await getCommercialContext(client);
+      const context = await getCommercialContext(client, tenantEnvironmentId);
       return await work(client, context);
     } finally {
       client.release();
     }
   }
 
-  async function getCommercialContext(client) {
+  async function getCommercialContext(client, tenantEnvironmentId) {
     const result = await client.query(`
       SELECT
         pr.tenant_id AS "tenantId",
@@ -147,6 +149,7 @@ function createCommercialPolicyService(deps) {
         currentOverageStudentCount = refreshed.overage;
       }
       return {
+        siteId: context.tenantId,
         tenantId: context.tenantId,
         tenantEnvironmentId: context.tenantEnvironmentId,
         accountName: context.accountName || "",
@@ -300,6 +303,11 @@ function createCommercialPolicyService(deps) {
     assertTestWriteAllowed
   };
 
+  function resolveTenantEnvironmentId() {
+    const runtime = getTenantRuntimeContext();
+    return String(runtime?.tenantEnvironmentId || commercialConfig.tenantEnvironmentId || "").trim();
+  }
+
   function ensureLifecycleAllowsWrites(context, label) {
     if (!context) return;
     const dormantStatus = String(context.dormantStatus || "active").toLowerCase();
@@ -342,16 +350,29 @@ function createCommercialPolicyService(deps) {
     historicalResult.rows.forEach((row) => billableStudentIds.add(String(row.student_id)));
     const total = billableStudentIds.size;
     const overage = Math.max(0, total - Number(context.includedBillableStudents || 0));
+    const previousTotal = Number(context.currentBillableStudentCount || 0);
+    const previousOverage = Number(context.currentOverageStudentCount || 0);
+    const changed = previousTotal !== total || previousOverage !== overage;
+    const lastCalculatedAt = new Date().toISOString();
     await client.query(`
       UPDATE ${schema}.customer_subscriptions
       SET
         current_billable_student_count = $2,
         current_overage_student_count = $3,
-        last_billable_count_calculated_at = NOW(),
+        last_billable_count_calculated_at = $4,
         updated_at = NOW()
       WHERE id = $1
-    `, [context.subscriptionId, total, overage]);
+    `, [context.subscriptionId, total, overage, lastCalculatedAt]);
     context.currentBillableStudentCount = total;
+    context.currentOverageStudentCount = overage;
+    context.lastBillableCountCalculatedAt = lastCalculatedAt;
+    if (changed) {
+      void syncBillableOverageToControlPlane(context, {
+        currentBillableStudentCount: total,
+        currentOverageStudentCount: overage,
+        lastBillableCountCalculatedAt: lastCalculatedAt
+      });
+    }
     return { total, overage, billableStudentIds, period };
   }
 
@@ -635,6 +656,21 @@ function createCommercialPolicyService(deps) {
   function normalizePositiveLimit(value, fallback) {
     const normalized = Number(value);
     return Number.isFinite(normalized) && normalized > 0 ? Math.floor(normalized) : fallback;
+  }
+
+  async function syncBillableOverageToControlPlane(context, payload) {
+    if (!controlPlaneClient || !context?.subscriptionId) return;
+    try {
+      await controlPlaneClient.request(`/api/internal/commercial/subscriptions/${encodeURIComponent(context.subscriptionId)}/overage-sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+    } catch (error) {
+      console.warn("Commercial overage sync skipped:", error.message);
+    }
   }
 }
 

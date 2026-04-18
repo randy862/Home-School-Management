@@ -37,6 +37,7 @@ function registerAccountRoutes(app, deps) {
           mustChangePassword: !!user.mustChangePassword
         },
         tenant: {
+          siteId: commercialSummary?.siteId || commercialSummary?.tenantId || "",
           tenantId: commercialSummary?.tenantId || "",
           tenantEnvironmentId: commercialSummary?.tenantEnvironmentId || "",
           accountName: commercialSummary?.accountName || ""
@@ -45,6 +46,7 @@ function registerAccountRoutes(app, deps) {
           canChangePassword: true,
           canManageSubscription: user.role === "admin",
           canRequestDormant: user.role === "admin",
+          canReactivate: user.role === "admin",
           canRequestExport: user.role === "admin"
         },
         subscription: commercialSummary ? mapSubscriptionSummary(commercialSummary) : null,
@@ -181,6 +183,41 @@ function registerAccountRoutes(app, deps) {
       res.json({
         ok: true,
         message: payload?.message || "Dormant request recorded.",
+        subscription: payload?.subscription ? mapSubscriptionSummary(payload.subscription) : null
+      });
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/account/options/reactivate", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode)) return;
+    if (!ensureAuthenticated(req, res)) return;
+    if (!ensureAdminUser(req, res, "Only tenant administrators can reactivate dormant status.")) return;
+
+    try {
+      const commercialSummary = commercialPolicyService
+        ? await commercialPolicyService.getTenantCommercialSummary()
+        : null;
+      if (!commercialSummary?.subscriptionId) {
+        const error = new Error("No active commercial subscription was found for this tenant.");
+        error.statusCode = 404;
+        throw error;
+      }
+      const payload = await controlPlaneClient.request(`/api/internal/commercial/subscriptions/${encodeURIComponent(commercialSummary.subscriptionId)}/reactivate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          requestedByUserId: req.auth.user.id,
+          requestedByUsername: req.auth.user.username,
+          notes: String(req.body?.notes || "").trim()
+        })
+      });
+      res.json({
+        ok: true,
+        message: payload?.message || "Account reactivated.",
         subscription: payload?.subscription ? mapSubscriptionSummary(payload.subscription) : null
       });
     } catch (error) {

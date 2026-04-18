@@ -182,6 +182,157 @@ function registerControlCommercialRoutes(app, deps) {
     }
   });
 
+  app.post("/api/internal/commercial/subscriptions/:id/reactivate", async (req, res) => {
+    if (!ensureInternalCommercialRequest(req, res, internalConfig)) return;
+
+    try {
+      const overview = await getCommercialOverviewBySubscriptionId(req.params.id);
+      const subscription = await getCommercialSubscriptionById(req.params.id);
+      if (!subscription || !overview) {
+        res.status(404).json({ error: "Subscription not found." });
+        return;
+      }
+
+      const previousDormantStatus = String(subscription.dormantStatus || overview.dormantStatus || "active").trim().toLowerCase() || "active";
+      if (previousDormantStatus === "active") {
+        res.json({
+          message: "The site is already active.",
+          subscription: {
+            ...subscription,
+            accountName: overview.accountName || "",
+            ownerEmail: overview.ownerEmail || "",
+            billingEmail: overview.billingEmail || "",
+            accountStatus: overview.accountStatus || "",
+            planId: overview.commercialPlanId || null,
+            planCode: overview.planCode || "",
+            planName: overview.planName || "",
+            billingInterval: "month",
+            currency: "usd"
+          },
+          lifecycleJob: null
+        });
+        return;
+      }
+
+      const updated = await updateCommercialSubscription(subscription.id, {
+        dormantStatus: "active"
+      });
+
+      let lifecycleJob = null;
+      if (previousDormantStatus === "dormant" && overview.tenantEnvironmentId) {
+        lifecycleJob = await queueProvisioningJob(createLifecycleJobPayload({
+          tenantId: overview.tenantId,
+          tenantEnvironmentId: overview.tenantEnvironmentId,
+          jobType: "resume_tenant",
+          message: "Resume tenant queued from tenant-requested reactivation",
+          notes: String(req.body?.notes || "").trim() || "Queued automatically when tenant requested reactivation."
+        }), {
+          operatorUserId: null
+        });
+      }
+      await createOperatorAuditEntry({
+        operatorUserId: null,
+        actionType: "tenant_reactivate_subscription",
+        targetType: "customer_subscription",
+        targetId: subscription.id,
+        tenantId: overview.tenantId || null,
+        details: {
+          requestedByUserId: req.body?.requestedByUserId || null,
+          requestedByUsername: req.body?.requestedByUsername || null,
+          previousDormantStatus,
+          dormantStatus: "active",
+          tenantEnvironmentId: overview.tenantEnvironmentId || null,
+          lifecycleJobId: lifecycleJob?.id || null
+        }
+      });
+      res.json({
+        message: previousDormantStatus === "pending_dormant"
+          ? "Dormant status was canceled. The site remains active."
+          : "The site is now marked active.",
+        subscription: {
+          ...updated,
+          accountName: overview.accountName || "",
+          ownerEmail: overview.ownerEmail || "",
+          billingEmail: overview.billingEmail || "",
+          accountStatus: overview.accountStatus || "",
+          planId: overview.commercialPlanId || null,
+          planCode: overview.planCode || "",
+          planName: overview.planName || "",
+          billingInterval: "month",
+          currency: "usd"
+        },
+        lifecycleJob
+      });
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/internal/commercial/subscriptions/:id/overage-sync", async (req, res) => {
+    if (!ensureInternalCommercialRequest(req, res, internalConfig)) return;
+
+    try {
+      const overview = await getCommercialOverviewBySubscriptionId(req.params.id);
+      const subscription = await getCommercialSubscriptionById(req.params.id);
+      if (!subscription || !overview) {
+        res.status(404).json({ error: "Subscription not found." });
+        return;
+      }
+
+      const currentBillableStudentCount = Math.max(0, Number.parseInt(req.body?.currentBillableStudentCount, 10) || 0);
+      const currentOverageStudentCount = Math.max(0, Number.parseInt(req.body?.currentOverageStudentCount, 10) || 0);
+      const lastBillableCountCalculatedAt = normalizeOptionalIsoTimestamp(req.body?.lastBillableCountCalculatedAt) || new Date().toISOString();
+      const currentPlan = await getCommercialPlanById(subscription.commercialPlanId || overview.commercialPlanId);
+
+      const updated = await updateCommercialSubscription(subscription.id, {
+        currentBillableStudentCount,
+        currentOverageStudentCount,
+        lastBillableCountCalculatedAt
+      });
+
+      if (!subscription.stripeSubscriptionId) {
+        res.json({
+          message: "Overage usage stored locally. Stripe subscription is not linked yet.",
+          stripeSync: {
+            status: "skipped",
+            reason: "stripe_subscription_missing",
+            quantity: currentOverageStudentCount
+          },
+          subscription: buildControlSubscriptionResponse(updated, overview, currentPlan)
+        });
+        return;
+      }
+
+      const stripeSync = await stripeService.syncSubscriptionOverageItem({
+        subscriptionId: subscription.stripeSubscriptionId,
+        customerSubscriptionId: subscription.id,
+        commercialPlanId: currentPlan?.id || subscription.commercialPlanId || overview.commercialPlanId || null,
+        priceId: currentPlan?.limits?.stripeOveragePriceId || "",
+        productId: currentPlan?.stripeProductId || "",
+        unitAmountCents: Number(updated.perStudentOverageCents || currentPlan?.limits?.perStudentOverageCents || 0),
+        currency: currentPlan?.currency || overview.currency || "usd",
+        interval: currentPlan?.billingInterval || "month",
+        quantity: currentOverageStudentCount,
+        prorationBehavior: "create_prorations"
+      });
+
+      res.json({
+        message: currentOverageStudentCount > 0
+          ? `Overage billing is synced for ${currentOverageStudentCount} student${currentOverageStudentCount === 1 ? "" : "s"}.`
+          : "Overage billing is cleared for this subscription.",
+        stripeSync: {
+          status: "applied",
+          action: stripeSync.action,
+          quantity: stripeSync.quantity,
+          overageItemId: stripeSync.overageItemId || null
+        },
+        subscription: buildControlSubscriptionResponse(updated, overview, currentPlan)
+      });
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/internal/commercial/subscriptions/:id/cancellation-export", async (req, res) => {
     if (!ensureInternalCommercialRequest(req, res, internalConfig)) return;
 
@@ -476,6 +627,29 @@ function normalizeStripeSubscriptionStatus(value) {
     return normalized === "incomplete_expired" ? "canceled" : normalized;
   }
   return "active";
+}
+
+function buildControlSubscriptionResponse(subscription, overview, plan) {
+  return {
+    ...subscription,
+    accountName: overview?.accountName || "",
+    ownerEmail: overview?.ownerEmail || "",
+    billingEmail: overview?.billingEmail || "",
+    accountStatus: overview?.accountStatus || "",
+    planId: plan?.id || overview?.commercialPlanId || null,
+    planCode: plan?.code || overview?.planCode || "",
+    planName: plan?.name || overview?.planName || "",
+    billingInterval: plan?.billingInterval || "month",
+    currency: plan?.currency || "usd"
+  };
+}
+
+function normalizeOptionalIsoTimestamp(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return null;
+  const parsed = Date.parse(normalized);
+  if (!Number.isFinite(parsed)) return null;
+  return new Date(parsed).toISOString();
 }
 
 module.exports = {

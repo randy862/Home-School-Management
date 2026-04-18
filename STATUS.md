@@ -616,12 +616,36 @@ Date: 2026-04-10
   - replaced the `Upgrade Subscription` placeholder with a real plan-selection modal
   - added a lightweight `Recent Billing Activity` section showing recent billing events and export requests
   - kept `Change Password` as its own dedicated modal while preserving the separate account/options surfaces
+- Continued the tenant account self-service slice in repo code from `ab9915a`:
+  - added tenant-facing `POST /api/account/options/reactivate` plus internal control-plane reactivation support for dormant or pending-dormant subscriptions
+  - updated `Account Options` so dormant or pending-dormant tenants now see `Make Account Active` instead of `Make Account Dormant`
+  - added a stable `Site ID` field to the tenant account view using the canonical tenant identifier already present in the commercial context
+  - added control-plane audit labels for tenant-initiated upgrade, reactivation, and export actions so support history reads cleanly in `/control/`
+- Rechecked the staged tenant state while investigating the reported login issue:
+  - the runtime currently served on `APP001` is `pj-cool` at `https://pj-cool.navigrader.com`
+  - `stripe-test2` is a separate staged tenant at `https://stripe-test2.navigrader.com` and its subscription is currently `dormant`
+  - `mitchell-family` is not currently a ready hosted tenant login target; its environment is still `provisioning` with setup state `token_issued`
+  - the tenant user tables confirm `pj-cool` has admin `pjt`, `stripe-test2` has admin `admin`, and `mitchell-family` has users but is not yet in a ready runtime state
+  - user validation during this session confirmed `pj-cool` can still authenticate successfully
 - Deployed the updated tenant runtime, control plane, and hosted assets to staged `APP001` / `WEB001`, and verified:
   - `hsm-api.service` is active and local `http://127.0.0.1:3000/health` returns `{"ok":true}`
   - `hsm-control-api.service` is active and local `http://127.0.0.1:3100/health` returns `{"ok":true}`
-  - the hosted page is serving `styles.css?v=202604181845` and `app.js?v=202604181845`
+  - the hosted tenant page now points to `app.js?v=202604182130`
+  - the hosted control page now points to `app.js?v=202604182130`
   - unauthenticated `GET /api/account` still returns `401 Authentication required`, confirming the tenant account surface remains protected
-- I did not run a full authenticated hosted smoke for the new upgrade/dormant/export flows from this shell because I do not have tenant credentials available here.
+- I have not yet run a full authenticated hosted smoke for the newly deployed reactivation/site-id account changes from this shell.
+- Recorded outbound email as an explicit planned requirement for the hosted/commercial roadmap:
+  - setup/activation should move from showing raw setup tokens on-screen to emailed setup links
+  - password reset should become an email-driven self-service path
+  - subscription, billing, export/offboarding, and related support notifications should use the same outbound mail capability
+  - provider selection, template set, secret management, and staged-vs-production send behavior are now called out as tracked planning items rather than implicit follow-up work
+- Completed the next `Valedictorian` subscription/billing slice in repo code:
+  - tenant `Account` now explains when all included students are in use and shows the estimated current-period overage amount once billable usage goes above the included range
+  - `Upgrade Subscription` now explicitly explains that `Valedictorian` adds billable students automatically instead of requiring a separate per-student purchase flow
+  - tenant-runtime billable-count refresh now pushes current overage quantity to the control plane through a dedicated internal sync endpoint
+  - the control plane now syncs `Valedictorian` overage into Stripe by creating, updating, or removing a recurring overage subscription item based on the tenant's current overage-student count
+  - the Stripe sync path prefers a configured overage `price_...` id when available and otherwise falls back to inline recurring `price_data` using the plan product/unit amount
+  - I could not run a local `node --check` parse pass for this slice because this workstation does not currently have `node` available on `PATH`
 
 ## 2026-04-02
 

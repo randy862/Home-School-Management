@@ -2,12 +2,15 @@ const { hashSessionToken, parseCookies } = require("../auth-service");
 
 function applyCors(app, appConfig) {
   app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", appConfig.corsOrigin);
+    const requestOrigin = String(req.headers.origin || "").trim();
+    const corsOrigin = resolveCorsOrigin(requestOrigin, appConfig.corsOrigin);
+    res.setHeader("Access-Control-Allow-Origin", corsOrigin);
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
-    if (appConfig.corsOrigin !== "*") {
+    if (corsOrigin !== "*") {
       res.setHeader("Access-Control-Allow-Credentials", "true");
     }
+    res.setHeader("Vary", "Origin");
     if (req.method === "OPTIONS") {
       res.status(204).end();
       return;
@@ -49,6 +52,11 @@ function createAuthContextMiddleware(options) {
       next(error);
     }
   };
+}
+
+function resolveCorsOrigin(requestOrigin, configuredOrigin) {
+  if (requestOrigin) return requestOrigin;
+  return configuredOrigin || "*";
 }
 
 module.exports = {
