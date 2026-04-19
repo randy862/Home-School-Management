@@ -652,6 +652,21 @@ Date: 2026-04-10
   - the control plane now syncs `Valedictorian` overage into Stripe by creating, updating, or removing a recurring overage subscription item based on the tenant's current overage-student count
   - the Stripe sync path prefers a configured overage `price_...` id when available and otherwise falls back to inline recurring `price_data` using the plan product/unit amount
   - I could not run a local `node --check` parse pass for this slice because this workstation does not currently have `node` available on `PATH`
+- Continued and completed the staged `Valedictorian` overage proof on April 18-19, 2026 using the live staged `pj-cool` tenant on `APP001` / `WEB001`:
+  - confirmed the staged commercial record for `pj-cool` is already on `large_monthly` / `Valedictorian` with Stripe subscription `sub_1TNcp4HmC4B1JXWvZE9XVFGn`
+  - confirmed the staged subscription row carried `11` current billable students and `1` current overage student for `pj-cool`
+  - verified the first overage sync had already reached Stripe through the fallback inline-price path, creating overage item `si_UMV3d2Vad7BPNT` at `$0.99/month`
+  - found and fixed a control-plane gap in `control-api/src/services/stripe-service.js`: once a dedicated overage `price_...` id is configured, the existing overage subscription item now updates onto that configured price instead of staying pinned to the earlier fallback inline price forever
+  - deployed that control-api-only fix to staged `APP001` and restarted `hsm-control-api.service`
+  - created a dedicated staged Stripe test recurring overage price for `Valedictorian`: `price_1TNm8XHmC4B1JXWvVe7zNr7q`
+  - wired `price_1TNm8XHmC4B1JXWvVe7zNr7q` into staged `commercial_plans.limits_json` for `large_monthly` as `stripeOveragePriceId`
+  - triggered a real staged internal overage sync for subscription `sub-efe09ec6-4b20-4da2-8402-b5a7fe9b382a`; the control plane returned `status = applied`, `action = updated`, `quantity = 1`, and reused overage item `si_UMV3d2Vad7BPNT`
+  - re-fetched the Stripe subscription and confirmed the overage item now uses the dedicated configured price `price_1TNm8XHmC4B1JXWvVe7zNr7q` instead of the earlier fallback-generated inactive price `price_1TNm30HmC4B1JXWvpXriqz9a`
+  - created a Stripe invoice preview for the same subscription and confirmed the next invoice behavior:
+    - base plan line: `1 x Valedictorian` at `$14.99`
+    - overage line: `1 x Valedictorian` at `$0.99`
+    - total upcoming recurring amount: `$16.96`
+    - preview also includes offsetting `-$0.98 / +$0.98` proration lines because the overage item was migrated mid-cycle from the fallback price object onto the dedicated configured overage price
 
 ## 2026-04-02
 

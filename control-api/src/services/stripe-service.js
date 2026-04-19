@@ -148,17 +148,20 @@ class StripeService {
     }
 
     if (existingItem?.id) {
+      const updateParams = buildSubscriptionItemMutationParams({
+        quantity,
+        priceId: shouldUpdateOveragePrice(existingItem, input) ? input?.priceId : "",
+        prorationBehavior: input?.prorationBehavior,
+        metadata: {
+          billing_role: "overage",
+          customer_subscription_id: input?.customerSubscriptionId,
+          commercial_plan_id: input?.commercialPlanId
+        }
+      });
+
       await this.requestStripe(`/subscription_items/${encodeURIComponent(existingItem.id)}`, {
         method: "POST",
-        body: buildSubscriptionItemMutationParams({
-          quantity,
-          prorationBehavior: input?.prorationBehavior,
-          metadata: {
-            billing_role: "overage",
-            customer_subscription_id: input?.customerSubscriptionId,
-            commercial_plan_id: input?.commercialPlanId
-          }
-        })
+        body: updateParams
       }, "Stripe overage subscription item update failed");
 
       return {
@@ -318,6 +321,12 @@ function findOverageSubscriptionItem(subscription, input = {}) {
   }
 
   return null;
+}
+
+function shouldUpdateOveragePrice(existingItem, input = {}) {
+  const targetPriceId = String(input?.priceId || "").trim();
+  if (!targetPriceId) return false;
+  return String(existingItem?.price?.id || "").trim() !== targetPriceId;
 }
 
 function createStripeService(config) {
