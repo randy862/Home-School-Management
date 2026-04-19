@@ -83,6 +83,32 @@ function mapAccessHandoffRow(row) {
   };
 }
 
+function mapEmailDeliveryRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    customerAccountId: row.customerAccountId ?? row.customer_account_id ?? null,
+    customerSubscriptionId: row.customerSubscriptionId ?? row.customer_subscription_id ?? null,
+    provisioningRequestId: row.provisioningRequestId ?? row.provisioning_request_id ?? null,
+    accessHandoffId: row.accessHandoffId ?? row.access_handoff_id ?? null,
+    provider: row.provider ?? "",
+    providerServerName: row.providerServerName ?? row.provider_server_name ?? null,
+    messageTemplate: row.messageTemplate ?? row.message_template ?? "",
+    messageTag: row.messageTag ?? row.message_tag ?? null,
+    deliveryMode: row.deliveryMode ?? row.delivery_mode ?? "",
+    recipientEmail: row.recipientEmail ?? row.recipient_email ?? "",
+    recipientName: row.recipientName ?? row.recipient_name ?? null,
+    subject: row.subject ?? "",
+    status: row.status ?? "",
+    providerMessageId: row.providerMessageId ?? row.provider_message_id ?? null,
+    errorCode: row.errorCode ?? row.error_code ?? null,
+    errorMessage: row.errorMessage ?? row.error_message ?? null,
+    metadata: row.metadata ?? row.metadata_json ?? {},
+    createdAt: row.createdAt ?? row.created_at ?? null,
+    deliveredAt: row.deliveredAt ?? row.delivered_at ?? null
+  };
+}
+
 function mapCommercialOverviewRow(row) {
   if (!row) return null;
   return {
@@ -1407,6 +1433,74 @@ async function updateAccessHandoffByProvisioningRequestId(provisioningRequestId,
   return mapAccessHandoffRow(result.rows[0]);
 }
 
+async function createEmailDelivery(input) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    INSERT INTO email_deliveries (
+      customer_account_id,
+      customer_subscription_id,
+      provisioning_request_id,
+      access_handoff_id,
+      provider,
+      provider_server_name,
+      message_template,
+      message_tag,
+      delivery_mode,
+      recipient_email,
+      recipient_name,
+      subject,
+      status,
+      provider_message_id,
+      error_code,
+      error_message,
+      metadata_json,
+      delivered_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, $18)
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      provisioning_request_id AS "provisioningRequestId",
+      access_handoff_id AS "accessHandoffId",
+      provider,
+      provider_server_name AS "providerServerName",
+      message_template AS "messageTemplate",
+      message_tag AS "messageTag",
+      delivery_mode AS "deliveryMode",
+      recipient_email AS "recipientEmail",
+      recipient_name AS "recipientName",
+      subject,
+      status,
+      provider_message_id AS "providerMessageId",
+      error_code AS "errorCode",
+      error_message AS "errorMessage",
+      metadata_json AS metadata,
+      created_at AS "createdAt",
+      delivered_at AS "deliveredAt"
+  `, [
+    input.customerAccountId || null,
+    input.customerSubscriptionId || null,
+    input.provisioningRequestId || null,
+    input.accessHandoffId || null,
+    input.provider,
+    input.providerServerName || null,
+    input.messageTemplate,
+    input.messageTag || null,
+    input.deliveryMode,
+    input.recipientEmail,
+    input.recipientName || null,
+    input.subject,
+    input.status,
+    input.providerMessageId || null,
+    input.errorCode || null,
+    input.errorMessage || null,
+    JSON.stringify(input.metadata || {}),
+    input.deliveredAt || null
+  ]);
+  return mapEmailDeliveryRow(result.rows[0]);
+}
+
 async function getPublicSignupStatusByToken(token) {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -1442,9 +1536,20 @@ async function getPublicSignupStatusByToken(token) {
       access.signup_status_token AS "signupStatusToken",
       access.tenant_url AS "tenantUrl",
       access.admin_setup_mode AS "adminSetupMode",
-      access.setup_token AS "setupToken",
       access.setup_token_expires_at AS "setupTokenExpiresAt",
-      access.delivered_at AS "deliveredAt"
+      access.delivered_at AS "deliveredAt",
+      delivery.id AS "emailDeliveryId",
+      delivery.provider AS "emailProvider",
+      delivery.message_template AS "emailMessageTemplate",
+      delivery.delivery_mode AS "emailDeliveryMode",
+      delivery.recipient_email AS "emailRecipientEmail",
+      delivery.recipient_name AS "emailRecipientName",
+      delivery.subject AS "emailSubject",
+      delivery.status AS "emailStatus",
+      delivery.error_code AS "emailErrorCode",
+      delivery.error_message AS "emailErrorMessage",
+      delivery.created_at AS "emailCreatedAt",
+      delivery.delivered_at AS "emailDeliveredAt"
     FROM checkout_sessions checkout
     JOIN customer_accounts account
       ON account.id = checkout.customer_account_id
@@ -1456,6 +1561,13 @@ async function getPublicSignupStatusByToken(token) {
       ON provisioning.customer_subscription_id = subscription.id
     LEFT JOIN access_handoffs access
       ON access.provisioning_request_id = provisioning.id
+    LEFT JOIN LATERAL (
+      SELECT *
+      FROM email_deliveries email
+      WHERE email.access_handoff_id = access.id
+      ORDER BY email.created_at DESC
+      LIMIT 1
+    ) delivery ON TRUE
     WHERE checkout.success_token = $1
        OR checkout.cancel_token = $1
        OR access.signup_status_token = $1
@@ -1484,18 +1596,27 @@ async function getPublicSignupStatusByToken(token) {
     message = row.failureReason || "The customer account is recorded, but automated environment provisioning did not finish successfully.";
   } else if (["ready", "awaiting_customer_setup"].includes(provisioningStatus)) {
     stage = provisioningStatus;
-    headline = provisioningStatus === "ready" ? "Your environment is ready." : "Your environment is almost ready.";
+    headline = provisioningStatus === "ready" ? "Check your email for your setup link." : "Check your email for your setup link.";
     message = provisioningStatus === "ready"
-      ? "Hosted access information is available below."
-      : "Billing is confirmed and provisioning finished. The final customer handoff is waiting on setup completion.";
+      ? "Your hosted workspace is ready. Use the setup link we emailed to you to finish your first admin setup."
+      : "Your hosted workspace is almost ready. We are finishing the setup-link email handoff now.";
+    if (row.emailStatus === "sent") {
+      message = "Your setup link email has been sent. Open that message to finish your first admin setup.";
+    } else if (row.emailStatus === "logged") {
+      message = "Your workspace is ready, but this environment is in log-only email mode, so support still needs to send the setup link.";
+    } else if (row.emailStatus === "skipped") {
+      message = "Your workspace is ready, but the setup email is waiting on staged allowlist approval before delivery.";
+    } else if (row.emailStatus === "failed") {
+      message = "Your workspace is ready, but the setup email delivery needs support review.";
+    }
   } else if (["queued", "provisioning", "pending_billing_confirmation"].includes(provisioningStatus)) {
     stage = provisioningStatus;
-    headline = "Provisioning is underway.";
-    message = "Billing is confirmed and the control plane is preparing the hosted tenant environment now.";
+    headline = "We are preparing your workspace.";
+    message = "Your subscription is confirmed. We are preparing your hosted workspace and will email your setup link as soon as it is ready.";
   } else if (["active", "trialing", "past_due", "unpaid", "canceled"].includes(subscriptionStatus) || checkoutStatus === "completed") {
     stage = "billing_confirmed";
     headline = "Subscription confirmed.";
-    message = "Billing confirmation is recorded. Provisioning details will appear here as soon as the hosted environment handoff is created.";
+    message = "Your subscription is confirmed. We are preparing your hosted workspace and will email your setup link when it is ready.";
   }
 
   return {
@@ -1540,9 +1661,22 @@ async function getPublicSignupStatusByToken(token) {
       signupStatusToken: row.signupStatusToken,
       tenantUrl: row.tenantUrl || row.resultAccessUrl || null,
       adminSetupMode: row.adminSetupMode || "pending",
-      setupToken: row.setupToken || null,
       setupTokenExpiresAt: row.setupTokenExpiresAt || null,
       deliveredAt: row.deliveredAt || null
+    } : null,
+    emailDelivery: row.emailDeliveryId ? {
+      id: row.emailDeliveryId,
+      provider: row.emailProvider || null,
+      messageTemplate: row.emailMessageTemplate || null,
+      deliveryMode: row.emailDeliveryMode || null,
+      recipientEmail: row.emailRecipientEmail || null,
+      recipientName: row.emailRecipientName || null,
+      subject: row.emailSubject || null,
+      status: row.emailStatus || null,
+      errorCode: row.emailErrorCode || null,
+      errorMessage: row.emailErrorMessage || null,
+      createdAt: row.emailCreatedAt || null,
+      deliveredAt: row.emailDeliveredAt || null
     } : null
   };
 }
@@ -1618,6 +1752,7 @@ module.exports = {
   createCheckoutCustomerAccount,
   createCheckoutSessionRecord,
   createCheckoutSubscription,
+  createEmailDelivery,
   createProvisioningRequest,
   getBillingEventByStripeEventId,
   getCommercialPlanById,

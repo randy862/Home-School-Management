@@ -53,18 +53,26 @@ function setStatusCopy({ kicker, title, message, detailsHtml = "", metaHtml = ""
 }
 
 function renderMetaBlock(status) {
+  if (status.stage === "checkout_canceled") return "";
+  if (status.provisioning?.failureReason || status.emailDelivery?.status === "failed") {
+    const entries = [
+      ["Account", status.account?.name],
+      ["Owner", status.account?.ownerName || status.account?.ownerEmail],
+      ["Tenant URL", status.access?.tenantUrl || status.provisioning?.resultAccessUrl],
+      ["Setup Email", status.emailDelivery?.status]
+    ].filter(([, value]) => value);
+    if (!entries.length) return "";
+    return entries.map(([label, value]) => `
+      <div class="detail-field">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+      </div>
+    `).join("");
+  }
+
   const entries = [
-    ["Account", status.account?.name],
-    ["Owner", status.account?.ownerName || status.account?.ownerEmail],
-    ["Plan", status.plan?.name],
-    ["Account Status", status.account?.status],
-    ["Subscription Status", status.subscription?.status],
-    ["Provisioning", status.provisioning?.status],
-    ["Requested Subdomain", status.checkout?.requestedSubdomainLabel],
     ["Tenant URL", status.access?.tenantUrl || status.provisioning?.resultAccessUrl],
-    ["Setup Mode", status.access?.adminSetupMode],
-    ["Period Ends", formatDateTime(status.subscription?.currentPeriodEnd)],
-    ["Checkout Completed", formatDateTime(status.checkout?.completedAt)]
+    ["Setup Email", status.emailDelivery?.status]
   ].filter(([, value]) => value);
 
   if (!entries.length) return "";
@@ -80,18 +88,24 @@ function renderStatusDetails(status) {
   const messages = [];
   if (status.stage === "checkout_canceled") {
     messages.push("No billing confirmation was recorded for this token.");
-  } else {
-    messages.push("This link is now the dedicated customer-facing checkpoint for signup and provisioning.");
   }
 
-  if (status.access?.tenantUrl) {
-    messages.push(`Hosted URL: <a href="${escapeHtml(status.access.tenantUrl)}" target="_blank" rel="noreferrer">${escapeHtml(status.access.tenantUrl)}</a>`);
-  }
   if (status.provisioning?.failureReason) {
     messages.push(`Provisioning note: ${escapeHtml(status.provisioning.failureReason)}`);
   }
-  if (status.access?.setupToken) {
-    messages.push(`Setup token recorded for handoff: ${escapeHtml(status.access.setupToken)}`);
+  if (status.emailDelivery?.status === "sent") {
+    messages.push(`Your setup link email was sent to ${escapeHtml(status.emailDelivery.recipientEmail || "the account owner")} on ${escapeHtml(formatDateTime(status.emailDelivery.deliveredAt || status.emailDelivery.createdAt))}.`);
+    messages.push("Open that email and use the setup link there to finish creating your first admin account.");
+  } else if (status.emailDelivery?.status === "logged") {
+    messages.push("Your setup link is being handled by support for this environment.");
+  } else if (status.emailDelivery?.status === "skipped") {
+    messages.push("Your setup link is waiting on staged allowlist approval before delivery.");
+  } else if (status.emailDelivery?.status === "failed") {
+    messages.push(`Your setup email needs support review: ${escapeHtml(status.emailDelivery.errorMessage || "Delivery did not complete.")}`);
+  } else if (status.stage === "awaiting_customer_setup") {
+    messages.push("We are finalizing your setup-link email now.");
+  } else if (["queued", "provisioning", "billing_confirmed"].includes(status.stage)) {
+    messages.push("You do not need to stay on this page. We will email your setup link when it is ready.");
   }
 
   return messages.map((item) => `<p>${item}</p>`).join("");
@@ -123,7 +137,7 @@ async function loadSignupStatus() {
   setStatusCopy({
     kicker: "Loading Status",
     title: "Looking up your hosted signup.",
-    message: "Checking billing confirmation and provisioning progress now."
+    message: "Checking your hosted workspace status now."
   });
 
   try {
@@ -131,7 +145,7 @@ async function loadSignupStatus() {
     setStatusCopy({
       kicker: "Signup Status",
       title: status.headline || "Your hosted signup is in progress.",
-      message: status.message || "We have your signup and will keep this page updated as billing and provisioning progress.",
+      message: status.message || "We have your signup and will email your setup link as soon as it is ready.",
       detailsHtml: renderStatusDetails(status),
       metaHtml: renderMetaBlock(status)
     });

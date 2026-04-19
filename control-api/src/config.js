@@ -29,6 +29,13 @@ function parseAliasMap(value) {
     }, {});
 }
 
+function parseList(value) {
+  return String(value || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 module.exports = {
   app: {
     env: process.env.CONTROL_APP_ENV || process.env.APP_ENV || "development",
@@ -112,6 +119,25 @@ module.exports = {
     setupTokenTtlHours: Number(process.env.CONTROL_COMMERCIAL_SETUP_TOKEN_TTL_HOURS || 24),
     provisioningJobMaxAttempts: Number(process.env.CONTROL_COMMERCIAL_PROVISIONING_JOB_MAX_ATTEMPTS || 3),
     setupTokenJobMaxAttempts: Number(process.env.CONTROL_COMMERCIAL_SETUP_TOKEN_JOB_MAX_ATTEMPTS || 3)
+  },
+  mail: {
+    provider: String(process.env.CONTROL_MAIL_PROVIDER || "postmark").trim().toLowerCase(),
+    mode: String(
+      process.env.CONTROL_MAIL_MODE
+      || (String(process.env.CONTROL_APP_ENV || process.env.APP_ENV || "development").trim().toLowerCase() === "production"
+        ? "allowlist_only"
+        : "log_only")
+    ).trim().toLowerCase(),
+    allowlist: parseList(process.env.CONTROL_MAIL_ALLOWLIST || "").map((email) => email.toLowerCase()),
+    fromName: String(process.env.CONTROL_MAIL_FROM_NAME || "Navigrader Support").trim() || "Navigrader Support",
+    fromEmail: String(process.env.CONTROL_MAIL_FROM_EMAIL || "support@navigrader.com").trim().toLowerCase(),
+    replyToEmail: String(process.env.CONTROL_MAIL_REPLY_TO_EMAIL || process.env.CONTROL_MAIL_FROM_EMAIL || "support@navigrader.com").trim().toLowerCase(),
+    supportEmail: String(process.env.CONTROL_MAIL_SUPPORT_EMAIL || process.env.CONTROL_MAIL_REPLY_TO_EMAIL || process.env.CONTROL_MAIL_FROM_EMAIL || "support@navigrader.com").trim().toLowerCase(),
+    environmentLabel: String(process.env.CONTROL_MAIL_ENVIRONMENT_LABEL || process.env.CONTROL_COMMERCIAL_ENVIRONMENT_DISPLAY_NAME || process.env.CONTROL_APP_ENV || process.env.APP_ENV || "Hosted").trim(),
+    postmarkServerName: String(process.env.CONTROL_MAIL_POSTMARK_SERVER_NAME || "").trim(),
+    postmarkServerToken: String(process.env.CONTROL_MAIL_POSTMARK_SERVER_TOKEN || "").trim(),
+    postmarkMessageStream: String(process.env.CONTROL_MAIL_POSTMARK_MESSAGE_STREAM || "").trim(),
+    requestTimeoutMs: Number(process.env.CONTROL_MAIL_REQUEST_TIMEOUT_MS || 10000)
   },
   postgres: {
     host: process.env.CONTROL_PGHOST || process.env.PGHOST || "127.0.0.1",

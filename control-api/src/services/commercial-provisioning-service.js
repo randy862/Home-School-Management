@@ -1,9 +1,14 @@
 const { randomUUID } = require("crypto");
+const { renderSetupActivationEmail } = require("./mail-templates");
 
 function createCommercialProvisioningService(deps) {
   const {
+    appendProvisioningJobEvent,
     commercialProvisioningConfig,
+    createEmailDelivery,
     publicConfig,
+    mailConfig,
+    mailService,
     createAccessHandoff,
     createProvisioningRequest,
     createTenant,
@@ -39,7 +44,7 @@ function createCommercialProvisioningService(deps) {
             signupStatusToken: checkoutSession.successToken,
             tenantUrl: existing.resultAccessUrl || null,
             adminSetupMode: existing.resultSetupTokenIssued ? "setup_token" : "pending",
-            deliveryChannel: "signup_status_page"
+            deliveryChannel: "email"
           });
         }
         return { provisioningRequest: existing, accessHandoff: handoff, duplicate: true };
@@ -122,7 +127,7 @@ function createCommercialProvisioningService(deps) {
         signupStatusToken: checkoutSession.successToken,
         tenantUrl: appBaseUrl,
         adminSetupMode: "pending",
-        deliveryChannel: "signup_status_page"
+        deliveryChannel: "email"
       });
 
       return { provisioningRequest, accessHandoff, duplicate: false };
@@ -164,7 +169,7 @@ function createCommercialProvisioningService(deps) {
         payload: {
           source: "commercial_signup",
           ttlHours: Number(commercialProvisioningConfig.setupTokenTtlHours || 24),
-          deliveredVia: "signup_status_page",
+          deliveredVia: "email",
           notes: "Issued automatically after commercial provisioning completed."
         }
       });
@@ -181,6 +186,10 @@ function createCommercialProvisioningService(deps) {
         || await getProvisioningRequestByEnvironmentId(job.tenantEnvironmentId);
       if (!provisioningRequest) return null;
 
+      const customerAccount = provisioningRequest.customerAccountId
+        ? await getCustomerAccountById(provisioningRequest.customerAccountId)
+        : null;
+
       const updatedProvisioningRequest = await updateProvisioningRequest(provisioningRequest.id, {
         status: "awaiting_customer_setup",
         resultSetupTokenIssued: true,
@@ -191,12 +200,29 @@ function createCommercialProvisioningService(deps) {
         adminSetupMode: automationResult.token ? "setup_token" : "pending",
         setupToken: automationResult.token || null,
         setupTokenExpiresAt: automationResult.expiresAt || null,
-        deliveryChannel: "signup_status_page"
+        deliveryChannel: "email"
       });
+
+      const emailDelivery = await deliverSetupActivationEmail({
+        accessHandoff,
+        appendProvisioningJobEvent,
+        createEmailDelivery,
+        customerAccount,
+        job,
+        mailConfig,
+        mailService,
+        provisioningRequest
+      });
+      const finalAccessHandoff = emailDelivery?.status === "sent"
+        ? await updateAccessHandoffByProvisioningRequestId(provisioningRequest.id, {
+          deliveredAt: emailDelivery.deliveredAt || new Date().toISOString()
+        })
+        : accessHandoff;
 
       return {
         provisioningRequest: updatedProvisioningRequest,
-        accessHandoff
+        accessHandoff: finalAccessHandoff,
+        emailDelivery
       };
     },
 
@@ -243,6 +269,156 @@ function createCommercialProvisioningService(deps) {
       };
     }
   };
+}
+
+async function deliverSetupActivationEmail({
+  accessHandoff,
+  appendProvisioningJobEvent,
+  createEmailDelivery,
+  customerAccount,
+  job,
+  mailConfig,
+  mailService,
+  provisioningRequest
+}) {
+  const recipientEmail = String(customerAccount?.ownerEmail || "").trim().toLowerCase();
+  const recipientName = [customerAccount?.ownerFirstName, customerAccount?.ownerLastName].filter(Boolean).join(" ").trim()
+    || customerAccount?.accountName
+    || "";
+  const tenantUrl = String(accessHandoff?.tenantUrl || provisioningRequest?.resultAccessUrl || "").trim();
+  const setupToken = String(accessHandoff?.setupToken || "").trim();
+  const setupTokenExpiresAt = accessHandoff?.setupTokenExpiresAt || null;
+  const environmentLabel = String(mailConfig?.environmentLabel || "Hosted").trim();
+  const supportEmail = String(mailConfig?.supportEmail || mailConfig?.replyToEmail || mailConfig?.fromEmail || "").trim().toLowerCase();
+
+  if (!recipientEmail || !tenantUrl || !setupToken) {
+    const skipped = {
+      provider: String(mailConfig?.provider || "postmark").trim().toLowerCase() || "postmark",
+      providerServerName: String(mailConfig?.postmarkServerName || "").trim() || null,
+      mode: String(mailConfig?.mode || "log_only").trim().toLowerCase(),
+      status: "failed",
+      recipientName: recipientName || null,
+      toEmail: recipientEmail || "",
+      subject: "",
+      errorCode: "setup_email_prerequisite_missing",
+      errorMessage: "Recipient email, tenant URL, and setup token are required before a setup email can be delivered.",
+      metadata: {
+        provReqId: provisioningRequest?.id || "",
+        envId: provisioningRequest?.tenantEnvironmentId || ""
+      }
+    };
+    return recordSetupActivationEmail({
+      accessHandoff,
+      appendProvisioningJobEvent,
+      createEmailDelivery,
+      customerAccount,
+      job,
+      provisioningRequest,
+      result: skipped
+    });
+  }
+
+  const template = renderSetupActivationEmail({
+    recipientName,
+    tenantName: customerAccount?.accountName || "your hosted workspace",
+    tenantUrl,
+    setupLink: buildTenantSetupLink(tenantUrl, setupToken),
+    setupTokenExpiresAt,
+    supportEmail,
+    environmentLabel
+  });
+  const result = await mailService.sendTemplateEmail({
+    toEmail: recipientEmail,
+    toName: recipientName,
+    subject: template.subject,
+    htmlBody: template.html,
+    textBody: template.text,
+    tag: "tenant-setup",
+    metadata: {
+      acctId: customerAccount?.id || provisioningRequest?.customerAccountId || "",
+      subId: provisioningRequest?.customerSubscriptionId || "",
+      provReqId: provisioningRequest?.id || "",
+      envId: provisioningRequest?.tenantEnvironmentId || "",
+      template: "setup_activation"
+    }
+  });
+
+  return recordSetupActivationEmail({
+    accessHandoff,
+    appendProvisioningJobEvent,
+    createEmailDelivery,
+    customerAccount,
+    job,
+    provisioningRequest,
+    result
+  });
+}
+
+async function recordSetupActivationEmail({
+  accessHandoff,
+  appendProvisioningJobEvent,
+  createEmailDelivery,
+  customerAccount,
+  job,
+  provisioningRequest,
+  result
+}) {
+  const delivery = await createEmailDelivery({
+    customerAccountId: customerAccount?.id || provisioningRequest?.customerAccountId || null,
+    customerSubscriptionId: provisioningRequest?.customerSubscriptionId || null,
+    provisioningRequestId: provisioningRequest?.id || null,
+    accessHandoffId: accessHandoff?.id || null,
+    provider: result.provider || "postmark",
+    providerServerName: result.providerServerName || null,
+    messageTemplate: "tenant_setup_activation",
+    messageTag: "tenant-setup",
+    deliveryMode: result.mode || "log_only",
+    recipientEmail: result.toEmail || "",
+    recipientName: result.recipientName || null,
+    subject: result.subject || "Tenant setup activation",
+    status: result.status,
+    providerMessageId: result.providerMessageId || null,
+    errorCode: result.errorCode || null,
+    errorMessage: result.errorMessage || result.skippedReason || null,
+    metadata: result.metadata || {},
+    deliveredAt: result.deliveredAt || null
+  });
+
+  const eventType = result.status === "sent"
+    ? "activation_email_sent"
+    : result.status === "failed"
+      ? "activation_email_failed"
+      : "activation_email_skipped";
+  const eventMessage = result.status === "sent"
+    ? "Tenant activation email sent."
+    : result.status === "failed"
+      ? "Tenant activation email could not be delivered."
+      : "Tenant activation email delivery was staged-safe and not sent.";
+  if (job?.id) {
+    await appendProvisioningJobEvent(job.id, eventType, eventMessage, {
+      accessHandoffId: accessHandoff?.id || null,
+      customerAccountId: customerAccount?.id || provisioningRequest?.customerAccountId || null,
+      emailDeliveryId: delivery?.id || null,
+      provider: result.provider || "postmark",
+      deliveryMode: result.mode || "log_only",
+      recipientEmail: result.toEmail || "",
+      status: result.status,
+      deliveredAt: result.deliveredAt || null,
+      providerMessageId: result.providerMessageId || null,
+      errorCode: result.errorCode || null,
+      errorMessage: result.errorMessage || null,
+      skippedReason: result.skippedReason || null
+    });
+  }
+
+  return delivery;
+}
+
+function buildTenantSetupLink(tenantUrl, setupToken) {
+  const base = String(tenantUrl || "").trim();
+  if (!base) return "";
+  const separator = base.includes("#") ? "&" : "#";
+  return `${base}${separator}setupToken=${encodeURIComponent(setupToken)}`;
 }
 
 async function createCommercialTenant(account, plan, runtimeConfig, createTenant) {

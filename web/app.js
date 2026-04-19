@@ -2176,6 +2176,19 @@ async function initializeHostedSetup(setupToken, username, password) {
   await hydrateHostedDomainState();
 }
 
+function applySetupTokenFromLocation() {
+  const hash = String(window.location.hash || "").replace(/^#/, "").trim();
+  if (!hash) return;
+  const params = new URLSearchParams(hash);
+  const setupToken = String(params.get("setupToken") || "").trim();
+  if (!setupToken) return;
+  const setupTokenInput = document.getElementById("setup-token");
+  if (setupTokenInput && !setupTokenInput.value) {
+    setupTokenInput.value = setupToken;
+  }
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+}
+
 async function bootstrapHostedSession() {
   const response = await authFetch(API_ME_ENDPOINT);
   if (response.status === 401) {
@@ -2535,6 +2548,7 @@ function renderSessionChrome() {
   if (loginCard) loginCard.classList.toggle("hidden", showHostedSetup || showHostedResume);
   if (restoreCard) restoreCard.classList.toggle("hidden", !showHostedResume);
   if (setupCard) setupCard.classList.toggle("hidden", !showHostedSetup);
+  if (showHostedSetup) applySetupTokenFromLocation();
   if (loginForm) {
     Array.from(loginForm.elements).forEach((element) => {
       element.disabled = showHostedResume;

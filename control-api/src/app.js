@@ -4,6 +4,7 @@ const {
   automation: automationConfig,
   commercialProvisioning: commercialProvisioningConfig,
   internal: internalConfig,
+  mail: mailConfig,
   session: sessionConfig,
   public: publicConfig,
   stripe: stripeConfig
@@ -72,6 +73,7 @@ const {
   ,
   createAccessHandoff,
   createProvisioningRequest,
+  createEmailDelivery,
   markCheckoutSessionCompleted,
   updateAccessHandoffByProvisioningRequestId,
   updateBillingEventProcessing,
@@ -95,6 +97,7 @@ const { registerRuntimeRoutes } = require("./routes/runtime-routes");
 const { registerTenantRoutes } = require("./routes/tenant-routes");
 const { processStripeBillingEvent } = require("./services/commercial-webhook-service");
 const { createCommercialProvisioningService } = require("./services/commercial-provisioning-service");
+const { createMailService } = require("./services/mail-service");
 const { createStripeService } = require("./services/stripe-service");
 const { startProvisioningWorker } = require("./provisioning-worker");
 const { createTenantRuntimeAutomation } = require("./tenant-runtime-automation");
@@ -102,9 +105,14 @@ const { createSetupSyncService } = require("./setup-sync");
 
 const app = express();
 const stripeService = createStripeService(stripeConfig);
+const mailService = createMailService(mailConfig);
 const runtimeAutomation = createTenantRuntimeAutomation(automationConfig);
 const commercialProvisioningService = createCommercialProvisioningService({
+  appendProvisioningJobEvent,
   commercialProvisioningConfig,
+  createEmailDelivery,
+  mailConfig,
+  mailService,
   publicConfig,
   createAccessHandoff,
   createProvisioningRequest,
