@@ -178,12 +178,16 @@ async function verifyPasswordForUser(user, password) {
   return user.passwordHash === await sha256Hex(`${user.passwordSalt}::${password}`);
 }
 
-async function createUserRecord({ username, role, password, studentId = "", mustChangePassword = false, id = uid(), createdAt = todayISO() }) {
+async function createUserRecord({ username, role, password, firstName = "", lastName = "", email = "", phone = "", studentId = "", mustChangePassword = false, id = uid(), createdAt = todayISO() }) {
   const credentials = await buildPasswordCredentials(password);
   return {
     id,
     username: String(username || "").trim(),
     role: role === "student" ? "student" : "admin",
+    firstName: String(firstName || "").trim(),
+    lastName: String(lastName || "").trim(),
+    email: String(email || "").trim(),
+    phone: String(phone || "").trim(),
     studentId: studentId || "",
     mustChangePassword: !!mustChangePassword,
     createdAt,
@@ -197,6 +201,10 @@ function createLegacyBootstrapAdmin() {
     id: "default-admin-user",
     username: LEGACY_BOOTSTRAP_ADMIN_USERNAME,
     role: "admin",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
     studentId: "",
     mustChangePassword: true,
     createdAt: todayISO(),
@@ -221,6 +229,10 @@ function normalizeUsersShape(inputState) {
           id: user.id || uid(),
           username: String(user.username).trim(),
           role: user.role === "student" ? "student" : "admin",
+          firstName: String(user.firstName || "").trim(),
+          lastName: String(user.lastName || "").trim(),
+          email: String(user.email || "").trim(),
+          phone: String(user.phone || "").trim(),
           studentId: user.role === "student" && studentIds.has(user.studentId) ? user.studentId : "",
           mustChangePassword: !!user.mustChangePassword,
           createdAt: user.createdAt || todayISO(),
@@ -1267,6 +1279,10 @@ function updateCurrentUserFromSummary(userSummary) {
     id: userSummary.id,
     username: userSummary.username || existing.username || "",
     role: userSummary.role === "student" ? "student" : "admin",
+    firstName: userSummary.firstName || existing.firstName || "",
+    lastName: userSummary.lastName || existing.lastName || "",
+    email: userSummary.email || existing.email || "",
+    phone: userSummary.phone || existing.phone || "",
     studentId: userSummary.studentId || "",
     mustChangePassword: !!userSummary.mustChangePassword
   };
@@ -1281,8 +1297,11 @@ function updateCurrentUserFromSummary(userSummary) {
       id: merged.id,
       username: merged.username,
       role: merged.role,
+      firstName: userSummary.firstName || existing.firstName || "",
+      lastName: userSummary.lastName || existing.lastName || "",
       studentId: merged.studentId || "",
-      email: accountSummary?.user?.email || null,
+      email: userSummary.email || existing.email || accountSummary?.user?.email || "",
+      phone: userSummary.phone || existing.phone || accountSummary?.user?.phone || "",
       mustChangePassword: !!merged.mustChangePassword
     },
     permissions: {
@@ -1314,6 +1333,10 @@ async function refreshHostedUsers() {
 
   state.users = users.map((user) => ({
     ...user,
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
+    email: user.email || "",
+    phone: user.phone || "",
     studentId: user.studentId || "",
     mustChangePassword: !!user.mustChangePassword,
     passwordHash: "",
@@ -2239,11 +2262,13 @@ function ensureStudentSelection() {
   const roleSelect = document.getElementById("user-role");
   const studentSelect = document.getElementById("user-student-id");
   const wrap = document.getElementById("user-student-wrap");
+  const emailInput = document.getElementById("user-email");
   if (!roleSelect || !studentSelect || !wrap) return;
   const needsStudent = roleSelect.value === "student";
   wrap.classList.toggle("student-link-disabled", !needsStudent);
   studentSelect.disabled = !needsStudent;
   if (!needsStudent) studentSelect.value = "";
+  if (emailInput) emailInput.required = !needsStudent;
 }
 
 function setStatusMessage(elementId, kind, message) {
@@ -2566,8 +2591,11 @@ function accountSubscriptionSummary() {
       id: user.id,
       username: user.username,
       role: user.role,
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
       studentId: user.studentId || "",
-      email: null,
+      email: user.email || "",
+      phone: user.phone || "",
       mustChangePassword: !!user.mustChangePassword
     } : null,
     tenant: null,
@@ -2933,10 +2961,14 @@ function renderAccountSurface() {
           <p class="muted">Identity details for the currently signed-in user.</p>
         </div>
         <dl class="account-detail-list">
+          <div><dt>First Name</dt><dd>${escapeHtml(user.firstName || subscription?.account?.ownerFirstName || "Not available yet")}</dd></div>
+          <div><dt>Last Name</dt><dd>${escapeHtml(user.lastName || subscription?.account?.ownerLastName || "Not available yet")}</dd></div>
           <div><dt>Username</dt><dd>${escapeHtml(user.username || "Unknown")}</dd></div>
           <div><dt>Role</dt><dd>${escapeHtml(roleDisplayLabel(user.role))}</dd></div>
           <div><dt>Email</dt><dd>${escapeHtml(user.email || "Not available yet")}</dd></div>
+          <div><dt>Phone</dt><dd>${escapeHtml(user.phone || subscription?.account?.ownerPhone || "Not available yet")}</dd></div>
           <div><dt>Site ID</dt><dd>${escapeHtml(tenant.siteId || tenant.tenantId || "Not available yet")}</dd></div>
+          <div><dt>Internal Site ID</dt><dd>${escapeHtml(tenant.internalSiteId || tenant.tenantId || "Not available yet")}</dd></div>
           <div><dt>Password</dt><dd>${user.mustChangePassword ? "Password reset required" : "Managed in your account"}</dd></div>
         </dl>
         <div class="account-inline-actions">
@@ -5914,6 +5946,10 @@ function beginUserEdit(userId) {
   userViewMode = "edit";
   editingUserId = user.id;
   document.getElementById("user-username").value = user.username;
+  document.getElementById("user-first-name").value = user.firstName || "";
+  document.getElementById("user-last-name").value = user.lastName || "";
+  document.getElementById("user-email").value = user.email || "";
+  document.getElementById("user-phone").value = user.phone || "";
   document.getElementById("user-role").value = user.role;
   document.getElementById("user-student-id").value = user.studentId || "";
   document.getElementById("user-password").value = "";
@@ -5940,14 +5976,16 @@ function renderUsers() {
     .map((user) => {
       const linkedStudent = user.studentId ? escapeHtml(getStudentName(user.studentId)) : "Not linked";
       const roleLabel = user.role === "admin" ? "Administrator" : "Student";
+      const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Not recorded";
+      const email = user.email || "Not recorded";
       const passwordStatus = user.mustChangePassword ? "Reset required" : "Managed";
       const disableDelete = state.users.filter((entry) => entry.role === "admin").length <= 1 && user.role === "admin";
       const deleteBtn = disableDelete
         ? "<button type='button' disabled>Remove</button>"
         : `<button data-remove-user='${user.id}' type='button'>Remove</button>`;
-      return `<tr><td>${escapeHtml(user.username)}</td><td>${roleLabel}</td><td>${linkedStudent}</td><td>${passwordStatus}</td><td class="users-actions-cell"><div class="table-action-row"><button data-edit-user='${user.id}' type='button'>Edit</button>${deleteBtn}</div></td></tr>`;
+      return `<tr><td>${escapeHtml(user.username)}</td><td>${escapeHtml(fullName)}</td><td>${escapeHtml(email)}</td><td>${roleLabel}</td><td>${linkedStudent}</td><td>${passwordStatus}</td><td class="users-actions-cell"><div class="table-action-row"><button data-edit-user='${user.id}' type='button'>Edit</button>${deleteBtn}</div></td></tr>`;
     });
-  rowOrEmpty(tableBody, rows, "No users configured.", 5);
+  rowOrEmpty(tableBody, rows, "No users configured.", 7);
 }
 
 function setAdministrationWorkspaceConfigMessage(kind, text) {
@@ -11175,6 +11213,10 @@ async function updateLegacyLocalUser(existingUser, payload) {
   if (!existingUser) return;
   existingUser.username = payload.username;
   existingUser.role = payload.role === "student" ? "student" : "admin";
+  existingUser.firstName = payload.firstName || "";
+  existingUser.lastName = payload.lastName || "";
+  existingUser.email = payload.email || "";
+  existingUser.phone = payload.phone || "";
   existingUser.studentId = payload.role === "student" ? payload.studentId : "";
   existingUser.mustChangePassword = isLegacyBootstrapAdminUser(existingUser)
     ? !payload.password
@@ -11565,6 +11607,10 @@ function bindEvents() {
     e.preventDefault();
     if (!ensureAdminAction()) return;
     const username = document.getElementById("user-username").value.trim();
+    const firstName = document.getElementById("user-first-name").value.trim();
+    const lastName = document.getElementById("user-last-name").value.trim();
+    const email = document.getElementById("user-email").value.trim();
+    const phone = document.getElementById("user-phone").value.trim();
     const role = document.getElementById("user-role").value;
     const studentId = document.getElementById("user-student-id").value;
     const password = document.getElementById("user-password").value;
@@ -11582,6 +11628,14 @@ function bindEvents() {
       setUserFormMessage("error", "Student users must be linked to a student record.");
       return;
     }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setUserFormMessage("error", "Provide a valid email address.");
+      return;
+    }
+    if (role === "admin" && !email) {
+      setUserFormMessage("error", "Administrator users require an email address.");
+      return;
+    }
     if ((password || confirmPassword) && password !== confirmPassword) {
       setUserFormMessage("error", "Passwords do not match.");
       return;
@@ -11594,6 +11648,10 @@ function bindEvents() {
       try {
         const payload = {
           username,
+          firstName,
+          lastName,
+          email,
+          phone,
           role,
           studentId,
           mustChangePassword: existing ? existing.mustChangePassword : false,
@@ -11618,6 +11676,10 @@ function bindEvents() {
     if (existing) {
       await updateLegacyLocalUser(existing, {
         username,
+        firstName,
+        lastName,
+        email,
+        phone,
         role,
         password,
         studentId
@@ -11625,6 +11687,10 @@ function bindEvents() {
     } else {
       await createLegacyLocalUser({
         username,
+        firstName,
+        lastName,
+        email,
+        phone,
         role,
         password,
         studentId,

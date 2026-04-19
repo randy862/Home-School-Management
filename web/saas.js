@@ -132,6 +132,7 @@ function collectCheckoutPayload() {
     ownerFirstName: document.getElementById("checkout-owner-first-name")?.value.trim() || "",
     ownerLastName: document.getElementById("checkout-owner-last-name")?.value.trim() || "",
     ownerEmail: document.getElementById("checkout-owner-email")?.value.trim() || "",
+    ownerPhone: document.getElementById("checkout-owner-phone")?.value.trim() || "",
     billingEmail: document.getElementById("checkout-billing-email")?.value.trim() || ""
   };
 }

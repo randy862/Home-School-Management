@@ -1407,7 +1407,7 @@
           <h3>System Users</h3>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Username</th><th>Role</th><th>Linked Student</th><th>Password</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Role</th><th>Linked Student</th><th>Password</th><th>Actions</th></tr></thead>
               <tbody id="user-table"></tbody>
             </table>
           </div>
@@ -1418,6 +1418,10 @@
         <h3 id="user-editor-title">New User</h3>
         <form id="user-form" class="grid-form">
           <label>Username<input id="user-username" type="text" autocomplete="off" required></label>
+          <label>First Name<input id="user-first-name" type="text" autocomplete="given-name"></label>
+          <label>Last Name<input id="user-last-name" type="text" autocomplete="family-name"></label>
+          <label>Email<input id="user-email" type="email" autocomplete="email" required></label>
+          <label>Phone<input id="user-phone" type="tel" autocomplete="tel"></label>
           <label>User Type
             <select id="user-role" required>
               <option value="admin">Administrator</option>

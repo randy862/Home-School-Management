@@ -318,7 +318,7 @@ function renderTenantTable(tenants) {
               </td>
               <td data-label="Contact Name">${escapeHtml(tenant.primaryContactName || "Not recorded")}</td>
               <td data-label="Contact Email">${escapeHtml(tenant.primaryContactEmail || "Not recorded")}</td>
-              <td data-label="Tenant URL">${tenant.primaryDomain ? `<a href="http://${escapeHtml(tenant.primaryDomain)}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded"}</td>
+              <td data-label="Tenant URL">${tenant.primaryDomain ? `<a href="${escapeHtml(buildTenantPrimaryDomainHref(tenant.primaryDomain))}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded"}</td>
               <td data-label="Status">${renderStatusTag(tenant.status, "tenant", formatTenantStatus(tenant.status))}</td>
               <td data-label="Plan">${escapeHtml(tenant.planCode || "standard")}</td>
               <td data-label="Commercial">${renderTenantCommercialCell(tenant)}</td>
@@ -344,7 +344,7 @@ function renderTenantDetail(tenant) {
     <div class="compact-details">
       ${renderDetailField("Organization Name", tenant.displayName || "Not recorded")}
       ${renderDetailField("Slug", tenant.slug || "Not recorded")}
-      ${renderDetailFieldHtml("Tenant URL", tenant.primaryDomain ? `<a href="http://${escapeHtml(tenant.primaryDomain)}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded")}
+      ${renderDetailFieldHtml("Tenant URL", tenant.primaryDomain ? `<a href="${escapeHtml(buildTenantPrimaryDomainHref(tenant.primaryDomain))}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded")}
       ${renderDetailField("Domain Type", formatDomainType(tenant.primaryDomainType || "platform_subdomain"))}
       ${renderDetailField("Status", formatTenantStatus(tenant.status || "draft"))}
       ${renderDetailField("Subscription Plan", tenant.planCode || "standard")}
@@ -534,6 +534,7 @@ function renderCommercialTable(records) {
               <td data-label="Owner">
                 ${escapeHtml(record.ownerName || "Not recorded")}
                 <div class="table-subcopy">${escapeHtml(record.ownerEmail || record.billingEmail || "No email recorded")}</div>
+                ${record.ownerPhone ? `<div class="table-subcopy">${escapeHtml(record.ownerPhone)}</div>` : ""}
               </td>
               <td data-label="Plan">
                 ${escapeHtml(record.planName || "Plan pending")}
@@ -982,6 +983,7 @@ function renderCommercialDetail(detail) {
       ${renderDetailField("Account", overview.accountName || "Not recorded")}
       ${renderDetailField("Account Slug", overview.accountSlug || "Not recorded")}
       ${renderDetailField("Owner", overview.ownerName || "Not recorded")}
+      ${renderDetailField("Owner Phone", overview.ownerPhone || "Not recorded")}
       ${renderDetailField("Billing Email", overview.billingEmail || overview.ownerEmail || "Not recorded")}
       ${renderDetailField("Plan", overview.planName || "Pending")}
       ${renderDetailField("Base Price", formatMoney(subscription.basePriceCents || overview.planPriceCents || 0))}
@@ -1115,8 +1117,8 @@ function fillTenantFormForEdit(tenant) {
   refs.tenantEditId.value = tenant.id;
   refs.tenantSlug.value = tenant.slug || "";
   refs.tenantSlug.disabled = true;
-  refs.tenantPrimaryDomain.disabled = true;
-  refs.tenantDomainType.disabled = true;
+  refs.tenantPrimaryDomain.disabled = false;
+  refs.tenantDomainType.disabled = false;
   refs.tenantPrimaryDomain.value = tenant.primaryDomain || "";
   refs.tenantDomainType.value = tenant.primaryDomainType || "platform_subdomain";
   refs.tenantDisplayName.value = tenant.displayName || "";
@@ -2111,6 +2113,20 @@ function formatDomainType(value) {
   if (normalized === "platform_subdomain") return "Platform Subdomain";
   if (normalized === "custom_domain") return "Custom Domain";
   return startCase(value);
+}
+
+function buildTenantPrimaryDomainHref(domain) {
+  const normalized = String(domain || "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (/^https?:\/\//.test(normalized)) return normalized;
+  if (
+    normalized.endsWith(".local")
+    || normalized === "localhost"
+    || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(normalized)
+  ) {
+    return `http://${normalized}`;
+  }
+  return `https://${normalized}`;
 }
 
 function formatSubscriptionStatus(value) {

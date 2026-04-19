@@ -33,11 +33,15 @@ function registerAccountRoutes(app, deps) {
           username: user.username,
           role: user.role,
           studentId: user.studentId || "",
-          email: null,
+          firstName: user.firstName || commercialSummary?.ownerFirstName || "",
+          lastName: user.lastName || commercialSummary?.ownerLastName || "",
+          email: user.email || commercialSummary?.ownerEmail || "",
+          phone: user.phone || commercialSummary?.ownerPhone || "",
           mustChangePassword: !!user.mustChangePassword
         },
         tenant: {
-          siteId: commercialSummary?.siteId || commercialSummary?.tenantId || "",
+          siteId: buildFriendlySiteId(commercialSummary?.siteId || commercialSummary?.tenantId || ""),
+          internalSiteId: commercialSummary?.siteId || commercialSummary?.tenantId || "",
           tenantId: commercialSummary?.tenantId || "",
           tenantEnvironmentId: commercialSummary?.tenantEnvironmentId || "",
           accountName: commercialSummary?.accountName || ""
@@ -100,6 +104,10 @@ function registerAccountRoutes(app, deps) {
       await updateUser(existingUser.id, {
         username: existingUser.username,
         role: existingUser.role,
+        firstName: existingUser.firstName || "",
+        lastName: existingUser.lastName || "",
+        email: existingUser.email || "",
+        phone: existingUser.phone || "",
         studentId: existingUser.studentId || "",
         mustChangePassword: false,
         ...credentials
@@ -247,7 +255,7 @@ function registerAccountRoutes(app, deps) {
         body: JSON.stringify({
           requestedByUserId: req.auth.user.id,
           requestedByUsername: req.auth.user.username,
-          requestedByEmail: req.auth.user.username
+          requestedByEmail: req.auth.user.email || commercialSummary?.ownerEmail || req.auth.user.username
         })
       });
       res.status(201).json({
@@ -292,10 +300,21 @@ function mapSubscriptionSummary(summary) {
     },
     account: {
       name: summary.accountName,
+      ownerFirstName: summary.ownerFirstName || "",
+      ownerLastName: summary.ownerLastName || "",
       ownerEmail: summary.ownerEmail || "",
+      ownerPhone: summary.ownerPhone || "",
       billingEmail: summary.billingEmail || ""
     }
   };
+}
+
+function buildFriendlySiteId(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  const compact = normalized.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (compact.length <= 12) return compact || normalized;
+  return compact.slice(-12);
 }
 
 function mapUpgradePlan(plan) {

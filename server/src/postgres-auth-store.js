@@ -6,6 +6,10 @@ function mapUserRow(row) {
     id: row.id,
     username: row.username,
     role: row.role,
+    firstName: row.first_name || row.firstName || "",
+    lastName: row.last_name || row.lastName || "",
+    email: row.email || "",
+    phone: row.phone || "",
     studentId: row.student_id || "",
     mustChangePassword: row.must_change_password,
     passwordHash: row.password_hash,
@@ -22,6 +26,10 @@ async function getUserByUsername(username) {
       id,
       username,
       role,
+      first_name,
+      last_name,
+      email,
+      phone,
       student_id,
       must_change_password,
       password_hash,
@@ -42,6 +50,10 @@ async function getUserById(id) {
       id,
       username,
       role,
+      first_name,
+      last_name,
+      email,
+      phone,
       student_id,
       must_change_password,
       password_hash,
@@ -62,6 +74,10 @@ async function listUsers() {
       id,
       username,
       role,
+      first_name AS "firstName",
+      last_name AS "lastName",
+      email,
+      phone,
       student_id AS "studentId",
       must_change_password AS "mustChangePassword",
       created_at AS "createdAt",
@@ -90,6 +106,10 @@ async function createUser(user) {
       id,
       username,
       role,
+      first_name,
+      last_name,
+      email,
+      phone,
       student_id,
       password_hash,
       password_salt,
@@ -99,11 +119,15 @@ async function createUser(user) {
       created_at,
       updated_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_DATE, CURRENT_DATE)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_DATE, CURRENT_DATE)
     RETURNING
       id,
       username,
       role,
+      first_name AS "firstName",
+      last_name AS "lastName",
+      email,
+      phone,
       student_id AS "studentId",
       must_change_password AS "mustChangePassword",
       created_at AS "createdAt",
@@ -113,6 +137,10 @@ async function createUser(user) {
     user.id,
     user.username,
     user.role,
+    user.firstName || null,
+    user.lastName || null,
+    user.email || null,
+    user.phone || null,
     user.studentId || null,
     user.passwordHash,
     user.passwordSalt,
@@ -128,12 +156,26 @@ async function updateUser(id, user) {
   const assignments = [
     "username = $2",
     "role = $3",
-    "student_id = $4",
-    "must_change_password = $5",
+    "first_name = $4",
+    "last_name = $5",
+    "email = $6",
+    "phone = $7",
+    "student_id = $8",
+    "must_change_password = $9",
     "updated_at = CURRENT_DATE"
   ];
-  const values = [id, user.username, user.role, user.studentId || null, !!user.mustChangePassword];
-  let nextIndex = 6;
+  const values = [
+    id,
+    user.username,
+    user.role,
+    user.firstName || null,
+    user.lastName || null,
+    user.email || null,
+    user.phone || null,
+    user.studentId || null,
+    !!user.mustChangePassword
+  ];
+  let nextIndex = 10;
   if (user.passwordHash) {
     assignments.push(`password_hash = $${nextIndex++}`);
     assignments.push(`password_salt = $${nextIndex++}`);
@@ -149,6 +191,10 @@ async function updateUser(id, user) {
       id,
       username,
       role,
+      first_name AS "firstName",
+      last_name AS "lastName",
+      email,
+      phone,
       student_id AS "studentId",
       must_change_password AS "mustChangePassword",
       created_at AS "createdAt",
@@ -182,6 +228,10 @@ async function getSessionByTokenHash(tokenHash) {
       u.id,
       u.username,
       u.role,
+      u.first_name,
+      u.last_name,
+      u.email,
+      u.phone,
       u.student_id,
       u.must_change_password,
       u.password_hash,
@@ -318,6 +368,10 @@ async function initializeSetup(user, setupTokenHash, sessionTokenHash, sessionEx
         id,
         username,
         role,
+        first_name,
+        last_name,
+        email,
+        phone,
         student_id,
         password_hash,
         password_salt,
@@ -327,11 +381,15 @@ async function initializeSetup(user, setupTokenHash, sessionTokenHash, sessionEx
         created_at,
         updated_at
       )
-      VALUES ($1, $2, 'admin', NULL, $3, $4, $5, $6, FALSE, CURRENT_DATE, CURRENT_DATE)
+      VALUES ($1, $2, 'admin', $3, $4, $5, $6, NULL, $7, $8, $9, $10, FALSE, CURRENT_DATE, CURRENT_DATE)
       RETURNING
         id,
         username,
         role,
+        first_name AS "firstName",
+        last_name AS "lastName",
+        email,
+        phone,
         student_id AS "studentId",
         must_change_password AS "mustChangePassword",
         created_at AS "createdAt",
@@ -340,6 +398,10 @@ async function initializeSetup(user, setupTokenHash, sessionTokenHash, sessionEx
     `, [
       user.id,
       user.username,
+      user.firstName || null,
+      user.lastName || null,
+      user.email || null,
+      user.phone || null,
       user.passwordHash,
       user.passwordSalt,
       user.passwordAlgorithm,

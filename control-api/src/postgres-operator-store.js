@@ -556,10 +556,18 @@ async function createTenant(tenant, context = {}) {
         domain_type,
         is_primary,
         verification_status,
+        verified_at,
         created_at
       )
-      VALUES ($1, $2, $3, $4, TRUE, 'pending', NOW())
-    `, [tenant.primaryDomainId, tenant.id, tenant.primaryDomain, tenant.primaryDomainType]);
+      VALUES ($1, $2, $3, $4, TRUE, $5, $6, NOW())
+    `, [
+      tenant.primaryDomainId,
+      tenant.id,
+      tenant.primaryDomain,
+      tenant.primaryDomainType,
+      resolveVerificationStatusForDomain(tenant.primaryDomainType),
+      tenant.primaryDomainType === "platform_subdomain" ? new Date() : null
+    ]);
 
     await client.query(`
       INSERT INTO operator_audit_log (operator_user_id, action_type, target_type, target_id, tenant_id, details_json)
@@ -582,41 +590,116 @@ async function createTenant(tenant, context = {}) {
 
 async function updateTenant(id, tenant, context = {}) {
   const pool = getPostgresPool();
-  const result = await pool.query(`
-    UPDATE tenants
-    SET
-      display_name = $2,
-      status = $3,
-      plan_code = $4,
-      primary_contact_name = $5,
-      primary_contact_email = $6,
-      notes = $7,
-      updated_at = NOW()
-    WHERE id = $1
-    RETURNING
-      id,
-      slug,
-      display_name AS "displayName",
-      status,
-      plan_code AS "planCode",
-      primary_contact_name AS "primaryContactName",
-      primary_contact_email AS "primaryContactEmail",
-      notes,
-      created_at AS "createdAt",
-      updated_at AS "updatedAt"
-  `, [
-    id,
-    tenant.displayName,
-    tenant.status,
-    tenant.planCode,
-    tenant.primaryContactName || null,
-    tenant.primaryContactEmail || null,
-    tenant.notes || null
-  ]);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-  const updated = result.rows[0] || null;
-  if (updated) {
-    const domainResult = await pool.query(`
+    const currentDomainResult = await client.query(`
+      SELECT
+        id,
+        domain,
+        domain_type AS "domainType"
+      FROM tenant_domains
+      WHERE tenant_id = $1
+        AND is_primary = TRUE
+      LIMIT 1
+      FOR UPDATE
+    `, [id]);
+
+    const result = await client.query(`
+      UPDATE tenants
+      SET
+        display_name = $2,
+        status = $3,
+        plan_code = $4,
+        primary_contact_name = $5,
+        primary_contact_email = $6,
+        notes = $7,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING
+        id,
+        slug,
+        display_name AS "displayName",
+        status,
+        plan_code AS "planCode",
+        primary_contact_name AS "primaryContactName",
+        primary_contact_email AS "primaryContactEmail",
+        notes,
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+    `, [
+      id,
+      tenant.displayName,
+      tenant.status,
+      tenant.planCode,
+      tenant.primaryContactName || null,
+      tenant.primaryContactEmail || null,
+      tenant.notes || null
+    ]);
+
+    const updated = result.rows[0] || null;
+    if (!updated) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    const currentPrimaryDomain = currentDomainResult.rows[0] || null;
+    const nextPrimaryDomain = normalizeDomainValue(tenant.primaryDomain || currentPrimaryDomain?.domain || "");
+    const nextPrimaryDomainType = tenant.primaryDomainType || currentPrimaryDomain?.domainType || "platform_subdomain";
+    const domainChanged = !!currentPrimaryDomain && (
+      currentPrimaryDomain.domain !== nextPrimaryDomain
+      || currentPrimaryDomain.domainType !== nextPrimaryDomainType
+    );
+
+    if (domainChanged && nextPrimaryDomain) {
+      const nextAppBaseUrl = buildTenantAppBaseUrl(nextPrimaryDomain);
+      await client.query(`
+        UPDATE tenant_domains
+        SET
+          domain = $2,
+          domain_type = $3,
+          verification_status = $4,
+          verified_at = $5
+        WHERE id = $1
+      `, [
+        currentPrimaryDomain.id,
+        nextPrimaryDomain,
+        nextPrimaryDomainType,
+        resolveVerificationStatusForDomain(nextPrimaryDomainType),
+        nextPrimaryDomainType === "platform_subdomain" ? new Date() : null
+      ]);
+
+      await client.query(`
+        UPDATE tenant_environments
+        SET
+          app_base_url = $2,
+          updated_at = NOW()
+        WHERE tenant_id = $1
+      `, [id, nextAppBaseUrl]);
+
+      await client.query(`
+        UPDATE provisioning_requests pr
+        SET
+          result_access_url = e.app_base_url,
+          updated_at = NOW()
+        FROM tenant_environments e
+        WHERE pr.tenant_environment_id = e.id
+          AND pr.tenant_id = $1
+      `, [id]);
+
+      await client.query(`
+        UPDATE access_handoffs access
+        SET tenant_url = e.app_base_url
+        FROM provisioning_requests pr
+        JOIN tenant_environments e
+          ON e.id = pr.tenant_environment_id
+        WHERE access.provisioning_request_id = pr.id
+          AND pr.tenant_id = $1
+      `, [id]);
+    }
+
+    const domainResult = await client.query(`
       SELECT
         domain AS "primaryDomain",
         domain_type AS "primaryDomainType"
@@ -625,16 +708,48 @@ async function updateTenant(id, tenant, context = {}) {
         AND is_primary = TRUE
       LIMIT 1
     `, [id]);
-    await pool.query(`
+
+    await client.query(`
       INSERT INTO operator_audit_log (operator_user_id, action_type, target_type, target_id, tenant_id, details_json)
       VALUES ($1, 'update_tenant', 'tenant', $2, $2, $3::jsonb)
-    `, [context.operatorUserId || null, id, JSON.stringify({ status: tenant.status, planCode: tenant.planCode })]);
+    `, [
+      context.operatorUserId || null,
+      id,
+      JSON.stringify({
+        status: tenant.status,
+        planCode: tenant.planCode,
+        previousPrimaryDomain: currentPrimaryDomain?.domain || null,
+        primaryDomain: domainResult.rows[0]?.primaryDomain || null,
+        primaryDomainType: domainResult.rows[0]?.primaryDomainType || null
+      })
+    ]);
+
+    await client.query("COMMIT");
     return {
       ...updated,
       ...(domainResult.rows[0] || {})
     };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
-  return updated;
+}
+
+function normalizeDomainValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function resolveVerificationStatusForDomain(domainType) {
+  return domainType === "platform_subdomain" ? "verified" : "pending";
+}
+
+function buildTenantAppBaseUrl(domain) {
+  const normalizedDomain = normalizeDomainValue(domain);
+  if (!normalizedDomain) return null;
+  const protocol = normalizedDomain.endsWith(".local") || normalizedDomain === "localhost" ? "http" : "https";
+  return `${protocol}://${normalizedDomain}`;
 }
 
 async function listTenantEnvironments() {

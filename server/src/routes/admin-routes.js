@@ -49,6 +49,10 @@ function registerAdminRoutes(app, deps) {
         id: payload.id,
         username: payload.username,
         role: payload.role,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        phone: payload.phone,
         studentId: payload.studentId,
         mustChangePassword: payload.mustChangePassword,
         ...credentials
@@ -77,6 +81,10 @@ function registerAdminRoutes(app, deps) {
       res.json(await updateUser(req.params.id, {
         username: payload.username,
         role: payload.role,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        phone: payload.phone,
         studentId: payload.studentId,
         mustChangePassword: payload.password ? false : payload.mustChangePassword,
         ...(credentials || {})
@@ -362,6 +370,10 @@ function normalizeUserPayload(input, options = {}) {
   const id = String(input?.id || "").trim() || createSessionToken();
   const username = String(input?.username || "").trim();
   const role = input?.role === "student" ? "student" : "admin";
+  const firstName = String(input?.firstName || "").trim();
+  const lastName = String(input?.lastName || "").trim();
+  const email = String(input?.email || "").trim().toLowerCase();
+  const phone = String(input?.phone || "").trim();
   const studentId = role === "student" ? String(input?.studentId || "").trim() : "";
   const password = String(input?.password || "");
   const mustChangePassword = Boolean(input?.mustChangePassword);
@@ -375,12 +387,26 @@ function normalizeUserPayload(input, options = {}) {
     error.statusCode = 400;
     throw error;
   }
+  if (email && !isValidEmail(email)) {
+    const error = new Error("Provide a valid email address.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (role === "admin" && !email) {
+    const error = new Error("Administrator users require an email address.");
+    error.statusCode = 400;
+    throw error;
+  }
   if (options.requirePassword && !password) {
     const error = new Error("Password is required for new users.");
     error.statusCode = 400;
     throw error;
   }
-  return { id, username, role, studentId, password, mustChangePassword };
+  return { id, username, role, firstName, lastName, email, phone, studentId, password, mustChangePassword };
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
 
 async function requireExistingUser(getUserById, id) {

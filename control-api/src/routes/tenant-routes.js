@@ -111,6 +111,8 @@ function normalizeUpdateTenantPayload(input) {
   const displayName = String(input?.displayName || "").trim();
   const status = normalizeTenantStatus(input?.status);
   const planCode = String(input?.planCode || "standard").trim() || "standard";
+  const primaryDomain = String(input?.primaryDomain || "").trim().toLowerCase();
+  const primaryDomainType = input?.primaryDomainType === "custom_domain" ? "custom_domain" : "platform_subdomain";
   const primaryContactName = String(input?.primaryContactName || "").trim();
   const primaryContactEmail = String(input?.primaryContactEmail || "").trim();
   const notes = String(input?.notes || "").trim();
@@ -125,6 +127,8 @@ function normalizeUpdateTenantPayload(input) {
     displayName,
     status,
     planCode,
+    primaryDomain,
+    primaryDomainType,
     primaryContactName,
     primaryContactEmail,
     notes

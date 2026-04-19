@@ -98,6 +98,10 @@ function mapUserSummary(user) {
     id: user.id,
     username: user.username,
     role: user.role,
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
+    email: user.email || "",
+    phone: user.phone || "",
     studentId: user.studentId || "",
     mustChangePassword: !!user.mustChangePassword
   };

@@ -627,6 +627,12 @@ Date: 2026-04-10
   - `mitchell-family` is not currently a ready hosted tenant login target; its environment is still `provisioning` with setup state `token_issued`
   - the tenant user tables confirm `pj-cool` has admin `pjt`, `stripe-test2` has admin `admin`, and `mitchell-family` has users but is not yet in a ready runtime state
   - user validation during this session confirmed `pj-cool` can still authenticate successfully
+- Later in the same staged session, corrected the Mitchell hosted-tenant state and commercial attachment:
+  - retargeted the seeded Mitchell tenant from `mitchell.school.local` to `https://mitchell.navigrader.com`
+  - promoted the Mitchell control-plane environment from `provisioning` / `token_issued` to `ready` / `initialized` after confirming the tenant schema already had completed setup state and an admin user
+  - verified staged control-plane runtime resolution for `mitchell.navigrader.com` and confirmed unauthenticated HTTPS requests to `/api/account` return the expected `401 Authentication required`
+  - attached the existing seeded Mitchell tenant to a manually created `Starter` commercial record using plan code `starter_monthly` without reprovisioning or reseeding tenant data
+  - recorded the Mitchell commercial attachment as a manual staged testing setup, not a Stripe-backed checkout/subscription flow, so the tenant remains useful for seeded-data testing without implying live billing history
 - Deployed the updated tenant runtime, control plane, and hosted assets to staged `APP001` / `WEB001`, and verified:
   - `hsm-api.service` is active and local `http://127.0.0.1:3000/health` returns `{"ok":true}`
   - `hsm-control-api.service` is active and local `http://127.0.0.1:3100/health` returns `{"ok":true}`

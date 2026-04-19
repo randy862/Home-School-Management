@@ -163,6 +163,11 @@ function normalizeCheckoutSessionPayload(input) {
     error.statusCode = 400;
     throw error;
   }
+  if (!isValidPhone(ownerPhone)) {
+    const error = new Error("Provide a valid owner phone number.");
+    error.statusCode = 400;
+    throw error;
+  }
   if (billingEmail && !isValidEmail(billingEmail)) {
     const error = new Error("Provide a valid billing email address.");
     error.statusCode = 400;
@@ -199,6 +204,11 @@ function normalizeSubdomainLabel(value) {
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function isValidPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 15;
 }
 
 function joinUrl(base, path) {
