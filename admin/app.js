@@ -317,7 +317,7 @@ function renderTenantTable(tenants) {
                 <button type="button" class="text-link-btn tenant-detail-link" data-tenant-detail-id="${escapeHtml(tenant.id)}">${escapeHtml(formatCustomerDisplayName(tenant.displayName))}</button>
               </td>
               <td data-label="Contact Name">${escapeHtml(tenant.primaryContactName || "Not recorded")}</td>
-              <td data-label="Contact Email">${escapeHtml(tenant.primaryContactEmail || "Not recorded")}</td>
+              <td data-label="Contact Email">${escapeHtml(getTenantContactEmail(tenant))}</td>
               <td data-label="Tenant URL">${tenant.primaryDomain ? `<a href="${escapeHtml(buildTenantPrimaryDomainHref(tenant.primaryDomain))}" target="_blank" rel="noreferrer">${escapeHtml(tenant.primaryDomain)}</a>` : "Not recorded"}</td>
               <td data-label="Status">${renderStatusTag(tenant.status, "tenant", formatTenantStatus(tenant.status))}</td>
               <td data-label="Plan">${escapeHtml(tenant.planCode || "standard")}</td>
@@ -338,6 +338,7 @@ function renderTenantTable(tenants) {
 function renderTenantDetail(tenant) {
   const commercialRecord = findCommercialRecordForTenant(tenant.id);
   const tenantEnvironments = state.environments.filter((environment) => environment.tenantId === tenant.id);
+  const contactEmail = getTenantContactEmail(tenant, commercialRecord);
   refs.tenantDetailShell.classList.remove("hidden");
   syncTenantWorkspaceFocus();
   refs.tenantDetailBody.innerHTML = `
@@ -349,7 +350,7 @@ function renderTenantDetail(tenant) {
       ${renderDetailField("Status", formatTenantStatus(tenant.status || "draft"))}
       ${renderDetailField("Subscription Plan", tenant.planCode || "standard")}
       ${renderDetailField("Contact Name", tenant.primaryContactName || "Not recorded")}
-      ${renderDetailField("Contact Email", tenant.primaryContactEmail || "Not recorded")}
+      ${renderDetailField("Contact Email", contactEmail)}
       ${renderDetailField("Notes", tenant.notes || "None recorded")}
       ${renderDetailField("Created", formatDateTime(tenant.createdAt))}
       ${renderDetailField("Updated", formatDateTime(tenant.updatedAt))}
@@ -358,7 +359,8 @@ function renderTenantDetail(tenant) {
       <h4>Commercial Snapshot</h4>
       <div class="detail-grid detail-grid-compact">
         ${renderDetailField("Commercial Account", commercialRecord?.accountName || "No commercial profile linked")}
-        ${renderDetailField("Billing Contact", commercialRecord ? (commercialRecord.billingEmail || commercialRecord.ownerEmail || "Not recorded") : "Not recorded")}
+        ${renderDetailField("Contact Email", getCommercialContactEmail(commercialRecord))}
+        ${renderDetailField("Billing Email", commercialRecord?.billingEmail || "Not recorded")}
         ${renderDetailField("Subscription", commercialRecord?.subscriptionStatus ? formatSubscriptionStatus(commercialRecord.subscriptionStatus) : "Not started")}
         ${renderDetailField("Provisioning", commercialRecord?.provisioningStatus ? formatProvisioningStatus(commercialRecord.provisioningStatus) : "No provisioning request")}
         ${renderDetailFieldHtml("Tenant Access", commercialRecord?.tenantUrl || commercialRecord?.resultAccessUrl ? `<a href="${escapeHtml(commercialRecord.tenantUrl || commercialRecord.resultAccessUrl)}" target="_blank" rel="noreferrer">${escapeHtml(commercialRecord.tenantUrl || commercialRecord.resultAccessUrl)}</a>` : "Not issued")}
@@ -984,7 +986,8 @@ function renderCommercialDetail(detail) {
       ${renderDetailField("Account Slug", overview.accountSlug || "Not recorded")}
       ${renderDetailField("Owner", overview.ownerName || "Not recorded")}
       ${renderDetailField("Owner Phone", overview.ownerPhone || "Not recorded")}
-      ${renderDetailField("Billing Email", overview.billingEmail || overview.ownerEmail || "Not recorded")}
+      ${renderDetailField("Contact Email", getCommercialContactEmail(overview))}
+      ${renderDetailField("Billing Email", overview.billingEmail || "Not recorded")}
       ${renderDetailField("Plan", overview.planName || "Pending")}
       ${renderDetailField("Base Price", formatMoney(subscription.basePriceCents || overview.planPriceCents || 0))}
       ${renderDetailField("Included Billable Students", String(subscription.includedBillableStudents ?? overview.includedBillableStudents ?? 0))}
@@ -1813,6 +1816,15 @@ function renderDetailFieldHtml(label, value) {
       <strong>${value || "Not recorded"}</strong>
     </div>
   `;
+}
+
+function getCommercialContactEmail(record) {
+  if (!record) return "Not recorded";
+  return record.ownerEmail || record.billingEmail || "Not recorded";
+}
+
+function getTenantContactEmail(tenant, commercialRecord = findCommercialRecordForTenant(tenant?.id)) {
+  return tenant?.primaryContactEmail || getCommercialContactEmail(commercialRecord);
 }
 
 function renderTimeline(events) {

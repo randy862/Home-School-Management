@@ -509,7 +509,8 @@ h3 {
 }
 
 .checkout-card input[type="text"],
-.checkout-card input[type="email"] {
+.checkout-card input[type="email"],
+.checkout-card input[type="tel"] {
   width: 100%;
   border: 1px solid var(--edge-strong);
   border-radius: 16px;
