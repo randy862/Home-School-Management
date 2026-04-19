@@ -667,6 +667,12 @@ Date: 2026-04-10
     - overage line: `1 x Valedictorian` at `$0.99`
     - total upcoming recurring amount: `$16.96`
     - preview also includes offsetting `-$0.98 / +$0.98` proration lines because the overage item was migrated mid-cycle from the fallback price object onto the dedicated configured overage price
+- Captured the recommended next-session handoff in `NOTES/email-and-saas-next-session-handoff.md`:
+  - email foundation first
+  - emailed setup or activation links second
+  - password-reset email after that
+  - `saas.html` polish after the first real email-backed onboarding path exists
+  - included an exact resume prompt for the next session so work can restart without re-deciding priorities
 
 ## 2026-04-02
 

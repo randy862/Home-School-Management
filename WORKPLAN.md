@@ -209,6 +209,7 @@
    - [x] Add tenant-facing `Valedictorian` usage and overage messaging in `Account` and `Upgrade Subscription` so the plan clearly reads as `10 included + automatic $0.99/student overage`.
    - [x] Sync `Valedictorian` overage student counts into Stripe from tenant billable-count refreshes using a recurring overage subscription item/quantity model.
    - [x] Run the staged `Valedictorian` overage proof on `pj-cool`, wire a dedicated staged Stripe overage `price_...` id for `large_monthly`, and confirm Stripe subscription plus invoice-preview behavior for `11` billable / `1` overage student.
+   - [x] Capture the recommended next-session handoff for email foundation first, setup-link email second, and SaaS-page polish after that in `NOTES/email-and-saas-next-session-handoff.md`.
    - [ ] Define the outbound email delivery plan for hosted/commercial flows, including provider choice, environment secrets, templates, audit expectations, and staged-vs-production send behavior.
    - [ ] Replace setup-token-on-screen behavior with emailed activation/setup links as the default onboarding path for newly provisioned tenants.
    - [ ] Add tenant-facing password-reset email flow instead of relying only on signed-in password changes.
