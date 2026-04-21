@@ -156,7 +156,7 @@
       <div class="section-heading">
         <p class="eyebrow">Subscription Start</p>
         <h2>Checkout wireframe for the first self-serve flow.</h2>
-        <p>This section is the first-page structure for the future Stripe-backed checkout path: plan choice, owner details, and payment information collected in a clean sequence.</p>
+        <p>This section starts the Stripe-backed checkout path with plan choice and owner details before redirecting to secure Stripe Checkout.</p>
       </div>
 
       <div class="subscribe-layout">
@@ -179,13 +179,6 @@
             <label>Owner Email<input id="checkout-owner-email" type="email" placeholder="owner@example.com" required></label>
             <label>Owner Phone<input id="checkout-owner-phone" type="tel" placeholder="(555) 123-4567" required></label>
             <label>Billing Email<input id="checkout-billing-email" type="email" placeholder="billing@example.com"></label>
-          </div>
-
-          <div class="form-block">
-            <h3>Payment Information</h3>
-            <label>Cardholder Name<input type="text" placeholder="Name on card" disabled></label>
-            <label>Card Details<input type="text" placeholder="Handled by secure Stripe Checkout in implementation" disabled></label>
-            <p class="form-note">The hosted production path redirects to secure Stripe Checkout. Until Stripe price IDs and keys are loaded, this form will validate and surface readiness messages without redirecting.</p>
           </div>
 
           <p id="checkout-form-message" class="checkout-message hidden"></p>

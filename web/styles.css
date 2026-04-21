@@ -3234,6 +3234,8 @@ body {
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(16px);
   align-items: center;
+  position: relative;
+  z-index: 80;
 }
 
 #app-shell .app-brand-lockup {
@@ -3280,6 +3282,30 @@ body {
   object-position: left center;
 }
 
+#login-shell .auth-top {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+  justify-self: stretch;
+  padding: 0.78rem 1rem;
+  min-height: 0;
+  gap: 1rem;
+  border-radius: 24px;
+}
+
+#login-shell .auth-top .title-logo {
+  width: min(760px, 60vw);
+  height: 96px;
+  max-height: 96px;
+  margin: 0;
+  filter: none;
+  display: block;
+  object-fit: contain;
+  object-position: left center;
+}
+
 .session-bar {
   margin-top: 0;
   display: flex;
@@ -3290,6 +3316,8 @@ body {
   gap: 0.55rem;
   flex: 1 1 auto;
   min-width: 0;
+  position: relative;
+  z-index: 90;
 }
 
 .session-bar .muted {
@@ -3792,6 +3820,16 @@ tbody tr:hover {
     height: 88px;
     max-height: 88px;
   }
+
+  #login-shell .auth-top {
+    padding: 0.58rem 0.75rem;
+  }
+
+  #login-shell .auth-top .title-logo {
+    width: min(640px, 72vw);
+    height: 88px;
+    max-height: 88px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -3818,6 +3856,17 @@ tbody tr:hover {
     margin: 0;
   }
 
+  #login-shell .auth-top {
+    padding: 0.65rem 0.75rem;
+  }
+
+  #login-shell .auth-top .title-logo {
+    width: min(100%, 440px);
+    height: 78px;
+    max-height: 78px;
+    margin: 0;
+  }
+
   .session-bar {
     width: 100%;
     justify-content: flex-start;
@@ -3836,6 +3885,8 @@ tbody tr:hover {
 
 .account-menu-shell {
   position: relative;
+  isolation: isolate;
+  z-index: 100;
 }
 
 .account-menu-trigger {
@@ -3872,9 +3923,11 @@ tbody tr:hover {
   padding: 0.45rem;
   border: 1px solid #c2d1e2;
   border-radius: 18px;
-  background: rgba(247, 251, 255, 0.98);
+  background: #f7fbff;
   box-shadow: 0 20px 42px rgba(31, 47, 69, 0.16);
-  z-index: 120;
+  z-index: 110;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .account-menu button {
@@ -3883,7 +3936,7 @@ tbody tr:hover {
   text-align: left;
   border-radius: 12px;
   border-color: transparent;
-  background: #f1f6fc;
+  background: #eef4fb;
   color: #20344f;
   font-size: 0.86rem;
   font-weight: 500;
