@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202604202035">
+  <link rel="stylesheet" href="styles.css?v=202604202215">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -789,57 +789,68 @@
 
       <div id="students-detail-view" class="hidden">
           <div id="student-detail-panel" class="detail-panel">
-            <div class="students-detail-toolbar">
-            <button id="student-detail-apply-btn" type="button">Apply Changes</button>
-            <button id="student-detail-cancel-btn" type="button">Cancel</button>
-          </div>
-            <div class="student-detail-section student-detail-section-profile">
-              <p id="student-detail-title" class="detail-title"></p>
-              <h4>Course Enrollment</h4>
-              <h4>Add a Scheduled Item</h4>
-              <form id="student-detail-filter-form" class="inline-form">
-                <label>Quarter
-                  <select id="student-detail-quarter-filter">
-                    <option value="all">All Quarters</option>
-                  </select>
-                </label>
-              </form>
-              <form id="student-enrollment-form" class="grid-form">
-                <label class="student-enrollment-course-field">Scheduled Item
-                  <details id="student-enroll-course-dropdown" class="multi-select-dropdown">
-                    <summary id="student-enroll-course-summary">Scheduled Items (0 selected)</summary>
-                    <div id="student-enroll-course-options" class="checklist-vertical"></div>
-                  </details>
-                </label>
-                <button type="submit">Enroll Student</button>
-              </form>
+            <p id="student-detail-title" class="detail-title"></p>
+            <div class="subtab-row student-detail-subtabs" role="tablist" aria-label="Student detail sections">
+              <button class="subtab-btn active" data-student-detail-tab="schedule" type="button">Schedule</button>
+              <button class="subtab-btn" data-student-detail-tab="summary" type="button">Summary</button>
             </div>
-            <div class="student-detail-section student-detail-section-schedule">
-              <h4>Current Schedule</h4>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Scheduled Item</th><th>Type / Subject</th><th>Schedule Order</th><th>Current Avg Grade</th><th>Actions</th></tr></thead>
-                  <tbody id="student-enrollment-table"></tbody>
-                </table>
+            <div id="student-detail-schedule-wrap" class="student-detail-tab-panel">
+              <div class="student-detail-section student-detail-section-profile">
+                <h4>Course Enrollment</h4>
+                <h4>Add a Scheduled Item</h4>
+                <form id="student-detail-filter-form" class="inline-form">
+                  <label>Quarter
+                    <select id="student-detail-quarter-filter">
+                      <option value="all">All Quarters</option>
+                    </select>
+                  </label>
+                </form>
+                <form id="student-enrollment-form" class="grid-form">
+                  <label class="student-enrollment-course-field">Scheduled Item
+                    <details id="student-enroll-course-dropdown" class="multi-select-dropdown">
+                      <summary id="student-enroll-course-summary">Scheduled Items (0 selected)</summary>
+                      <div id="student-enroll-course-options" class="checklist-vertical"></div>
+                    </details>
+                  </label>
+                  <div class="student-detail-action-row">
+                    <button type="submit">Enroll Student</button>
+                    <button id="student-detail-apply-btn" type="button" class="hidden">Apply Changes</button>
+                    <button id="student-detail-cancel-btn" type="button">Cancel</button>
+                  </div>
+                </form>
+              </div>
+              <div class="student-detail-section student-detail-section-schedule">
+                <h4>Current Schedule</h4>
+                <div class="table-wrap">
+                  <table>
+                    <thead><tr><th>Scheduled Item</th><th>Type / Subject</th><th>Schedule Order</th><th>Current Avg Grade</th><th>Actions</th></tr></thead>
+                    <tbody id="student-enrollment-table"></tbody>
+                  </table>
+                </div>
               </div>
             </div>
-            <div class="student-detail-section student-detail-section-attendance">
-              <h4>Attendance Summary</h4>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Student</th><th>Days Attended</th><th>Days Absent</th></tr></thead>
-                  <tbody id="student-attendance-summary-table"></tbody>
-                </table>
+            <div id="student-detail-summary-wrap" class="student-detail-tab-panel hidden">
+              <div class="student-detail-section student-detail-section-attendance">
+                <h4>Attendance Summary</h4>
+                <div class="table-wrap">
+                  <table>
+                    <thead><tr><th>Student</th><th>Required Days</th><th>Days Attended</th><th>Days Absent</th></tr></thead>
+                    <tbody id="student-attendance-summary-table"></tbody>
+                  </table>
+                </div>
               </div>
-            </div>
 
-            <div class="student-detail-section student-detail-section-hours">
-              <h4>Instructional Hours Summary</h4>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>Student</th><th>Actual</th><th>Projected</th><th>Percentage Complete</th></tr></thead>
-                  <tbody id="student-instructional-hours-summary-table"></tbody>
-                </table>
+              <div class="student-detail-section student-detail-section-hours">
+                <h4>Instructional Hours Summary</h4>
+                <div class="table-wrap">
+                  <table>
+                    <thead><tr><th>Student</th><th>Required Hours</th><th>Actual</th><th>Projected</th><th>Percentage Complete</th></tr></thead>
+                    <tbody id="student-instructional-hours-summary-table"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="student-detail-action-row student-detail-summary-actions">
+                <button id="student-detail-summary-back-btn" type="button">Back to Students</button>
               </div>
             </div>
           </div>
@@ -1268,53 +1279,63 @@
 
     <section id="tab-attendance" class="tab-panel panel">
       <h2>Attendance</h2>
-      <div class="attendance-section attendance-section-tracker">
-        <h3>Attendance Tracker</h3>
-        <form id="attendance-form" class="grid-form">
-          <label class="attendance-student-field">Student
-            <details id="attendance-student-dropdown" class="multi-select-dropdown">
-              <summary id="attendance-student-summary">Students (0 selected)</summary>
-              <div id="attendance-student-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label>Date<input id="attendance-date" type="date" required></label>
-          <label>Status
-            <select id="attendance-status">
-              <option value="present">Present</option>
-              <option value="absent">Absent</option>
-            </select>
-          </label>
-          <button id="attendance-submit-btn" type="submit">Save Attendance</button>
-          <button id="attendance-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
-        </form>
+      <div class="subtab-row attendance-subtabs" role="tablist" aria-label="Attendance sections">
+        <button class="subtab-btn active" data-attendance-tab="enter" type="button">Enter Attendance</button>
+        <button class="subtab-btn" data-attendance-tab="search" type="button">Attendance Search</button>
       </div>
-      <div class="attendance-section attendance-section-filters">
-        <h3>Attendance Filters</h3>
-        <form id="attendance-filter-form" class="grid-form">
-          <label>Student
-            <select id="attendance-filter-student">
-              <option value="all">All Students</option>
-            </select>
-          </label>
-          <label>Date
-            <input id="attendance-filter-date" type="date">
-          </label>
-          <label>Quarter
-            <select id="attendance-filter-quarter">
-              <option value="all">All Quarters</option>
-            </select>
-          </label>
-          <label>Status
-            <select id="attendance-filter-status">
-              <option value="all">All Statuses</option>
-              <option value="present">Present</option>
-              <option value="absent">Absent</option>
-            </select>
-          </label>
-          <button id="attendance-clear-filters-btn" type="button">Clear Filters</button>
-        </form>
+      <div id="attendance-enter-wrap" class="attendance-tab-panel">
+        <div class="attendance-section attendance-section-tracker">
+          <h3>Attendance Tracker</h3>
+          <form id="attendance-form" class="grid-form">
+            <label class="attendance-student-field">Student
+              <details id="attendance-student-dropdown" class="multi-select-dropdown">
+                <summary id="attendance-student-summary">Students (0 selected)</summary>
+                <div id="attendance-student-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label>Date<input id="attendance-date" type="date" required></label>
+            <label>Status
+              <select id="attendance-status">
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+              </select>
+            </label>
+            <button id="attendance-submit-btn" type="submit">Save Attendance</button>
+            <button id="attendance-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+          </form>
+        </div>
+        <div id="attendance-enter-records-host"></div>
       </div>
-      <div class="attendance-section attendance-section-records">
+      <div id="attendance-search-wrap" class="attendance-tab-panel hidden">
+        <div class="attendance-section attendance-section-filters">
+          <h3>Attendance Filters</h3>
+          <form id="attendance-filter-form" class="grid-form">
+            <label>Student
+              <select id="attendance-filter-student">
+                <option value="all">All Students</option>
+              </select>
+            </label>
+            <label>Date
+              <input id="attendance-filter-date" type="date">
+            </label>
+            <label>Quarter
+              <select id="attendance-filter-quarter">
+                <option value="all">All Quarters</option>
+              </select>
+            </label>
+            <label>Status
+              <select id="attendance-filter-status">
+                <option value="all">All Statuses</option>
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+              </select>
+            </label>
+            <button id="attendance-clear-filters-btn" type="button">Clear Filters</button>
+          </form>
+        </div>
+        <div id="attendance-search-records-host"></div>
+      </div>
+      <div id="attendance-records-section" class="attendance-section attendance-section-records">
         <h3>Attendance Records</h3>
         <div class="table-wrap">
           <table>
@@ -1327,63 +1348,73 @@
 
     <section id="tab-grades" class="tab-panel panel">
       <h2>Grades</h2>
-      <div class="grades-section grades-section-filters">
-        <h3>Grade Filters</h3>
-        <form id="grades-filter-form" class="grid-form">
-          <label>Student
-            <select id="grades-filter-student">
-              <option value="all">All Students</option>
-            </select>
-          </label>
-          <label>Quarter
-            <select id="grades-filter-quarter">
-              <option value="all">All Quarters</option>
-            </select>
-          </label>
-          <label>School Year
-            <select id="grades-filter-school-year">
-              <option value="all">All School Years</option>
-            </select>
-          </label>
-          <label>Subject
-            <select id="grades-filter-subject">
-              <option value="all">All Subjects</option>
-            </select>
-          </label>
-          <label>Instructor
-            <select id="grades-filter-instructor">
-              <option value="all">All Instructors</option>
-            </select>
-          </label>
-          <label>Course
-            <select id="grades-filter-course">
-              <option value="all">All Courses</option>
-            </select>
-          </label>
-          <label>Grade Type
-            <select id="grades-filter-grade-type">
-              <option value="all">All Grade Types</option>
-              <option value="Assignment">Assignment</option>
-              <option value="Quiz">Quiz</option>
-              <option value="Test">Test</option>
-              <option value="Quarterly Final">Quarterly Final</option>
-              <option value="Final">Final</option>
-            </select>
-          </label>
-          <button id="grades-clear-filters-btn" type="button">Clear Filters</button>
-        </form>
+      <div class="subtab-row grades-subtabs" role="tablist" aria-label="Grade sections">
+        <button class="subtab-btn active" data-grades-tab="enter" type="button">Enter Grades</button>
+        <button class="subtab-btn" data-grades-tab="search" type="button">Grade Search</button>
       </div>
-      <div class="grades-section grades-section-entry">
-        <h3>New Grade Entry</h3>
-        <button id="add-grade-row-btn" type="button">Enter New Grade</button>
-        <div id="grade-entry-wrap" class="table-wrap hidden">
-          <table>
-            <thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead>
-            <tbody id="grade-entry-body"></tbody>
-          </table>
+      <div id="grades-enter-wrap" class="grades-tab-panel">
+        <div class="grades-section grades-section-entry">
+          <h3>New Grade Entry</h3>
+          <button id="add-grade-row-btn" type="button">Enter New Grade</button>
+          <div id="grade-entry-wrap" class="table-wrap hidden">
+            <table>
+              <thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead>
+              <tbody id="grade-entry-body"></tbody>
+            </table>
+          </div>
         </div>
+        <div id="grades-enter-records-host"></div>
       </div>
-      <div class="grades-section grades-section-records">
+      <div id="grades-search-wrap" class="grades-tab-panel hidden">
+        <div class="grades-section grades-section-filters">
+          <h3>Grade Filters</h3>
+          <form id="grades-filter-form" class="grid-form">
+            <label>Student
+              <select id="grades-filter-student">
+                <option value="all">All Students</option>
+              </select>
+            </label>
+            <label>Quarter
+              <select id="grades-filter-quarter">
+                <option value="all">All Quarters</option>
+              </select>
+            </label>
+            <label>School Year
+              <select id="grades-filter-school-year">
+                <option value="all">All School Years</option>
+              </select>
+            </label>
+            <label>Subject
+              <select id="grades-filter-subject">
+                <option value="all">All Subjects</option>
+              </select>
+            </label>
+            <label>Instructor
+              <select id="grades-filter-instructor">
+                <option value="all">All Instructors</option>
+              </select>
+            </label>
+            <label>Course
+              <select id="grades-filter-course">
+                <option value="all">All Courses</option>
+              </select>
+            </label>
+            <label>Grade Type
+              <select id="grades-filter-grade-type">
+                <option value="all">All Grade Types</option>
+                <option value="Assignment">Assignment</option>
+                <option value="Quiz">Quiz</option>
+                <option value="Test">Test</option>
+                <option value="Quarterly Final">Quarterly Final</option>
+                <option value="Final">Final</option>
+              </select>
+            </label>
+            <button id="grades-clear-filters-btn" type="button">Clear Filters</button>
+          </form>
+        </div>
+        <div id="grades-search-records-host"></div>
+      </div>
+      <div id="grades-records-section" class="grades-section grades-section-records">
         <h3>Grade Records</h3>
         <div class="table-wrap">
           <table>
@@ -1549,6 +1580,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202604191700"></script>
+  <script src="app.js?v=202604202255"></script>
   </body>
   </html>

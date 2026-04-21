@@ -1911,7 +1911,7 @@ td {
   justify-content: space-between;
   gap: 0.8rem;
   flex-wrap: wrap;
-  margin-bottom: 0.45rem;
+  margin-bottom: 1rem;
 }
 
 .school-day-quick-filters {
@@ -2497,6 +2497,22 @@ td {
   color: #fff;
 }
 
+.attendance-subtabs,
+.grades-subtabs,
+.student-detail-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.3rem 0 0.75rem;
+}
+
+.attendance-tab-panel,
+.grades-tab-panel,
+.student-detail-tab-panel {
+  display: grid;
+  gap: 0.6rem;
+}
+
 .reports-section {
   border: 1px solid #d8cfbf;
   border-radius: 10px;
@@ -2747,7 +2763,7 @@ td {
 }
 
 #student-enrollment-form {
-  grid-template-columns: minmax(260px, 1fr) auto;
+  grid-template-columns: minmax(260px, 1fr);
 }
 
 #student-enrollment-form label {
@@ -2762,6 +2778,18 @@ td {
 
 #student-enrollment-form .multi-select-dropdown[open] {
   padding-bottom: 0.1rem;
+}
+
+.student-detail-action-row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.student-detail-action-row button {
+  width: auto;
 }
 
 .student-schedule-order-select {

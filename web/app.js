@@ -1019,6 +1019,9 @@ let currentScheduleTab = "school-years";
 let currentSchoolDayTab = "daily-schedule";
 let currentAdministrationTab = "workspace-configuration";
 let currentDashboardTab = "overview";
+let currentAttendanceTab = "enter";
+let currentGradesTab = "enter";
+let currentStudentDetailTab = "schedule";
 let schoolDayInlineGradeKey = "";
 let schoolDayDailyMessageState = { kind: "", text: "" };
 let schoolDayAttendanceMessageState = { kind: "", text: "" };
@@ -2441,6 +2444,7 @@ function beginStudentDetail(studentId) {
   const student = state.students.find((entry) => entry.id === studentId);
   if (!student) return;
   selectedStudentId = studentId;
+  currentStudentDetailTab = "schedule";
   primeStudentEnrollmentDraft(studentId);
   setStudentViewMode("detail");
   renderStudentViewMode();
@@ -2464,6 +2468,52 @@ function activateTab(tabName) {
   setActiveTab(tabName);
   renderSelects();
   renderCurrentTabPanel();
+}
+
+function renderAttendanceSectionVisibility() {
+  const visibleTab = currentAttendanceTab === "search" ? "search" : "enter";
+  currentAttendanceTab = visibleTab;
+  const enterWrap = document.getElementById("attendance-enter-wrap");
+  const searchWrap = document.getElementById("attendance-search-wrap");
+  const recordsSection = document.getElementById("attendance-records-section");
+  const recordsHost = document.getElementById(`attendance-${visibleTab}-records-host`);
+  if (enterWrap) enterWrap.classList.toggle("hidden", visibleTab !== "enter");
+  if (searchWrap) searchWrap.classList.toggle("hidden", visibleTab !== "search");
+  if (recordsSection && recordsHost && recordsSection.parentElement !== recordsHost) {
+    recordsHost.appendChild(recordsSection);
+  }
+  document.querySelectorAll("[data-attendance-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-attendance-tab") === visibleTab);
+  });
+}
+
+function renderGradesSectionVisibility() {
+  const visibleTab = currentGradesTab === "search" ? "search" : "enter";
+  currentGradesTab = visibleTab;
+  const enterWrap = document.getElementById("grades-enter-wrap");
+  const searchWrap = document.getElementById("grades-search-wrap");
+  const recordsSection = document.getElementById("grades-records-section");
+  const recordsHost = document.getElementById(`grades-${visibleTab}-records-host`);
+  if (enterWrap) enterWrap.classList.toggle("hidden", visibleTab !== "enter");
+  if (searchWrap) searchWrap.classList.toggle("hidden", visibleTab !== "search");
+  if (recordsSection && recordsHost && recordsSection.parentElement !== recordsHost) {
+    recordsHost.appendChild(recordsSection);
+  }
+  document.querySelectorAll("[data-grades-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-grades-tab") === visibleTab);
+  });
+}
+
+function renderStudentDetailSectionVisibility() {
+  const visibleTab = currentStudentDetailTab === "summary" ? "summary" : "schedule";
+  currentStudentDetailTab = visibleTab;
+  const scheduleWrap = document.getElementById("student-detail-schedule-wrap");
+  const summaryWrap = document.getElementById("student-detail-summary-wrap");
+  if (scheduleWrap) scheduleWrap.classList.toggle("hidden", visibleTab !== "schedule");
+  if (summaryWrap) summaryWrap.classList.toggle("hidden", visibleTab !== "summary");
+  document.querySelectorAll("[data-student-detail-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-student-detail-tab") === visibleTab);
+  });
 }
 
 function invalidateDashboardCache() {
@@ -2502,9 +2552,11 @@ function renderCurrentTabPanel() {
       updatePlanFormMode();
       break;
     case "attendance":
+      renderAttendanceSectionVisibility();
       renderAttendance();
       break;
     case "grades":
+      renderGradesSectionVisibility();
       renderTests();
       updateGradeEntryVisibility();
       break;
@@ -6428,9 +6480,11 @@ function renderStudentDetail() {
   }
 
   document.getElementById("student-detail-title").textContent = `${student.firstName} ${student.lastName} | Grade ${student.grade} | Age ${calculateAge(student.birthdate)}`;
+  renderStudentDetailSectionVisibility();
   const applyBtn = document.getElementById("student-detail-apply-btn");
   if (applyBtn) {
-    applyBtn.textContent = studentEnrollmentEditMode ? "Apply Changes" : "Students";
+    applyBtn.textContent = "Apply Changes";
+    applyBtn.classList.toggle("hidden", !studentEnrollmentEditMode);
   }
   renderStudentEnrollmentCourseChecklist(getSelectedStudentEnrollmentCourseIds(), student.id);
 
@@ -6473,10 +6527,11 @@ function renderStudentDetail() {
   rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 5);
 
   const summary = studentAttendanceSummaryByRange(student.id, rangeStart, rangeEnd);
+  const requiredDaysDisplay = schoolYear.requiredInstructionalDays == null ? "-" : String(schoolYear.requiredInstructionalDays);
   const attendanceRows = [
-    `<tr><td>${student.firstName} ${student.lastName}</td><td>${summary.attended}</td><td>${summary.absent}</td></tr>`
+    `<tr><td>${student.firstName} ${student.lastName}</td><td>${requiredDaysDisplay}</td><td>${summary.attended}</td><td>${summary.absent}</td></tr>`
   ];
-  rowOrEmpty(document.getElementById("student-attendance-summary-table"), attendanceRows, "No students available.", 3);
+  rowOrEmpty(document.getElementById("student-attendance-summary-table"), attendanceRows, "No students available.", 4);
 
   const instructionalHoursSnapshot = buildInstructionalHoursSnapshot([student.id]);
   const selectedBucketKey = selectedQuarter === "all" ? "total" : selectedQuarter.toLowerCase();
@@ -6484,14 +6539,15 @@ function renderStudentDetail() {
   const completionPct = bucketSummary.projected > 0
     ? ((bucketSummary.earned / bucketSummary.projected) * 100).toFixed(1)
     : "0.0";
+  const requiredHoursDisplay = schoolYear.requiredInstructionalHours == null ? "-" : Number(schoolYear.requiredInstructionalHours).toFixed(1);
   const instructionalHoursRows = [
-    `<tr${selectedQuarter === "all" && schoolYear.requiredInstructionalHours != null && bucketSummary.projected < schoolYear.requiredInstructionalHours ? " class='warning-row'" : ""}><td>${student.firstName} ${student.lastName}</td><td>${bucketSummary.earned.toFixed(1)}</td><td>${bucketSummary.projected.toFixed(1)}</td><td>${completionPct}%</td></tr>`
+    `<tr${selectedQuarter === "all" && schoolYear.requiredInstructionalHours != null && bucketSummary.projected < schoolYear.requiredInstructionalHours ? " class='warning-row'" : ""}><td>${student.firstName} ${student.lastName}</td><td>${requiredHoursDisplay}</td><td>${bucketSummary.earned.toFixed(1)}</td><td>${bucketSummary.projected.toFixed(1)}</td><td>${completionPct}%</td></tr>`
   ];
   rowOrEmpty(
     document.getElementById("student-instructional-hours-summary-table"),
     instructionalHoursRows,
     "No instructional hours available.",
-    4
+    5
   );
   const hoursWarningId = "student-instructional-hours-warning";
   const detailPanel = document.getElementById("student-detail-panel");
@@ -6720,10 +6776,11 @@ function renderPlans() {
 
 function renderAttendance() {
   const viewerStudentId = currentStudentId();
-  const studentFilter = viewerStudentId || document.getElementById("attendance-filter-student")?.value || "all";
-  const dateFilter = document.getElementById("attendance-filter-date")?.value || "";
-  const quarterFilter = document.getElementById("attendance-filter-quarter")?.value || "all";
-  const statusFilter = document.getElementById("attendance-filter-status")?.value || "all";
+  const useSearchFilters = currentAttendanceTab === "search";
+  const studentFilter = viewerStudentId || (useSearchFilters ? document.getElementById("attendance-filter-student")?.value : "all") || "all";
+  const dateFilter = useSearchFilters ? document.getElementById("attendance-filter-date")?.value || "" : "";
+  const quarterFilter = useSearchFilters ? document.getElementById("attendance-filter-quarter")?.value || "all" : "all";
+  const statusFilter = useSearchFilters ? document.getElementById("attendance-filter-status")?.value || "all" : "all";
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
 
   const filtered = state.attendance.filter((a) => {
@@ -6869,7 +6926,6 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
     return;
   }
   const roster = schoolDayRosterStudents(referenceISO);
-  const blocksByStudent = dailyScheduledBlocks(referenceISO, studentFilterIds, subjectFilterIds, courseFilterIds);
   const singleSelectedStudentId = studentFilterIds.length === 1 ? studentFilterIds[0] : "";
   const showOverview = roster.length > 1 && !singleSelectedStudentId;
   if (!showOverview) {
@@ -6879,7 +6935,10 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
     return;
   }
   const cards = roster.map((student) => {
-    const instructionBlocks = (blocksByStudent.get(student.id) || []).filter((block) => block.type === "instruction");
+    const studentBlocks = dailyScheduledBlocks(referenceISO, [student.id], subjectFilterIds, courseFilterIds);
+    const instructionBlocks = (studentBlocks.get(student.id) || [])
+      .filter((block) => block.type === "instruction")
+      .sort((a, b) => a.start - b.start || getCourseName(a.courseId).localeCompare(getCourseName(b.courseId)));
     if (!instructionBlocks.length) return "";
     const rows = instructionBlocks.map((block) => {
       const isCompleted = effectiveInstructionCompleted(student.id, block.courseId, referenceISO);
@@ -7176,13 +7235,14 @@ function beginAttendanceEdit(target) {
 
 function renderTests() {
   const viewerStudentId = currentStudentId();
-  const studentFilter = viewerStudentId || document.getElementById("grades-filter-student")?.value || "all";
-  const quarterFilter = document.getElementById("grades-filter-quarter")?.value || "all";
-  const schoolYearFilter = document.getElementById("grades-filter-school-year")?.value || "all";
-  const subjectFilter = document.getElementById("grades-filter-subject")?.value || "all";
-  const instructorFilter = document.getElementById("grades-filter-instructor")?.value || "all";
-  const courseFilter = document.getElementById("grades-filter-course")?.value || "all";
-  const gradeTypeFilter = document.getElementById("grades-filter-grade-type")?.value || "all";
+  const useSearchFilters = currentGradesTab === "search";
+  const studentFilter = viewerStudentId || (useSearchFilters ? document.getElementById("grades-filter-student")?.value : "all") || "all";
+  const quarterFilter = useSearchFilters ? document.getElementById("grades-filter-quarter")?.value || "all" : "all";
+  const schoolYearFilter = useSearchFilters ? document.getElementById("grades-filter-school-year")?.value || "all" : "all";
+  const subjectFilter = useSearchFilters ? document.getElementById("grades-filter-subject")?.value || "all" : "all";
+  const instructorFilter = useSearchFilters ? document.getElementById("grades-filter-instructor")?.value || "all" : "all";
+  const courseFilter = useSearchFilters ? document.getElementById("grades-filter-course")?.value || "all" : "all";
+  const gradeTypeFilter = useSearchFilters ? document.getElementById("grades-filter-grade-type")?.value || "all" : "all";
 
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
   const schoolYearStart = state.settings.schoolYear.startDate;
@@ -10296,11 +10356,9 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       const actualStartTarget = block.type === "instruction"
         ? effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, plannedStart)
         : plannedStart;
-      const explicitStartOverride = block.type === "instruction"
-        && hasInstructionStartOverride(block.studentId, block.courseId, dateKey);
-      const actualStart = explicitStartOverride
+      const actualStart = actualCursor == null
         ? actualStartTarget
-        : (actualCursor == null ? actualStartTarget : Math.max(actualStartTarget, actualCursor));
+        : Math.max(actualStartTarget, actualCursor);
       const actualEnd = Math.min(24 * 60, actualStart + actualDuration);
       adjustedBlocks.push({
         ...block,
@@ -12221,6 +12279,16 @@ function bindEvents() {
       renderAll();
     });
   }
+  const studentDetailSummaryBackBtn = document.getElementById("student-detail-summary-back-btn");
+  if (studentDetailSummaryBackBtn) {
+    studentDetailSummaryBackBtn.addEventListener("click", () => {
+      resetStudentEnrollmentDraft();
+      selectedStudentId = "";
+      setStudentViewMode("list");
+      renderStudentViewMode();
+      renderAll();
+    });
+  }
 
   const studentDetailApplyBtn = document.getElementById("student-detail-apply-btn");
   if (studentDetailApplyBtn) {
@@ -13629,6 +13697,26 @@ function bindEvents() {
       currentSchoolDayTab = ["daily-schedule", "attendance", "grades"].includes(schoolDayTab) ? schoolDayTab : "daily-schedule";
       saveSchoolDayPreferences();
       renderSchoolDaySectionVisibility();
+      return;
+    }
+    const attendanceTab = t.getAttribute("data-attendance-tab");
+    if (attendanceTab) {
+      currentAttendanceTab = attendanceTab === "search" ? "search" : "enter";
+      renderAttendanceSectionVisibility();
+      renderAttendance();
+      return;
+    }
+    const gradesTab = t.getAttribute("data-grades-tab");
+    if (gradesTab) {
+      currentGradesTab = gradesTab === "search" ? "search" : "enter";
+      renderGradesSectionVisibility();
+      renderTests();
+      return;
+    }
+    const studentDetailTab = t.getAttribute("data-student-detail-tab");
+    if (studentDetailTab) {
+      currentStudentDetailTab = studentDetailTab === "summary" ? "summary" : "schedule";
+      renderStudentDetailSectionVisibility();
       return;
     }
     const administrationTab = t.getAttribute("data-administration-tab");
