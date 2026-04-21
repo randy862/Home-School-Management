@@ -230,7 +230,17 @@ img {
 }
 
 .hero-copy {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.92fr) minmax(260px, 0.78fr);
+  align-items: start;
+  gap: 1.05rem;
   padding: 0.35rem 0.1rem 0.2rem;
+}
+
+.hero-message,
+.hero-actions,
+.hero-trust-list {
+  grid-column: 1;
 }
 
 .eyebrow {
@@ -252,9 +262,9 @@ ol {
 }
 
 h1 {
-  max-width: 12ch;
+  max-width: 13.5ch;
   margin-bottom: 0.8rem;
-  font-size: clamp(2.6rem, 5vw, 4.6rem);
+  font-size: clamp(2.4rem, 4.7vw, 4.25rem);
   line-height: 0.98;
   letter-spacing: -0.05em;
 }
@@ -286,11 +296,54 @@ h3 {
   line-height: 1.65;
 }
 
+.hero-lead {
+  color: var(--muted);
+  line-height: 1.42;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem;
   margin: 1.3rem 0 1rem;
+}
+
+.hero-lead-emphasis {
+  margin-bottom: 0.55rem;
+  color: var(--text);
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.hero-image-card {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  margin: 0;
+  border-radius: 26px;
+  overflow: hidden;
+  border: 1px solid rgba(198, 211, 228, 0.9);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 22px 48px rgba(31, 47, 69, 0.13);
+}
+
+.hero-image-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, transparent 46%),
+    linear-gradient(0deg, rgba(31, 47, 69, 0.18) 0%, transparent 38%);
+  pointer-events: none;
+}
+
+.hero-image-card img {
+  display: block;
+  width: 100%;
+  height: clamp(300px, 35vw, 470px);
+  object-fit: cover;
+  object-position: center;
 }
 
 .hero-trust-list {
@@ -597,6 +650,10 @@ h3 {
     grid-template-columns: 1fr;
   }
 
+  .hero-copy {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.75fr);
+  }
+
   .site-header {
     flex-direction: column;
     align-items: stretch;
@@ -647,6 +704,20 @@ h3 {
   .hero-actions,
   .site-nav {
     flex-direction: column;
+  }
+
+  .hero-copy {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-image-card {
+    grid-column: 1;
+    grid-row: auto;
+    margin: 0.2rem 0 0.4rem;
+  }
+
+  .hero-image-card img {
+    height: clamp(210px, 58vw, 320px);
   }
 
   .header-cta,
