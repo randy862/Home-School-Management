@@ -5448,6 +5448,7 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
     : "<p>No instructional hours found for the selected filters.</p>";
   const totalInstructionalHours = instructionalHourRows.reduce((sum, row) => sum + row.instructionalHours, 0);
   const pageSections = [];
+  const includesGradeContent = selectedContentIds.some((contentId) => ["studentSummary", "courseSummary", "detailedGrades"].includes(contentId));
 
   if (selectedContentIds.includes("studentSummary")) {
     pageSections.push(`
@@ -5521,7 +5522,7 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
           <tbody>${gradeWeightingTableRows}</tbody>
         </table>
       </section>`;
-  if (pageSections.length) {
+  if (includesGradeContent && pageSections.length) {
     pageSections[0] = pageSections[0].replace("</section>", `${gradeWeightingSection}
     </section>`);
   }
