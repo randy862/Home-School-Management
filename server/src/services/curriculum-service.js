@@ -56,7 +56,7 @@ function normalizeCoursePayload(input) {
 }
 
 function hasCourseMaterialDetails(material) {
-  return !!(material.type || material.other || material.title || material.publisher);
+  return !!(material.type || material.other || material.isbn || material.title || material.publisher);
 }
 
 function normalizeCourseMaterials(materialsInput) {
@@ -75,6 +75,7 @@ function normalizeCourseMaterial(material) {
   return {
     type,
     other: type === "other" ? String(material?.other || "").trim() : "",
+    isbn: String(material?.isbn || "").trim(),
     title: String(material?.title || "").trim(),
     publisher: String(material?.publisher || "").trim()
   };

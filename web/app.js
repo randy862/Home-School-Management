@@ -469,7 +469,7 @@ function normalizeCoursesShape(inputState) {
 }
 
 function hasCourseMaterialDetails(material) {
-  return !!(material.type || material.title || material.publisher || material.other);
+  return !!(material.type || material.isbn || material.title || material.publisher || material.other);
 }
 
 function normalizeCourseMaterial(material) {
@@ -478,6 +478,7 @@ function normalizeCourseMaterial(material) {
   return {
     type,
     other: type === "other" ? String(material?.other || "").trim() : "",
+    isbn: String(material?.isbn || "").trim(),
     title: String(material?.title || "").trim(),
     publisher: String(material?.publisher || "").trim()
   };
@@ -501,6 +502,7 @@ function formatCourseMaterialEntry(materialInput) {
   const parts = [];
   const typeLabel = getCourseMaterialTypeLabel(material.type);
   if (typeLabel) parts.push(typeLabel);
+  if (material.isbn) parts.push(`ISBN ${material.isbn}`);
   if (material.title) parts.push(material.title);
   if (material.publisher) parts.push(material.publisher);
   if (material.type === "other" && material.other) parts.push(material.other);
@@ -1112,6 +1114,7 @@ let reportSelectedStudentIds = new Set();
 const STUDENT_REPORT_CONTENT_OPTIONS = [
   { id: "studentSummary", label: "Student Summary" },
   { id: "courseSummary", label: "Course Summary" },
+  { id: "courseDetails", label: "Course Details" },
   { id: "detailedGrades", label: "Detailed Grades" },
   { id: "detailedAttendance", label: "Detailed Attendance" },
   { id: "instructionalHours", label: "Instructional Hours" }
@@ -5120,6 +5123,34 @@ function reportStudentCourseSummaryRows(studentIds, range, options = {}) {
     || a.course.localeCompare(b.course));
 }
 
+function reportStudentCourseDetailRows(studentIds, options = {}) {
+  const instructorId = options.instructorId || "all";
+  const rows = [];
+  studentIds.forEach((studentId) => {
+    const seenCourseIds = new Set();
+    sortedStudentEnrollments(studentId).forEach((enrollment) => {
+      if (seenCourseIds.has(enrollment.courseId)) return;
+      seenCourseIds.add(enrollment.courseId);
+      const course = getCourse(enrollment.courseId);
+      if (!course || !matchesInstructorFilter(assignedInstructorIdForCourse(course.id), instructorId)) return;
+      const materials = normalizeCourseMaterials(course.materials || course.material);
+      materials.forEach((material) => {
+        rows.push({
+          studentId,
+          student: getStudentName(studentId),
+          course: course.name,
+          materialType: getCourseMaterialTypeLabel(material.type) || "Not specified",
+          isbn: material.isbn || "-",
+          title: material.title || "-",
+          publisher: material.publisher || "-",
+          other: material.type === "other" && material.other ? material.other : "-"
+        });
+      });
+    });
+  });
+  return rows;
+}
+
 function reportGradeRows(studentIds, range, options = {}) {
   const instructorId = options.instructorId || "all";
   const studentOrder = new Map(studentIds.map((studentId, index) => [studentId, index]));
@@ -5319,6 +5350,7 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
   const configuredWeights = configuredGradeTypes();
   const summaryRows = reportSummaryRows(studentIds, range, { instructorId });
   const studentCourseSummaryRows = reportStudentCourseSummaryRows(studentIds, range, { instructorId });
+  const studentCourseDetailRows = reportStudentCourseDetailRows(studentIds, { instructorId });
   const gradeRows = reportGradeRows(studentIds, range, { instructorId });
   const attendanceRows = reportAttendanceRows(studentIds, range);
   const instructionalHourRows = reportInstructionalHourRows(studentIds, range, { instructorId });
@@ -5354,6 +5386,34 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
       }).join("");
     })()
     : "<p>No course summary data found for the selected filters.</p>";
+  const studentCourseDetailSections = studentCourseDetailRows.length
+    ? (() => {
+      const groupedRows = new Map();
+      studentCourseDetailRows.forEach((row) => {
+        if (!groupedRows.has(row.student)) groupedRows.set(row.student, []);
+        groupedRows.get(row.student).push(row);
+      });
+      return Array.from(groupedRows.entries()).map(([student, rows]) => {
+        const tableRows = rows
+          .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${escapeHtml(row.materialType)}</td><td>${escapeHtml(row.isbn)}</td><td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.publisher)}</td><td>${escapeHtml(row.other)}</td></tr>`)
+          .join("");
+        return `
+          <h2>${escapeHtml(student)}</h2>
+          <table class="report-table report-table-course-details">
+            <colgroup>
+              <col style="width:24%">
+              <col style="width:16%">
+              <col style="width:16%">
+              <col style="width:20%">
+              <col style="width:14%">
+              <col style="width:10%">
+            </colgroup>
+            <thead><tr><th>Course</th><th>Material Type</th><th>ISBN</th><th>Title</th><th>Publisher</th><th>Other</th></tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>`;
+      }).join("");
+    })()
+    : "<p>No course material details found for the selected filters.</p>";
   const gradeWeightingTableRows = configuredWeights.length
     ? configuredWeights.map((gradeType) => `<tr><td>${escapeHtml(gradeType.name)}</td><td>${gradeType.weight == null ? "Not set" : `${Number(gradeType.weight).toFixed(1)}%`}</td></tr>`).join("")
     : "<tr><td colspan='2'>No grade weighting configured.</td></tr>";
@@ -5407,6 +5467,15 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
       <h1>Course Summary</h1>
       <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}<br>Instructor: ${escapeHtml(selectedInstructorLabel)}</p>
       ${studentCourseSummarySections}
+    </section>`);
+  }
+
+  if (selectedContentIds.includes("courseDetails")) {
+    pageSections.push(`
+    <section class="report-page report-page-break">
+      <h1>Course Details</h1>
+      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}<br>Instructor: ${escapeHtml(selectedInstructorLabel)}</p>
+      ${studentCourseDetailSections}
     </section>`);
   }
 
@@ -6388,8 +6457,8 @@ function renderCourses() {
   renderCourseMaterialsDraft();
   if (!tableBody) return;
   const rows = state.courses
-    .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td>${c.exclusiveResource ? "Yes" : "No"}</td><td>${escapeHtml(formatCourseMaterialSummary(c))}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
-  rowOrEmpty(tableBody, rows, "No courses added yet.", 7);
+    .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td>${c.exclusiveResource ? "Yes" : "No"}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
+  rowOrEmpty(tableBody, rows, "No courses added yet.", 6);
 }
 
 function renderGradeTypes() {
@@ -11209,7 +11278,7 @@ function renderCourseMaterialsDraft() {
   }
   container.innerHTML = courseMaterialsDraft.map((material, index) => `
     <div class="course-materials-grid" data-course-material-index="${index}">
-      <label>Material Type
+      <label class="course-material-type-field">Material Type
         <select data-course-material-field="type">
           <option value="">Not specified</option>
           <option value="text_book"${material.type === "text_book" ? " selected" : ""}>Text Book</option>
@@ -11219,9 +11288,10 @@ function renderCourseMaterialsDraft() {
           <option value="other"${material.type === "other" ? " selected" : ""}>Other</option>
         </select>
       </label>
-      <label>Title<input data-course-material-field="title" type="text" value="${escapeHtml(material.title)}"></label>
-      <label>Publisher<input data-course-material-field="publisher" type="text" value="${escapeHtml(material.publisher)}"></label>
-      <label class="${material.type === "other" ? "" : "hidden"}">Other Note<input data-course-material-field="other" type="text" value="${escapeHtml(material.other)}"></label>
+      <label class="course-material-isbn-field">ISBN<input data-course-material-field="isbn" type="text" maxlength="17" value="${escapeHtml(material.isbn)}"></label>
+      <label class="course-material-title-field">Title<input data-course-material-field="title" type="text" value="${escapeHtml(material.title)}"></label>
+      <label class="course-material-publisher-field">Publisher<input data-course-material-field="publisher" type="text" value="${escapeHtml(material.publisher)}"></label>
+      <label class="course-material-other-field ${material.type === "other" ? "" : "hidden"}">Other Note<input data-course-material-field="other" type="text" value="${escapeHtml(material.other)}"></label>
       <button class="course-material-remove-btn" data-remove-course-material="${index}" type="button">Remove</button>
     </div>
   `).join("");

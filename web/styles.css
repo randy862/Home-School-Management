@@ -2898,8 +2898,8 @@ td {
 
 .course-materials-grid {
   display: grid;
-  grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.25fr) minmax(180px, 1.1fr) minmax(180px, 1.1fr) auto;
-  gap: 0.7rem;
+  grid-template-columns: minmax(150px, 0.85fr) calc(17ch + 1.6rem) minmax(180px, 1.45fr) minmax(160px, 1fr) auto;
+  gap: 0.85rem 1rem;
   align-items: end;
   padding: 0.7rem;
   border: 1px solid var(--edge);
@@ -2910,10 +2910,28 @@ td {
 .course-materials-grid label {
   display: grid;
   gap: 0.3rem;
+  min-width: 0;
+}
+
+.course-materials-grid input,
+.course-materials-grid select {
+  width: 100%;
+  min-width: 0;
+}
+
+.course-material-isbn-field {
+  width: calc(17ch + 1.6rem);
+}
+
+.course-materials-grid label.hidden {
+  display: none;
 }
 
 .course-material-remove-btn {
   align-self: end;
+  justify-self: start;
+  width: fit-content;
+  white-space: nowrap;
 }
 
 .course-table-actions {
