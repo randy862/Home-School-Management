@@ -232,14 +232,13 @@ img {
 .hero-copy {
   display: grid;
   grid-template-columns: minmax(280px, 0.92fr) minmax(260px, 0.78fr);
-  align-items: start;
+  align-items: stretch;
   gap: 1.05rem;
   padding: 0.35rem 0.1rem 0.2rem;
 }
 
 .hero-message,
-.hero-actions,
-.hero-trust-list {
+.hero-proof-panel {
   grid-column: 1;
 }
 
@@ -291,7 +290,12 @@ h3 {
 .summary-card p,
 .summary-card li,
 .form-note,
-.proof-grid p {
+.proof-grid p,
+.proof-grid li,
+.problem-panel p,
+.problem-panel li,
+.solution-panel p,
+.solution-panel li {
   color: var(--muted);
   line-height: 1.65;
 }
@@ -305,7 +309,7 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 0.7rem;
-  margin: 1.3rem 0 1rem;
+  margin: 1.3rem 0 0;
 }
 
 .hero-lead-emphasis {
@@ -316,16 +320,24 @@ h3 {
   letter-spacing: -0.02em;
 }
 
+.hero-visual-column {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0.48rem;
+  min-height: 0;
+}
+
 .hero-image-card {
   position: relative;
-  grid-column: 2;
-  grid-row: 1 / span 3;
   margin: 0;
   border-radius: 26px;
   overflow: hidden;
   border: 1px solid rgba(198, 211, 228, 0.9);
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 22px 48px rgba(31, 47, 69, 0.13);
+  min-height: 0;
 }
 
 .hero-image-card::after {
@@ -341,24 +353,28 @@ h3 {
 .hero-image-card img {
   display: block;
   width: 100%;
-  height: clamp(300px, 35vw, 470px);
+  height: 100%;
+  min-height: 210px;
   object-fit: cover;
   object-position: center;
 }
 
 .hero-trust-list {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.35rem;
   padding: 0;
+  margin-bottom: 0;
   list-style: none;
 }
 
 .hero-trust-list li {
-  padding: 0.8rem 0.95rem;
-  border-radius: 18px;
+  padding: 0.52rem 0.72rem;
+  border-radius: 15px;
   background: rgba(248, 251, 255, 0.92);
   border: 1px solid var(--edge);
+  font-size: 0.86rem;
   font-weight: 600;
+  line-height: 1.2;
 }
 
 .hero-aside {
@@ -381,6 +397,23 @@ h3 {
 
 .hero-panel {
   padding: 1.05rem 1.1rem;
+}
+
+.hero-proof-panel {
+  grid-column: 1 / -1;
+}
+
+.problem-panel h2,
+.solution-panel h2 {
+  font-size: clamp(1.45rem, 2.2vw, 2rem);
+}
+
+.problem-panel ul,
+.solution-panel ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.45rem 0 0.85rem;
+  padding-left: 1.15rem;
 }
 
 .panel-label,
@@ -410,7 +443,30 @@ h3 {
 
 .proof-grid {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
+}
+
+.proof-grid ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.15rem;
+}
+
+.hero-proof-panel p,
+.hero-proof-panel li,
+.problem-panel p,
+.problem-panel li,
+.solution-panel p,
+.solution-panel li {
+  line-height: 1.42;
+}
+
+.hero-proof-panel p,
+.problem-panel p,
+.solution-panel p {
+  margin-bottom: 0.55rem;
 }
 
 .proof-grid strong {
@@ -439,6 +495,54 @@ h3 {
 
 .feature-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.joy-section {
+  padding: 1rem;
+  border-radius: 30px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.92) 0%, rgba(247, 251, 255, 0.9) 100%);
+}
+
+.joy-title-bar {
+  padding: 0.95rem 1.1rem;
+  margin-bottom: 0.85rem;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(13, 88, 166, 0.95) 0%, rgba(38, 128, 199, 0.92) 100%);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 18px 34px rgba(23, 97, 174, 0.16);
+}
+
+.joy-title-bar h2 {
+  margin-bottom: 0;
+  font-size: clamp(1.55rem, 2.6vw, 2.45rem);
+  letter-spacing: -0.03em;
+}
+
+.joy-photo-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.joy-photo-card {
+  position: relative;
+  min-height: 230px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(198, 211, 228, 0.85);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 20px 44px rgba(31, 47, 69, 0.12);
+}
+
+.joy-photo-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 230px;
+  object-fit: cover;
+  object-position: center;
 }
 
 .story-grid {
@@ -646,12 +750,22 @@ h3 {
   }
 
   .feature-grid,
-  .faq-grid {
+  .faq-grid,
+  .joy-photo-row {
     grid-template-columns: 1fr;
   }
 
   .hero-copy {
     grid-template-columns: minmax(0, 1fr) minmax(260px, 0.75fr);
+  }
+
+  .proof-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-visual-column {
+    grid-column: 1 / -1;
+    grid-row: auto;
   }
 
   .site-header {
@@ -680,6 +794,9 @@ h3 {
   .site-header,
   .hero-section,
   .section-heading,
+  .joy-section,
+  .joy-title-bar,
+  .joy-photo-card,
   .feature-card,
   .story-step,
   .pricing-card,
@@ -711,8 +828,6 @@ h3 {
   }
 
   .hero-image-card {
-    grid-column: 1;
-    grid-row: auto;
     margin: 0.2rem 0 0.4rem;
   }
 
