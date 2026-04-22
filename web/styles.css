@@ -2898,7 +2898,7 @@ td {
 
 .course-materials-grid {
   display: grid;
-  grid-template-columns: minmax(150px, 0.85fr) calc(17ch + 1.6rem) minmax(180px, 1.45fr) minmax(160px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.85rem 1rem;
   align-items: end;
   padding: 0.7rem;
@@ -2919,8 +2919,16 @@ td {
   min-width: 0;
 }
 
+.course-material-type-field,
 .course-material-isbn-field {
-  width: calc(17ch + 1.6rem);
+  grid-column: auto;
+  min-width: 0;
+}
+
+.course-material-title-field,
+.course-material-publisher-field,
+.course-material-other-field {
+  grid-column: auto;
 }
 
 .course-materials-grid label.hidden {
@@ -2928,8 +2936,9 @@ td {
 }
 
 .course-material-remove-btn {
+  grid-column: 1 / -1;
   align-self: end;
-  justify-self: start;
+  justify-self: end;
   width: fit-content;
   white-space: nowrap;
 }
@@ -3231,6 +3240,11 @@ td {
   .course-materials-grid {
     grid-template-columns: 1fr 1fr;
   }
+
+  .course-material-other-field,
+  .course-material-remove-btn {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 640px) {
@@ -3265,6 +3279,11 @@ td {
 
   .app-layout {
     grid-template-columns: 1fr;
+  }
+
+  .course-material-other-field,
+  .course-material-remove-btn {
+    grid-column: 1 / -1;
   }
 
   .app-sidebar {
