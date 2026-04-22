@@ -2894,13 +2894,16 @@ td {
   display: grid;
   gap: 0.8rem;
   margin-top: 0.8rem;
+  overflow-x: auto;
+  padding-bottom: 0.1rem;
 }
 
 .course-materials-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0.85rem 1rem;
+  grid-template-columns: minmax(160px, 0.9fr) minmax(150px, 0.75fr) minmax(240px, 1.4fr) minmax(190px, 1fr) max-content;
+  gap: 0.85rem;
   align-items: end;
+  min-width: 900px;
   padding: 0.7rem;
   border: 1px solid var(--edge);
   border-radius: 12px;
@@ -2931,14 +2934,18 @@ td {
   grid-column: auto;
 }
 
+.course-material-other-field:not(.hidden) {
+  grid-column: 3;
+}
+
 .course-materials-grid label.hidden {
   display: none;
 }
 
 .course-material-remove-btn {
-  grid-column: 1 / -1;
+  grid-column: auto;
   align-self: end;
-  justify-self: end;
+  justify-self: start;
   width: fit-content;
   white-space: nowrap;
 }
@@ -3238,12 +3245,12 @@ td {
   }
 
   .course-materials-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(160px, 0.9fr) minmax(150px, 0.75fr) minmax(240px, 1.4fr) minmax(190px, 1fr) max-content;
   }
 
   .course-material-other-field,
   .course-material-remove-btn {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 }
 
@@ -3257,11 +3264,15 @@ td {
   }
 
   .grid-form,
-  .course-materials-grid,
   .quarter-grid,
   .kpi-grid,
   .progress-wrap {
     grid-template-columns: 1fr;
+  }
+
+  .course-materials-grid {
+    grid-template-columns: 1fr;
+    min-width: 0;
   }
 
   .top {
