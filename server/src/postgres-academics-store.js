@@ -84,7 +84,8 @@ async function listCoursesForUser(user) {
         c.name,
         c.subject_id AS "subjectId",
         c.hours_per_day AS "hoursPerDay",
-        c.exclusive_resource AS "exclusiveResource"
+        c.exclusive_resource AS "exclusiveResource",
+        c.course_materials AS "courseMaterials"
       FROM courses c
       JOIN enrollments e ON e.course_id = c.id
       WHERE e.student_id = $1
@@ -93,7 +94,8 @@ async function listCoursesForUser(user) {
     return result.rows.map((course) => ({
       ...course,
       hoursPerDay: Number(course.hoursPerDay || 0),
-      exclusiveResource: !!course.exclusiveResource
+      exclusiveResource: !!course.exclusiveResource,
+      materials: normalizeCourseMaterials(course.courseMaterials)
     }));
   }
 
@@ -103,33 +105,44 @@ async function listCoursesForUser(user) {
       name,
       subject_id AS "subjectId",
       hours_per_day AS "hoursPerDay",
-      exclusive_resource AS "exclusiveResource"
+      exclusive_resource AS "exclusiveResource",
+      course_materials AS "courseMaterials"
     FROM courses
     ORDER BY lower(name)
   `);
   return result.rows.map((course) => ({
     ...course,
     hoursPerDay: Number(course.hoursPerDay || 0),
-    exclusiveResource: !!course.exclusiveResource
+    exclusiveResource: !!course.exclusiveResource,
+    materials: normalizeCourseMaterials(course.courseMaterials)
   }));
 }
 
 async function createCourse(course) {
   const pool = getPostgresPool();
   const result = await pool.query(`
-    INSERT INTO courses (id, name, subject_id, hours_per_day, exclusive_resource)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO courses (id, name, subject_id, hours_per_day, exclusive_resource, course_materials)
+    VALUES ($1, $2, $3, $4, $5, $6::jsonb)
     RETURNING
       id,
       name,
       subject_id AS "subjectId",
       hours_per_day AS "hoursPerDay",
-      exclusive_resource AS "exclusiveResource"
-  `, [course.id, course.name, course.subjectId, course.hoursPerDay, course.exclusiveResource]);
+      exclusive_resource AS "exclusiveResource",
+      course_materials AS "courseMaterials"
+  `, [
+    course.id,
+    course.name,
+    course.subjectId,
+    course.hoursPerDay,
+    course.exclusiveResource,
+    JSON.stringify(normalizeCourseMaterials(course.materials || course.material))
+  ]);
   return {
     ...result.rows[0],
     hoursPerDay: Number(result.rows[0].hoursPerDay || 0),
-    exclusiveResource: !!result.rows[0].exclusiveResource
+    exclusiveResource: !!result.rows[0].exclusiveResource,
+    materials: normalizeCourseMaterials(result.rows[0].courseMaterials)
   };
 }
 
@@ -141,22 +154,57 @@ async function updateCourse(id, course) {
       name = $2,
       subject_id = $3,
       hours_per_day = $4,
-      exclusive_resource = $5
+      exclusive_resource = $5,
+      course_materials = $6::jsonb
     WHERE id = $1
     RETURNING
       id,
       name,
       subject_id AS "subjectId",
       hours_per_day AS "hoursPerDay",
-      exclusive_resource AS "exclusiveResource"
-  `, [id, course.name, course.subjectId, course.hoursPerDay, course.exclusiveResource]);
+      exclusive_resource AS "exclusiveResource",
+      course_materials AS "courseMaterials"
+  `, [
+    id,
+    course.name,
+    course.subjectId,
+    course.hoursPerDay,
+    course.exclusiveResource,
+    JSON.stringify(normalizeCourseMaterials(course.materials || course.material))
+  ]);
   return result.rows[0]
     ? {
       ...result.rows[0],
       hoursPerDay: Number(result.rows[0].hoursPerDay || 0),
-      exclusiveResource: !!result.rows[0].exclusiveResource
+      exclusiveResource: !!result.rows[0].exclusiveResource,
+      materials: normalizeCourseMaterials(result.rows[0].courseMaterials)
     }
     : null;
+}
+
+function hasCourseMaterialDetails(material) {
+  return !!(material.type || material.other || material.title || material.publisher);
+}
+
+function normalizeCourseMaterials(materialsInput) {
+  const rawMaterials = Array.isArray(materialsInput)
+    ? materialsInput
+    : (materialsInput ? [materialsInput] : []);
+  return rawMaterials
+    .map(normalizeCourseMaterial)
+    .filter(hasCourseMaterialDetails);
+}
+
+function normalizeCourseMaterial(material) {
+  const allowedTypes = new Set(["text_book", "workbook", "worksheets", "online_content", "other"]);
+  const rawType = String(material?.type || "").trim().toLowerCase();
+  const type = allowedTypes.has(rawType) ? rawType : "";
+  return {
+    type,
+    other: type === "other" ? String(material?.other || "").trim() : "",
+    title: String(material?.title || "").trim(),
+    publisher: String(material?.publisher || "").trim()
+  };
 }
 
 async function deleteCourse(id) {

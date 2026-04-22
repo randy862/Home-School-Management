@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS courses (
   name TEXT NOT NULL,
   subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE RESTRICT,
   hours_per_day NUMERIC(6, 2) NOT NULL DEFAULT 0,
-  exclusive_resource BOOLEAN NOT NULL DEFAULT FALSE
+  exclusive_resource BOOLEAN NOT NULL DEFAULT FALSE,
+  course_materials JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
 CREATE TABLE IF NOT EXISTS enrollments (

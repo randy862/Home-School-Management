@@ -77,6 +77,14 @@ const INSTRUCTOR_EDUCATION_LEVEL_LABELS = {
   doctoral_degree: "Doctoral Degree",
   other: "Other"
 };
+const COURSE_MATERIAL_TYPE_OPTIONS = ["text_book", "workbook", "worksheets", "online_content", "other"];
+const COURSE_MATERIAL_TYPE_LABELS = {
+  text_book: "Text Book",
+  workbook: "Workbook",
+  worksheets: "Worksheets",
+  online_content: "Online Content",
+  other: "Other"
+};
 const SCHEDULE_BLOCK_TYPE_OPTIONS = ["lunch", "recess", "other_break"];
 const SCHEDULE_BLOCK_TYPE_LABELS = {
   lunch: "Lunch",
@@ -455,8 +463,54 @@ function normalizeCoursesShape(inputState) {
   s.courses = s.courses.map((course) => ({
     ...course,
     instructorId: String(course.instructorId || "").trim(),
-    exclusiveResource: !!course.exclusiveResource
+    exclusiveResource: !!course.exclusiveResource,
+    materials: normalizeCourseMaterials(course.materials || course.material)
   }));
+}
+
+function hasCourseMaterialDetails(material) {
+  return !!(material.type || material.title || material.publisher || material.other);
+}
+
+function normalizeCourseMaterial(material) {
+  const rawType = String(material?.type || "").trim().toLowerCase();
+  const type = COURSE_MATERIAL_TYPE_OPTIONS.includes(rawType) ? rawType : "";
+  return {
+    type,
+    other: type === "other" ? String(material?.other || "").trim() : "",
+    title: String(material?.title || "").trim(),
+    publisher: String(material?.publisher || "").trim()
+  };
+}
+
+function normalizeCourseMaterials(materialsInput) {
+  const rawMaterials = Array.isArray(materialsInput)
+    ? materialsInput
+    : (materialsInput ? [materialsInput] : []);
+  return rawMaterials
+    .map(normalizeCourseMaterial)
+    .filter(hasCourseMaterialDetails);
+}
+
+function getCourseMaterialTypeLabel(type) {
+  return COURSE_MATERIAL_TYPE_LABELS[type] || "";
+}
+
+function formatCourseMaterialEntry(materialInput) {
+  const material = normalizeCourseMaterial(materialInput);
+  const parts = [];
+  const typeLabel = getCourseMaterialTypeLabel(material.type);
+  if (typeLabel) parts.push(typeLabel);
+  if (material.title) parts.push(material.title);
+  if (material.publisher) parts.push(material.publisher);
+  if (material.type === "other" && material.other) parts.push(material.other);
+  return parts.join(" - ");
+}
+
+function formatCourseMaterialSummary(course) {
+  const materials = normalizeCourseMaterials(course?.materials || course?.material);
+  if (!materials.length) return "Not specified";
+  return materials.map(formatCourseMaterialEntry).filter(Boolean).join("; ");
 }
 
 function normalizeEnrollmentsShape(inputState) {
@@ -541,14 +595,19 @@ function mergeLegacyBridgeCoursesWithLocalState(remoteState, localState) {
   remoteState.courses = remoteState.courses.map((course) => {
     const localCourse = localCoursesById.get(course.id);
     if (!localCourse) return course;
-    const mergedCourse = { ...course, ...localCourse, exclusiveResource: !!localCourse.exclusiveResource };
+    const mergedCourse = {
+      ...course,
+      ...localCourse,
+      exclusiveResource: !!localCourse.exclusiveResource,
+      materials: normalizeCourseMaterials(localCourse.materials || localCourse.material)
+    };
     if (JSON.stringify(mergedCourse) !== JSON.stringify(course)) changed = true;
     return mergedCourse;
   });
   localState.courses.forEach((course) => {
     if (!course || !course.id || remoteState.courses.some((existing) => existing.id === course.id)) return;
     changed = true;
-    remoteState.courses.push({ ...course, exclusiveResource: !!course.exclusiveResource });
+    remoteState.courses.push({ ...course, exclusiveResource: !!course.exclusiveResource, materials: normalizeCourseMaterials(course.materials || course.material) });
   });
   return changed;
 }
@@ -996,6 +1055,8 @@ const studentPerformanceSelectedInstructorIds = new Set();
 const studentInstructionalHoursSelectedInstructorIds = new Set();
 let workDistributionGradeTypesInitialized = false;
 let editingCourseId = "";
+let courseFormOpen = false;
+let courseMaterialsDraft = [];
 let editingHolidayId = "";
 let editingPlanId = "";
 let editingSchoolYearId = "";
@@ -1392,7 +1453,8 @@ async function refreshHostedCourses() {
       ...course,
       instructorId: course.instructorId || "",
       hoursPerDay: Number(course.hoursPerDay || 0),
-      exclusiveResource: !!course.exclusiveResource
+      exclusiveResource: !!course.exclusiveResource,
+      materials: normalizeCourseMaterials(course.materials || course.material)
     }));
   }
 }
@@ -3354,9 +3416,9 @@ async function bootstrapApplicationState() {
         await bootstrapApplicationState();
         return;
       }
-      setLoginMessage("error", "Unable to reach the hosted session service.");
       currentUserId = "";
       hostedSessionResumeHint = false;
+      resetLoginMessage();
       renderAll();
     } finally {
       hostedBootstrapInFlight = false;
@@ -6317,12 +6379,17 @@ function renderCourses() {
   const tableBody = document.getElementById("course-table");
   const submitBtn = document.getElementById("course-submit-btn");
   const cancelBtn = document.getElementById("course-cancel-edit-btn");
+  const form = document.getElementById("course-form");
+  const showFormBtn = document.getElementById("course-show-form-btn");
+  if (form) form.classList.toggle("hidden", !courseFormOpen);
+  if (showFormBtn) showFormBtn.classList.toggle("hidden", courseFormOpen);
   if (submitBtn) submitBtn.textContent = editingCourseId ? "Update Course" : "Add Course";
-  if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingCourseId);
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !courseFormOpen);
+  renderCourseMaterialsDraft();
   if (!tableBody) return;
   const rows = state.courses
-    .map((c) => `<tr><td>${c.name}</td><td>${getSubjectName(c.subjectId)}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td>${c.exclusiveResource ? "Yes" : "No"}</td><td><button data-edit-course='${c.id}' type='button'>Edit</button> <button data-remove-course='${c.id}' type='button'>Remove</button></td></tr>`);
-  rowOrEmpty(tableBody, rows, "No courses added yet.", 6);
+    .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td>${c.exclusiveResource ? "Yes" : "No"}</td><td>${escapeHtml(formatCourseMaterialSummary(c))}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
+  rowOrEmpty(tableBody, rows, "No courses added yet.", 7);
 }
 
 function renderGradeTypes() {
@@ -10911,7 +10978,11 @@ function removeCourse(id) {
   state.plans = state.plans.filter((p)=>p.courseId!==id);
   state.instructionActuals = state.instructionActuals.filter((entry) => entry.courseId !== id);
   state.tests = state.tests.filter((t)=>t.courseId!==id);
-  if (editingCourseId === id) editingCourseId = "";
+  if (editingCourseId === id) {
+    editingCourseId = "";
+    courseFormOpen = false;
+    fillCourseMaterialFields();
+  }
 }
 
 function findInstructionActualRecord(studentId, courseId, date) {
@@ -11082,23 +11153,86 @@ function beginCourseEdit(courseId) {
   const course = state.courses.find((c) => c.id === courseId);
   if (!course) return;
   editingCourseId = course.id;
+  courseFormOpen = true;
   document.getElementById("course-name").value = course.name;
   document.getElementById("course-subject").value = course.subjectId;
   document.getElementById("course-instructor").value = course.instructorId || "";
   document.getElementById("course-hours").value = String(Number(course.hoursPerDay));
   document.getElementById("course-exclusive-resource").checked = !!course.exclusiveResource;
+  fillCourseMaterialFields(course.materials || course.material);
   renderCourses();
 }
 
 function cancelCourseEdit() {
   editingCourseId = "";
+  courseFormOpen = false;
   document.getElementById("course-form").reset();
   const instructorInput = document.getElementById("course-instructor");
   if (instructorInput) instructorInput.value = "";
   const exclusiveInput = document.getElementById("course-exclusive-resource");
   if (exclusiveInput) exclusiveInput.checked = false;
+  fillCourseMaterialFields();
   renderSelects();
   renderCourses();
+}
+
+function beginCourseCreate() {
+  editingCourseId = "";
+  courseFormOpen = true;
+  document.getElementById("course-form").reset();
+  const instructorInput = document.getElementById("course-instructor");
+  if (instructorInput) instructorInput.value = "";
+  const exclusiveInput = document.getElementById("course-exclusive-resource");
+  if (exclusiveInput) exclusiveInput.checked = false;
+  fillCourseMaterialFields();
+  renderSelects();
+  renderCourses();
+}
+
+function fillCourseMaterialFields(materialsInput = []) {
+  courseMaterialsDraft = normalizeCourseMaterials(materialsInput);
+  const details = document.getElementById("course-materials-details");
+  if (details) details.open = courseMaterialsDraft.length > 0;
+  renderCourseMaterialsDraft();
+}
+
+function readCourseMaterialFields() {
+  return normalizeCourseMaterials(courseMaterialsDraft);
+}
+
+function renderCourseMaterialsDraft() {
+  const container = document.getElementById("course-materials-list");
+  if (!container) return;
+  if (!courseMaterialsDraft.length) {
+    container.innerHTML = '<p class="muted">No course materials added yet.</p>';
+    return;
+  }
+  container.innerHTML = courseMaterialsDraft.map((material, index) => `
+    <div class="course-materials-grid" data-course-material-index="${index}">
+      <label>Material Type
+        <select data-course-material-field="type">
+          <option value="">Not specified</option>
+          <option value="text_book"${material.type === "text_book" ? " selected" : ""}>Text Book</option>
+          <option value="workbook"${material.type === "workbook" ? " selected" : ""}>Workbook</option>
+          <option value="worksheets"${material.type === "worksheets" ? " selected" : ""}>Worksheets</option>
+          <option value="online_content"${material.type === "online_content" ? " selected" : ""}>Online Content</option>
+          <option value="other"${material.type === "other" ? " selected" : ""}>Other</option>
+        </select>
+      </label>
+      <label>Title<input data-course-material-field="title" type="text" value="${escapeHtml(material.title)}"></label>
+      <label>Publisher<input data-course-material-field="publisher" type="text" value="${escapeHtml(material.publisher)}"></label>
+      <label class="${material.type === "other" ? "" : "hidden"}">Other Note<input data-course-material-field="other" type="text" value="${escapeHtml(material.other)}"></label>
+      <button class="course-material-remove-btn" data-remove-course-material="${index}" type="button">Remove</button>
+    </div>
+  `).join("");
+}
+
+function updateCourseMaterialDraftField(index, field, value) {
+  if (!courseMaterialsDraft[index]) return;
+  const nextMaterial = { ...courseMaterialsDraft[index], [field]: value };
+  if (field === "type" && value !== "other") nextMaterial.other = "";
+  courseMaterialsDraft[index] = normalizeCourseMaterial(nextMaterial);
+  renderCourseMaterialsDraft();
 }
 
 function beginHolidayEdit(holidayId) {
@@ -11331,10 +11465,11 @@ function updateLegacyLocalCourse(existingCourse, payload) {
   existingCourse.instructorId = payload.instructorId || "";
   existingCourse.hoursPerDay = payload.hoursPerDay;
   existingCourse.exclusiveResource = payload.exclusiveResource;
+  existingCourse.materials = normalizeCourseMaterials(payload.materials || payload.material);
 }
 
 function createLegacyLocalCourse(payload) {
-  state.courses.push({ id: uid(), ...payload });
+  state.courses.push({ id: uid(), ...payload, materials: normalizeCourseMaterials(payload.materials || payload.material) });
 }
 
 function createLegacyLocalEnrollment(payload) {
@@ -11946,8 +12081,10 @@ function bindEvents() {
     const instructorId = document.getElementById("course-instructor").value.trim();
     const hoursPerDay = Number(document.getElementById("course-hours").value);
     const exclusiveResource = !!document.getElementById("course-exclusive-resource").checked;
+    const materials = readCourseMaterialFields();
     if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) { alert("Provide course name, subject, and hours/day."); return; }
-    const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource };
+    if (materials.some((material) => material.type === "other" && !material.other)) { alert("Provide details when Material Type is Other."); return; }
+    const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource, materials };
     if (hostedModeEnabled) {
       (async () => {
         try {
@@ -11957,9 +12094,11 @@ function bindEvents() {
             await createHostedCourse({ id: uid(), ...payload });
           }
           editingCourseId = "";
+          courseFormOpen = false;
           e.target.reset();
           document.getElementById("course-instructor").value = "";
           document.getElementById("course-exclusive-resource").checked = false;
+          fillCourseMaterialFields();
           await refreshHostedCourses();
           renderAll();
         } catch (error) {
@@ -11974,11 +12113,51 @@ function bindEvents() {
     } else {
       createLegacyLocalCourse(payload);
     }
+    courseFormOpen = false;
     e.target.reset();
     document.getElementById("course-instructor").value = "";
     document.getElementById("course-exclusive-resource").checked = false;
+    fillCourseMaterialFields();
     saveState();
     renderAll();
+  });
+  document.getElementById("course-show-form-btn")?.addEventListener("click", () => {
+    if (!ensureAdminAction()) return;
+    beginCourseCreate();
+  });
+  document.getElementById("course-material-add-btn")?.addEventListener("click", () => {
+    courseMaterialsDraft.push(normalizeCourseMaterial({ type: "text_book" }));
+    const details = document.getElementById("course-materials-details");
+    if (details) details.open = true;
+    renderCourseMaterialsDraft();
+  });
+  document.getElementById("course-materials-list")?.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const row = target.closest("[data-course-material-index]");
+    const field = target.getAttribute("data-course-material-field");
+    const index = Number(row?.getAttribute("data-course-material-index"));
+    if (!field || !Number.isInteger(index) || !courseMaterialsDraft[index]) return;
+    courseMaterialsDraft[index] = normalizeCourseMaterial({ ...courseMaterialsDraft[index], [field]: target.value });
+  });
+  document.getElementById("course-materials-list")?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+    const row = target.closest("[data-course-material-index]");
+    const field = target.getAttribute("data-course-material-field");
+    const index = Number(row?.getAttribute("data-course-material-index"));
+    if (!field || !Number.isInteger(index)) return;
+    updateCourseMaterialDraftField(index, field, target.value);
+  });
+  document.getElementById("course-materials-list")?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const removeIndex = target.getAttribute("data-remove-course-material");
+    if (removeIndex == null) return;
+    const index = Number(removeIndex);
+    if (!Number.isInteger(index)) return;
+    courseMaterialsDraft.splice(index, 1);
+    renderCourseMaterialsDraft();
   });
   document.getElementById("grade-type-form").addEventListener("submit", (e) => {
     e.preventDefault();

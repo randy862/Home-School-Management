@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202604202215">
+  <link rel="stylesheet" href="styles.css?v=202604221245">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -936,12 +936,20 @@
 
       <div id="management-courses-wrap" class="management-tab-panel management-section management-section-courses hidden">
         <h3>Courses</h3>
-          <form id="course-form" class="grid-form">
+          <div class="course-management-actions">
+            <button id="course-show-form-btn" type="button">Add Course</button>
+          </div>
+          <form id="course-form" class="grid-form hidden">
             <label>Course Name<input id="course-name" type="text" required></label>
             <label>Subject<select id="course-subject" required></select></label>
             <label>Instructor<select id="course-instructor"><option value="">Unassigned</option></select></label>
             <label class="course-hours-field">Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
             <label class="course-exclusive-field">Exclusive<input id="course-exclusive-resource" type="checkbox"></label>
+            <details id="course-materials-details" class="course-materials-panel">
+              <summary>Course Materials</summary>
+              <div id="course-materials-list" class="course-materials-list"></div>
+              <button id="course-material-add-btn" type="button" class="secondary-action">Add Material</button>
+            </details>
             <div class="course-form-actions">
               <button id="course-submit-btn" type="submit">Add Course</button>
               <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
@@ -950,7 +958,7 @@
           <h4>Configured Courses</h4>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th>Hours / Day</th><th>Exclusive Resource</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th>Hours / Day</th><th>Exclusive Resource</th><th>Course Materials</th><th>Actions</th></tr></thead>
               <tbody id="course-table"></tbody>
             </table>
           </div>
@@ -1580,6 +1588,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202604202255"></script>
+  <script src="app.js?v=202604221245"></script>
   </body>
   </html>

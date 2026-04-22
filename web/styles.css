@@ -2804,6 +2804,10 @@ td {
   row-gap: 0.6rem;
 }
 
+.course-management-actions {
+  margin: 0.5rem 0 1rem;
+}
+
 #course-form label {
   min-width: 0;
 }
@@ -2868,6 +2872,56 @@ td {
   justify-self: center;
   align-self: center;
   margin-top: 0.45rem;
+}
+
+.course-materials-panel {
+  grid-column: 1 / -1;
+  display: block;
+  min-width: 0;
+  padding: 0.8rem;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.course-materials-panel summary {
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.course-materials-list {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+}
+
+.course-materials-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.25fr) minmax(180px, 1.1fr) minmax(180px, 1.1fr) auto;
+  gap: 0.7rem;
+  align-items: end;
+  padding: 0.7rem;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: rgba(248, 251, 255, 0.9);
+}
+
+.course-materials-grid label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.course-material-remove-btn {
+  align-self: end;
+}
+
+.course-table-actions {
+  min-width: 150px;
+}
+
+.course-table-actions .table-action-row {
+  flex-wrap: nowrap;
 }
 
 #grade-type-form {
@@ -3155,6 +3209,10 @@ td {
   #reports-form {
     grid-template-columns: 1fr 1fr;
   }
+
+  .course-materials-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -3167,6 +3225,7 @@ td {
   }
 
   .grid-form,
+  .course-materials-grid,
   .quarter-grid,
   .kpi-grid,
   .progress-wrap {

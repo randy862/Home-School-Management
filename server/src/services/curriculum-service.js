@@ -41,12 +41,43 @@ function normalizeCoursePayload(input) {
   const instructorId = String(input?.instructorId || "").trim();
   const hoursPerDay = Number(input?.hoursPerDay);
   const exclusiveResource = !!input?.exclusiveResource;
+  const materials = normalizeCourseMaterials(input?.materials || input?.material);
   if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) {
     const error = new Error("Provide course name, subject, and hours/day.");
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), name, subjectId, instructorId, hoursPerDay, exclusiveResource };
+  if (materials.some((material) => material.type === "other" && !material.other)) {
+    const error = new Error("Provide material details when Material Type is Other.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return { ...(id ? { id } : {}), name, subjectId, instructorId, hoursPerDay, exclusiveResource, materials };
+}
+
+function hasCourseMaterialDetails(material) {
+  return !!(material.type || material.other || material.title || material.publisher);
+}
+
+function normalizeCourseMaterials(materialsInput) {
+  const rawMaterials = Array.isArray(materialsInput)
+    ? materialsInput
+    : (materialsInput ? [materialsInput] : []);
+  return rawMaterials
+    .map(normalizeCourseMaterial)
+    .filter(hasCourseMaterialDetails);
+}
+
+function normalizeCourseMaterial(material) {
+  const allowedTypes = new Set(["text_book", "workbook", "worksheets", "online_content", "other"]);
+  const rawType = String(material?.type || "").trim().toLowerCase();
+  const type = allowedTypes.has(rawType) ? rawType : "";
+  return {
+    type,
+    other: type === "other" ? String(material?.other || "").trim() : "",
+    title: String(material?.title || "").trim(),
+    publisher: String(material?.publisher || "").trim()
+  };
 }
 
 function normalizeEnrollmentPayload(input) {

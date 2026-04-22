@@ -4,17 +4,35 @@ function createCurriculumRepository(deps) {
   return {
     createCourse: async (course) => {
       const pool = getPostgresPool();
+      const materials = normalizeCourseMaterials(course.materials || course.material);
       const result = await pool.query(`
-        INSERT INTO courses (id, name, subject_id, instructor_id, hours_per_day, exclusive_resource)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO courses (
+          id,
+          name,
+          subject_id,
+          instructor_id,
+          hours_per_day,
+          exclusive_resource,
+          course_materials
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
         RETURNING
           id,
           name,
           subject_id AS "subjectId",
           instructor_id AS "instructorId",
           hours_per_day AS "hoursPerDay",
-          exclusive_resource AS "exclusiveResource"
-      `, [course.id, course.name, course.subjectId, course.instructorId || null, course.hoursPerDay, course.exclusiveResource]);
+          exclusive_resource AS "exclusiveResource",
+          course_materials AS "courseMaterials"
+      `, [
+        course.id,
+        course.name,
+        course.subjectId,
+        course.instructorId || null,
+        course.hoursPerDay,
+        course.exclusiveResource,
+        JSON.stringify(materials)
+      ]);
       return mapCourseRow(result.rows[0]);
     },
 
@@ -121,7 +139,8 @@ function createCurriculumRepository(deps) {
             c.subject_id AS "subjectId",
             c.instructor_id AS "instructorId",
             c.hours_per_day AS "hoursPerDay",
-            c.exclusive_resource AS "exclusiveResource"
+            c.exclusive_resource AS "exclusiveResource",
+            c.course_materials AS "courseMaterials"
           FROM courses c
           JOIN enrollments e ON e.course_id = c.id
           WHERE e.student_id = $1
@@ -137,7 +156,8 @@ function createCurriculumRepository(deps) {
           subject_id AS "subjectId",
           instructor_id AS "instructorId",
           hours_per_day AS "hoursPerDay",
-          exclusive_resource AS "exclusiveResource"
+          exclusive_resource AS "exclusiveResource",
+          course_materials AS "courseMaterials"
         FROM courses
         ORDER BY lower(name)
       `);
@@ -225,6 +245,7 @@ function createCurriculumRepository(deps) {
 
     updateCourse: async (id, course) => {
       const pool = getPostgresPool();
+      const materials = normalizeCourseMaterials(course.materials || course.material);
       const result = await pool.query(`
         UPDATE courses
         SET
@@ -232,7 +253,8 @@ function createCurriculumRepository(deps) {
           subject_id = $3,
           instructor_id = $4,
           hours_per_day = $5,
-          exclusive_resource = $6
+          exclusive_resource = $6,
+          course_materials = $7::jsonb
         WHERE id = $1
         RETURNING
           id,
@@ -240,8 +262,17 @@ function createCurriculumRepository(deps) {
           subject_id AS "subjectId",
           instructor_id AS "instructorId",
           hours_per_day AS "hoursPerDay",
-          exclusive_resource AS "exclusiveResource"
-      `, [id, course.name, course.subjectId, course.instructorId || null, course.hoursPerDay, course.exclusiveResource]);
+          exclusive_resource AS "exclusiveResource",
+          course_materials AS "courseMaterials"
+      `, [
+        id,
+        course.name,
+        course.subjectId,
+        course.instructorId || null,
+        course.hoursPerDay,
+        course.exclusiveResource,
+        JSON.stringify(materials)
+      ]);
       return result.rows[0] ? mapCourseRow(result.rows[0]) : null;
     },
 
@@ -298,9 +329,38 @@ function createCurriculumRepository(deps) {
 
 function mapCourseRow(row) {
   return {
-    ...row,
+    id: row.id,
+    name: row.name,
+    subjectId: row.subjectId,
+    instructorId: row.instructorId || "",
     hoursPerDay: Number(row.hoursPerDay || 0),
-    exclusiveResource: !!row.exclusiveResource
+    exclusiveResource: !!row.exclusiveResource,
+    materials: normalizeCourseMaterials(row.courseMaterials)
+  };
+}
+
+function hasCourseMaterialDetails(material) {
+  return !!(material.type || material.other || material.title || material.publisher);
+}
+
+function normalizeCourseMaterials(materialsInput) {
+  const rawMaterials = Array.isArray(materialsInput)
+    ? materialsInput
+    : (materialsInput ? [materialsInput] : []);
+  return rawMaterials
+    .map(normalizeCourseMaterial)
+    .filter(hasCourseMaterialDetails);
+}
+
+function normalizeCourseMaterial(material) {
+  const allowedTypes = new Set(["text_book", "workbook", "worksheets", "online_content", "other"]);
+  const rawType = String(material?.type || "").trim().toLowerCase();
+  const type = allowedTypes.has(rawType) ? rawType : "";
+  return {
+    type,
+    other: type === "other" ? String(material?.other || "").trim() : "",
+    title: String(material?.title || "").trim(),
+    publisher: String(material?.publisher || "").trim()
   };
 }
 
