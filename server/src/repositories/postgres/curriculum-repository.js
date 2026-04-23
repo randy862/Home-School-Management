@@ -344,10 +344,8 @@ function createCurriculumRepository(deps) {
   };
 }
 
-let cachedCourseTableFeatures = null;
-
 async function getCourseTableFeatures(pool) {
-  if (cachedCourseTableFeatures) return cachedCourseTableFeatures;
+  await ensureCourseTableColumns(pool);
   const result = await pool.query(`
     SELECT column_name
     FROM information_schema.columns
@@ -355,14 +353,30 @@ async function getCourseTableFeatures(pool) {
       AND table_name = 'courses'
   `);
   const columns = new Set(result.rows.map((row) => row.column_name));
-  cachedCourseTableFeatures = {
+  return {
     hasInstructorId: columns.has("instructor_id"),
     hasExclusiveResource: columns.has("exclusive_resource"),
     hasResourceGroup: columns.has("resource_group"),
     hasResourceCapacity: columns.has("resource_capacity"),
     hasCourseMaterials: columns.has("course_materials")
   };
-  return cachedCourseTableFeatures;
+}
+
+async function ensureCourseTableColumns(pool) {
+  await pool.query(`
+    ALTER TABLE courses
+    ADD COLUMN IF NOT EXISTS resource_group TEXT NOT NULL DEFAULT ''
+  `);
+  await pool.query(`
+    ALTER TABLE courses
+    ADD COLUMN IF NOT EXISTS resource_capacity INTEGER
+  `);
+  await pool.query(`
+    UPDATE courses
+    SET resource_capacity = 1
+    WHERE exclusive_resource = TRUE
+      AND resource_capacity IS NULL
+  `);
 }
 
 function buildCourseSelectColumns(features, tableAlias = "") {
