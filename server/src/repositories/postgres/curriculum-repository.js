@@ -13,9 +13,11 @@ function createCurriculumRepository(deps) {
           instructor_id,
           hours_per_day,
           exclusive_resource,
+          resource_group,
+          resource_capacity,
           course_materials
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
         RETURNING
           id,
           name,
@@ -23,6 +25,8 @@ function createCurriculumRepository(deps) {
           instructor_id AS "instructorId",
           hours_per_day AS "hoursPerDay",
           exclusive_resource AS "exclusiveResource",
+          resource_group AS "resourceGroup",
+          resource_capacity AS "resourceCapacity",
           course_materials AS "courseMaterials"
       `, [
         course.id,
@@ -31,6 +35,8 @@ function createCurriculumRepository(deps) {
         course.instructorId || null,
         course.hoursPerDay,
         course.exclusiveResource,
+        course.resourceGroup || "",
+        course.resourceCapacity == null ? null : Number(course.resourceCapacity),
         JSON.stringify(materials)
       ]);
       return mapCourseRow(result.rows[0]);
@@ -140,6 +146,8 @@ function createCurriculumRepository(deps) {
             c.instructor_id AS "instructorId",
             c.hours_per_day AS "hoursPerDay",
             c.exclusive_resource AS "exclusiveResource",
+            c.resource_group AS "resourceGroup",
+            c.resource_capacity AS "resourceCapacity",
             c.course_materials AS "courseMaterials"
           FROM courses c
           JOIN enrollments e ON e.course_id = c.id
@@ -157,6 +165,8 @@ function createCurriculumRepository(deps) {
           instructor_id AS "instructorId",
           hours_per_day AS "hoursPerDay",
           exclusive_resource AS "exclusiveResource",
+          resource_group AS "resourceGroup",
+          resource_capacity AS "resourceCapacity",
           course_materials AS "courseMaterials"
         FROM courses
         ORDER BY lower(name)
@@ -254,7 +264,9 @@ function createCurriculumRepository(deps) {
           instructor_id = $4,
           hours_per_day = $5,
           exclusive_resource = $6,
-          course_materials = $7::jsonb
+          resource_group = $7,
+          resource_capacity = $8,
+          course_materials = $9::jsonb
         WHERE id = $1
         RETURNING
           id,
@@ -263,6 +275,8 @@ function createCurriculumRepository(deps) {
           instructor_id AS "instructorId",
           hours_per_day AS "hoursPerDay",
           exclusive_resource AS "exclusiveResource",
+          resource_group AS "resourceGroup",
+          resource_capacity AS "resourceCapacity",
           course_materials AS "courseMaterials"
       `, [
         id,
@@ -271,6 +285,8 @@ function createCurriculumRepository(deps) {
         course.instructorId || null,
         course.hoursPerDay,
         course.exclusiveResource,
+        course.resourceGroup || "",
+        course.resourceCapacity == null ? null : Number(course.resourceCapacity),
         JSON.stringify(materials)
       ]);
       return result.rows[0] ? mapCourseRow(result.rows[0]) : null;
@@ -335,6 +351,8 @@ function mapCourseRow(row) {
     instructorId: row.instructorId || "",
     hoursPerDay: Number(row.hoursPerDay || 0),
     exclusiveResource: !!row.exclusiveResource,
+    resourceGroup: row.resourceGroup || "",
+    resourceCapacity: row.resourceCapacity == null ? null : Number(row.resourceCapacity),
     materials: normalizeCourseMaterials(row.courseMaterials)
   };
 }

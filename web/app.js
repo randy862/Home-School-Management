@@ -464,8 +464,38 @@ function normalizeCoursesShape(inputState) {
     ...course,
     instructorId: String(course.instructorId || "").trim(),
     exclusiveResource: !!course.exclusiveResource,
+    resourceGroup: String(course.resourceGroup || "").trim(),
+    resourceCapacity: normalizeCourseResourceCapacity(course.resourceCapacity, !!course.exclusiveResource),
     materials: normalizeCourseMaterials(course.materials || course.material)
   }));
+}
+
+function normalizeCourseResourceCapacity(value, legacyExclusive = false) {
+  if (value === "" || value == null) return legacyExclusive ? 1 : null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : (legacyExclusive ? 1 : null);
+}
+
+function courseResourceCapacity(course) {
+  return normalizeCourseResourceCapacity(course?.resourceCapacity, !!course?.exclusiveResource);
+}
+
+function courseResourceGroup(course) {
+  return String(course?.resourceGroup || "").trim();
+}
+
+function courseResourceKey(course) {
+  const capacity = courseResourceCapacity(course);
+  if (!(capacity > 0)) return "";
+  const group = courseResourceGroup(course);
+  return group || `course:${String(course?.id || "").trim()}`;
+}
+
+function formatCourseResourceSummary(course) {
+  const capacity = courseResourceCapacity(course);
+  if (!(capacity > 0)) return "Unrestricted";
+  const group = courseResourceGroup(course) || course?.name || "Course";
+  return `${group} (${capacity})`;
 }
 
 function hasCourseMaterialDetails(material) {
@@ -601,6 +631,8 @@ function mergeLegacyBridgeCoursesWithLocalState(remoteState, localState) {
       ...course,
       ...localCourse,
       exclusiveResource: !!localCourse.exclusiveResource,
+      resourceGroup: String(localCourse.resourceGroup || "").trim(),
+      resourceCapacity: normalizeCourseResourceCapacity(localCourse.resourceCapacity, !!localCourse.exclusiveResource),
       materials: normalizeCourseMaterials(localCourse.materials || localCourse.material)
     };
     if (JSON.stringify(mergedCourse) !== JSON.stringify(course)) changed = true;
@@ -609,7 +641,13 @@ function mergeLegacyBridgeCoursesWithLocalState(remoteState, localState) {
   localState.courses.forEach((course) => {
     if (!course || !course.id || remoteState.courses.some((existing) => existing.id === course.id)) return;
     changed = true;
-    remoteState.courses.push({ ...course, exclusiveResource: !!course.exclusiveResource, materials: normalizeCourseMaterials(course.materials || course.material) });
+    remoteState.courses.push({
+      ...course,
+      exclusiveResource: !!course.exclusiveResource,
+      resourceGroup: String(course.resourceGroup || "").trim(),
+      resourceCapacity: normalizeCourseResourceCapacity(course.resourceCapacity, !!course.exclusiveResource),
+      materials: normalizeCourseMaterials(course.materials || course.material)
+    });
   });
   return changed;
 }
@@ -1458,6 +1496,8 @@ async function refreshHostedCourses() {
       instructorId: course.instructorId || "",
       hoursPerDay: Number(course.hoursPerDay || 0),
       exclusiveResource: !!course.exclusiveResource,
+      resourceGroup: String(course.resourceGroup || "").trim(),
+      resourceCapacity: normalizeCourseResourceCapacity(course.resourceCapacity, !!course.exclusiveResource),
       materials: normalizeCourseMaterials(course.materials || course.material)
     }));
   }
@@ -6459,7 +6499,7 @@ function renderCourses() {
   renderCourseMaterialsDraft();
   if (!tableBody) return;
   const rows = state.courses
-    .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td>${c.exclusiveResource ? "Yes" : "No"}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
+    .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td>${escapeHtml(formatCourseResourceSummary(c))}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
   rowOrEmpty(tableBody, rows, "No courses added yet.", 6);
 }
 
@@ -7002,11 +7042,13 @@ function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], su
     return;
   }
   const roster = schoolDayRosterStudents(referenceISO);
-  const blocksByStudent = dailyScheduledBlocks(referenceISO, studentFilterIds, subjectFilterIds, courseFilterIds);
+  const blocksByStudent = dailyScheduledBlocks(referenceISO, studentFilterIds);
   const singleSelectedStudentId = studentFilterIds.length === 1 ? studentFilterIds[0] : "";
   const cards = roster
     .map((student) => {
-      const instructionBlocks = (blocksByStudent.get(student.id) || []).filter((block) => block.type === "instruction");
+      const instructionBlocks = (blocksByStudent.get(student.id) || [])
+        .filter((block) => block.type === "instruction")
+        .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds));
       if (!instructionBlocks.length) return "";
       const attendance = attendanceRecordForStudentDate(student.id, referenceISO);
       const completedCount = instructionBlocks.filter((block) => effectiveInstructionCompleted(student.id, block.courseId, referenceISO)).length;
@@ -7073,9 +7115,10 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
     return;
   }
   const cards = roster.map((student) => {
-    const studentBlocks = dailyScheduledBlocks(referenceISO, [student.id], subjectFilterIds, courseFilterIds);
+    const studentBlocks = dailyScheduledBlocks(referenceISO, [student.id]);
     const instructionBlocks = (studentBlocks.get(student.id) || [])
       .filter((block) => block.type === "instruction")
+      .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
       .sort((a, b) => a.start - b.start || getCourseName(a.courseId).localeCompare(getCourseName(b.courseId)));
     if (!instructionBlocks.length) return "";
     const rows = instructionBlocks.map((block) => {
@@ -9923,6 +9966,12 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
   if (toggleButton) {
     toggleButton.textContent = dashboardInstructionHourPaceExpanded ? "Hide Student Breakdown" : "Show Student Breakdown";
     toggleButton.setAttribute("aria-expanded", dashboardInstructionHourPaceExpanded ? "true" : "false");
+    toggleButton.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dashboardInstructionHourPaceExpanded = !dashboardInstructionHourPaceExpanded;
+      renderDashboard();
+    };
   }
   if (studentBreakdown) studentBreakdown.classList.toggle("hidden", !dashboardInstructionHourPaceExpanded);
   rowOrEmpty(document.getElementById("dashboard-hour-pace-student-table"), studentRows, "No student pacing data available.", 5);
@@ -10297,6 +10346,40 @@ function orderedScheduleBlocksForStudentDate(studentId, dateKey) {
     }));
 }
 
+function resourceOverlaps(existing, start, end) {
+  return start < existing.end && end > existing.start;
+}
+
+function resourceHasCapacity(allocations, start, end, capacity) {
+  if (!(capacity > 0)) return true;
+  let overlapping = 0;
+  for (const allocation of allocations || []) {
+    if (!resourceOverlaps(allocation, start, end)) continue;
+    overlapping += 1;
+    if (overlapping >= capacity) return false;
+  }
+  return true;
+}
+
+function findResourceConstrainedStart(requestedStart, durationMinutes, capacity, allocations = [], latestEnd = 24 * 60) {
+  if (!(capacity > 0)) return requestedStart;
+  const maxStart = Math.max(requestedStart, latestEnd - durationMinutes);
+  for (let candidate = requestedStart; candidate <= maxStart; candidate += 5) {
+    const candidateEnd = candidate + durationMinutes;
+    if (candidateEnd > latestEnd) break;
+    if (resourceHasCapacity(allocations, candidate, candidateEnd, capacity)) return candidate;
+  }
+  return null;
+}
+
+function pushResourceAllocation(resourceAllocations, course, start, end) {
+  const resourceKey = courseResourceKey(course);
+  const capacity = courseResourceCapacity(course);
+  if (!resourceKey || !(capacity > 0)) return;
+  if (!resourceAllocations.has(resourceKey)) resourceAllocations.set(resourceKey, []);
+  resourceAllocations.get(resourceKey).push({ start, end });
+}
+
 function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const events = calendarEventsForDate(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
   const byStudent = new Map();
@@ -10305,7 +10388,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     byStudent.get(event.studentId).push(event);
   });
 
-  const exclusiveCourseAvailability = new Map();
+  const resourceAllocations = new Map();
   const blocksByStudent = new Map();
   const studentIdsInOrder = Array.from(byStudent.keys())
     .sort((a, b) => getStudentName(a).localeCompare(getStudentName(b)));
@@ -10369,10 +10452,13 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         const course = getCourse(event.courseId);
         if (!course) return;
         const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
-        const availableAt = course?.exclusiveResource
-          ? Math.max(8 * 60, exclusiveCourseAvailability.get(course.id) || 8 * 60)
-          : 8 * 60;
-        const startMin = Math.max(slot, availableAt);
+        const requestedStart = slot;
+        const resourceKey = courseResourceKey(course);
+        const resourceCapacity = courseResourceCapacity(course);
+        const startMin = resourceKey
+          ? findResourceConstrainedStart(requestedStart, durationMinutes, resourceCapacity, resourceAllocations.get(resourceKey) || [])
+          : requestedStart;
+        if (startMin == null) return;
         const endMin = Math.min(24 * 60, startMin + durationMinutes);
         blocks.push({
           student: studentName,
@@ -10387,9 +10473,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           durationMinutes,
           type: "instruction"
         });
-        if (course.exclusiveResource) {
-          exclusiveCourseAvailability.set(course.id, endMin);
-        }
+        pushResourceAllocation(resourceAllocations, course, startMin, endMin);
         remainingByCourseId.delete(event.courseId);
         slot = endMin;
         if (slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
@@ -10427,38 +10511,32 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         const candidates = remaining.map((event) => {
           const course = getCourse(event.courseId);
           const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
-          const availableAt = course?.exclusiveResource
-            ? Math.max(8 * 60, exclusiveCourseAvailability.get(course.id) || 8 * 60)
-            : 8 * 60;
+          const resourceKey = courseResourceKey(course);
+          const resourceCapacity = courseResourceCapacity(course);
+          const earliestStart = findResourceConstrainedStart(
+            slot,
+            durationMinutes,
+            resourceCapacity,
+            resourceAllocations.get(resourceKey) || [],
+            nextBreak ? nextBreak.start : 24 * 60
+          );
           return {
             event,
             course,
             durationMinutes,
-            availableAt
+            earliestStart
           };
         });
 
-        let chosen = null;
-        const startNow = candidates.filter((candidate) => candidate.availableAt <= slot);
-
-        if (nextBreak) {
-          const fitsBeforeBreak = startNow.filter((candidate) => slot + candidate.durationMinutes <= nextBreak.start);
-          if (fitsBeforeBreak.length) {
-            [chosen] = fitsBeforeBreak;
-          } else if (startNow.length) {
-            slot = nextBreak.start;
-            continue;
-          }
-        } else if (startNow.length) {
-          [chosen] = startNow;
-        }
+        const feasibleCandidates = candidates.filter((candidate) => candidate.course && candidate.earliestStart != null);
+        let chosen = feasibleCandidates.sort((a, b) => a.earliestStart - b.earliestStart)[0] || null;
 
         if (!chosen) {
           if (!remaining.length && nextBreak) {
             slot = nextBreak.start;
             continue;
           }
-          const nextAvailable = Math.min(...candidates.map((candidate) => candidate.availableAt));
+          const nextAvailable = Math.min(...candidates.map((candidate) => candidate.earliestStart == null ? Infinity : candidate.earliestStart));
           if (!Number.isFinite(nextAvailable)) break;
           if (nextBreak && nextAvailable >= nextBreak.start) {
             slot = nextBreak.start;
@@ -10468,7 +10546,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           continue;
         }
 
-        const startMin = slot;
+        const startMin = chosen.earliestStart;
         const endMin = Math.min(24 * 60, startMin + chosen.durationMinutes);
         blocks.push({
           student: studentName,
@@ -10483,9 +10561,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           durationMinutes: chosen.durationMinutes,
           type: "instruction"
         });
-        if (chosen.course.exclusiveResource) {
-          exclusiveCourseAvailability.set(chosen.course.id, endMin);
-        }
+        pushResourceAllocation(resourceAllocations, chosen.course, startMin, endMin);
 
         const removeIndex = remaining.findIndex((event) =>
           event.studentId === chosen.event.studentId && event.courseId === chosen.event.courseId);
@@ -10501,10 +10577,12 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         const course = getCourse(event.courseId);
         if (!course) return;
         const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
-        const availableAt = course?.exclusiveResource
-          ? Math.max(8 * 60, exclusiveCourseAvailability.get(course.id) || 8 * 60)
-          : 8 * 60;
-        const startMin = Math.max(slot, availableAt);
+        const resourceKey = courseResourceKey(course);
+        const resourceCapacity = courseResourceCapacity(course);
+        const startMin = resourceKey
+          ? findResourceConstrainedStart(slot, durationMinutes, resourceCapacity, resourceAllocations.get(resourceKey) || [])
+          : slot;
+        if (startMin == null) return;
         const endMin = Math.min(24 * 60, startMin + durationMinutes);
         blocks.push({
           student: studentName,
@@ -10519,9 +10597,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           durationMinutes,
           type: "instruction"
         });
-        if (course.exclusiveResource) {
-          exclusiveCourseAvailability.set(course.id, endMin);
-        }
+        pushResourceAllocation(resourceAllocations, course, startMin, endMin);
         slot = endMin;
         if (slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
       });
@@ -10566,6 +10642,16 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
   });
 
   return blocksByStudent;
+}
+
+function schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds = [], courseFilterIds = []) {
+  if (!block) return false;
+  if (block.type !== "instruction") {
+    return !subjectFilterIds.length && !courseFilterIds.length;
+  }
+  if (subjectFilterIds.length && !subjectFilterIds.includes(block.subjectId)) return false;
+  if (courseFilterIds.length && !courseFilterIds.includes(block.courseId)) return false;
+  return true;
 }
 
 function calendarDateStudentRows(rangeStart, rangeEnd, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
@@ -10718,9 +10804,10 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
   const mode = options.mode || "calendar";
   const useQuickFilters = !!options.useQuickFilters;
 
-  const blocksByStudent = dailyScheduledBlocks(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
+  const blocksByStudent = dailyScheduledBlocks(dateKey, studentFilterIds);
   const rows = Array.from(blocksByStudent.values())
     .flat()
+    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
     .sort((a, b) => a.start - b.start || a.student.localeCompare(b.student) || a.label.localeCompare(b.label))
     .flatMap((block) => {
       const actualRange = `${formatClockTime(block.start)} - ${formatClockTime(block.end)}`;
@@ -10943,9 +11030,10 @@ function renderSchoolDay() {
   const subjectFilterIds = getSchoolDaySelectedSubjectIds();
   const courseFilterIds = getSchoolDaySelectedCourseIds();
   const { rows } = buildDayCalendarRows(ref, studentFilterIds, subjectFilterIds, courseFilterIds, { mode: "school-day", useQuickFilters: true });
-  const completionRows = Array.from(dailyScheduledBlocks(ref, studentFilterIds, subjectFilterIds, courseFilterIds).values())
+  const completionRows = Array.from(dailyScheduledBlocks(ref, studentFilterIds).values())
     .flat()
-    .filter((block) => block.type === "instruction");
+    .filter((block) => block.type === "instruction")
+    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds));
   const completionCount = completionRows.filter((block) => effectiveInstructionCompleted(block.studentId, block.courseId, ref)).length;
   const plannedMinutesTotal = completionRows.reduce((sum, block) => sum + plannedInstructionMinutesForCourse(block.courseId), 0);
   const completedMinutesTotal = completionRows.reduce((sum, block) => (
@@ -11274,7 +11362,8 @@ function beginCourseEdit(courseId) {
   document.getElementById("course-subject").value = course.subjectId;
   document.getElementById("course-instructor").value = course.instructorId || "";
   document.getElementById("course-hours").value = String(Number(course.hoursPerDay));
-  document.getElementById("course-exclusive-resource").checked = !!course.exclusiveResource;
+  document.getElementById("course-resource-group").value = courseResourceGroup(course);
+  document.getElementById("course-resource-capacity").value = courseResourceCapacity(course) == null ? "" : String(courseResourceCapacity(course));
   fillCourseMaterialFields(course.materials || course.material);
   renderCourses();
 }
@@ -11285,8 +11374,10 @@ function cancelCourseEdit() {
   document.getElementById("course-form").reset();
   const instructorInput = document.getElementById("course-instructor");
   if (instructorInput) instructorInput.value = "";
-  const exclusiveInput = document.getElementById("course-exclusive-resource");
-  if (exclusiveInput) exclusiveInput.checked = false;
+  const resourceGroupInput = document.getElementById("course-resource-group");
+  if (resourceGroupInput) resourceGroupInput.value = "";
+  const resourceCapacityInput = document.getElementById("course-resource-capacity");
+  if (resourceCapacityInput) resourceCapacityInput.value = "";
   fillCourseMaterialFields();
   renderSelects();
   renderCourses();
@@ -11298,8 +11389,10 @@ function beginCourseCreate() {
   document.getElementById("course-form").reset();
   const instructorInput = document.getElementById("course-instructor");
   if (instructorInput) instructorInput.value = "";
-  const exclusiveInput = document.getElementById("course-exclusive-resource");
-  if (exclusiveInput) exclusiveInput.checked = false;
+  const resourceGroupInput = document.getElementById("course-resource-group");
+  if (resourceGroupInput) resourceGroupInput.value = "";
+  const resourceCapacityInput = document.getElementById("course-resource-capacity");
+  if (resourceCapacityInput) resourceCapacityInput.value = "";
   fillCourseMaterialFields();
   renderSelects();
   renderCourses();
@@ -11582,11 +11675,19 @@ function updateLegacyLocalCourse(existingCourse, payload) {
   existingCourse.instructorId = payload.instructorId || "";
   existingCourse.hoursPerDay = payload.hoursPerDay;
   existingCourse.exclusiveResource = payload.exclusiveResource;
+  existingCourse.resourceGroup = String(payload.resourceGroup || "").trim();
+  existingCourse.resourceCapacity = normalizeCourseResourceCapacity(payload.resourceCapacity, payload.exclusiveResource);
   existingCourse.materials = normalizeCourseMaterials(payload.materials || payload.material);
 }
 
 function createLegacyLocalCourse(payload) {
-  state.courses.push({ id: uid(), ...payload, materials: normalizeCourseMaterials(payload.materials || payload.material) });
+  state.courses.push({
+    id: uid(),
+    ...payload,
+    resourceGroup: String(payload.resourceGroup || "").trim(),
+    resourceCapacity: normalizeCourseResourceCapacity(payload.resourceCapacity, payload.exclusiveResource),
+    materials: normalizeCourseMaterials(payload.materials || payload.material)
+  });
 }
 
 function createLegacyLocalEnrollment(payload) {
@@ -12197,11 +12298,15 @@ function bindEvents() {
     const subjectId = document.getElementById("course-subject").value;
     const instructorId = document.getElementById("course-instructor").value.trim();
     const hoursPerDay = Number(document.getElementById("course-hours").value);
-    const exclusiveResource = !!document.getElementById("course-exclusive-resource").checked;
+    const resourceGroup = document.getElementById("course-resource-group").value.trim();
+    const resourceCapacityRaw = document.getElementById("course-resource-capacity").value;
+    const resourceCapacity = normalizeCourseResourceCapacity(resourceCapacityRaw, false);
+    const exclusiveResource = resourceCapacity === 1;
     const materials = readCourseMaterialFields();
     if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) { alert("Provide course name, subject, and hours/day."); return; }
+    if (resourceCapacityRaw !== "" && resourceCapacity == null) { alert("Concurrent Capacity must be a whole number greater than 0."); return; }
     if (materials.some((material) => material.type === "other" && !material.other)) { alert("Provide details when Material Type is Other."); return; }
-    const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource, materials };
+    const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource, resourceGroup, resourceCapacity, materials };
     if (hostedModeEnabled) {
       (async () => {
         try {
@@ -12214,7 +12319,8 @@ function bindEvents() {
           courseFormOpen = false;
           e.target.reset();
           document.getElementById("course-instructor").value = "";
-          document.getElementById("course-exclusive-resource").checked = false;
+          document.getElementById("course-resource-group").value = "";
+          document.getElementById("course-resource-capacity").value = "";
           fillCourseMaterialFields();
           await refreshHostedCourses();
           renderAll();
@@ -12233,7 +12339,8 @@ function bindEvents() {
     courseFormOpen = false;
     e.target.reset();
     document.getElementById("course-instructor").value = "";
-    document.getElementById("course-exclusive-resource").checked = false;
+    document.getElementById("course-resource-group").value = "";
+    document.getElementById("course-resource-capacity").value = "";
     fillCourseMaterialFields();
     saveState();
     renderAll();

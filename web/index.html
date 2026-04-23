@@ -955,7 +955,9 @@
             <label>Subject<select id="course-subject" required></select></label>
             <label>Instructor<select id="course-instructor"><option value="">Unassigned</option></select></label>
             <label class="course-hours-field">Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
-            <label class="course-exclusive-field">Exclusive<input id="course-exclusive-resource" type="checkbox"></label>
+            <label>Resource Group<input id="course-resource-group" type="text" placeholder="Piano Lab"></label>
+            <label>Concurrent Capacity<input id="course-resource-capacity" type="number" min="1" step="1" placeholder="1"></label>
+            <p class="muted">Use the same resource group on courses that share a room, teacher, or equipment. Leave capacity blank when the course has no shared limit.</p>
             <details id="course-materials-details" class="course-materials-panel">
               <summary>Course Materials</summary>
               <div id="course-materials-list" class="course-materials-list"></div>
@@ -969,7 +971,7 @@
           <h4>Configured Courses</h4>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th>Hours / Day</th><th>Exclusive Resource</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th>Hours / Day</th><th>Resource</th><th>Actions</th></tr></thead>
               <tbody id="course-table"></tbody>
             </table>
           </div>
@@ -1599,6 +1601,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202604231130"></script>
+  <script src="app.js?v=202604231430"></script>
   </body>
   </html>

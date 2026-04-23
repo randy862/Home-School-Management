@@ -83,8 +83,11 @@ async function listCoursesForUser(user) {
         c.id,
         c.name,
         c.subject_id AS "subjectId",
+        c.instructor_id AS "instructorId",
         c.hours_per_day AS "hoursPerDay",
         c.exclusive_resource AS "exclusiveResource",
+        c.resource_group AS "resourceGroup",
+        c.resource_capacity AS "resourceCapacity",
         c.course_materials AS "courseMaterials"
       FROM courses c
       JOIN enrollments e ON e.course_id = c.id
@@ -95,6 +98,9 @@ async function listCoursesForUser(user) {
       ...course,
       hoursPerDay: Number(course.hoursPerDay || 0),
       exclusiveResource: !!course.exclusiveResource,
+      instructorId: course.instructorId || "",
+      resourceGroup: course.resourceGroup || "",
+      resourceCapacity: course.resourceCapacity == null ? null : Number(course.resourceCapacity),
       materials: normalizeCourseMaterials(course.courseMaterials)
     }));
   }
@@ -104,8 +110,11 @@ async function listCoursesForUser(user) {
       id,
       name,
       subject_id AS "subjectId",
+      instructor_id AS "instructorId",
       hours_per_day AS "hoursPerDay",
       exclusive_resource AS "exclusiveResource",
+      resource_group AS "resourceGroup",
+      resource_capacity AS "resourceCapacity",
       course_materials AS "courseMaterials"
     FROM courses
     ORDER BY lower(name)
@@ -114,6 +123,9 @@ async function listCoursesForUser(user) {
     ...course,
     hoursPerDay: Number(course.hoursPerDay || 0),
     exclusiveResource: !!course.exclusiveResource,
+    instructorId: course.instructorId || "",
+    resourceGroup: course.resourceGroup || "",
+    resourceCapacity: course.resourceCapacity == null ? null : Number(course.resourceCapacity),
     materials: normalizeCourseMaterials(course.courseMaterials)
   }));
 }
@@ -121,27 +133,46 @@ async function listCoursesForUser(user) {
 async function createCourse(course) {
   const pool = getPostgresPool();
   const result = await pool.query(`
-    INSERT INTO courses (id, name, subject_id, hours_per_day, exclusive_resource, course_materials)
-    VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+    INSERT INTO courses (
+      id,
+      name,
+      subject_id,
+      instructor_id,
+      hours_per_day,
+      exclusive_resource,
+      resource_group,
+      resource_capacity,
+      course_materials
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
     RETURNING
       id,
       name,
       subject_id AS "subjectId",
+      instructor_id AS "instructorId",
       hours_per_day AS "hoursPerDay",
       exclusive_resource AS "exclusiveResource",
+      resource_group AS "resourceGroup",
+      resource_capacity AS "resourceCapacity",
       course_materials AS "courseMaterials"
   `, [
     course.id,
     course.name,
     course.subjectId,
+    course.instructorId || null,
     course.hoursPerDay,
     course.exclusiveResource,
+    course.resourceGroup || "",
+    course.resourceCapacity == null ? null : Number(course.resourceCapacity),
     JSON.stringify(normalizeCourseMaterials(course.materials || course.material))
   ]);
   return {
     ...result.rows[0],
     hoursPerDay: Number(result.rows[0].hoursPerDay || 0),
     exclusiveResource: !!result.rows[0].exclusiveResource,
+    instructorId: result.rows[0].instructorId || "",
+    resourceGroup: result.rows[0].resourceGroup || "",
+    resourceCapacity: result.rows[0].resourceCapacity == null ? null : Number(result.rows[0].resourceCapacity),
     materials: normalizeCourseMaterials(result.rows[0].courseMaterials)
   };
 }
@@ -153,23 +184,32 @@ async function updateCourse(id, course) {
     SET
       name = $2,
       subject_id = $3,
-      hours_per_day = $4,
-      exclusive_resource = $5,
-      course_materials = $6::jsonb
+      instructor_id = $4,
+      hours_per_day = $5,
+      exclusive_resource = $6,
+      resource_group = $7,
+      resource_capacity = $8,
+      course_materials = $9::jsonb
     WHERE id = $1
     RETURNING
       id,
       name,
       subject_id AS "subjectId",
+      instructor_id AS "instructorId",
       hours_per_day AS "hoursPerDay",
       exclusive_resource AS "exclusiveResource",
+      resource_group AS "resourceGroup",
+      resource_capacity AS "resourceCapacity",
       course_materials AS "courseMaterials"
   `, [
     id,
     course.name,
     course.subjectId,
+    course.instructorId || null,
     course.hoursPerDay,
     course.exclusiveResource,
+    course.resourceGroup || "",
+    course.resourceCapacity == null ? null : Number(course.resourceCapacity),
     JSON.stringify(normalizeCourseMaterials(course.materials || course.material))
   ]);
   return result.rows[0]
@@ -177,6 +217,9 @@ async function updateCourse(id, course) {
       ...result.rows[0],
       hoursPerDay: Number(result.rows[0].hoursPerDay || 0),
       exclusiveResource: !!result.rows[0].exclusiveResource,
+      instructorId: result.rows[0].instructorId || "",
+      resourceGroup: result.rows[0].resourceGroup || "",
+      resourceCapacity: result.rows[0].resourceCapacity == null ? null : Number(result.rows[0].resourceCapacity),
       materials: normalizeCourseMaterials(result.rows[0].courseMaterials)
     }
     : null;

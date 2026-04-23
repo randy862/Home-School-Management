@@ -40,10 +40,17 @@ function normalizeCoursePayload(input) {
   const subjectId = String(input?.subjectId || "").trim();
   const instructorId = String(input?.instructorId || "").trim();
   const hoursPerDay = Number(input?.hoursPerDay);
-  const exclusiveResource = !!input?.exclusiveResource;
+  const resourceGroup = String(input?.resourceGroup || "").trim();
+  const resourceCapacity = normalizeCourseResourceCapacity(input?.resourceCapacity, !!input?.exclusiveResource);
+  const exclusiveResource = resourceCapacity === 1 || (!!input?.exclusiveResource && resourceCapacity == null);
   const materials = normalizeCourseMaterials(input?.materials || input?.material);
   if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) {
     const error = new Error("Provide course name, subject, and hours/day.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (resourceCapacity != null && (!Number.isInteger(resourceCapacity) || resourceCapacity <= 0)) {
+    const error = new Error("Concurrent capacity must be a whole number greater than 0.");
     error.statusCode = 400;
     throw error;
   }
@@ -52,7 +59,23 @@ function normalizeCoursePayload(input) {
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), name, subjectId, instructorId, hoursPerDay, exclusiveResource, materials };
+  return {
+    ...(id ? { id } : {}),
+    name,
+    subjectId,
+    instructorId,
+    hoursPerDay,
+    exclusiveResource,
+    resourceGroup,
+    resourceCapacity,
+    materials
+  };
+}
+
+function normalizeCourseResourceCapacity(value, legacyExclusive = false) {
+  if (value === "" || value == null) return legacyExclusive ? 1 : null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : (legacyExclusive ? 1 : null);
 }
 
 function hasCourseMaterialDetails(material) {

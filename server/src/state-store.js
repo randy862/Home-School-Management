@@ -106,6 +106,14 @@ async function readState() {
         subject_id,
         hours_per_day,
         CASE
+          WHEN COL_LENGTH('dbo.courses', 'resource_group') IS NULL THEN CAST('' AS NVARCHAR(150))
+          ELSE resource_group
+        END AS resource_group,
+        CASE
+          WHEN COL_LENGTH('dbo.courses', 'resource_capacity') IS NULL THEN NULL
+          ELSE resource_capacity
+        END AS resource_capacity,
+        CASE
           WHEN COL_LENGTH('dbo.courses', 'exclusive_resource') IS NULL THEN CAST(0 AS bit)
           ELSE exclusive_resource
         END AS exclusive_resource
@@ -224,7 +232,9 @@ async function readState() {
     name: r.name,
     subjectId: r.subject_id,
     hoursPerDay: Number(r.hours_per_day),
-    exclusiveResource: !!r.exclusive_resource
+    exclusiveResource: !!r.exclusive_resource,
+    resourceGroup: r.resource_group || "",
+    resourceCapacity: r.resource_capacity == null ? null : Number(r.resource_capacity)
   }));
   const enrollments = enrollmentsR.recordset.map((r) => ({
     id: r.id,
@@ -486,6 +496,20 @@ async function writeState(state) {
         ADD exclusive_resource BIT NOT NULL CONSTRAINT DF_courses_exclusive_resource DEFAULT 0
       END
     `);
+    await request().query(`
+      IF COL_LENGTH('dbo.courses', 'resource_group') IS NULL
+      BEGIN
+        ALTER TABLE dbo.courses
+        ADD resource_group NVARCHAR(150) NOT NULL CONSTRAINT DF_courses_resource_group DEFAULT ''
+      END
+    `);
+    await request().query(`
+      IF COL_LENGTH('dbo.courses', 'resource_capacity') IS NULL
+      BEGIN
+        ALTER TABLE dbo.courses
+        ADD resource_capacity INT NULL
+      END
+    `);
     for (const row of courses) {
       await request()
         .input("id", sql.NVarChar(64), row.id)
@@ -493,7 +517,9 @@ async function writeState(state) {
         .input("subject_id", sql.NVarChar(64), row.subjectId || "")
         .input("hours_per_day", sql.Decimal(6, 2), Number(row.hoursPerDay || 0))
         .input("exclusive_resource", sql.Bit, row.exclusiveResource ? 1 : 0)
-        .query("INSERT INTO dbo.courses (id, name, subject_id, hours_per_day, exclusive_resource) VALUES (@id, @name, @subject_id, @hours_per_day, @exclusive_resource)");
+        .input("resource_group", sql.NVarChar(150), row.resourceGroup || "")
+        .input("resource_capacity", sql.Int, row.resourceCapacity == null ? null : Number(row.resourceCapacity))
+        .query("INSERT INTO dbo.courses (id, name, subject_id, hours_per_day, exclusive_resource, resource_group, resource_capacity) VALUES (@id, @name, @subject_id, @hours_per_day, @exclusive_resource, @resource_group, @resource_capacity)");
     }
 
     await request().query(`
