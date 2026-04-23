@@ -5,40 +5,44 @@ function createCurriculumRepository(deps) {
     createCourse: async (course) => {
       const pool = getPostgresPool();
       const materials = normalizeCourseMaterials(course.materials || course.material);
+      const features = await getCourseTableFeatures(pool);
+      const insertColumns = ["id", "name", "subject_id"];
+      const insertValues = [course.id, course.name, course.subjectId];
+      const returningColumns = buildCourseSelectColumns(features);
+
+      if (features.hasInstructorId) {
+        insertColumns.push("instructor_id");
+        insertValues.push(course.instructorId || null);
+      }
+      insertColumns.push("hours_per_day");
+      insertValues.push(course.hoursPerDay);
+      if (features.hasExclusiveResource) {
+        insertColumns.push("exclusive_resource");
+        insertValues.push(course.exclusiveResource);
+      }
+      if (features.hasResourceGroup) {
+        insertColumns.push("resource_group");
+        insertValues.push(course.resourceGroup || "");
+      }
+      if (features.hasResourceCapacity) {
+        insertColumns.push("resource_capacity");
+        insertValues.push(course.resourceCapacity == null ? null : Number(course.resourceCapacity));
+      }
+      if (features.hasCourseMaterials) {
+        insertColumns.push("course_materials");
+        insertValues.push(JSON.stringify(materials));
+      }
+
+      const placeholders = insertColumns.map((column, index) =>
+        column === "course_materials" ? `$${index + 1}::jsonb` : `$${index + 1}`);
       const result = await pool.query(`
         INSERT INTO courses (
-          id,
-          name,
-          subject_id,
-          instructor_id,
-          hours_per_day,
-          exclusive_resource,
-          resource_group,
-          resource_capacity,
-          course_materials
+          ${insertColumns.join(",\n          ")}
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+        VALUES (${placeholders.join(", ")})
         RETURNING
-          id,
-          name,
-          subject_id AS "subjectId",
-          instructor_id AS "instructorId",
-          hours_per_day AS "hoursPerDay",
-          exclusive_resource AS "exclusiveResource",
-          resource_group AS "resourceGroup",
-          resource_capacity AS "resourceCapacity",
-          course_materials AS "courseMaterials"
-      `, [
-        course.id,
-        course.name,
-        course.subjectId,
-        course.instructorId || null,
-        course.hoursPerDay,
-        course.exclusiveResource,
-        course.resourceGroup || "",
-        course.resourceCapacity == null ? null : Number(course.resourceCapacity),
-        JSON.stringify(materials)
-      ]);
+          ${returningColumns}
+      `, insertValues);
       return mapCourseRow(result.rows[0]);
     },
 
@@ -137,18 +141,12 @@ function createCurriculumRepository(deps) {
 
     listCoursesForUser: async (user) => {
       const pool = getPostgresPool();
+      const features = await getCourseTableFeatures(pool);
+      const selectColumns = buildCourseSelectColumns(features, user?.role === "student" ? "c" : "");
       if (user?.role === "student") {
         const result = await pool.query(`
           SELECT
-            c.id,
-            c.name,
-            c.subject_id AS "subjectId",
-            c.instructor_id AS "instructorId",
-            c.hours_per_day AS "hoursPerDay",
-            c.exclusive_resource AS "exclusiveResource",
-            c.resource_group AS "resourceGroup",
-            c.resource_capacity AS "resourceCapacity",
-            c.course_materials AS "courseMaterials"
+            ${selectColumns}
           FROM courses c
           JOIN enrollments e ON e.course_id = c.id
           WHERE e.student_id = $1
@@ -159,15 +157,7 @@ function createCurriculumRepository(deps) {
 
       const result = await pool.query(`
         SELECT
-          id,
-          name,
-          subject_id AS "subjectId",
-          instructor_id AS "instructorId",
-          hours_per_day AS "hoursPerDay",
-          exclusive_resource AS "exclusiveResource",
-          resource_group AS "resourceGroup",
-          resource_capacity AS "resourceCapacity",
-          course_materials AS "courseMaterials"
+          ${selectColumns}
         FROM courses
         ORDER BY lower(name)
       `);
@@ -256,39 +246,50 @@ function createCurriculumRepository(deps) {
     updateCourse: async (id, course) => {
       const pool = getPostgresPool();
       const materials = normalizeCourseMaterials(course.materials || course.material);
+      const features = await getCourseTableFeatures(pool);
+      const setClauses = [
+        "name = $2",
+        "subject_id = $3"
+      ];
+      const values = [id, course.name, course.subjectId];
+      let parameterIndex = 4;
+
+      if (features.hasInstructorId) {
+        setClauses.push(`instructor_id = $${parameterIndex}`);
+        values.push(course.instructorId || null);
+        parameterIndex += 1;
+      }
+      setClauses.push(`hours_per_day = $${parameterIndex}`);
+      values.push(course.hoursPerDay);
+      parameterIndex += 1;
+      if (features.hasExclusiveResource) {
+        setClauses.push(`exclusive_resource = $${parameterIndex}`);
+        values.push(course.exclusiveResource);
+        parameterIndex += 1;
+      }
+      if (features.hasResourceGroup) {
+        setClauses.push(`resource_group = $${parameterIndex}`);
+        values.push(course.resourceGroup || "");
+        parameterIndex += 1;
+      }
+      if (features.hasResourceCapacity) {
+        setClauses.push(`resource_capacity = $${parameterIndex}`);
+        values.push(course.resourceCapacity == null ? null : Number(course.resourceCapacity));
+        parameterIndex += 1;
+      }
+      if (features.hasCourseMaterials) {
+        setClauses.push(`course_materials = $${parameterIndex}::jsonb`);
+        values.push(JSON.stringify(materials));
+      }
+
       const result = await pool.query(`
         UPDATE courses
         SET
-          name = $2,
-          subject_id = $3,
-          instructor_id = $4,
-          hours_per_day = $5,
-          exclusive_resource = $6,
-          resource_group = $7,
-          resource_capacity = $8,
-          course_materials = $9::jsonb
+          ${setClauses.join(",\n          ")}
         WHERE id = $1
         RETURNING
-          id,
-          name,
-          subject_id AS "subjectId",
-          instructor_id AS "instructorId",
-          hours_per_day AS "hoursPerDay",
-          exclusive_resource AS "exclusiveResource",
-          resource_group AS "resourceGroup",
-          resource_capacity AS "resourceCapacity",
-          course_materials AS "courseMaterials"
-      `, [
-        id,
-        course.name,
-        course.subjectId,
-        course.instructorId || null,
-        course.hoursPerDay,
-        course.exclusiveResource,
-        course.resourceGroup || "",
-        course.resourceCapacity == null ? null : Number(course.resourceCapacity),
-        JSON.stringify(materials)
-      ]);
+          ${buildCourseSelectColumns(features)}
+      `, values);
       return result.rows[0] ? mapCourseRow(result.rows[0]) : null;
     },
 
@@ -341,6 +342,52 @@ function createCurriculumRepository(deps) {
       return result.rows[0] || null;
     }
   };
+}
+
+let cachedCourseTableFeatures = null;
+
+async function getCourseTableFeatures(pool) {
+  if (cachedCourseTableFeatures) return cachedCourseTableFeatures;
+  const result = await pool.query(`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = 'courses'
+  `);
+  const columns = new Set(result.rows.map((row) => row.column_name));
+  cachedCourseTableFeatures = {
+    hasInstructorId: columns.has("instructor_id"),
+    hasExclusiveResource: columns.has("exclusive_resource"),
+    hasResourceGroup: columns.has("resource_group"),
+    hasResourceCapacity: columns.has("resource_capacity"),
+    hasCourseMaterials: columns.has("course_materials")
+  };
+  return cachedCourseTableFeatures;
+}
+
+function buildCourseSelectColumns(features, tableAlias = "") {
+  const prefix = tableAlias ? `${tableAlias}.` : "";
+  return [
+    `${prefix}id`,
+    `${prefix}name`,
+    `${prefix}subject_id AS "subjectId"`,
+    features.hasInstructorId
+      ? `${prefix}instructor_id AS "instructorId"`
+      : `'' AS "instructorId"`,
+    `${prefix}hours_per_day AS "hoursPerDay"`,
+    features.hasExclusiveResource
+      ? `${prefix}exclusive_resource AS "exclusiveResource"`
+      : `FALSE AS "exclusiveResource"`,
+    features.hasResourceGroup
+      ? `${prefix}resource_group AS "resourceGroup"`
+      : `'' AS "resourceGroup"`,
+    features.hasResourceCapacity
+      ? `${prefix}resource_capacity AS "resourceCapacity"`
+      : `NULL::integer AS "resourceCapacity"`,
+    features.hasCourseMaterials
+      ? `${prefix}course_materials AS "courseMaterials"`
+      : `'[]'::jsonb AS "courseMaterials"`
+  ].join(",\n          ");
 }
 
 function mapCourseRow(row) {
