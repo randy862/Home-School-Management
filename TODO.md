@@ -8,3 +8,4 @@
 - Validate a real tenant hostname such as `mitchell.navigrader.com`.
 - Fix the `Courses` create/edit form layout after the new resource fields landed; the current hosted UI overflows its framing and wraps helper text awkwardly in narrow space.
 - Fix the hosted tenant runtime/routing mismatch where live responses for `mitchell.navigrader.com` still advertise `mail04222026.navigrader.com` in runtime headers/config.
+- Fix the `Concurrent Capacity` field so hosted course saves persist values greater than `1`; right now non-`1` entries fall back to `Unrestricted`.

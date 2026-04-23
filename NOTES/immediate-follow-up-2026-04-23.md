@@ -5,6 +5,10 @@
 - The `Courses` create/edit form needs a layout cleanup after the new `Resource Group` and `Concurrent Capacity` fields landed.
 - In hosted mode the current form can overflow its framing, and the helper text wraps into a cramped narrow block.
 - The next pass should keep the new fields but rebalance the form grid, spacing, and helper-text placement so the section reads cleanly on the live tenant UI.
+- There is also a functional follow-up on the new capacity field:
+  - the `Concurrent Capacity` input currently behaves correctly only for `1`
+  - values greater than `1` are not sticking after save and the course falls back to `Unrestricted`
+  - next pass should trace whether that loss is happening in the hosted API persistence path, normalization logic, or tenant schema state
 
 ## Hosted Runtime Routing
 
