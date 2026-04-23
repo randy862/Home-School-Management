@@ -1082,6 +1082,7 @@ let currentScheduleTab = "school-years";
 let currentSchoolDayTab = "daily-schedule";
 let currentAdministrationTab = "workspace-configuration";
 let currentDashboardTab = "overview";
+let dashboardInstructionHourPaceExpanded = false;
 let currentAttendanceTab = "enter";
 let currentGradesTab = "enter";
 let currentStudentDetailTab = "schedule";
@@ -9702,8 +9703,9 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
 function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructionalHoursSnapshot, yearProgressPercent) {
   const studentCount = Array.isArray(dashboardStudents) ? dashboardStudents.length : 0;
   const requiredPerStudent = Number(state.settings.schoolYear.requiredInstructionalHours || 0);
+  const progressPct = clamp(yearProgressPercent, 0, 100) / 100;
   const requiredTotal = requiredPerStudent * studentCount;
-  const expectedToDate = requiredTotal * (clamp(yearProgressPercent, 0, 100) / 100);
+  const expectedToDate = requiredTotal * progressPct;
   const actualToDate = Array.from(instructionalHoursSnapshot.summaryByStudent.values()).reduce((sum, studentSummary) => {
     return sum + Number(studentSummary.buckets.total?.earned || 0);
   }, 0);
@@ -9721,6 +9723,33 @@ function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructio
     status = "Behind Pace";
     statusClass = "behind";
   }
+  const studentRows = (dashboardStudents || []).map((student) => {
+    const studentExpectedToDate = requiredPerStudent * progressPct;
+    const studentActualToDate = Number(instructionalHoursSnapshot.summaryByStudent.get(student.id)?.buckets?.total?.earned || 0);
+    const studentVarianceHours = studentActualToDate - studentExpectedToDate;
+    const studentToleranceHours = Math.max(1, studentExpectedToDate * 0.02);
+    let studentStatus = "On Pace";
+    let studentStatusClass = "on-pace";
+    if (studentExpectedToDate <= 0.01 && studentActualToDate <= 0.01) {
+      studentStatus = "Year Opening";
+      studentStatusClass = "starting";
+    } else if (studentVarianceHours > studentToleranceHours) {
+      studentStatus = "Ahead of Pace";
+      studentStatusClass = "ahead";
+    } else if (studentVarianceHours < -studentToleranceHours) {
+      studentStatus = "Behind Pace";
+      studentStatusClass = "behind";
+    }
+    return {
+      studentId: student.id,
+      studentName: `${student.firstName} ${student.lastName}`,
+      expectedToDate: studentExpectedToDate,
+      actualToDate: studentActualToDate,
+      varianceHours: studentVarianceHours,
+      status: studentStatus,
+      statusClass: studentStatusClass
+    };
+  }).sort((a, b) => a.studentName.localeCompare(b.studentName));
   return {
     studentCount,
     requiredTotal,
@@ -9728,7 +9757,8 @@ function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructio
     actualToDate,
     varianceHours,
     status,
-    statusClass
+    statusClass,
+    studentRows
   };
 }
 
@@ -9861,6 +9891,16 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
   const actualNode = document.getElementById("dashboard-hour-pace-actual");
   const varianceNode = document.getElementById("dashboard-hour-pace-variance");
   const varianceNote = document.getElementById("dashboard-hour-pace-variance-note");
+  const toggleButton = document.getElementById("dashboard-hour-pace-toggle");
+  const studentBreakdown = document.getElementById("dashboard-hour-pace-student-breakdown");
+  const studentRows = (snapshot.studentRows || []).map((row) => `
+    <tr>
+      <td>${escapeHtml(row.studentName)}</td>
+      <td>${row.expectedToDate.toFixed(2)}</td>
+      <td>${row.actualToDate.toFixed(2)}</td>
+      <td>${row.varianceHours >= 0 ? "+" : ""}${row.varianceHours.toFixed(2)} hrs</td>
+      <td><span class="dashboard-pill-metric ${row.statusClass}">${escapeHtml(row.status)}</span></td>
+    </tr>`);
   const varianceText = `${snapshot.varianceHours >= 0 ? "+" : ""}${snapshot.varianceHours.toFixed(2)} hrs`;
 
   if (overviewValue) overviewValue.textContent = snapshot.status;
@@ -9880,6 +9920,12 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
       : snapshot.status === "Behind Pace"
         ? "Behind the expected year-to-date pace."
         : "School year pacing has not started yet.";
+  if (toggleButton) {
+    toggleButton.textContent = dashboardInstructionHourPaceExpanded ? "Hide Student Breakdown" : "Show Student Breakdown";
+    toggleButton.setAttribute("aria-expanded", dashboardInstructionHourPaceExpanded ? "true" : "false");
+  }
+  if (studentBreakdown) studentBreakdown.classList.toggle("hidden", !dashboardInstructionHourPaceExpanded);
+  rowOrEmpty(document.getElementById("dashboard-hour-pace-student-table"), studentRows, "No student pacing data available.", 5);
 }
 
 function renderDashboardMissingGradesSummary(snapshot) {
@@ -13826,6 +13872,12 @@ function bindEvents() {
   document.addEventListener("click", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
+    const toggleInstructionPaceTarget = t.closest("#dashboard-hour-pace-toggle");
+    if (toggleInstructionPaceTarget instanceof HTMLElement) {
+      dashboardInstructionHourPaceExpanded = !dashboardInstructionHourPaceExpanded;
+      renderDashboard();
+      return;
+    }
     const openDayTarget = t.closest("[data-open-calendar-day]");
     if (openDayTarget instanceof HTMLElement) {
       const date = openDayTarget.getAttribute("data-date");

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202604222045">
+  <link rel="stylesheet" href="styles.css?v=202604231130">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -237,6 +237,17 @@
             <p id="dashboard-hour-pace-variance" class="dashboard-summary-value">0.00</p>
             <p id="dashboard-hour-pace-variance-note" class="dashboard-summary-note muted">Currently on pace.</p>
           </article>
+        </div>
+        <div class="dashboard-detail-toggle-row">
+          <button id="dashboard-hour-pace-toggle" type="button" class="secondary-btn dashboard-detail-toggle" aria-expanded="false" aria-controls="dashboard-hour-pace-student-breakdown">Show Student Breakdown</button>
+        </div>
+        <div id="dashboard-hour-pace-student-breakdown" class="dashboard-student-breakdown hidden">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Student</th><th>Expected To Date</th><th>Earned To Date</th><th>Variance</th><th>Status</th></tr></thead>
+              <tbody id="dashboard-hour-pace-student-table"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -1588,6 +1599,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202604222105"></script>
+  <script src="app.js?v=202604231130"></script>
   </body>
   </html>
