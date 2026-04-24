@@ -7411,6 +7411,18 @@ function fillSchoolDaySettingsForm(schoolYearId = "") {
   }
 }
 
+function confirmEarlyClassStart(startTime) {
+  const schoolYear = currentSchoolYear();
+  const classStartMinutes = parseTimeToMinutes(startTime);
+  const schoolDayStartMinutes = parseTimeToMinutes(schoolYear?.schoolDayStartTime || DEFAULT_SCHOOL_DAY_START_TIME);
+  if (!Number.isFinite(classStartMinutes) || !Number.isFinite(schoolDayStartMinutes) || classStartMinutes >= schoolDayStartMinutes) {
+    return true;
+  }
+  return window.confirm(
+    `This class is scheduled to start at ${formatClockTime(classStartMinutes)}, which is before the ${schoolYear?.label || "current"} School Day start time of ${formatClockTime(schoolDayStartMinutes)}. Do you want to save it anyway?`
+  );
+}
+
 function renderPlans() {
   const tableBody = document.getElementById("plan-table");
   if (!tableBody) return;
@@ -13030,6 +13042,7 @@ function bindEvents() {
     const weekdays = Array.from(document.querySelectorAll("input[name='course-section-weekday']:checked")).map((checkbox) => Number(checkbox.value));
     if (!courseId || !label || !startTime || !weekdays.length) { alert("Provide a course, class label, start time, and at least one weekday."); return; }
     if (concurrentCapacity != null && (!Number.isInteger(concurrentCapacity) || concurrentCapacity <= 0)) { alert("Class capacity must be a whole number greater than 0."); return; }
+    if (!confirmEarlyClassStart(startTime)) return;
     const payload = { courseId, label, resourceGroup, concurrentCapacity, startTime, weekdays, scheduleOrder: null };
     if (hostedModeEnabled) {
       (async () => {
