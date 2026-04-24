@@ -40,6 +40,7 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
 const DEFAULT_SCHOOL_DAY_START_TIME = "08:00";
 const DEFAULT_MINUTES_BETWEEN_CLASSES = 5;
+const FLEX_BLOCK_MIN_GAP_MINUTES = 10;
 const EXCLUDED_GRADE_TYPE_FILTER_OPTIONS = new Set(["homework"]);
 const STUDENT_PERFORMANCE_GRADE_METHODS = ["Percentage", "Letter", "GPA"];
 const LETTER_GRADE_ORDER = ["A", "B", "C", "D", "F"];
@@ -11257,13 +11258,35 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         : resolvedActualEnd;
     });
 
-    const instructionBlocks = adjustedBlocks.filter((entry) => entry.type === "instruction");
+    const adjustedWithFlexBlocks = [];
+    let previousEnd = schoolDayStartMinutes;
+    adjustedBlocks.forEach((block) => {
+      const gapMinutes = Math.max(0, block.start - previousEnd);
+      if (gapMinutes > FLEX_BLOCK_MIN_GAP_MINUTES) {
+        adjustedWithFlexBlocks.push({
+          student: studentName,
+          studentId,
+          label: "Flex Block",
+          plannedStart: previousEnd,
+          plannedEnd: block.start,
+          start: previousEnd,
+          end: block.start,
+          durationMinutes: gapMinutes,
+          actualMinutes: gapMinutes,
+          type: "flex"
+        });
+      }
+      adjustedWithFlexBlocks.push(block);
+      previousEnd = Math.max(previousEnd, block.end);
+    });
+
+    const instructionBlocks = adjustedWithFlexBlocks.filter((entry) => entry.type === "instruction");
     instructionBlocks.forEach((entry, index) => {
       entry.orderPosition = index + 1;
       entry.orderTotal = instructionBlocks.length;
     });
 
-    blocksByStudent.set(studentId, adjustedBlocks);
+    blocksByStudent.set(studentId, adjustedWithFlexBlocks);
   });
 
   return blocksByStudent;
