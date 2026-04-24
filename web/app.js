@@ -1293,6 +1293,8 @@ let editingAttendanceId = "";
 let editingInstructionActualKey = "";
 let editingSharedClassActualKey = "";
 let editingFlexBlockKey = "";
+let editingSearchAttendanceId = "";
+let editingSearchGradeId = "";
 let editingUserId = "";
 let userViewMode = "list";
 let studentViewMode = "list";
@@ -7611,11 +7613,22 @@ function renderAttendance() {
   const rows = [...filtered]
     .sort((a,b)=>b.date.localeCompare(a.date))
     .slice(0,100)
-    .map((a) => {
+    .flatMap((a) => {
       const actions = isAdminUser()
         ? `<button type='button' data-edit-attendance='${a.id}'>Edit</button> <button type='button' data-remove-attendance='${a.id}'>Remove</button>`
         : "View only";
-      return `<tr><td>${formatDisplayDate(a.date)}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td>${typeof actions === "string" && actions.includes("<button") ? `<div class="table-action-row">${actions}</div>` : actions}</td></tr>`;
+      const recordRow = `<tr><td>${formatDisplayDate(a.date)}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td>${typeof actions === "string" && actions.includes("<button") ? `<div class="table-action-row">${actions}</div>` : actions}</td></tr>`;
+      if (!useSearchFilters || editingSearchAttendanceId !== a.id) return [recordRow];
+      const studentOptions = visibleStudents()
+        .map((student) => `<option value="${student.id}"${student.id === a.studentId ? " selected" : ""}>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</option>`)
+        .join("");
+      const editRow = `<tr class="search-inline-edit-row attendance-search-edit-row">
+        <td><label>Date<input data-search-attendance-date="${a.id}" type="date" value="${escapeHtml(a.date)}"></label></td>
+        <td><label>Student<select data-search-attendance-student="${a.id}">${studentOptions}</select></label></td>
+        <td><label>Status<select data-search-attendance-status="${a.id}"><option value="present"${a.present ? " selected" : ""}>Present</option><option value="absent"${!a.present ? " selected" : ""}>Absent</option></select></label></td>
+        <td><div class="table-action-row"><button type="button" data-save-search-attendance="${a.id}">Save</button><button type="button" data-cancel-search-attendance="${a.id}">Cancel</button></div></td>
+      </tr>`;
+      return [recordRow, editRow];
     });
   rowOrEmpty(document.getElementById("attendance-table"), rows, "No attendance recorded yet.", 4);
 }
@@ -8114,12 +8127,23 @@ function renderTests() {
   const rows = [...filtered]
     .sort((a,b)=>b.date.localeCompare(a.date))
     .slice(0,150)
-    .map((t) => {
+    .flatMap((t) => {
       const gradeType = gradeTypeName(t);
       const actions = isAdminUser()
         ? `<button type='button' data-edit-grade='${t.id}'>Edit</button> <button type='button' data-remove-grade='${t.id}'>Remove</button>`
         : "View only";
-      return `<tr><td>${formatDisplayDate(t.date)}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${gradeType}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td><td>${typeof actions === "string" && actions.includes("<button") ? `<div class="table-action-row">${actions}</div>` : actions}</td></tr>`;
+      const recordRow = `<tr><td>${formatDisplayDate(t.date)}</td><td>${getStudentName(t.studentId)}</td><td>${getSubjectName(t.subjectId)}</td><td>${getCourseName(t.courseId)}</td><td>${gradeType}</td><td>${pct(t.score,t.maxScore).toFixed(1)}%</td><td>${typeof actions === "string" && actions.includes("<button") ? `<div class="table-action-row">${actions}</div>` : actions}</td></tr>`;
+      if (!useSearchFilters || editingSearchGradeId !== t.id) return [recordRow];
+      const editGradeRow = buildGradeEntryRow(t);
+      const editRow = `<tr class="search-inline-edit-row"><td colspan="7">
+        <div class="table-wrap search-grade-edit-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead>
+            <tbody>${editGradeRow.outerHTML}</tbody>
+          </table>
+        </div>
+      </td></tr>`;
+      return [recordRow, editRow];
     });
   const avgGrade = weightedAverageForTests(filtered, { quarterScoped: quarterFilter !== "all" });
   if (rows.length) {
@@ -14751,7 +14775,10 @@ function bindEvents() {
   });
   ["attendance-filter-student", "attendance-filter-date", "attendance-filter-quarter", "attendance-filter-status"].forEach((id) => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener("change", () => renderAttendance());
+    if (el) el.addEventListener("change", () => {
+      editingSearchAttendanceId = "";
+      renderAttendance();
+    });
   });
   const attendanceClearFiltersBtn = document.getElementById("attendance-clear-filters-btn");
   if (attendanceClearFiltersBtn) {
@@ -14764,6 +14791,7 @@ function bindEvents() {
       if (dateFilter) dateFilter.value = "";
       if (quarterFilter) quarterFilter.value = "all";
       if (statusFilter) statusFilter.value = "all";
+      editingSearchAttendanceId = "";
       renderAttendance();
     });
   }
@@ -14784,6 +14812,7 @@ function bindEvents() {
     .forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("change", () => {
+        editingSearchGradeId = "";
         if (id === "grades-filter-student" || id === "grades-filter-subject" || id === "grades-filter-instructor") {
           syncGradesFilterSubjectCourseOptions();
         }
@@ -14806,6 +14835,7 @@ function bindEvents() {
         const el = document.getElementById(id);
         if (el) el.value = "all";
       });
+      editingSearchGradeId = "";
       syncGradesFilterSubjectCourseOptions();
       renderTests();
     });
@@ -15378,6 +15408,7 @@ function bindEvents() {
     const attendanceTab = t.getAttribute("data-attendance-tab");
     if (attendanceTab) {
       currentAttendanceTab = attendanceTab === "search" ? "search" : "enter";
+      editingSearchAttendanceId = "";
       renderAttendanceSectionVisibility();
       renderAttendance();
       return;
@@ -15385,6 +15416,7 @@ function bindEvents() {
     const gradesTab = t.getAttribute("data-grades-tab");
     if (gradesTab) {
       currentGradesTab = gradesTab === "search" ? "search" : "enter";
+      editingSearchGradeId = "";
       renderGradesSectionVisibility();
       renderTests();
       return;
@@ -15905,7 +15937,45 @@ function bindEvents() {
       if (!ensureAdminAction()) return;
       const target = state.attendance.find((a) => a.id === editAttendanceId);
       if (!target) return;
+      if (currentAttendanceTab === "search") {
+        editingSearchAttendanceId = editingSearchAttendanceId === editAttendanceId ? "" : editAttendanceId;
+        renderAttendance();
+        return;
+      }
       beginAttendanceEdit(target);
+      return;
+    }
+    const cancelSearchAttendanceId = t.getAttribute("data-cancel-search-attendance");
+    if (cancelSearchAttendanceId) {
+      editingSearchAttendanceId = "";
+      renderAttendance();
+      return;
+    }
+    const saveSearchAttendanceId = t.getAttribute("data-save-search-attendance");
+    if (saveSearchAttendanceId) {
+      if (!ensureAdminAction()) return;
+      const studentId = document.querySelector(`[data-search-attendance-student="${saveSearchAttendanceId}"]`)?.value || "";
+      const date = document.querySelector(`[data-search-attendance-date="${saveSearchAttendanceId}"]`)?.value || "";
+      const status = document.querySelector(`[data-search-attendance-status="${saveSearchAttendanceId}"]`)?.value || "present";
+      if (!studentId || !date) {
+        alert("Complete the attendance edit fields.");
+        return;
+      }
+      (async () => {
+        try {
+          if (hostedModeEnabled) {
+            const saved = await updateHostedAttendance(saveSearchAttendanceId, { studentId, date, present: status === "present" });
+            if (saved) upsertHostedAttendanceState(saved);
+          } else {
+            updateLegacyLocalAttendance(state.attendance.find((entry) => entry.id === saveSearchAttendanceId), { studentId, date, present: status === "present" });
+            saveState();
+          }
+          editingSearchAttendanceId = "";
+          rerenderAfterAttendanceChange();
+        } catch (error) {
+          alert(error.message || "Unable to update attendance.");
+        }
+      })();
       return;
     }
     const removeAttendanceId = t.getAttribute("data-remove-attendance");
@@ -15929,6 +15999,7 @@ function bindEvents() {
         (async () => {
           try {
             await deleteHostedAttendance(removeAttendanceId);
+            if (editingSearchAttendanceId === removeAttendanceId) editingSearchAttendanceId = "";
             if (editingAttendanceId === removeAttendanceId) resetAttendanceEditMode();
             state.attendance = state.attendance.filter((entry) => entry.id !== removeAttendanceId);
             rerenderAfterAttendanceChange();
@@ -15939,6 +16010,7 @@ function bindEvents() {
         return;
       }
       deleteLegacyLocalAttendance(removeAttendanceId);
+      if (editingSearchAttendanceId === removeAttendanceId) editingSearchAttendanceId = "";
       if (editingAttendanceId === removeAttendanceId) resetAttendanceEditMode();
       saveState();
       renderAll();
@@ -15989,6 +16061,7 @@ function bindEvents() {
                 maxScore: 100
               });
               if (saved) upsertHostedTestState(saved);
+              if (editingSearchGradeId === editGradeId) editingSearchGradeId = "";
               row.remove();
               rerenderAfterGradeChange();
             } catch (error) {
@@ -16007,6 +16080,7 @@ function bindEvents() {
           score: gradeValue,
           maxScore: 100
         });
+        if (editingSearchGradeId === editGradeId) editingSearchGradeId = "";
       } else {
         if (hostedModeEnabled) {
           (async () => {
@@ -16101,6 +16175,11 @@ function bindEvents() {
         ? document.querySelector(`tr[data-grade-entry-row-id="${actionForRowId}"]`)
         : clickedRow;
       if (row) {
+        if (row.closest(".search-inline-edit-row")) {
+          editingSearchGradeId = "";
+          renderTests();
+          return;
+        }
         if (row.closest("[data-school-day-inline-grade-container]")) {
           schoolDayInlineGradeKey = "";
           renderSchoolDay();
@@ -16127,6 +16206,11 @@ function bindEvents() {
       if (!ensureAdminAction()) return;
       const existing = state.tests.find((x) => x.id === editGradeId);
       if (!existing) return;
+      if (currentGradesTab === "search") {
+        editingSearchGradeId = editingSearchGradeId === editGradeId ? "" : editGradeId;
+        renderTests();
+        return;
+      }
       const entryBody = document.getElementById("grade-entry-body");
       const existingRow = entryBody.querySelector(`tr[data-edit-grade-id="${editGradeId}"]`);
       if (existingRow) {
@@ -16144,6 +16228,7 @@ function bindEvents() {
         (async () => {
           try {
             await deleteHostedTest(removeGradeId);
+            if (editingSearchGradeId === removeGradeId) editingSearchGradeId = "";
             await refreshHostedTests();
             const editingRow = document.querySelector(`tr[data-edit-grade-id="${removeGradeId}"]`);
             if (editingRow) {
@@ -16158,6 +16243,7 @@ function bindEvents() {
         return;
       }
       deleteLegacyLocalGrade(removeGradeId);
+      if (editingSearchGradeId === removeGradeId) editingSearchGradeId = "";
       const editingRow = document.querySelector(`tr[data-edit-grade-id="${removeGradeId}"]`);
       if (editingRow) {
         editingRow.remove();

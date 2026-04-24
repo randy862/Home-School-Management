@@ -1072,24 +1072,34 @@ td {
 
 .schedule-block-secondary-row {
   grid-column: 1 / -1;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(150px, 180px) minmax(296px, max-content) auto auto;
   align-items: end;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  gap: 0.65rem;
 }
 
 .schedule-block-duration-field {
-  width: 160px;
+  width: 100%;
+  min-width: 0;
+}
+
+#schedule-block-duration {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
 }
 
 .schedule-block-weekdays-field {
   margin: 0;
-  width: max-content;
+  width: auto;
+  min-width: 296px;
 }
 
 .schedule-block-submit-btn,
 #schedule-block-cancel-edit-btn {
   align-self: end;
+  justify-self: start;
+  width: auto;
 }
 
 .checklist-group-label {
@@ -3094,8 +3104,12 @@ td {
 }
 
 #grades-filter-form > button {
+  align-self: end;
   justify-self: start;
-  width: auto;
+  width: 100%;
+  max-width: 180px;
+  height: calc(1em + 0.84rem + 2px);
+  padding: 0.42rem 0.8rem;
 }
 
 #plan-filter-form > button {
@@ -3122,6 +3136,50 @@ td {
 #calendar-form > label > select,
 #calendar-form .multi-select-dropdown summary {
   line-height: 1.2;
+}
+
+.search-inline-edit-row > td {
+  background: #f8fbff;
+  padding: 0.75rem;
+}
+
+.search-inline-edit-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) auto;
+  align-items: end;
+  gap: 0.6rem;
+}
+
+.search-inline-edit-panel label {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.search-grade-edit-wrap {
+  margin: 0;
+}
+
+.attendance-search-edit-row label {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.attendance-search-edit-row input,
+.attendance-search-edit-row select {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .schedule-block-secondary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .search-inline-edit-panel {
+    grid-template-columns: 1fr;
+  }
 }
 
 #calendar-form .calendar-filter-field {
