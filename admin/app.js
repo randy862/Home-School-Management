@@ -90,6 +90,7 @@ const refs = {
   jobType: document.getElementById("job-type"),
   provisionFields: document.getElementById("provision-fields"),
   setupFields: document.getElementById("setup-fields"),
+  lifecycleFields: document.getElementById("lifecycle-fields"),
   tenantEditId: document.getElementById("tenant-edit-id"),
   tenantSlug: document.getElementById("tenant-slug"),
   tenantDisplayName: document.getElementById("tenant-display-name"),
@@ -1210,6 +1211,7 @@ function resetJobForm() {
   refs.jobForm.reset();
   document.getElementById("job-ttl-hours").value = "2";
   document.getElementById("job-delivered-via").value = "operator_console";
+  document.getElementById("job-lifecycle-notes").value = "";
   refs.jobType.value = "provision_environment";
   syncJobFormMode();
   refs.jobFormShell.classList.add("hidden");
@@ -1685,9 +1687,9 @@ function bindEvents() {
     const jobType = refs.jobType.value;
     const environmentId = refs.jobEnvironmentId.value;
     const tenantId = refs.jobTenantId.value;
-    setFlash("info", jobType === "issue_setup_token" ? "Queueing setup-token issuance..." : "Queueing environment operation...");
+    setFlash("info", jobType === "issue_setup_token" ? "Queueing setup-token issuance..." : `Queueing ${formatJobType(jobType).toLowerCase()}...`);
     try {
-      const path = `/api/control/environments/${encodeURIComponent(environmentId)}/${jobType === "issue_setup_token" ? "setup-token" : "provision"}`;
+      const path = buildOperationPath(environmentId, jobType);
       let body;
       if (jobType === "issue_setup_token") {
         body = {
@@ -1695,6 +1697,12 @@ function bindEvents() {
           ttlHours: Number(document.getElementById("job-ttl-hours").value || 2),
           deliveredVia: document.getElementById("job-delivered-via").value.trim(),
           notes: document.getElementById("job-notes").value.trim(),
+          idempotencyKey: document.getElementById("job-idempotency-key").value.trim()
+        };
+      } else if (isLifecycleJobType(jobType)) {
+        body = {
+          tenantId,
+          notes: document.getElementById("job-lifecycle-notes").value.trim(),
           idempotencyKey: document.getElementById("job-idempotency-key").value.trim()
         };
       } else {
@@ -1778,9 +1786,33 @@ function bindEvents() {
 }
 
 function syncJobFormMode() {
-  const isSetup = refs.jobType?.value === "issue_setup_token";
-  refs.provisionFields?.classList.toggle("hidden", isSetup);
+  const jobType = refs.jobType?.value || "provision_environment";
+  const isSetup = jobType === "issue_setup_token";
+  const isLifecycle = isLifecycleJobType(jobType);
+  refs.provisionFields?.classList.toggle("hidden", isSetup || isLifecycle);
   refs.setupFields?.classList.toggle("hidden", !isSetup);
+  refs.lifecycleFields?.classList.toggle("hidden", !isLifecycle);
+}
+
+function isLifecycleJobType(jobType) {
+  return ["suspend_tenant", "resume_tenant", "decommission_tenant"].includes(String(jobType || "").trim());
+}
+
+function buildOperationPath(environmentId, jobType) {
+  const encodedEnvironmentId = encodeURIComponent(environmentId);
+  const operationPaths = {
+    provision_environment: "provision",
+    deploy_release: "deploy-release",
+    issue_setup_token: "setup-token",
+    suspend_tenant: "suspend",
+    resume_tenant: "resume",
+    decommission_tenant: "decommission"
+  };
+  const operationPath = operationPaths[jobType];
+  if (!operationPath) {
+    throw new Error("Choose a valid operation type.");
+  }
+  return `/api/control/environments/${encodedEnvironmentId}/${operationPath}`;
 }
 
 function collectUserPermissions() {

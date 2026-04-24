@@ -264,7 +264,11 @@
               <label><span>Job Type</span>
                 <select id="job-type">
                   <option value="provision_environment">Provision Environment</option>
+                  <option value="deploy_release">Deploy Release</option>
                   <option value="issue_setup_token">Issue Setup Token</option>
+                  <option value="suspend_tenant">Suspend Customer Access</option>
+                  <option value="resume_tenant">Resume Customer Access</option>
+                  <option value="decommission_tenant">Decommission Customer</option>
                 </select>
               </label>
               <div id="provision-fields" class="inline-fields">
@@ -278,6 +282,9 @@
                 <label><span>TTL Hours</span><input id="job-ttl-hours" type="number" min="1" max="48" value="2"></label>
                 <label><span>Delivered Via</span><input id="job-delivered-via" value="operator_console"></label>
                 <label><span>Notes</span><input id="job-notes"></label>
+              </div>
+              <div id="lifecycle-fields" class="inline-fields hidden">
+                <label><span>Lifecycle Notes</span><input id="job-lifecycle-notes" placeholder="Reason or ticket reference"></label>
               </div>
               <label><span>Idempotency Key</span><input id="job-idempotency-key"></label>
               <div class="operator-actions">
@@ -346,6 +353,6 @@
       </section>
     </section>
   </main>
-  <script src="app.js?v=202604182220"></script>
+  <script src="app.js?v=202604241820"></script>
 </body>
 </html>
