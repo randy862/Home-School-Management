@@ -18,7 +18,9 @@ const API_STUDENTS_ENDPOINT = `${API_BASE_URL}/api/students`;
 const API_INSTRUCTORS_ENDPOINT = `${API_BASE_URL}/api/instructors`;
 const API_SUBJECTS_ENDPOINT = `${API_BASE_URL}/api/subjects`;
 const API_COURSES_ENDPOINT = `${API_BASE_URL}/api/courses`;
+const API_COURSE_SECTIONS_ENDPOINT = `${API_BASE_URL}/api/course-sections`;
 const API_ENROLLMENTS_ENDPOINT = `${API_BASE_URL}/api/enrollments`;
+const API_SECTION_ENROLLMENTS_ENDPOINT = `${API_BASE_URL}/api/section-enrollments`;
 const API_SCHEDULE_BLOCKS_ENDPOINT = `${API_BASE_URL}/api/schedule-blocks`;
 const API_STUDENT_SCHEDULE_BLOCKS_ENDPOINT = `${API_BASE_URL}/api/student-schedule-blocks`;
 const API_SCHOOL_YEARS_ENDPOINT = `${API_BASE_URL}/api/school-years`;
@@ -358,7 +360,7 @@ function defaultState() {
     { id: uid(), schoolYearId, name: "Q4", startDate: `${y}-10-01`, endDate: `${y}-12-31` }
   ];
   return {
-    students: [], instructors: [], subjects: [], courses: [], enrollments: [], scheduleBlocks: [], studentScheduleBlocks: [], plans: [], attendance: [], instructionActuals: [], tests: [], users: [createLegacyBootstrapAdmin()],
+    students: [], instructors: [], subjects: [], courses: [], courseSections: [], enrollments: [], sectionEnrollments: [], scheduleBlocks: [], studentScheduleBlocks: [], plans: [], attendance: [], instructionActuals: [], tests: [], users: [createLegacyBootstrapAdmin()],
     settings: {
       schoolYear: { ...schoolYear },
       schoolYears: [schoolYear],
@@ -470,6 +472,39 @@ function normalizeCoursesShape(inputState) {
   }));
 }
 
+function normalizeCourseSectionsShape(inputState) {
+  const s = inputState;
+  const validCourseIds = new Set((s.courses || []).map((course) => course.id));
+  if (!Array.isArray(s.courseSections)) {
+    s.courseSections = [];
+    return;
+  }
+  s.courseSections = s.courseSections
+    .filter((section) => section && validCourseIds.has(String(section.courseId || "").trim()))
+    .map((section) => {
+      const concurrentCapacity = section.concurrentCapacity === "" || section.concurrentCapacity == null
+        ? null
+        : Number(section.concurrentCapacity);
+      const scheduleOrder = section.scheduleOrder === "" || section.scheduleOrder == null
+        ? null
+        : Number(section.scheduleOrder);
+      const weekdays = Array.isArray(section.weekdays)
+        ? Array.from(new Set(section.weekdays.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5))).sort((a, b) => a - b)
+        : [];
+      return {
+        id: section.id || uid(),
+        courseId: String(section.courseId || "").trim(),
+        label: String(section.label || "").trim(),
+        resourceGroup: String(section.resourceGroup || "").trim(),
+        concurrentCapacity: Number.isInteger(concurrentCapacity) && concurrentCapacity > 0 ? concurrentCapacity : null,
+        startTime: /^\d{2}:\d{2}$/.test(String(section.startTime || "")) ? String(section.startTime) : "08:00",
+        weekdays: weekdays.length ? weekdays : [1, 2, 3, 4, 5],
+        scheduleOrder: Number.isInteger(scheduleOrder) && scheduleOrder > 0 ? scheduleOrder : null
+      };
+    })
+    .filter((section) => !!section.label);
+}
+
 function normalizeCourseResourceCapacity(value, legacyExclusive = false) {
   if (value === "" || value == null) return legacyExclusive ? 1 : null;
   const numeric = Number(value);
@@ -496,6 +531,92 @@ function formatCourseResourceSummary(course) {
   if (!(capacity > 0)) return "Unrestricted";
   const group = courseResourceGroup(course) || course?.name || "Course";
   return `${group} (${capacity})`;
+}
+
+function getCourseSection(sectionId) {
+  return state.courseSections.find((section) => section.id === sectionId) || null;
+}
+
+function getCourseSectionsForCourse(courseId) {
+  return state.courseSections.filter((section) => section.courseId === courseId);
+}
+
+function sortedCourseSections(courseId = "") {
+  return state.courseSections
+    .filter((section) => !courseId || section.courseId === courseId)
+    .slice()
+    .sort((a, b) =>
+      getCourseName(a.courseId).localeCompare(getCourseName(b.courseId))
+      || (parseScheduleOrderValue(a.scheduleOrder) ?? Number.MAX_SAFE_INTEGER) - (parseScheduleOrderValue(b.scheduleOrder) ?? Number.MAX_SAFE_INTEGER)
+      || a.startTime.localeCompare(b.startTime)
+      || a.label.localeCompare(b.label));
+}
+
+function sectionDisplayName(sectionId) {
+  const section = getCourseSection(sectionId);
+  if (!section) return "Unknown Section";
+  const courseName = getCourseName(section.courseId);
+  return `${courseName} - ${section.label}`;
+}
+
+function courseSectionEnrollmentCount(sectionId, sourceEntries = state.sectionEnrollments) {
+  return sourceEntries.filter((entry) => entry.courseSectionId === sectionId).length;
+}
+
+function entryCourseId(entry) {
+  if (!entry || entry.itemType === "scheduleBlock") return "";
+  if (entry.itemType === "courseSection") {
+    return getCourseSection(entry.courseSectionId)?.courseId || "";
+  }
+  return String(entry.courseId || "").trim();
+}
+
+function studentScheduledEntryDisplayName(entry) {
+  if (!entry) return "Unknown Item";
+  if (entry.itemType === "scheduleBlock") return scheduleBlockDisplayName(entry.scheduleBlockId);
+  if (entry.itemType === "courseSection") return sectionDisplayName(entry.courseSectionId);
+  return getCourseName(entry.courseId);
+}
+
+function studentScheduledEntrySubjectLabel(entry) {
+  if (!entry) return "Unknown";
+  if (entry.itemType === "scheduleBlock") {
+    return SCHEDULE_BLOCK_TYPE_LABELS[getScheduleBlock(entry.scheduleBlockId)?.type] || "Schedule Block";
+  }
+  if (entry.itemType === "courseSection") {
+    const section = getCourseSection(entry.courseSectionId);
+    const course = section ? getCourse(section.courseId) : null;
+    const weekdays = (section?.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
+    const timeLabel = section?.startTime ? formatClockTime(section.startTime) : "";
+    const parts = ["Section"];
+    if (course?.subjectId) parts.push(getSubjectName(course.subjectId));
+    if (timeLabel) parts.push(timeLabel);
+    if (weekdays) parts.push(weekdays);
+    return parts.join(" | ");
+  }
+  const course = getCourse(entry.courseId);
+  return course ? getSubjectName(course.subjectId) : "Unknown Subject";
+}
+
+function sectionWeekdayIncludes(section, dateKey) {
+  const date = toDate(dateKey);
+  if (Number.isNaN(date.getTime())) return false;
+  const weekdays = Array.isArray(section?.weekdays) && section.weekdays.length ? section.weekdays : [1, 2, 3, 4, 5];
+  return weekdays.includes(date.getDay());
+}
+
+function sectionEnrollmentForStudentCourse(studentId, courseId) {
+  const sectionIds = new Set(
+    state.courseSections
+      .filter((section) => section.courseId === courseId)
+      .map((section) => section.id)
+  );
+  return state.sectionEnrollments.find((entry) => entry.studentId === studentId && sectionIds.has(entry.courseSectionId)) || null;
+}
+
+function courseSectionForStudentCourse(studentId, courseId) {
+  const enrollment = sectionEnrollmentForStudentCourse(studentId, courseId);
+  return enrollment ? getCourseSection(enrollment.courseSectionId) : null;
 }
 
 function hasCourseMaterialDetails(material) {
@@ -560,6 +681,29 @@ function normalizeEnrollmentsShape(inputState) {
       return {
         ...enrollment,
         id: enrollment.id || uid(),
+        scheduleOrder: Number.isInteger(parsedOrder) && parsedOrder > 0 ? parsedOrder : null
+      };
+    });
+}
+
+function normalizeSectionEnrollmentsShape(inputState) {
+  const s = inputState;
+  const validStudentIds = new Set((s.students || []).map((student) => student.id));
+  const validSectionIds = new Set((s.courseSections || []).map((section) => section.id));
+  if (!Array.isArray(s.sectionEnrollments)) {
+    s.sectionEnrollments = [];
+    return;
+  }
+  s.sectionEnrollments = s.sectionEnrollments
+    .filter((entry) => entry && validStudentIds.has(String(entry.studentId || "").trim()) && validSectionIds.has(String(entry.courseSectionId || "").trim()))
+    .map((entry) => {
+      const parsedOrder = entry.scheduleOrder === "" || entry.scheduleOrder == null
+        ? null
+        : Number(entry.scheduleOrder);
+      return {
+        id: entry.id || uid(),
+        studentId: String(entry.studentId || "").trim(),
+        courseSectionId: String(entry.courseSectionId || "").trim(),
         scheduleOrder: Number.isInteger(parsedOrder) && parsedOrder > 0 ? parsedOrder : null
       };
     });
@@ -945,7 +1089,9 @@ function normalizeSettingsShape(inputState) {
   normalizeUsersShape(s);
   normalizeInstructorsShape(s);
   normalizeCoursesShape(s);
+  normalizeCourseSectionsShape(s);
   normalizeEnrollmentsShape(s);
+  normalizeSectionEnrollmentsShape(s);
   normalizeScheduleBlocksShape(s);
   normalizeStudentScheduleBlocksShape(s);
   normalizeInstructionActualsShape(s);
@@ -1097,6 +1243,7 @@ let workDistributionGradeTypesInitialized = false;
 let editingCourseId = "";
 let courseFormOpen = false;
 let courseMaterialsDraft = [];
+let editingCourseSectionId = "";
 let editingHolidayId = "";
 let editingPlanId = "";
 let editingSchoolYearId = "";
@@ -1503,6 +1650,22 @@ async function refreshHostedCourses() {
   }
 }
 
+async function refreshHostedCourseSections() {
+  const response = await authFetch(API_COURSE_SECTIONS_ENDPOINT);
+  if (!response.ok) throw new Error(`Course sections fetch failed (${response.status})`);
+  const courseSections = await response.json();
+  if (Array.isArray(courseSections)) {
+    state.courseSections = courseSections.map((section) => ({
+      ...section,
+      resourceGroup: String(section.resourceGroup || "").trim(),
+      concurrentCapacity: section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
+      startTime: /^\d{2}:\d{2}$/.test(String(section.startTime || "")) ? String(section.startTime) : "08:00",
+      weekdays: Array.isArray(section.weekdays) ? section.weekdays.map((day) => Number(day)).filter(Number.isInteger) : [1, 2, 3, 4, 5],
+      scheduleOrder: section.scheduleOrder == null ? null : Number(section.scheduleOrder)
+    }));
+  }
+}
+
 async function refreshHostedEnrollments() {
   const response = await authFetch(API_ENROLLMENTS_ENDPOINT);
   if (!response.ok) throw new Error(`Enrollments fetch failed (${response.status})`);
@@ -1511,6 +1674,18 @@ async function refreshHostedEnrollments() {
     state.enrollments = enrollments.map((enrollment) => ({
       ...enrollment,
       scheduleOrder: enrollment.scheduleOrder == null ? null : Number(enrollment.scheduleOrder)
+    }));
+  }
+}
+
+async function refreshHostedSectionEnrollments() {
+  const response = await authFetch(API_SECTION_ENROLLMENTS_ENDPOINT);
+  if (!response.ok) throw new Error(`Section enrollments fetch failed (${response.status})`);
+  const sectionEnrollments = await response.json();
+  if (Array.isArray(sectionEnrollments)) {
+    state.sectionEnrollments = sectionEnrollments.map((entry) => ({
+      ...entry,
+      scheduleOrder: entry.scheduleOrder == null ? null : Number(entry.scheduleOrder)
     }));
   }
 }
@@ -1979,6 +2154,24 @@ async function createHostedEnrollment(payload) {
   return parseApiResponse(response, `Enrollment save failed (${response.status})`);
 }
 
+async function createHostedCourseSection(payload) {
+  const response = await authFetch(API_COURSE_SECTIONS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Course section save failed (${response.status})`);
+}
+
+async function createHostedSectionEnrollment(payload) {
+  const response = await authFetch(API_SECTION_ENROLLMENTS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Section enrollment save failed (${response.status})`);
+}
+
 async function createHostedScheduleBlock(payload) {
   const response = await authFetch(API_SCHEDULE_BLOCKS_ENDPOINT, {
     method: "POST",
@@ -2038,11 +2231,43 @@ async function updateHostedEnrollment(id, payload) {
   return parseApiResponse(response, `Enrollment update failed (${response.status})`);
 }
 
+async function updateHostedCourseSection(id, payload) {
+  const response = await authFetch(`${API_COURSE_SECTIONS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Course section update failed (${response.status})`);
+}
+
+async function updateHostedSectionEnrollment(id, payload) {
+  const response = await authFetch(`${API_SECTION_ENROLLMENTS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Section enrollment update failed (${response.status})`);
+}
+
 async function deleteHostedEnrollment(id) {
   const response = await authFetch(`${API_ENROLLMENTS_ENDPOINT}/${encodeURIComponent(id)}`, {
     method: "DELETE"
   });
   return parseApiResponse(response, `Enrollment delete failed (${response.status})`);
+}
+
+async function deleteHostedCourseSection(id) {
+  const response = await authFetch(`${API_COURSE_SECTIONS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Course section delete failed (${response.status})`);
+}
+
+async function deleteHostedSectionEnrollment(id) {
+  const response = await authFetch(`${API_SECTION_ENROLLMENTS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Section enrollment delete failed (${response.status})`);
 }
 
 async function updateHostedHoliday(id, payload) {
@@ -2179,7 +2404,9 @@ async function hydrateHostedDomainState() {
     refreshHostedInstructors(),
     refreshHostedSubjects(),
     refreshHostedCourses(),
+    refreshHostedCourseSections(),
     refreshHostedEnrollments(),
+    refreshHostedSectionEnrollments(),
     refreshHostedScheduleBlocks(),
     refreshHostedStudentScheduleBlocks(),
     refreshHostedSchoolYears(),
@@ -2204,7 +2431,9 @@ async function hydrateHostedDomainState() {
 async function refreshHostedCurriculumState() {
   await refreshHostedSubjects();
   await refreshHostedCourses();
+  await refreshHostedCourseSections();
   await refreshHostedEnrollments();
+  await refreshHostedSectionEnrollments();
   await refreshHostedScheduleBlocks();
   await refreshHostedStudentScheduleBlocks();
 }
@@ -2473,6 +2702,9 @@ function primeStudentEnrollmentDraft(studentId) {
     ...state.enrollments
       .filter((entry) => entry.studentId === studentId)
       .map((entry) => ({ ...entry, itemType: "course" })),
+    ...state.sectionEnrollments
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "courseSection" })),
     ...state.studentScheduleBlocks
       .filter((entry) => entry.studentId === studentId)
       .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
@@ -2489,6 +2721,9 @@ function workingStudentEnrollments(studentId) {
     ...state.enrollments
       .filter((entry) => entry.studentId === studentId)
       .map((entry) => ({ ...entry, itemType: "course" })),
+    ...state.sectionEnrollments
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "courseSection" })),
     ...state.studentScheduleBlocks
       .filter((entry) => entry.studentId === studentId)
       .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
@@ -3782,8 +4017,8 @@ function sortedStudentScheduledEntries(studentId, sourceEntries = workingStudent
     .filter((entry) => entry.studentId === studentId)
     .map((entry, index) => ({ ...entry, _sourceIndex: index }));
   const autoSorted = [...studentEntries].sort((a, b) => {
-    const nameA = a.itemType === "scheduleBlock" ? scheduleBlockDisplayName(a.scheduleBlockId) : getCourseName(a.courseId);
-    const nameB = b.itemType === "scheduleBlock" ? scheduleBlockDisplayName(b.scheduleBlockId) : getCourseName(b.courseId);
+    const nameA = studentScheduledEntryDisplayName(a);
+    const nameB = studentScheduledEntryDisplayName(b);
     return nameA.localeCompare(nameB) || a._sourceIndex - b._sourceIndex;
   });
   const ordered = new Array(autoSorted.length).fill(null);
@@ -3818,6 +4053,9 @@ function studentScheduledEntriesForOrderUpdate(studentId) {
     ...state.enrollments
       .filter((entry) => entry.studentId === studentId)
       .map((entry) => ({ ...entry, itemType: "course" })),
+    ...state.sectionEnrollments
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "courseSection" })),
     ...state.studentScheduleBlocks
       .filter((entry) => entry.studentId === studentId)
       .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
@@ -3851,7 +4089,10 @@ function replaceStudentScheduledEntries(studentId, nextEntries) {
   }
 
   const nextCourses = nextEntries
-    .filter((entry) => entry.itemType !== "scheduleBlock")
+    .filter((entry) => entry.itemType === "course")
+    .map(({ itemType, ...entry }) => ({ ...entry }));
+  const nextSections = nextEntries
+    .filter((entry) => entry.itemType === "courseSection")
     .map(({ itemType, ...entry }) => ({ ...entry }));
   const nextBlocks = nextEntries
     .filter((entry) => entry.itemType === "scheduleBlock")
@@ -3860,6 +4101,10 @@ function replaceStudentScheduledEntries(studentId, nextEntries) {
   state.enrollments = [
     ...state.enrollments.filter((entry) => entry.studentId !== studentId),
     ...nextCourses
+  ];
+  state.sectionEnrollments = [
+    ...state.sectionEnrollments.filter((entry) => entry.studentId !== studentId),
+    ...nextSections
   ];
   state.studentScheduleBlocks = [
     ...state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId),
@@ -3872,6 +4117,9 @@ async function persistStudentScheduledEntries(studentId, nextEntries) {
     ...state.enrollments
       .filter((entry) => entry.studentId === studentId)
       .map((entry) => ({ ...entry, itemType: "course" })),
+    ...state.sectionEnrollments
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry) => ({ ...entry, itemType: "courseSection" })),
     ...state.studentScheduleBlocks
       .filter((entry) => entry.studentId === studentId)
       .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
@@ -3890,6 +4138,12 @@ async function persistStudentScheduledEntries(studentId, nextEntries) {
         scheduleBlockId: entry.scheduleBlockId,
         scheduleOrder: nextOrder
       });
+    } else if (entry.itemType === "courseSection") {
+      await updateHostedSectionEnrollment(entry.id, {
+        studentId: entry.studentId,
+        courseSectionId: entry.courseSectionId,
+        scheduleOrder: nextOrder
+      });
     } else {
       await updateHostedEnrollment(entry.id, {
         studentId: entry.studentId,
@@ -3900,13 +4154,27 @@ async function persistStudentScheduledEntries(studentId, nextEntries) {
   }
 
   await refreshHostedEnrollments();
+  await refreshHostedSectionEnrollments();
   await refreshHostedStudentScheduleBlocks();
 }
 
 function sortedStudentEnrollments(studentId, sourceEnrollments = state.enrollments) {
-  const studentEnrollments = sourceEnrollments
-    .filter((enrollment) => enrollment.studentId === studentId)
-    .map((enrollment, index) => ({ ...enrollment, _sourceIndex: index }));
+  const studentEnrollments = [
+    ...sourceEnrollments
+      .filter((enrollment) => enrollment.studentId === studentId)
+      .map((enrollment, index) => ({ ...enrollment, _sourceIndex: index })),
+    ...state.sectionEnrollments
+      .filter((entry) => entry.studentId === studentId)
+      .map((entry, index) => ({
+        id: entry.id,
+        studentId: entry.studentId,
+        courseId: getCourseSection(entry.courseSectionId)?.courseId || "",
+        scheduleOrder: entry.scheduleOrder,
+        courseSectionId: entry.courseSectionId,
+        _sourceIndex: sourceEnrollments.length + index
+      }))
+      .filter((entry) => !!entry.courseId)
+  ];
   const autoSorted = [...studentEnrollments].sort((a, b) => {
     const courseA = getCourse(a.courseId);
     const courseB = getCourse(b.courseId);
@@ -4420,6 +4688,7 @@ function renderSelects() {
   const viewerStudents = visibleStudents();
   options("course-subject", state.subjects, (s) => s.name, state.subjects.length ? null : "Add a subject first");
   options("course-instructor", [{ id: "", firstName: "Unassigned", lastName: "" }, ...state.instructors], (instructor) => instructor.id ? `${instructor.firstName} ${instructor.lastName}` : "Unassigned");
+  options("course-section-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
   options("test-subject", state.subjects, (s) => s.name, state.subjects.length ? null : "Add a subject first");
   options("test-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
   options("plan-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, viewerStudents.length ? null : "Add a student first");
@@ -5991,11 +6260,7 @@ function getWorkSelectedStudentIds() {
 
 function getPlanEligibleCourses(studentId) {
   if (!studentId) return [];
-  const enrolledCourseIds = new Set(
-    state.enrollments
-      .filter((e) => e.studentId === studentId)
-      .map((e) => e.courseId)
-  );
+  const enrolledCourseIds = studentEnrolledCourseIds(studentId);
   return state.courses.filter((course) => enrolledCourseIds.has(course.id));
 }
 
@@ -6009,6 +6274,12 @@ function getStudentEnrollmentEligibleCourses(studentId) {
       .filter((entry) => entry.studentId === studentId)
       .map((entry) => entry.courseId)
   );
+  state.sectionEnrollments
+    .filter((entry) => entry.studentId === studentId)
+    .forEach((entry) => {
+      const section = getCourseSection(entry.courseSectionId);
+      if (section?.courseId) enrolledCourseIds.add(section.courseId);
+    });
   return state.courses.filter((course) => !enrolledCourseIds.has(course.id));
 }
 
@@ -6025,13 +6296,42 @@ function renderStudentEnrollmentCourseChecklist(preselectedCourseIds = [], stude
   const container = document.getElementById("student-enroll-course-dropdown");
   const optionsWrap = document.getElementById("student-enroll-course-options");
   if (!container || !optionsWrap) return;
-  const eligibleCourses = getStudentEnrollmentEligibleCourses(studentId);
+  const workingEntries = studentId
+    ? (studentEnrollmentDraftStudentId === studentId ? studentEnrollmentDraft : workingStudentEnrollments(studentId))
+    : [];
+  const draftCourseIds = new Set(
+    workingEntries
+      .filter((entry) => entry.studentId === studentId && entry.itemType !== "scheduleBlock")
+      .map((entry) => entryCourseId(entry))
+      .filter(Boolean)
+  );
+  const draftSectionIds = new Set(
+    workingEntries
+      .filter((entry) => entry.studentId === studentId && entry.itemType === "courseSection")
+      .map((entry) => entry.courseSectionId)
+  );
+  const eligibleCourses = getStudentEnrollmentEligibleCourses(studentId)
+    .filter((course) => !getCourseSectionsForCourse(course.id).length);
+  const eligibleSections = sortedCourseSections()
+    .filter((section) => !studentId || !draftSectionIds.has(section.id))
+    .filter((section) => !studentId || !draftCourseIds.has(section.courseId));
   const eligibleBlocks = getStudentEnrollmentEligibleScheduleBlocks(studentId);
   const eligibleItemKeys = new Set([
+    ...eligibleSections.map((section) => `courseSection:${section.id}`),
     ...eligibleCourses.map((course) => `course:${course.id}`),
     ...eligibleBlocks.map((block) => `scheduleBlock:${block.id}`)
   ]);
   const selected = new Set(preselectedCourseIds.filter((id) => eligibleItemKeys.has(id)));
+  const sectionCheckboxes = eligibleSections.map((section, idx) => {
+    const key = `courseSection:${section.id}`;
+    const checked = selected.has(key) ? " checked" : "";
+    const inputId = `student-enroll-section-${idx}-${section.id}`;
+    const course = getCourse(section.courseId);
+    const weekdays = (section.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
+    const timeLabel = section.startTime ? formatClockTime(section.startTime) : "";
+    const suffix = [course ? getSubjectName(course.subjectId) : "", timeLabel, weekdays].filter(Boolean).join(" | ");
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${escapeHtml(sectionDisplayName(section.id))}${suffix ? ` (${escapeHtml(suffix)})` : ""}</label></div>`;
+  }).join("");
   const courseCheckboxes = eligibleCourses.map((course, idx) => {
     const key = `course:${course.id}`;
     const checked = selected.has(key) ? " checked" : "";
@@ -6045,6 +6345,7 @@ function renderStudentEnrollmentCourseChecklist(preselectedCourseIds = [], stude
     return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${escapeHtml(block.name)} (${escapeHtml(SCHEDULE_BLOCK_TYPE_LABELS[block.type] || "Schedule Block")})</label></div>`;
   }).join("");
   const sections = [];
+  if (sectionCheckboxes) sections.push(`<div class="checklist-group-label">Course Sections</div>${sectionCheckboxes}`);
   if (courseCheckboxes) sections.push(`<div class="checklist-group-label">Courses</div>${courseCheckboxes}`);
   if (blockCheckboxes) sections.push(`<div class="checklist-group-label">Schedule Blocks</div>${blockCheckboxes}`);
   optionsWrap.innerHTML = sections.join("") || `<span>${studentId ? "No additional scheduled items available for this student." : "Select a student first."}</span>`;
@@ -6457,10 +6758,28 @@ function hasInstructionOrderOverride(studentId, courseId, date) {
   return !!(existing && Number.isInteger(existing.orderIndex) && existing.orderIndex > 0);
 }
 
+function studentEnrolledCourseIds(studentId, sourceEnrollments = state.enrollments, sourceSectionEnrollments = state.sectionEnrollments) {
+  const enrolledCourseIds = new Set(
+    sourceEnrollments
+      .filter((enrollment) => enrollment.studentId === studentId)
+      .map((enrollment) => enrollment.courseId)
+  );
+  sourceSectionEnrollments
+    .filter((entry) => entry.studentId === studentId)
+    .forEach((entry) => {
+      const section = getCourseSection(entry.courseSectionId);
+      if (section?.courseId) enrolledCourseIds.add(section.courseId);
+    });
+  return enrolledCourseIds;
+}
+
 function isStudentEnrolledInCourse(studentId, courseId, sourceEnrollments = state.enrollments) {
-  return sourceEnrollments.some((enrollment) =>
+  if (sourceEnrollments.some((enrollment) =>
     enrollment.studentId === studentId
-    && enrollment.courseId === courseId);
+    && enrollment.courseId === courseId)) {
+    return true;
+  }
+  return !!courseSectionForStudentCourse(studentId, courseId);
 }
 
 function removePlansForStudentCourse(studentId, courseId) {
@@ -6501,6 +6820,67 @@ function renderCourses() {
   const rows = state.courses
     .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td>${escapeHtml(formatCourseResourceSummary(c))}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
   rowOrEmpty(tableBody, rows, "No courses added yet.", 6);
+  renderCourseSections();
+}
+
+function syncCourseSectionFormFromCourse(courseId, { preserveExisting = true } = {}) {
+  const course = getCourse(courseId);
+  const resourceGroupInput = document.getElementById("course-section-resource-group");
+  const capacityInput = document.getElementById("course-section-capacity");
+  if (!course || !resourceGroupInput || !capacityInput) return;
+  if (!preserveExisting || !resourceGroupInput.value.trim()) {
+    resourceGroupInput.value = courseResourceGroup(course);
+  }
+  if (!preserveExisting || !capacityInput.value.trim()) {
+    const capacity = courseResourceCapacity(course);
+    capacityInput.value = capacity == null ? "" : String(capacity);
+  }
+}
+
+function resetCourseSectionForm() {
+  editingCourseSectionId = "";
+  const form = document.getElementById("course-section-form");
+  if (form) form.reset();
+  document.querySelectorAll("input[name='course-section-weekday']").forEach((checkbox) => {
+    checkbox.checked = true;
+  });
+  const timeInput = document.getElementById("course-section-start-time");
+  if (timeInput) timeInput.value = "08:00";
+  const courseSelect = document.getElementById("course-section-course");
+  if (courseSelect?.value) syncCourseSectionFormFromCourse(courseSelect.value, { preserveExisting: false });
+  renderCourseSections();
+}
+
+function beginCourseSectionEdit(sectionId) {
+  const section = getCourseSection(sectionId);
+  if (!section) return;
+  editingCourseSectionId = section.id;
+  document.getElementById("course-section-course").value = section.courseId;
+  document.getElementById("course-section-label").value = section.label || "";
+  document.getElementById("course-section-resource-group").value = section.resourceGroup || "";
+  document.getElementById("course-section-capacity").value = section.concurrentCapacity == null ? "" : String(section.concurrentCapacity);
+  document.getElementById("course-section-start-time").value = section.startTime || "08:00";
+  document.querySelectorAll("input[name='course-section-weekday']").forEach((checkbox) => {
+    checkbox.checked = Array.isArray(section.weekdays) && section.weekdays.includes(Number(checkbox.value));
+  });
+  renderCourseSections();
+}
+
+function renderCourseSections() {
+  const tableBody = document.getElementById("course-section-table");
+  const submitBtn = document.getElementById("course-section-submit-btn");
+  const cancelBtn = document.getElementById("course-section-cancel-edit-btn");
+  if (submitBtn) submitBtn.textContent = editingCourseSectionId ? "Update Section" : "Add Section";
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingCourseSectionId);
+  if (!tableBody) return;
+  const rows = sortedCourseSections().map((section) => {
+    const weekdays = (section.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
+    const resourceSummary = section.concurrentCapacity == null
+      ? (section.resourceGroup || "Unrestricted")
+      : `${section.resourceGroup || getCourseName(section.courseId)} (${section.concurrentCapacity})`;
+    return `<tr><td>${escapeHtml(getCourseName(section.courseId))}</td><td>${escapeHtml(section.label)}</td><td>${escapeHtml(formatClockTime(section.startTime))}<br><span class="muted">${escapeHtml(weekdays || "Mon-Fri")}</span></td><td>${escapeHtml(resourceSummary)}</td><td>${courseSectionEnrollmentCount(section.id)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course-section='${section.id}' type='button'>Edit</button><button data-remove-course-section='${section.id}' type='button'>Remove</button></div></td></tr>`;
+  });
+  rowOrEmpty(tableBody, rows, "No course sections added yet.", 6);
 }
 
 function renderGradeTypes() {
@@ -6678,9 +7058,9 @@ function renderStudentDetail() {
   const enrollmentRows = studentEnrollments
     .map((e) => {
       const isScheduleBlock = e.itemType === "scheduleBlock";
-      const course = isScheduleBlock ? null : getCourse(e.courseId);
-      const subject = isScheduleBlock ? (SCHEDULE_BLOCK_TYPE_LABELS[getScheduleBlock(e.scheduleBlockId)?.type] || "Schedule Block") : (course ? getSubjectName(course.subjectId) : "Unknown Subject");
-      const courseAvg = isScheduleBlock ? 0 : gradeSummary.courseAverage(e.courseId);
+      const course = isScheduleBlock ? null : getCourse(entryCourseId(e));
+      const subject = studentScheduledEntrySubjectLabel(e);
+      const courseAvg = isScheduleBlock ? 0 : gradeSummary.courseAverage(entryCourseId(e));
       const avgDisplay = isScheduleBlock ? "-" : (courseAvg === 0 ? "No grades" : `${courseAvg.toFixed(1)}%`);
       const orderOptions = [`<option value="">Auto</option>`]
         .concat(studentEnrollments.map((_, index) => {
@@ -6689,13 +7069,14 @@ function renderStudentDetail() {
           return `<option value="${value}"${selected}>${value}</option>`;
         }))
         .join("");
+      const entryType = isScheduleBlock ? "scheduleBlock" : (e.itemType === "courseSection" ? "courseSection" : "course");
       const orderControl = isAdminUser()
-        ? `<select class="student-schedule-order-select" data-enrollment-order-id="${e.id}" data-enrollment-item-type="${isScheduleBlock ? "scheduleBlock" : "course"}" aria-label="Schedule order for ${escapeHtml(isScheduleBlock ? scheduleBlockDisplayName(e.scheduleBlockId) : getCourseName(e.courseId))}"${studentEnrollmentEditMode ? "" : " disabled"}>${orderOptions}</select>`
+        ? `<select class="student-schedule-order-select" data-enrollment-order-id="${e.id}" data-enrollment-item-type="${entryType}" aria-label="Schedule order for ${escapeHtml(studentScheduledEntryDisplayName(e))}"${studentEnrollmentEditMode ? "" : " disabled"}>${orderOptions}</select>`
         : (parseScheduleOrderValue(e.scheduleOrder) != null ? String(parseScheduleOrderValue(e.scheduleOrder)) : "Auto");
       const actions = studentEnrollmentEditMode
-        ? `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${isScheduleBlock ? "scheduleBlock" : "course"}' type='button' disabled>Editing</button><button data-remove-student-enrollment='${e.id}' data-enrollment-item-type='${isScheduleBlock ? "scheduleBlock" : "course"}' type='button'>Remove</button></div>`
-        : `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${isScheduleBlock ? "scheduleBlock" : "course"}' type='button'>Edit</button></div>`;
-      return `<tr><td>${escapeHtml(isScheduleBlock ? scheduleBlockDisplayName(e.scheduleBlockId) : getCourseName(e.courseId))}</td><td>${escapeHtml(subject)}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
+        ? `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button' disabled>Editing</button><button data-remove-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button'>Remove</button></div>`
+        : `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button'>Edit</button></div>`;
+      return `<tr><td>${escapeHtml(studentScheduledEntryDisplayName(e))}</td><td>${escapeHtml(subject)}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
     });
   if (enrollmentRows.length) {
     const overallAverage = gradeSummary.overallAverage;
@@ -10233,17 +10614,15 @@ function calendarEventsForDate(dateKey, studentFilterIds = [], subjectFilterIds 
     const plannedPairSet = new Set(events.map((event) => `${event.studentId}||${event.courseId}`));
 
     studentsToFill.forEach((studentId) => {
-      const enrolledCourseIds = Array.from(new Set(
-        state.enrollments
-          .filter((enrollment) => enrollment.studentId === studentId)
-          .map((enrollment) => enrollment.courseId)
-      ));
+      const enrolledCourseIds = Array.from(studentEnrolledCourseIds(studentId));
 
       enrolledCourseIds.forEach((courseId) => {
         if (courseFilterIds.length && !courseFilterIds.includes(courseId)) return;
         const course = getCourse(courseId);
         if (!course) return;
         if (subjectFilterIds.length && !subjectFilterIds.includes(course.subjectId)) return;
+        const section = courseSectionForStudentCourse(studentId, courseId);
+        if (section && !sectionWeekdayIncludes(section, dateKey)) return;
         const pairKey = `${studentId}||${courseId}`;
         if (plannedPairSet.has(pairKey)) return;
 
@@ -10380,6 +10759,14 @@ function pushResourceAllocation(resourceAllocations, course, start, end) {
   resourceAllocations.get(resourceKey).push({ start, end });
 }
 
+function sectionStartMinutesForStudentCourse(studentId, courseId, dateKey) {
+  const section = courseSectionForStudentCourse(studentId, courseId);
+  if (!section) return null;
+  if (!sectionWeekdayIncludes(section, dateKey)) return null;
+  const startMinutes = parseTimeToMinutes(section.startTime);
+  return Number.isFinite(startMinutes) ? startMinutes : null;
+}
+
 function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const events = calendarEventsForDate(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
   const byStudent = new Map();
@@ -10453,19 +10840,24 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         if (!course) return;
         const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
         const requestedStart = slot;
+        const sectionStartMinutes = sectionStartMinutesForStudentCourse(studentId, event.courseId, dateKey);
         const resourceKey = courseResourceKey(course);
         const resourceCapacity = courseResourceCapacity(course);
-        const startMin = resourceKey
+        const startMin = Number.isFinite(sectionStartMinutes)
+          ? sectionStartMinutes
+          : (resourceKey
           ? findResourceConstrainedStart(requestedStart, durationMinutes, resourceCapacity, resourceAllocations.get(resourceKey) || [])
-          : requestedStart;
+          : requestedStart);
         if (startMin == null) return;
         const endMin = Math.min(24 * 60, startMin + durationMinutes);
+        const section = courseSectionForStudentCourse(studentId, event.courseId);
         blocks.push({
           student: studentName,
           studentId,
           courseId: event.courseId,
+          courseSectionId: section?.id || "",
           subjectId: course.subjectId,
-          label: `${course.name} (${getSubjectName(course.subjectId)})`,
+          label: `${course.name}${section?.label ? ` - ${section.label}` : ""} (${getSubjectName(course.subjectId)})`,
           plannedStart: startMin,
           plannedEnd: endMin,
           start: startMin,
@@ -10475,7 +10867,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         });
         pushResourceAllocation(resourceAllocations, course, startMin, endMin);
         remainingByCourseId.delete(event.courseId);
-        slot = endMin;
+        slot = Math.max(slot, endMin);
         if (slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
       });
     } else {
@@ -10511,14 +10903,15 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         const candidates = remaining.map((event) => {
           const course = getCourse(event.courseId);
           const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
+          const sectionStartMinutes = sectionStartMinutesForStudentCourse(studentId, event.courseId, dateKey);
           const resourceKey = courseResourceKey(course);
           const resourceCapacity = courseResourceCapacity(course);
           const earliestStart = findResourceConstrainedStart(
-            slot,
+            Number.isFinite(sectionStartMinutes) ? sectionStartMinutes : slot,
             durationMinutes,
             resourceCapacity,
             resourceAllocations.get(resourceKey) || [],
-            nextBreak ? nextBreak.start : 24 * 60
+            nextBreak && !Number.isFinite(sectionStartMinutes) ? nextBreak.start : 24 * 60
           );
           return {
             event,
@@ -10548,12 +10941,14 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
 
         const startMin = chosen.earliestStart;
         const endMin = Math.min(24 * 60, startMin + chosen.durationMinutes);
+        const section = courseSectionForStudentCourse(studentId, chosen.event.courseId);
         blocks.push({
           student: studentName,
           studentId,
           courseId: chosen.event.courseId,
+          courseSectionId: section?.id || "",
           subjectId: chosen.course.subjectId,
-          label: `${chosen.course.name} (${getSubjectName(chosen.course.subjectId)})`,
+          label: `${chosen.course.name}${section?.label ? ` - ${section.label}` : ""} (${getSubjectName(chosen.course.subjectId)})`,
           plannedStart: startMin,
           plannedEnd: endMin,
           start: startMin,
@@ -10567,7 +10962,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           event.studentId === chosen.event.studentId && event.courseId === chosen.event.courseId);
         if (removeIndex >= 0) remaining.splice(removeIndex, 1);
 
-        slot = endMin;
+        slot = Math.max(slot, endMin);
         if (remaining.length && slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
       }
     }
@@ -10577,19 +10972,24 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         const course = getCourse(event.courseId);
         if (!course) return;
         const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
+        const sectionStartMinutes = sectionStartMinutesForStudentCourse(studentId, event.courseId, dateKey);
         const resourceKey = courseResourceKey(course);
         const resourceCapacity = courseResourceCapacity(course);
-        const startMin = resourceKey
+        const startMin = Number.isFinite(sectionStartMinutes)
+          ? sectionStartMinutes
+          : (resourceKey
           ? findResourceConstrainedStart(slot, durationMinutes, resourceCapacity, resourceAllocations.get(resourceKey) || [])
-          : slot;
+          : slot);
         if (startMin == null) return;
         const endMin = Math.min(24 * 60, startMin + durationMinutes);
+        const section = courseSectionForStudentCourse(studentId, event.courseId);
         blocks.push({
           student: studentName,
           studentId,
           courseId: event.courseId,
+          courseSectionId: section?.id || "",
           subjectId: course.subjectId,
-          label: `${course.name} (${getSubjectName(course.subjectId)})`,
+          label: `${course.name}${section?.label ? ` - ${section.label}` : ""} (${getSubjectName(course.subjectId)})`,
           plannedStart: startMin,
           plannedEnd: endMin,
           start: startMin,
@@ -10598,7 +10998,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           type: "instruction"
         });
         pushResourceAllocation(resourceAllocations, course, startMin, endMin);
-        slot = endMin;
+        slot = Math.max(slot, endMin);
         if (slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
       });
     }
@@ -11178,6 +11578,9 @@ function removeSubject(id) {
 }
 function removeCourse(id) {
   state.courses = state.courses.filter((c)=>c.id!==id);
+  const removedSectionIds = new Set(state.courseSections.filter((section) => section.courseId === id).map((section) => section.id));
+  state.courseSections = state.courseSections.filter((section) => section.courseId !== id);
+  state.sectionEnrollments = state.sectionEnrollments.filter((entry) => !removedSectionIds.has(entry.courseSectionId));
   state.enrollments = state.enrollments.filter((e)=>e.courseId!==id);
   state.plans = state.plans.filter((p)=>p.courseId!==id);
   state.instructionActuals = state.instructionActuals.filter((entry) => entry.courseId !== id);
@@ -11611,6 +12014,32 @@ function removeLegacyLocalEnrollment(enrollmentId) {
   if (enrollment) removePlansForStudentCourse(enrollment.studentId, enrollment.courseId);
 }
 
+function removeLegacyLocalCourseSection(sectionId) {
+  const section = getCourseSection(sectionId);
+  const courseId = section?.courseId || "";
+  const affectedStudentIds = state.sectionEnrollments
+    .filter((entry) => entry.courseSectionId === sectionId)
+    .map((entry) => entry.studentId);
+  state.courseSections = state.courseSections.filter((entry) => entry.id !== sectionId);
+  state.sectionEnrollments = state.sectionEnrollments.filter((entry) => entry.courseSectionId !== sectionId);
+  if (courseId) {
+    affectedStudentIds.forEach((studentId) => {
+      if (!studentEnrolledCourseIds(studentId).has(courseId)) {
+        removePlansForStudentCourse(studentId, courseId);
+      }
+    });
+  }
+}
+
+function removeLegacyLocalSectionEnrollment(sectionEnrollmentId) {
+  const existing = state.sectionEnrollments.find((entry) => entry.id === sectionEnrollmentId);
+  state.sectionEnrollments = state.sectionEnrollments.filter((entry) => entry.id !== sectionEnrollmentId);
+  const courseId = existing ? getCourseSection(existing.courseSectionId)?.courseId || "" : "";
+  if (existing && courseId && !studentEnrolledCourseIds(existing.studentId).has(courseId)) {
+    removePlansForStudentCourse(existing.studentId, courseId);
+  }
+}
+
 function removeLegacyLocalUser(userId) {
   state.users = state.users.filter((entry) => entry.id !== userId);
 }
@@ -11692,6 +12121,31 @@ function createLegacyLocalCourse(payload) {
 
 function createLegacyLocalEnrollment(payload) {
   state.enrollments.push({ id: uid(), ...payload });
+}
+
+function createLegacyLocalCourseSection(payload) {
+  state.courseSections.push({
+    id: uid(),
+    ...payload,
+    resourceGroup: String(payload.resourceGroup || "").trim(),
+    concurrentCapacity: payload.concurrentCapacity == null ? null : Number(payload.concurrentCapacity),
+    weekdays: Array.isArray(payload.weekdays) ? payload.weekdays.slice() : [1, 2, 3, 4, 5]
+  });
+}
+
+function updateLegacyLocalCourseSection(existingSection, payload) {
+  if (!existingSection) return;
+  existingSection.courseId = payload.courseId;
+  existingSection.label = payload.label;
+  existingSection.resourceGroup = String(payload.resourceGroup || "").trim();
+  existingSection.concurrentCapacity = payload.concurrentCapacity == null ? null : Number(payload.concurrentCapacity);
+  existingSection.startTime = payload.startTime;
+  existingSection.weekdays = Array.isArray(payload.weekdays) ? payload.weekdays.slice() : [1, 2, 3, 4, 5];
+  existingSection.scheduleOrder = payload.scheduleOrder == null ? null : Number(payload.scheduleOrder);
+}
+
+function createLegacyLocalSectionEnrollment(payload) {
+  state.sectionEnrollments.push({ id: uid(), ...payload });
 }
 
 function updateLegacyLocalAttendance(existingAttendance, payload) {
@@ -12349,6 +12803,53 @@ function bindEvents() {
     if (!ensureAdminAction()) return;
     beginCourseCreate();
   });
+  document.getElementById("course-section-course")?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement)) return;
+    syncCourseSectionFormFromCourse(target.value);
+  });
+  document.getElementById("course-section-form")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!ensureAdminAction()) return;
+    const courseId = document.getElementById("course-section-course").value;
+    const label = document.getElementById("course-section-label").value.trim();
+    const resourceGroup = document.getElementById("course-section-resource-group").value.trim();
+    const capacityRaw = document.getElementById("course-section-capacity").value.trim();
+    const concurrentCapacity = capacityRaw === "" ? null : Number(capacityRaw);
+    const startTime = document.getElementById("course-section-start-time").value;
+    const weekdays = Array.from(document.querySelectorAll("input[name='course-section-weekday']:checked")).map((checkbox) => Number(checkbox.value));
+    if (!courseId || !label || !startTime || !weekdays.length) { alert("Provide a course, section label, start time, and at least one weekday."); return; }
+    if (concurrentCapacity != null && (!Number.isInteger(concurrentCapacity) || concurrentCapacity <= 0)) { alert("Section capacity must be a whole number greater than 0."); return; }
+    const payload = { courseId, label, resourceGroup, concurrentCapacity, startTime, weekdays, scheduleOrder: null };
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          if (editingCourseSectionId) {
+            await updateHostedCourseSection(editingCourseSectionId, payload);
+          } else {
+            await createHostedCourseSection({ id: uid(), ...payload });
+          }
+          resetCourseSectionForm();
+          await refreshHostedCourseSections();
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save course section.");
+        }
+      })();
+      return;
+    }
+    if (editingCourseSectionId) {
+      updateLegacyLocalCourseSection(getCourseSection(editingCourseSectionId), payload);
+    } else {
+      createLegacyLocalCourseSection(payload);
+    }
+    resetCourseSectionForm();
+    saveState();
+    renderAll();
+  });
+  document.getElementById("course-section-cancel-edit-btn")?.addEventListener("click", () => {
+    resetCourseSectionForm();
+  });
   document.getElementById("course-material-add-btn")?.addEventListener("click", () => {
     courseMaterialsDraft.push(normalizeCourseMaterial({ type: "text_book" }));
     const details = document.getElementById("course-materials-details");
@@ -12616,7 +13117,13 @@ function bindEvents() {
     const existingCourseIds = new Set(
       workingEntries
         .filter((entry) => entry.studentId === studentId && entry.itemType !== "scheduleBlock")
-        .map((entry) => entry.courseId)
+        .map((entry) => entryCourseId(entry))
+        .filter(Boolean)
+    );
+    const existingSectionIds = new Set(
+      workingEntries
+        .filter((entry) => entry.studentId === studentId && entry.itemType === "courseSection")
+        .map((entry) => entry.courseSectionId)
     );
     const existingBlockIds = new Set(
       workingEntries
@@ -12629,12 +13136,21 @@ function bindEvents() {
         return { itemType, itemId };
       })
       .filter((entry) => entry.itemId)
-      .filter((entry) => (entry.itemType === "scheduleBlock" ? !existingBlockIds.has(entry.itemId) : !existingCourseIds.has(entry.itemId)));
+      .filter((entry) => {
+        if (entry.itemType === "scheduleBlock") return !existingBlockIds.has(entry.itemId);
+        if (entry.itemType === "courseSection") {
+          const courseId = getCourseSection(entry.itemId)?.courseId || "";
+          return !existingSectionIds.has(entry.itemId) && (!courseId || !existingCourseIds.has(courseId));
+        }
+        return !existingCourseIds.has(entry.itemId);
+      });
     if (!newItems.length) { alert("Student already has the selected scheduled item(s)."); return; }
     if (studentViewMode === "detail" && studentEnrollmentDraftStudentId === studentId) {
       studentEnrollmentDraft.push(...newItems.map((entry) => (
         entry.itemType === "scheduleBlock"
           ? { id: uid(), itemType: "scheduleBlock", studentId, scheduleBlockId: entry.itemId, scheduleOrder: null }
+          : entry.itemType === "courseSection"
+            ? { id: uid(), itemType: "courseSection", studentId, courseSectionId: entry.itemId, scheduleOrder: null }
           : { id: uid(), itemType: "course", studentId, courseId: entry.itemId, scheduleOrder: null }
       )));
       studentEnrollmentDraftDirty = true;
@@ -12648,11 +13164,14 @@ function bindEvents() {
           for (const entry of newItems) {
             if (entry.itemType === "scheduleBlock") {
               await createHostedStudentScheduleBlock({ id: uid(), studentId, scheduleBlockId: entry.itemId, scheduleOrder: null });
+            } else if (entry.itemType === "courseSection") {
+              await createHostedSectionEnrollment({ id: uid(), studentId, courseSectionId: entry.itemId, scheduleOrder: null });
             } else {
               await createHostedEnrollment({ id: uid(), studentId, courseId: entry.itemId, scheduleOrder: null });
             }
           }
           await refreshHostedEnrollments();
+          await refreshHostedSectionEnrollments();
           await refreshHostedStudentScheduleBlocks();
           renderAll();
         } catch (error) {
@@ -12664,6 +13183,8 @@ function bindEvents() {
     newItems.forEach((entry) => {
       if (entry.itemType === "scheduleBlock") {
         state.studentScheduleBlocks.push({ id: uid(), studentId, scheduleBlockId: entry.itemId, scheduleOrder: null });
+      } else if (entry.itemType === "courseSection") {
+        createLegacyLocalSectionEnrollment({ studentId, courseSectionId: entry.itemId, scheduleOrder: null });
       } else {
         createLegacyLocalEnrollment({ studentId, courseId: entry.itemId, scheduleOrder: null });
       }
@@ -12713,31 +13234,43 @@ function bindEvents() {
       }
       if (!ensureAdminAction()) return;
       const existingEnrollments = state.enrollments.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry, itemType: "course" }));
+      const existingSectionEnrollments = state.sectionEnrollments.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry, itemType: "courseSection" }));
       const existingScheduleBlocks = state.studentScheduleBlocks.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry, itemType: "scheduleBlock" }));
       const draftEntries = studentEnrollmentDraft.map((entry) => ({
         ...entry,
         studentId,
         scheduleOrder: parseScheduleOrderValue(entry.scheduleOrder)
       }));
-      const draftEnrollments = draftEntries.filter((entry) => entry.itemType !== "scheduleBlock");
+      const draftEnrollments = draftEntries.filter((entry) => entry.itemType === "course");
+      const draftSectionEnrollments = draftEntries.filter((entry) => entry.itemType === "courseSection");
       const draftScheduleBlocks = draftEntries.filter((entry) => entry.itemType === "scheduleBlock");
-      const removedEnrollments = existingEnrollments.filter((entry) => !draftEnrollments.some((draft) => draft.id === entry.id));
       const removedScheduleBlocks = existingScheduleBlocks.filter((entry) => !draftScheduleBlocks.some((draft) => draft.id === entry.id));
+      const draftCourseIds = new Set(draftEntries.map((entry) => entryCourseId(entry)).filter(Boolean));
+      const removedCourseIds = Array.from(new Set(
+        [...existingEnrollments, ...existingSectionEnrollments]
+          .map((entry) => entryCourseId(entry))
+          .filter((courseId) => courseId && !draftCourseIds.has(courseId))
+      ));
       if (hostedModeEnabled) {
         (async () => {
           try {
             const existingById = new Map(existingEnrollments.map((entry) => [entry.id, entry]));
+            const existingSectionsById = new Map(existingSectionEnrollments.map((entry) => [entry.id, entry]));
             const existingBlocksById = new Map(existingScheduleBlocks.map((entry) => [entry.id, entry]));
             const draftById = new Map(draftEnrollments.map((entry) => [entry.id, entry]));
-            const planIdsToDelete = removedEnrollments.flatMap((removed) =>
+            const draftSectionsById = new Map(draftSectionEnrollments.map((entry) => [entry.id, entry]));
+            const planIdsToDelete = removedCourseIds.flatMap((courseId) =>
               state.plans
-                .filter((plan) => plan.studentId === removed.studentId && plan.courseId === removed.courseId)
+                .filter((plan) => plan.studentId === studentId && plan.courseId === courseId)
                 .map((plan) => plan.id));
 
             await Promise.all([
               ...existingEnrollments
                 .filter((existing) => !draftById.has(existing.id))
                 .map((existing) => deleteHostedEnrollment(existing.id)),
+              ...existingSectionEnrollments
+                .filter((existing) => !draftSectionsById.has(existing.id))
+                .map((existing) => deleteHostedSectionEnrollment(existing.id)),
               ...removedScheduleBlocks.map((removed) => deleteHostedStudentScheduleBlock(removed.id)),
               ...planIdsToDelete.map((planId) => deleteHostedPlan(planId)),
               ...draftEnrollments.map((draft) => {
@@ -12748,6 +13281,19 @@ function bindEvents() {
                   return updateHostedEnrollment(draft.id, {
                     studentId: draft.studentId,
                     courseId: draft.courseId,
+                    scheduleOrder: draft.scheduleOrder
+                  });
+                }
+                return Promise.resolve(null);
+              }),
+              ...draftSectionEnrollments.map((draft) => {
+                const existing = existingSectionsById.get(draft.id);
+                if (!existing) return createHostedSectionEnrollment(draft);
+                const existingOrder = parseScheduleOrderValue(existing.scheduleOrder);
+                if (existing.courseSectionId !== draft.courseSectionId || existingOrder !== draft.scheduleOrder) {
+                  return updateHostedSectionEnrollment(draft.id, {
+                    studentId: draft.studentId,
+                    courseSectionId: draft.courseSectionId,
                     scheduleOrder: draft.scheduleOrder
                   });
                 }
@@ -12772,6 +13318,10 @@ function bindEvents() {
               ...state.enrollments.filter((entry) => entry.studentId !== studentId),
               ...draftEnrollments.map(({ itemType, ...entry }) => ({ ...entry }))
             ];
+            state.sectionEnrollments = [
+              ...state.sectionEnrollments.filter((entry) => entry.studentId !== studentId),
+              ...draftSectionEnrollments.map(({ itemType, ...entry }) => ({ ...entry }))
+            ];
             state.studentScheduleBlocks = [
               ...state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId),
               ...draftScheduleBlocks.map(({ itemType, ...entry }) => ({ ...entry }))
@@ -12788,9 +13338,11 @@ function bindEvents() {
         return;
       }
       state.enrollments = state.enrollments.filter((entry) => entry.studentId !== studentId);
+      state.sectionEnrollments = state.sectionEnrollments.filter((entry) => entry.studentId !== studentId);
       state.studentScheduleBlocks = state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId);
-      removedEnrollments.forEach((entry) => removePlansForStudentCourse(entry.studentId, entry.courseId));
+      removedCourseIds.forEach((courseId) => removePlansForStudentCourse(studentId, courseId));
       state.enrollments.push(...draftEnrollments.map((entry) => ({ ...entry })));
+      state.sectionEnrollments.push(...draftSectionEnrollments.map((entry) => ({ ...entry })));
       state.studentScheduleBlocks.push(...draftScheduleBlocks.map((entry) => ({ ...entry })));
       saveState();
       primeStudentEnrollmentDraft(studentId);
@@ -14101,6 +14653,12 @@ function bindEvents() {
       beginCourseEdit(editCourseId);
       return;
     }
+    const editCourseSectionId = t.getAttribute("data-edit-course-section");
+    if (editCourseSectionId) {
+      if (!ensureAdminAction()) return;
+      beginCourseSectionEdit(editCourseSectionId);
+      return;
+    }
     const schoolDayTab = t.getAttribute("data-school-day-tab");
     if (schoolDayTab) {
       currentSchoolDayTab = ["daily-schedule", "attendance", "grades"].includes(schoolDayTab) ? schoolDayTab : "daily-schedule";
@@ -14916,6 +15474,29 @@ function bindEvents() {
       renderAll();
       return;
     }
+    const courseSectionId = t.getAttribute("data-remove-course-section");
+    if (courseSectionId) {
+      if (!ensureAdminAction()) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedCourseSection(courseSectionId);
+            if (editingCourseSectionId === courseSectionId) resetCourseSectionForm();
+            await refreshHostedCourseSections();
+            await refreshHostedSectionEnrollments();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to remove course section.");
+          }
+        })();
+        return;
+      }
+      removeLegacyLocalCourseSection(courseSectionId);
+      if (editingCourseSectionId === courseSectionId) resetCourseSectionForm();
+      saveState();
+      renderAll();
+      return;
+    }
     const gradeTypeId = t.getAttribute("data-remove-grade-type");
     if (gradeTypeId) {
       if (!ensureAdminAction()) return;
@@ -14942,6 +15523,9 @@ function bindEvents() {
             if (itemType === "scheduleBlock") {
               await deleteHostedStudentScheduleBlock(enrollmentId);
               await refreshHostedStudentScheduleBlocks();
+            } else if (itemType === "courseSection") {
+              await deleteHostedSectionEnrollment(enrollmentId);
+              await refreshHostedSectionEnrollments();
             } else {
               await deleteHostedEnrollment(enrollmentId);
               await refreshHostedEnrollments();
@@ -14955,6 +15539,8 @@ function bindEvents() {
       }
       if (itemType === "scheduleBlock") {
         state.studentScheduleBlocks = state.studentScheduleBlocks.filter((entry) => entry.id !== enrollmentId);
+      } else if (itemType === "courseSection") {
+        removeLegacyLocalSectionEnrollment(enrollmentId);
       } else {
         removeLegacyLocalEnrollment(enrollmentId);
       }

@@ -5,19 +5,27 @@ function createCurriculumService(deps) {
 
   return {
     createCourse: async (payload) => curriculumRepository.createCourse(normalizeCoursePayload(payload)),
+    createCourseSection: async (payload) => curriculumRepository.createCourseSection(normalizeCourseSectionPayload(payload)),
     createEnrollment: async (payload) => curriculumRepository.createEnrollment(normalizeEnrollmentPayload(payload)),
+    createSectionEnrollment: async (payload) => curriculumRepository.createSectionEnrollment(normalizeSectionEnrollmentPayload(payload)),
     createStudentScheduleBlock: async (payload) => curriculumRepository.createStudentScheduleBlock(normalizeStudentScheduleBlockPayload(payload)),
     createSubject: async (payload) => curriculumRepository.createSubject(normalizeSubjectPayload(payload)),
     deleteCourse: (id) => curriculumRepository.deleteCourse(id),
+    deleteCourseSection: (id) => curriculumRepository.deleteCourseSection(id),
     deleteEnrollment: (id) => curriculumRepository.deleteEnrollment(id),
+    deleteSectionEnrollment: (id) => curriculumRepository.deleteSectionEnrollment(id),
     deleteStudentScheduleBlock: (id) => curriculumRepository.deleteStudentScheduleBlock(id),
     deleteSubject: (id) => curriculumRepository.deleteSubject(id),
     listCoursesForUser: (user) => curriculumRepository.listCoursesForUser(user),
+    listCourseSectionsForUser: (user) => curriculumRepository.listCourseSectionsForUser(user),
     listEnrollmentsForUser: (user) => curriculumRepository.listEnrollmentsForUser(user),
+    listSectionEnrollmentsForUser: (user) => curriculumRepository.listSectionEnrollmentsForUser(user),
     listStudentScheduleBlocksForUser: (user) => curriculumRepository.listStudentScheduleBlocksForUser(user),
     listSubjectsForUser: (user) => curriculumRepository.listSubjectsForUser(user),
     updateCourse: async (id, payload) => curriculumRepository.updateCourse(id, normalizeCoursePayload({ ...payload, id })),
+    updateCourseSection: async (id, payload) => curriculumRepository.updateCourseSection(id, normalizeCourseSectionPayload({ ...payload, id })),
     updateEnrollment: async (id, payload) => curriculumRepository.updateEnrollment(id, normalizeEnrollmentPayload({ ...payload, id })),
+    updateSectionEnrollment: async (id, payload) => curriculumRepository.updateSectionEnrollment(id, normalizeSectionEnrollmentPayload({ ...payload, id })),
     updateStudentScheduleBlock: async (id, payload) => curriculumRepository.updateStudentScheduleBlock(id, normalizeStudentScheduleBlockPayload({ ...payload, id })),
     updateSubject: async (id, payload) => curriculumRepository.updateSubject(id, normalizeSubjectPayload({ ...payload, id }))
   };
@@ -115,6 +123,51 @@ function normalizeEnrollmentPayload(input) {
     throw error;
   }
   return { ...(id ? { id } : {}), studentId, courseId, scheduleOrder };
+}
+
+function normalizeCourseSectionPayload(input) {
+  const id = String(input?.id || "").trim() || randomUUID();
+  const courseId = String(input?.courseId || "").trim();
+  const label = String(input?.label || "").trim();
+  const resourceGroup = String(input?.resourceGroup || "").trim();
+  const concurrentCapacity = input?.concurrentCapacity === "" || input?.concurrentCapacity == null
+    ? null
+    : Number(input.concurrentCapacity);
+  const startTime = normalizeClockTime(input?.startTime);
+  const weekdays = Array.isArray(input?.weekdays)
+    ? Array.from(new Set(input.weekdays.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5))).sort((a, b) => a - b)
+    : [];
+  const scheduleOrder = input?.scheduleOrder === "" || input?.scheduleOrder == null ? null : Number(input.scheduleOrder);
+  if (!courseId || !label || !startTime || !weekdays.length
+    || (concurrentCapacity != null && (!Number.isInteger(concurrentCapacity) || concurrentCapacity <= 0))
+    || (scheduleOrder != null && (!Number.isInteger(scheduleOrder) || scheduleOrder <= 0))) {
+    const error = new Error("Provide valid course section values.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return { ...(id ? { id } : {}), courseId, label, resourceGroup, concurrentCapacity, startTime, weekdays, scheduleOrder };
+}
+
+function normalizeSectionEnrollmentPayload(input) {
+  const id = String(input?.id || "").trim() || randomUUID();
+  const studentId = String(input?.studentId || "").trim();
+  const courseSectionId = String(input?.courseSectionId || "").trim();
+  const scheduleOrder = input?.scheduleOrder === "" || input?.scheduleOrder == null ? null : Number(input.scheduleOrder);
+  if (!studentId || !courseSectionId || (scheduleOrder != null && (!Number.isInteger(scheduleOrder) || scheduleOrder <= 0))) {
+    const error = new Error("Provide valid section enrollment values.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return { ...(id ? { id } : {}), studentId, courseSectionId, scheduleOrder };
+}
+
+function normalizeClockTime(value) {
+  const match = String(value || "").trim().match(/^(\d{2}):(\d{2})$/);
+  if (!match) return "";
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return "";
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 function normalizeStudentScheduleBlockPayload(input) {

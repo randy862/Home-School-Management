@@ -60,6 +60,58 @@ function createCurriculumRepository(deps) {
       return mapEnrollmentRow(result.rows[0]);
     },
 
+    createCourseSection: async (section) => {
+      const pool = getPostgresPool();
+      await ensureCourseSectionTables(pool);
+      const result = await pool.query(`
+        INSERT INTO course_sections (
+          id,
+          course_id,
+          label,
+          resource_group,
+          concurrent_capacity,
+          start_time,
+          weekdays_json,
+          schedule_order
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+        RETURNING
+          id,
+          course_id AS "courseId",
+          label,
+          resource_group AS "resourceGroup",
+          concurrent_capacity AS "concurrentCapacity",
+          start_time AS "startTime",
+          weekdays_json AS "weekdaysJson",
+          schedule_order AS "scheduleOrder"
+      `, [
+        section.id,
+        section.courseId,
+        section.label,
+        section.resourceGroup || "",
+        section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
+        section.startTime,
+        JSON.stringify(section.weekdays || []),
+        section.scheduleOrder
+      ]);
+      return mapCourseSectionRow(result.rows[0]);
+    },
+
+    createSectionEnrollment: async (sectionEnrollment) => {
+      const pool = getPostgresPool();
+      await ensureCourseSectionTables(pool);
+      const result = await pool.query(`
+        INSERT INTO section_enrollments (id, student_id, course_section_id, schedule_order)
+        VALUES ($1, $2, $3, $4)
+        RETURNING
+          id,
+          student_id AS "studentId",
+          course_section_id AS "courseSectionId",
+          schedule_order AS "scheduleOrder"
+      `, [sectionEnrollment.id, sectionEnrollment.studentId, sectionEnrollment.courseSectionId, sectionEnrollment.scheduleOrder]);
+      return mapSectionEnrollmentRow(result.rows[0]);
+    },
+
     createStudentScheduleBlock: async (scheduledBlock) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
@@ -109,6 +161,20 @@ function createCurriculumRepository(deps) {
       return result.rowCount > 0;
     },
 
+    deleteCourseSection: async (id) => {
+      const pool = getPostgresPool();
+      await ensureCourseSectionTables(pool);
+      const result = await pool.query("DELETE FROM course_sections WHERE id = $1", [id]);
+      return result.rowCount > 0;
+    },
+
+    deleteSectionEnrollment: async (id) => {
+      const pool = getPostgresPool();
+      await ensureCourseSectionTables(pool);
+      const result = await pool.query("DELETE FROM section_enrollments WHERE id = $1", [id]);
+      return result.rowCount > 0;
+    },
+
     deleteStudentScheduleBlock: async (id) => {
       const pool = getPostgresPool();
       const result = await pool.query("DELETE FROM student_schedule_blocks WHERE id = $1", [id]);
@@ -144,12 +210,15 @@ function createCurriculumRepository(deps) {
       const features = await getCourseTableFeatures(pool);
       const selectColumns = buildCourseSelectColumns(features, user?.role === "student" ? "c" : "");
       if (user?.role === "student") {
+        await ensureCourseSectionTables(pool);
         const result = await pool.query(`
-          SELECT
+          SELECT DISTINCT
             ${selectColumns}
           FROM courses c
-          JOIN enrollments e ON e.course_id = c.id
-          WHERE e.student_id = $1
+          LEFT JOIN enrollments e ON e.course_id = c.id AND e.student_id = $1
+          LEFT JOIN course_sections cs ON cs.course_id = c.id
+          LEFT JOIN section_enrollments se ON se.course_section_id = cs.id AND se.student_id = $1
+          WHERE e.student_id IS NOT NULL OR se.student_id IS NOT NULL
           ORDER BY lower(c.name)
         `, [user.studentId || ""]);
         return result.rows.map(mapCourseRow);
@@ -192,6 +261,67 @@ function createCurriculumRepository(deps) {
       return result.rows.map(mapEnrollmentRow);
     },
 
+    listCourseSectionsForUser: async (user) => {
+      const pool = getPostgresPool();
+      await ensureCourseSectionTables(pool);
+      const result = user?.role === "student"
+        ? await pool.query(`
+          SELECT DISTINCT
+            cs.id,
+            cs.course_id AS "courseId",
+            cs.label,
+            cs.resource_group AS "resourceGroup",
+            cs.concurrent_capacity AS "concurrentCapacity",
+            cs.start_time AS "startTime",
+            cs.weekdays_json AS "weekdaysJson",
+            cs.schedule_order AS "scheduleOrder"
+          FROM course_sections cs
+          JOIN section_enrollments se ON se.course_section_id = cs.id
+          WHERE se.student_id = $1
+          ORDER BY lower(cs.label), cs.id
+        `, [user.studentId || ""])
+        : await pool.query(`
+          SELECT
+            id,
+            course_id AS "courseId",
+            label,
+            resource_group AS "resourceGroup",
+            concurrent_capacity AS "concurrentCapacity",
+            start_time AS "startTime",
+            weekdays_json AS "weekdaysJson",
+            schedule_order AS "scheduleOrder"
+          FROM course_sections
+          ORDER BY lower(label), id
+        `);
+      return result.rows.map(mapCourseSectionRow);
+    },
+
+    listSectionEnrollmentsForUser: async (user) => {
+      const pool = getPostgresPool();
+      await ensureCourseSectionTables(pool);
+      const result = user?.role === "student"
+        ? await pool.query(`
+          SELECT
+            id,
+            student_id AS "studentId",
+            course_section_id AS "courseSectionId",
+            schedule_order AS "scheduleOrder"
+          FROM section_enrollments
+          WHERE student_id = $1
+          ORDER BY id
+        `, [user.studentId || ""])
+        : await pool.query(`
+          SELECT
+            id,
+            student_id AS "studentId",
+            course_section_id AS "courseSectionId",
+            schedule_order AS "scheduleOrder"
+          FROM section_enrollments
+          ORDER BY id
+        `);
+      return result.rows.map(mapSectionEnrollmentRow);
+    },
+
     listStudentScheduleBlocksForUser: async (user) => {
       const pool = getPostgresPool();
       const result = user?.role === "student"
@@ -220,14 +350,17 @@ function createCurriculumRepository(deps) {
     listSubjectsForUser: async (user) => {
       const pool = getPostgresPool();
       if (user?.role === "student") {
+        await ensureCourseSectionTables(pool);
         const result = await pool.query(`
           SELECT DISTINCT
             s.id,
             s.name
           FROM subjects s
           JOIN courses c ON c.subject_id = s.id
-          JOIN enrollments e ON e.course_id = c.id
-          WHERE e.student_id = $1
+          LEFT JOIN enrollments e ON e.course_id = c.id AND e.student_id = $1
+          LEFT JOIN course_sections cs ON cs.course_id = c.id
+          LEFT JOIN section_enrollments se ON se.course_section_id = cs.id AND se.student_id = $1
+          WHERE e.student_id IS NOT NULL OR se.student_id IS NOT NULL
           ORDER BY lower(s.name)
         `, [user.studentId || ""]);
         return result.rows;
@@ -311,6 +444,61 @@ function createCurriculumRepository(deps) {
       return result.rows[0] ? mapEnrollmentRow(result.rows[0]) : null;
     },
 
+    updateCourseSection: async (id, section) => {
+      const pool = getPostgresPool();
+      await ensureCourseSectionTables(pool);
+      const result = await pool.query(`
+        UPDATE course_sections
+        SET
+          course_id = $2,
+          label = $3,
+          resource_group = $4,
+          concurrent_capacity = $5,
+          start_time = $6,
+          weekdays_json = $7::jsonb,
+          schedule_order = $8
+        WHERE id = $1
+        RETURNING
+          id,
+          course_id AS "courseId",
+          label,
+          resource_group AS "resourceGroup",
+          concurrent_capacity AS "concurrentCapacity",
+          start_time AS "startTime",
+          weekdays_json AS "weekdaysJson",
+          schedule_order AS "scheduleOrder"
+      `, [
+        id,
+        section.courseId,
+        section.label,
+        section.resourceGroup || "",
+        section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
+        section.startTime,
+        JSON.stringify(section.weekdays || []),
+        section.scheduleOrder
+      ]);
+      return result.rows[0] ? mapCourseSectionRow(result.rows[0]) : null;
+    },
+
+    updateSectionEnrollment: async (id, sectionEnrollment) => {
+      const pool = getPostgresPool();
+      await ensureCourseSectionTables(pool);
+      const result = await pool.query(`
+        UPDATE section_enrollments
+        SET
+          student_id = $2,
+          course_section_id = $3,
+          schedule_order = $4
+        WHERE id = $1
+        RETURNING
+          id,
+          student_id AS "studentId",
+          course_section_id AS "courseSectionId",
+          schedule_order AS "scheduleOrder"
+      `, [id, sectionEnrollment.studentId, sectionEnrollment.courseSectionId, sectionEnrollment.scheduleOrder]);
+      return result.rows[0] ? mapSectionEnrollmentRow(result.rows[0]) : null;
+    },
+
     updateStudentScheduleBlock: async (id, scheduledBlock) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
@@ -376,6 +564,42 @@ async function ensureCourseTableColumns(pool) {
     SET resource_capacity = 1
     WHERE exclusive_resource = TRUE
       AND resource_capacity IS NULL
+  `);
+}
+
+async function ensureCourseSectionTables(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS course_sections (
+      id TEXT PRIMARY KEY,
+      course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+      label TEXT NOT NULL,
+      resource_group TEXT NOT NULL DEFAULT '',
+      concurrent_capacity INTEGER,
+      start_time TEXT NOT NULL DEFAULT '08:00',
+      weekdays_json JSONB NOT NULL DEFAULT '[1,2,3,4,5]'::jsonb,
+      schedule_order INTEGER
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS section_enrollments (
+      id TEXT PRIMARY KEY,
+      student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      course_section_id TEXT NOT NULL REFERENCES course_sections(id) ON DELETE CASCADE,
+      schedule_order INTEGER,
+      UNIQUE (student_id, course_section_id)
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_course_sections_course_id
+    ON course_sections(course_id)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_section_enrollments_student_id
+    ON section_enrollments(student_id)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_section_enrollments_section_id
+    ON section_enrollments(course_section_id)
   `);
 }
 
@@ -447,6 +671,28 @@ function normalizeCourseMaterial(material) {
 function mapEnrollmentRow(row) {
   return {
     ...row,
+    scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)
+  };
+}
+
+function mapCourseSectionRow(row) {
+  return {
+    id: row.id,
+    courseId: row.courseId,
+    label: row.label || "",
+    resourceGroup: row.resourceGroup || "",
+    concurrentCapacity: row.concurrentCapacity == null ? null : Number(row.concurrentCapacity),
+    startTime: row.startTime || "08:00",
+    weekdays: Array.isArray(row.weekdaysJson) ? row.weekdaysJson.map((day) => Number(day)).filter(Number.isInteger) : [],
+    scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)
+  };
+}
+
+function mapSectionEnrollmentRow(row) {
+  return {
+    id: row.id,
+    studentId: row.studentId,
+    courseSectionId: row.courseSectionId,
     scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)
   };
 }
