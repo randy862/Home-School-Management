@@ -630,6 +630,27 @@ function courseSectionForStudentCourse(studentId, courseId) {
   return enrollment ? getCourseSection(enrollment.courseSectionId) : null;
 }
 
+function enrolledStudentIdsForCourseSection(sectionId) {
+  return state.sectionEnrollments
+    .filter((entry) => entry.courseSectionId === sectionId)
+    .map((entry) => entry.studentId)
+    .filter(Boolean);
+}
+
+function classInstructionActualEditKey(sectionId, courseId, date) {
+  return `class||${sectionId}||${courseId}||${date}`;
+}
+
+function sharedClassInstructionActual(sectionId, date) {
+  const section = getCourseSection(sectionId);
+  if (!section) return null;
+  const records = enrolledStudentIdsForCourseSection(sectionId)
+    .map((studentId) => findInstructionActualRecord(studentId, section.courseId, date))
+    .filter((entry) => entry);
+  if (!records.length) return null;
+  return records[0];
+}
+
 function hasCourseMaterialDetails(material) {
   return !!(material.type || material.isbn || material.title || material.publisher || material.other);
 }
@@ -1230,6 +1251,7 @@ let selectedStudentId = "";
 let editingInstructorId = "";
 let editingAttendanceId = "";
 let editingInstructionActualKey = "";
+let editingSharedClassActualKey = "";
 let editingUserId = "";
 let userViewMode = "list";
 let studentViewMode = "list";
@@ -6927,9 +6949,7 @@ function beginCourseSectionEdit(sectionId) {
 function renderCourseSections() {
   const tableBody = document.getElementById("course-section-table");
   const submitBtn = document.getElementById("course-section-submit-btn");
-  const cancelBtn = document.getElementById("course-section-cancel-edit-btn");
   if (submitBtn) submitBtn.textContent = editingCourseSectionId ? "Update Class" : "Add Class";
-  if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingCourseSectionId);
   if (!tableBody) return;
   const rows = sortedCourseSections().map((section) => {
     const weekdays = (section.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
@@ -11453,24 +11473,28 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
         needsAttendance ? "school-day-row-needs-attendance" : "",
         isCompleted && !needsGrade ? "school-day-row-completed" : ""
       ].filter(Boolean).join(" ");
-      const editKey = instructionActualEditKey(block.studentId, block.courseId, dateKey);
-      const isEditing = editingInstructionActualKey === editKey;
-      const canEditActualMinutes = isAdminUser();
       const isSectionBoundInstruction = !!block.courseSectionId;
+      const editKey = instructionActualEditKey(block.studentId, block.courseId, dateKey);
+      const sharedEditKey = isSectionBoundInstruction ? classInstructionActualEditKey(block.courseSectionId, block.courseId, dateKey) : "";
+      const sharedRecord = isSectionBoundInstruction ? sharedClassInstructionActual(block.courseSectionId, dateKey) : null;
+      const isEditing = isSectionBoundInstruction
+        ? editingSharedClassActualKey === sharedEditKey
+        : editingInstructionActualKey === editKey;
+      const canEditActualMinutes = isAdminUser();
       const instructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
       const startTimeValue = Number.isFinite(block.start)
         ? block.start
         : effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, block.plannedStart);
       const hourCell = isEditing
         ? (isSectionBoundInstruction
-          ? `${actualRange}<br><span class="muted">Managed by section</span>`
+          ? `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Class Start<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-class-instruction-actual-start="${sharedEditKey}"></label></div>`
           : `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Start Time<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-instruction-actual-start="${editKey}"></label></div>`)
         : actualRange;
       const instructorCell = isEditing
-        ? `<select class="school-day-instructor-editor" data-instruction-actual-instructor="${editKey}">${buildInstructionInstructorOptions(instructorId)}</select>`
+        ? `<select class="school-day-instructor-editor" ${isSectionBoundInstruction ? `data-class-instruction-actual-instructor="${sharedEditKey}"` : `data-instruction-actual-instructor="${editKey}"`}>${buildInstructionInstructorOptions(instructorId)}</select>`
         : escapeHtml(instructorId ? getInstructorName(instructorId) : "Unassigned");
       const minutesCell = isEditing
-        ? `<input class="school-day-minutes-editor" type="number" min="1" step="1" value="${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))}" data-instruction-actual-input="${editKey}">`
+        ? `<input class="school-day-minutes-editor" type="number" min="1" step="1" value="${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))}" ${isSectionBoundInstruction ? `data-class-instruction-actual-input="${sharedEditKey}"` : `data-instruction-actual-input="${editKey}"`}>`
         : `${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))} min`;
       const inlineGradeKey = schoolDayGradeKey(block.studentId, block.courseId, dateKey);
       const showInlineGrade = mode === "school-day" && schoolDayInlineGradeKey === inlineGradeKey;
@@ -11496,8 +11520,10 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
       const actionsCell = !canEditActualMinutes
         ? ""
         : (isEditing
-          ? `<div class="table-action-row"><button type="button" ${saveAttr}="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" ${cancelAttr}="${editKey}">Cancel</button></div>`
-          : `<div class="school-day-actions-wrap"><label class="school-day-complete-toggle"><input type="checkbox" data-school-day-completed-toggle="1" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}"${isCompleted ? " checked" : ""}> Completed</label><div class="table-action-row">${inlineGradeActions}${isSectionBoundInstruction ? `<span class="muted">Time managed in class</span>` : `<button type="button" ${editAttr}="${editKey}">Edit</button>`}${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}</div></div>`);
+          ? (isSectionBoundInstruction
+            ? `<div class="table-action-row"><button type="button" data-school-day-save-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" data-school-day-cancel-class-actual="${sharedEditKey}">Cancel</button></div>`
+            : `<div class="table-action-row"><button type="button" ${saveAttr}="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" ${cancelAttr}="${editKey}">Cancel</button></div>`)
+          : `<div class="school-day-actions-wrap"><label class="school-day-complete-toggle"><input type="checkbox" data-school-day-completed-toggle="1" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}"${isCompleted ? " checked" : ""}> Completed</label><div class="table-action-row">${inlineGradeActions}${isSectionBoundInstruction ? `<button type="button" data-school-day-edit-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-course-id="${block.courseId}" data-date="${dateKey}">Edit Class For Today</button>${hasOverride && sharedRecord ? `<button type="button" data-school-day-reset-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-date="${dateKey}">Use Planned</button>` : ""}` : `<button type="button" ${editAttr}="${editKey}">Edit</button>${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}`}</div></div>`);
       const renderedRows = [`<tr class="${rowStateClasses}${isEditing ? " school-day-editing-row" : ""}"><td class="school-day-hour-column">${hourDisplay}</td><td class="school-day-student-column">${block.student}</td><td class="school-day-planned-column"><div class="school-day-planned-copy">${block.label}</div>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td class="school-day-instructor-column">${instructorCell}</td><td class="school-day-minutes-column">${minutesCell}</td><td class="calendar-actions-cell school-day-actions-column">${actionsCell}</td></tr>`];
       if (showInlineGrade) {
         const gradeRow = buildGradeEntryRow(null, {
@@ -11815,6 +11841,13 @@ function plannedInstructionMinutesForCourse(courseId) {
 }
 
 function effectiveInstructionMinutes(studentId, courseId, date) {
+  const section = courseSectionForStudentCourse(studentId, courseId);
+  if (section) {
+    const sharedRecord = sharedClassInstructionActual(section.id, date);
+    if (sharedRecord && Number.isInteger(sharedRecord.actualMinutes) && sharedRecord.actualMinutes > 0) {
+      return sharedRecord.actualMinutes;
+    }
+  }
   const existing = findInstructionActualRecord(studentId, courseId, date);
   if (existing && Number.isInteger(existing.actualMinutes) && existing.actualMinutes > 0) {
     return existing.actualMinutes;
@@ -11823,7 +11856,12 @@ function effectiveInstructionMinutes(studentId, courseId, date) {
 }
 
 function effectiveInstructionStartMinutes(studentId, courseId, date, fallbackStartMinutes = null) {
-  if (courseSectionForStudentCourse(studentId, courseId)) {
+  const section = courseSectionForStudentCourse(studentId, courseId);
+  if (section) {
+    const sharedRecord = sharedClassInstructionActual(section.id, date);
+    if (sharedRecord && Number.isInteger(sharedRecord.startMinutes) && sharedRecord.startMinutes >= 0) {
+      return sharedRecord.startMinutes;
+    }
     return Number.isFinite(fallbackStartMinutes) ? fallbackStartMinutes : null;
   }
   const existing = findInstructionActualRecord(studentId, courseId, date);
@@ -11834,7 +11872,11 @@ function effectiveInstructionStartMinutes(studentId, courseId, date, fallbackSta
 }
 
 function hasInstructionStartOverride(studentId, courseId, date) {
-  if (courseSectionForStudentCourse(studentId, courseId)) return false;
+  const section = courseSectionForStudentCourse(studentId, courseId);
+  if (section) {
+    const sharedRecord = sharedClassInstructionActual(section.id, date);
+    return !!(sharedRecord && Number.isInteger(sharedRecord.startMinutes) && sharedRecord.startMinutes >= 0);
+  }
   const existing = findInstructionActualRecord(studentId, courseId, date);
   return !!(existing && Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0);
 }
@@ -11878,6 +11920,11 @@ function defaultInstructorIdForCourse(courseId) {
 }
 
 function effectiveInstructionInstructorId(studentId, courseId, date) {
+  const section = courseSectionForStudentCourse(studentId, courseId);
+  if (section) {
+    const sharedRecord = sharedClassInstructionActual(section.id, date);
+    return String(sharedRecord?.instructorId || defaultInstructorIdForCourse(courseId) || "").trim();
+  }
   const existing = findInstructionActualRecord(studentId, courseId, date);
   return String(existing?.instructorId || defaultInstructorIdForCourse(courseId) || "").trim();
 }
@@ -11891,10 +11938,13 @@ function instructionCountsTowardCompletedHours(studentId, courseId, date) {
 }
 
 function hasInstructionExecutionOverride(studentId, courseId, date) {
-  const existing = findInstructionActualRecord(studentId, courseId, date);
+  const section = courseSectionForStudentCourse(studentId, courseId);
+  const existing = section
+    ? sharedClassInstructionActual(section.id, date)
+    : findInstructionActualRecord(studentId, courseId, date);
   if (!existing) return false;
-  const sectionBound = !!courseSectionForStudentCourse(studentId, courseId);
-  if (!sectionBound && Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0) return true;
+  const sectionBound = !!section;
+  if (Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0) return true;
   if (!sectionBound && Number.isInteger(existing.orderIndex) && existing.orderIndex > 0) return true;
   if (String(existing.instructorId || "").trim() !== String(defaultInstructorIdForCourse(courseId) || "").trim()) return true;
   if (Number.isInteger(existing.actualMinutes) && existing.actualMinutes > 0 && existing.actualMinutes !== plannedInstructionMinutesForCourse(courseId)) return true;
@@ -11942,6 +11992,51 @@ async function saveInstructionActualMinutes({ studentId, courseId, instructorId,
     createLegacyLocalInstructionActual({ id: uid(), ...payload });
   }
   saveState();
+}
+
+async function saveSharedClassInstructionActual({ courseSectionId, instructorId, date, actualMinutes, startMinutes }) {
+  const section = getCourseSection(courseSectionId);
+  if (!section) return;
+  const studentIds = enrolledStudentIdsForCourseSection(courseSectionId);
+  for (const studentId of studentIds) {
+    const existing = findInstructionActualRecord(studentId, section.courseId, date);
+    await saveInstructionActualMinutes({
+      studentId,
+      courseId: section.courseId,
+      instructorId,
+      date,
+      actualMinutes,
+      startMinutes,
+      orderIndex: existing?.orderIndex ?? null,
+      completed: existing?.completed ?? false
+    });
+  }
+}
+
+async function resetSharedClassInstructionActuals(courseSectionId, date) {
+  const section = getCourseSection(courseSectionId);
+  if (!section) return;
+  const defaultInstructorId = defaultInstructorIdForCourse(section.courseId);
+  const plannedMinutes = plannedInstructionMinutesForCourse(section.courseId);
+  const studentIds = enrolledStudentIdsForCourseSection(courseSectionId);
+  for (const studentId of studentIds) {
+    const existing = findInstructionActualRecord(studentId, section.courseId, date);
+    if (!existing) continue;
+    if (existing.completed) {
+      await saveInstructionActualMinutes({
+        studentId,
+        courseId: section.courseId,
+        instructorId: defaultInstructorId,
+        date,
+        actualMinutes: plannedMinutes,
+        startMinutes: null,
+        orderIndex: existing.orderIndex ?? null,
+        completed: true
+      });
+      continue;
+    }
+    await resetInstructionActualMinutes(existing.id);
+  }
 }
 
 async function saveInstructionOrderOverridesForStudentDate(studentId, date, orderedCourseIds) {
@@ -15102,13 +15197,29 @@ function bindEvents() {
     const schoolDayEditInstructionActualKey = t.getAttribute("data-school-day-edit-instruction-actual");
     if (schoolDayEditInstructionActualKey) {
       if (!ensureAdminAction()) return;
+      editingSharedClassActualKey = "";
       editingInstructionActualKey = schoolDayEditInstructionActualKey;
+      renderSchoolDay();
+      return;
+    }
+    const schoolDayEditClassActualKey = t.getAttribute("data-school-day-edit-class-actual");
+    if (schoolDayEditClassActualKey) {
+      if (!ensureAdminAction()) return;
+      editingInstructionActualKey = "";
+      editingSharedClassActualKey = schoolDayEditClassActualKey;
       renderSchoolDay();
       return;
     }
     const schoolDayCancelInstructionActualKey = t.getAttribute("data-school-day-cancel-instruction-actual");
     if (schoolDayCancelInstructionActualKey) {
       editingInstructionActualKey = "";
+      editingSharedClassActualKey = "";
+      renderSchoolDay();
+      return;
+    }
+    const schoolDayCancelClassActualKey = t.getAttribute("data-school-day-cancel-class-actual");
+    if (schoolDayCancelClassActualKey) {
+      editingSharedClassActualKey = "";
       renderSchoolDay();
       return;
     }
@@ -15143,6 +15254,37 @@ function bindEvents() {
       })();
       return;
     }
+    const schoolDaySaveClassActualKey = t.getAttribute("data-school-day-save-class-actual");
+    if (schoolDaySaveClassActualKey) {
+      if (!ensureAdminAction()) return;
+      const courseSectionId = t.getAttribute("data-course-section-id") || "";
+      const date = t.getAttribute("data-date") || "";
+      const courseId = t.getAttribute("data-course-id") || "";
+      const input = document.querySelector(`[data-class-instruction-actual-input="${schoolDaySaveClassActualKey}"]`);
+      const startInput = document.querySelector(`[data-class-instruction-actual-start="${schoolDaySaveClassActualKey}"]`);
+      const instructorInput = document.querySelector(`[data-class-instruction-actual-instructor="${schoolDaySaveClassActualKey}"]`);
+      const instructorId = String(instructorInput?.value || "").trim();
+      const actualMinutes = Number(input?.value);
+      const startMinutes = parseTimeToMinutes(startInput?.value || "");
+      if (!courseSectionId || !courseId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isInteger(actualMinutes) || actualMinutes <= 0) {
+        alert("Enter a whole number of minutes greater than 0.");
+        return;
+      }
+      if (!Number.isInteger(startMinutes) || startMinutes < 0) {
+        alert("Enter a valid class start time.");
+        return;
+      }
+      (async () => {
+        try {
+          await saveSharedClassInstructionActual({ courseSectionId, instructorId, date, actualMinutes, startMinutes });
+          editingSharedClassActualKey = "";
+          rerenderAfterInstructionChange();
+        } catch (error) {
+          alert(error.message || "Unable to save class changes for today.");
+        }
+      })();
+      return;
+    }
     const schoolDayResetInstructionActualId = t.getAttribute("data-school-day-reset-instruction-actual");
     if (schoolDayResetInstructionActualId) {
       if (!ensureAdminAction()) return;
@@ -15153,6 +15295,22 @@ function bindEvents() {
           rerenderAfterInstructionChange();
         } catch (error) {
           alert(error.message || "Unable to reset to planned minutes.");
+        }
+      })();
+      return;
+    }
+    const schoolDayResetClassActualKey = t.getAttribute("data-school-day-reset-class-actual");
+    if (schoolDayResetClassActualKey) {
+      if (!ensureAdminAction()) return;
+      const courseSectionId = t.getAttribute("data-course-section-id") || "";
+      const date = t.getAttribute("data-date") || document.getElementById("school-day-date")?.value || todayISO();
+      (async () => {
+        try {
+          await resetSharedClassInstructionActuals(courseSectionId, date);
+          editingSharedClassActualKey = "";
+          rerenderAfterInstructionChange();
+        } catch (error) {
+          alert(error.message || "Unable to reset class to planned values.");
         }
       })();
       return;
