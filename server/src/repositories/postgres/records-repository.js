@@ -4,6 +4,7 @@ function createRecordsRepository(deps) {
   return {
     createActualInstructionMinutes: async (record) => {
       const pool = getPostgresPool();
+      await ensureFlexBlocksTable(pool);
       const result = await pool.query(`
         INSERT INTO actual_instruction_minutes (id, student_id, course_id, instructor_id, instruction_date, actual_minutes, start_minutes, order_index, completed)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -52,6 +53,25 @@ function createRecordsRepository(deps) {
           max_score AS "maxScore"
       `, [test.id, test.date, test.studentId, test.subjectId, test.courseId, test.gradeType, test.testName, test.score, test.maxScore]);
       return mapTestRow(result.rows[0]);
+    },
+
+    createFlexBlock: async (record) => {
+      const pool = getPostgresPool();
+      await ensureFlexBlocksTable(pool);
+      const result = await pool.query(`
+        INSERT INTO flex_blocks (id, student_id, block_date, start_minutes, end_minutes, purpose)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (student_id, block_date, start_minutes, end_minutes)
+        DO UPDATE SET purpose = EXCLUDED.purpose
+        RETURNING
+          id,
+          student_id AS "studentId",
+          block_date AS "date",
+          start_minutes AS "startMinutes",
+          end_minutes AS "endMinutes",
+          purpose
+      `, [record.id, record.studentId, record.date, record.startMinutes, record.endMinutes, record.purpose || ""]);
+      return mapFlexBlockRow(result.rows[0]);
     },
 
     deleteAttendance: async (id) => {
@@ -106,6 +126,7 @@ function createRecordsRepository(deps) {
 
     listActualInstructionMinutesForUser: async (user) => {
       const pool = getPostgresPool();
+      await ensureFlexBlocksTable(pool);
       if (user?.role === "student") {
         const result = await pool.query(`
           SELECT
@@ -180,6 +201,38 @@ function createRecordsRepository(deps) {
       return result.rows.map(mapTestRow);
     },
 
+    listFlexBlocksForUser: async (user) => {
+      const pool = getPostgresPool();
+      await ensureFlexBlocksTable(pool);
+      if (user?.role === "student") {
+        const result = await pool.query(`
+          SELECT
+            id,
+            student_id AS "studentId",
+            block_date AS "date",
+            start_minutes AS "startMinutes",
+            end_minutes AS "endMinutes",
+            purpose
+          FROM flex_blocks
+          WHERE student_id = $1
+          ORDER BY block_date, start_minutes
+        `, [user.studentId || ""]);
+        return result.rows.map(mapFlexBlockRow);
+      }
+      const result = await pool.query(`
+        SELECT
+          id,
+          student_id AS "studentId",
+          block_date AS "date",
+          start_minutes AS "startMinutes",
+          end_minutes AS "endMinutes",
+          purpose
+        FROM flex_blocks
+        ORDER BY block_date, student_id, start_minutes
+      `);
+      return result.rows.map(mapFlexBlockRow);
+    },
+
     updateAttendance: async (id, attendance) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
@@ -200,6 +253,7 @@ function createRecordsRepository(deps) {
 
     updateActualInstructionMinutes: async (id, record) => {
       const pool = getPostgresPool();
+      await ensureFlexBlocksTable(pool);
       const result = await pool.query(`
         UPDATE actual_instruction_minutes
         SET
@@ -252,6 +306,36 @@ function createRecordsRepository(deps) {
           max_score AS "maxScore"
       `, [id, test.date, test.studentId, test.subjectId, test.courseId, test.gradeType, test.testName, test.score, test.maxScore]);
       return result.rows[0] ? mapTestRow(result.rows[0]) : null;
+    },
+
+    updateFlexBlock: async (id, record) => {
+      const pool = getPostgresPool();
+      await ensureFlexBlocksTable(pool);
+      const result = await pool.query(`
+        UPDATE flex_blocks
+        SET
+          student_id = $2,
+          block_date = $3,
+          start_minutes = $4,
+          end_minutes = $5,
+          purpose = $6
+        WHERE id = $1
+        RETURNING
+          id,
+          student_id AS "studentId",
+          block_date AS "date",
+          start_minutes AS "startMinutes",
+          end_minutes AS "endMinutes",
+          purpose
+      `, [id, record.studentId, record.date, record.startMinutes, record.endMinutes, record.purpose || ""]);
+      return result.rows[0] ? mapFlexBlockRow(result.rows[0]) : null;
+    },
+
+    deleteFlexBlock: async (id) => {
+      const pool = getPostgresPool();
+      await ensureFlexBlocksTable(pool);
+      const result = await pool.query("DELETE FROM flex_blocks WHERE id = $1", [id]);
+      return result.rowCount > 0;
     }
   };
 }
@@ -284,6 +368,34 @@ function mapTestRow(row) {
     score: Number(row.score || 0),
     maxScore: Number(row.maxScore || 0)
   };
+}
+
+function mapFlexBlockRow(row) {
+  return {
+    ...row,
+    date: row.date,
+    startMinutes: Number(row.startMinutes || 0),
+    endMinutes: Number(row.endMinutes || 0),
+    purpose: String(row.purpose || "").trim()
+  };
+}
+
+async function ensureFlexBlocksTable(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS flex_blocks (
+      id TEXT PRIMARY KEY,
+      student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+      block_date DATE NOT NULL,
+      start_minutes INTEGER NOT NULL,
+      end_minutes INTEGER NOT NULL,
+      purpose TEXT NOT NULL DEFAULT '',
+      UNIQUE (student_id, block_date, start_minutes, end_minutes)
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_flex_blocks_student_date
+    ON flex_blocks(student_id, block_date)
+  `);
 }
 
 module.exports = {

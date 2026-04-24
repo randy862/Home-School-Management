@@ -7,15 +7,19 @@ function createRecordsService(deps) {
     createActualInstructionMinutes: async (payload) => recordsRepository.createActualInstructionMinutes(normalizeActualInstructionPayload(payload)),
     createAttendance: async (payload) => recordsRepository.createAttendance(normalizeAttendancePayload(payload)),
     createTest: async (payload) => recordsRepository.createTest(normalizeTestPayload(payload)),
+    createFlexBlock: async (payload) => recordsRepository.createFlexBlock(normalizeFlexBlockPayload(payload)),
     deleteActualInstructionMinutes: (id) => recordsRepository.deleteActualInstructionMinutes(id),
     deleteAttendance: (id) => recordsRepository.deleteAttendance(id),
     deleteTest: (id) => recordsRepository.deleteTest(id),
+    deleteFlexBlock: (id) => recordsRepository.deleteFlexBlock(id),
     listActualInstructionMinutesForUser: (user) => recordsRepository.listActualInstructionMinutesForUser(user),
     listAttendanceForUser: (user) => recordsRepository.listAttendanceForUser(user),
     listTestsForUser: (user) => recordsRepository.listTestsForUser(user),
+    listFlexBlocksForUser: (user) => recordsRepository.listFlexBlocksForUser(user),
     updateActualInstructionMinutes: async (id, payload) => recordsRepository.updateActualInstructionMinutes(id, normalizeActualInstructionPayload({ ...payload, id })),
     updateAttendance: async (id, payload) => recordsRepository.updateAttendance(id, normalizeAttendancePayload({ ...payload, id })),
-    updateTest: async (id, payload) => recordsRepository.updateTest(id, normalizeTestPayload({ ...payload, id }))
+    updateTest: async (id, payload) => recordsRepository.updateTest(id, normalizeTestPayload({ ...payload, id })),
+    updateFlexBlock: async (id, payload) => recordsRepository.updateFlexBlock(id, normalizeFlexBlockPayload({ ...payload, id }))
   };
 }
 
@@ -58,6 +62,26 @@ function normalizeAttendancePayload(input) {
     throw error;
   }
   return { id, studentId, date, present };
+}
+
+function normalizeFlexBlockPayload(input) {
+  const id = String(input?.id || "").trim() || randomUUID();
+  const studentId = String(input?.studentId || "").trim();
+  const date = String(input?.date || "").trim();
+  const startMinutes = Number(input?.startMinutes);
+  const endMinutes = Number(input?.endMinutes);
+  const purpose = String(input?.purpose || "").trim();
+  if (!studentId
+    || !/^\d{4}-\d{2}-\d{2}$/.test(date)
+    || !Number.isInteger(startMinutes)
+    || !Number.isInteger(endMinutes)
+    || startMinutes < 0
+    || endMinutes <= startMinutes) {
+    const error = new Error("Provide valid flex block values.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return { id, studentId, date, startMinutes, endMinutes, purpose };
 }
 
 function normalizeTestPayload(input) {

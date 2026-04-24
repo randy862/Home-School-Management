@@ -27,6 +27,7 @@ const API_SCHOOL_YEARS_ENDPOINT = `${API_BASE_URL}/api/school-years`;
 const API_QUARTERS_ENDPOINT = `${API_BASE_URL}/api/quarters`;
 const API_ATTENDANCE_ENDPOINT = `${API_BASE_URL}/api/attendance`;
 const API_INSTRUCTION_ACTUALS_ENDPOINT = `${API_BASE_URL}/api/instruction-actuals`;
+const API_FLEX_BLOCKS_ENDPOINT = `${API_BASE_URL}/api/flex-blocks`;
 const API_DAILY_BREAKS_ENDPOINT = `${API_BASE_URL}/api/daily-breaks`;
 const API_HOLIDAYS_ENDPOINT = `${API_BASE_URL}/api/holidays`;
 const API_PLANS_ENDPOINT = `${API_BASE_URL}/api/plans`;
@@ -41,6 +42,7 @@ const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "F
 const DEFAULT_SCHOOL_DAY_START_TIME = "08:00";
 const DEFAULT_MINUTES_BETWEEN_CLASSES = 5;
 const FLEX_BLOCK_MIN_GAP_MINUTES = 10;
+const FLEX_BLOCK_PURPOSE_OPTIONS = ["Study", "Homework", "Project Work", "Corrections / Grade Recovery", "Test Prep"];
 const EXCLUDED_GRADE_TYPE_FILTER_OPTIONS = new Set(["homework"]);
 const STUDENT_PERFORMANCE_GRADE_METHODS = ["Percentage", "Letter", "GPA"];
 const LETTER_GRADE_ORDER = ["A", "B", "C", "D", "F"];
@@ -372,7 +374,7 @@ function defaultState() {
     { id: uid(), schoolYearId, name: "Q4", startDate: `${y}-10-01`, endDate: `${y}-12-31` }
   ];
   return {
-    students: [], instructors: [], subjects: [], courses: [], courseSections: [], enrollments: [], sectionEnrollments: [], scheduleBlocks: [], studentScheduleBlocks: [], plans: [], attendance: [], instructionActuals: [], tests: [], users: [createLegacyBootstrapAdmin()],
+    students: [], instructors: [], subjects: [], courses: [], courseSections: [], enrollments: [], sectionEnrollments: [], scheduleBlocks: [], studentScheduleBlocks: [], plans: [], attendance: [], instructionActuals: [], flexBlocks: [], tests: [], users: [createLegacyBootstrapAdmin()],
     settings: {
       schoolYear: { ...schoolYear },
       schoolYears: [schoolYear],
@@ -462,6 +464,42 @@ function normalizeInstructionActualsShape(inputState) {
       && (entry.orderIndex == null || (Number.isInteger(entry.orderIndex) && entry.orderIndex > 0)))
     .filter((entry) => {
       const key = `${entry.studentId}||${entry.courseId}||${entry.date}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function normalizeFlexBlocksShape(inputState) {
+  const s = inputState;
+  const validStudentIds = new Set((s.students || []).map((student) => student.id));
+  if (!Array.isArray(s.flexBlocks)) {
+    s.flexBlocks = [];
+    return;
+  }
+  const seen = new Set();
+  s.flexBlocks = s.flexBlocks
+    .filter((entry) => entry)
+    .map((entry) => ({
+      id: entry.id || uid(),
+      studentId: String(entry.studentId || "").trim(),
+      date: String(entry.date || "").trim(),
+      startMinutes: Number(entry.startMinutes),
+      endMinutes: Number(entry.endMinutes),
+      purpose: FLEX_BLOCK_PURPOSE_OPTIONS.includes(String(entry.purpose || "").trim())
+        ? String(entry.purpose || "").trim()
+        : ""
+    }))
+    .filter((entry) =>
+      validStudentIds.has(entry.studentId)
+      && /^\d{4}-\d{2}-\d{2}$/.test(entry.date)
+      && Number.isInteger(entry.startMinutes)
+      && Number.isInteger(entry.endMinutes)
+      && entry.startMinutes >= 0
+      && entry.endMinutes > entry.startMinutes
+    )
+    .filter((entry) => {
+      const key = `${entry.studentId}||${entry.date}||${entry.startMinutes}||${entry.endMinutes}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -1134,6 +1172,7 @@ function normalizeSettingsShape(inputState) {
   normalizeScheduleBlocksShape(s);
   normalizeStudentScheduleBlocksShape(s);
   normalizeInstructionActualsShape(s);
+  normalizeFlexBlocksShape(s);
 }
 
 function loadState() {
@@ -1253,6 +1292,7 @@ let editingInstructorId = "";
 let editingAttendanceId = "";
 let editingInstructionActualKey = "";
 let editingSharedClassActualKey = "";
+let editingFlexBlockKey = "";
 let editingUserId = "";
 let userViewMode = "list";
 let studentViewMode = "list";
@@ -1822,6 +1862,15 @@ async function refreshHostedInstructionActuals() {
   }
 }
 
+async function refreshHostedFlexBlocks() {
+  const response = await authFetch(API_FLEX_BLOCKS_ENDPOINT);
+  if (!response.ok) throw new Error(`Flex blocks fetch failed (${response.status})`);
+  const flexBlocks = await response.json();
+  if (Array.isArray(flexBlocks)) {
+    state.flexBlocks = flexBlocks.map(normalizeHostedFlexBlockRecord);
+  }
+}
+
 async function refreshHostedDailyBreaks() {
   const response = await authFetch(API_DAILY_BREAKS_ENDPOINT);
   if (!response.ok) throw new Error(`Daily breaks fetch failed (${response.status})`);
@@ -2019,6 +2068,31 @@ async function deleteHostedInstructionActual(id) {
     method: "DELETE"
   });
   return parseApiResponse(response, `Actual instructional minutes delete failed (${response.status})`);
+}
+
+async function createHostedFlexBlock(payload) {
+  const response = await authFetch(API_FLEX_BLOCKS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Flex block save failed (${response.status})`);
+}
+
+async function updateHostedFlexBlock(id, payload) {
+  const response = await authFetch(`${API_FLEX_BLOCKS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Flex block update failed (${response.status})`);
+}
+
+async function deleteHostedFlexBlock(id) {
+  const response = await authFetch(`${API_FLEX_BLOCKS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  return parseApiResponse(response, `Flex block delete failed (${response.status})`);
 }
 
 async function updateHostedAttendance(id, payload) {
@@ -2405,6 +2479,18 @@ function normalizeHostedInstructionActualRecord(row) {
   };
 }
 
+function normalizeHostedFlexBlockRecord(row) {
+  return {
+    ...row,
+    date: normalizeApiDate(row.date),
+    startMinutes: Number(row.startMinutes || 0),
+    endMinutes: Number(row.endMinutes || 0),
+    purpose: FLEX_BLOCK_PURPOSE_OPTIONS.includes(String(row.purpose || "").trim())
+      ? String(row.purpose || "").trim()
+      : ""
+  };
+}
+
 function normalizeHostedTestRecord(row) {
   return {
     ...row,
@@ -2430,8 +2516,38 @@ function upsertHostedInstructionActualState(row) {
   ];
 }
 
+function upsertHostedFlexBlockState(row) {
+  const normalized = normalizeHostedFlexBlockRecord(row);
+  state.flexBlocks = [
+    ...state.flexBlocks.filter((entry) => entry.id !== normalized.id),
+    normalized
+  ];
+}
+
+function removeHostedFlexBlockState(recordId) {
+  state.flexBlocks = state.flexBlocks.filter((entry) => entry.id !== recordId);
+}
+
 function removeHostedInstructionActualState(recordId) {
   state.instructionActuals = state.instructionActuals.filter((entry) => entry.id !== recordId);
+}
+
+function findFlexBlockRecord(studentId, date, startMinutes, endMinutes) {
+  return state.flexBlocks.find((entry) =>
+    entry.studentId === studentId
+    && entry.date === date
+    && entry.startMinutes === startMinutes
+    && entry.endMinutes === endMinutes
+  ) || null;
+}
+
+function flexBlockEditKey(studentId, date, startMinutes, endMinutes) {
+  return `${studentId}||${date}||${startMinutes}||${endMinutes}`;
+}
+
+function flexBlockDisplayLabel(block) {
+  const purpose = String(block?.purpose || "").trim();
+  return purpose ? `Flex Block - ${purpose}` : "Flex Block";
 }
 
 function upsertHostedTestState(row) {
@@ -2460,6 +2576,7 @@ async function hydrateHostedDomainState() {
     refreshHostedQuarters(),
     refreshHostedAttendance(),
     refreshHostedInstructionActuals(),
+    refreshHostedFlexBlocks(),
     refreshHostedDailyBreaks(),
     refreshHostedHolidays(),
     refreshHostedPlans(),
@@ -2499,6 +2616,7 @@ async function refreshHostedStudentCascadeState() {
   await refreshHostedPlans();
   await refreshHostedAttendance();
   await refreshHostedInstructionActuals();
+  await refreshHostedFlexBlocks();
   await refreshHostedTests();
   await refreshHostedDailyBreaks();
   if (isAdminUser()) {
@@ -11263,17 +11381,20 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     adjustedBlocks.forEach((block) => {
       const gapMinutes = Math.max(0, block.start - previousEnd);
       if (gapMinutes > FLEX_BLOCK_MIN_GAP_MINUTES) {
+        const flexRecord = findFlexBlockRecord(studentId, dateKey, previousEnd, block.start);
         adjustedWithFlexBlocks.push({
           student: studentName,
           studentId,
-          label: "Flex Block",
+          label: flexBlockDisplayLabel({ purpose: flexRecord?.purpose || "" }),
           plannedStart: previousEnd,
           plannedEnd: block.start,
           start: previousEnd,
           end: block.start,
           durationMinutes: gapMinutes,
           actualMinutes: gapMinutes,
-          type: "flex"
+          type: "flex",
+          flexPurpose: flexRecord?.purpose || "",
+          flexBlockId: flexRecord?.id || ""
         });
       }
       adjustedWithFlexBlocks.push(block);
@@ -11300,6 +11421,16 @@ function schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds = [], cours
   if (subjectFilterIds.length && !subjectFilterIds.includes(block.subjectId)) return false;
   if (courseFilterIds.length && !courseFilterIds.includes(block.courseId)) return false;
   return true;
+}
+
+function buildFlexBlockPurposeOptions(selectedPurpose = "") {
+  const normalizedSelected = FLEX_BLOCK_PURPOSE_OPTIONS.includes(String(selectedPurpose || "").trim())
+    ? String(selectedPurpose || "").trim()
+    : "";
+  return [`<option value="">Flex Block</option>`]
+    .concat(FLEX_BLOCK_PURPOSE_OPTIONS.map((purpose) =>
+      `<option value="${escapeHtml(purpose)}"${purpose === normalizedSelected ? " selected" : ""}>${escapeHtml(purpose)}</option>`))
+    .join("");
 }
 
 function calendarDateStudentRows(rangeStart, rangeEnd, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
@@ -11462,6 +11593,19 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
       const plannedRange = `${formatClockTime(block.plannedStart)} - ${formatClockTime(block.plannedEnd)}`;
       if (block.type !== "instruction") {
         if (useQuickFilters && schoolDayActiveQuickFilterCount()) return [];
+        if (block.type === "flex") {
+          const flexEditKey = flexBlockEditKey(block.studentId, dateKey, block.start, block.end);
+          const isEditingFlex = editingFlexBlockKey === flexEditKey;
+          const purposeCell = isEditingFlex
+            ? `<select data-flex-block-purpose="${flexEditKey}">${buildFlexBlockPurposeOptions(block.flexPurpose)}</select>`
+            : `${escapeHtml(block.label)}<br><span class="muted">Planned ${plannedRange}</span>`;
+          const actionsCell = !isAdminUser()
+            ? ""
+            : (isEditingFlex
+              ? `<div class="table-action-row"><button type="button" data-school-day-save-flex-block="${flexEditKey}" data-student-id="${block.studentId}" data-date="${dateKey}" data-start="${block.start}" data-end="${block.end}">Save</button><button type="button" data-school-day-cancel-flex-block="${flexEditKey}">Cancel</button></div>`
+              : `<div class="table-action-row"><button type="button" data-school-day-edit-flex-block="${flexEditKey}">Edit</button></div>`);
+          return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${purposeCell}</td><td></td><td>${Number(block.actualMinutes || 0)} min</td><td class="calendar-actions-cell">${actionsCell}</td></tr>`];
+        }
         return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td></td><td>${Number(block.actualMinutes || 0)} min</td><td class="calendar-actions-cell"></td></tr>`];
       }
 
@@ -12060,6 +12204,65 @@ async function resetSharedClassInstructionActuals(courseSectionId, date) {
     }
     await resetInstructionActualMinutes(existing.id);
   }
+}
+
+function createLegacyLocalFlexBlock(payload) {
+  state.flexBlocks.push({
+    id: payload.id || uid(),
+    studentId: payload.studentId,
+    date: payload.date,
+    startMinutes: payload.startMinutes,
+    endMinutes: payload.endMinutes,
+    purpose: payload.purpose || ""
+  });
+}
+
+function updateLegacyLocalFlexBlock(existing, payload) {
+  if (!existing) return;
+  existing.studentId = payload.studentId;
+  existing.date = payload.date;
+  existing.startMinutes = payload.startMinutes;
+  existing.endMinutes = payload.endMinutes;
+  existing.purpose = payload.purpose || "";
+}
+
+function deleteLegacyLocalFlexBlock(id) {
+  state.flexBlocks = state.flexBlocks.filter((entry) => entry.id !== id);
+}
+
+async function saveFlexBlockPurpose({ studentId, date, startMinutes, endMinutes, purpose }) {
+  const existing = findFlexBlockRecord(studentId, date, startMinutes, endMinutes);
+  const normalizedPurpose = FLEX_BLOCK_PURPOSE_OPTIONS.includes(String(purpose || "").trim())
+    ? String(purpose || "").trim()
+    : "";
+  if (!normalizedPurpose) {
+    if (!existing) return;
+    if (hostedModeEnabled) {
+      await deleteHostedFlexBlock(existing.id);
+      removeHostedFlexBlockState(existing.id);
+      return;
+    }
+    deleteLegacyLocalFlexBlock(existing.id);
+    saveState();
+    return;
+  }
+  const payload = { studentId, date, startMinutes, endMinutes, purpose: normalizedPurpose };
+  if (hostedModeEnabled) {
+    if (existing) {
+      const saved = await updateHostedFlexBlock(existing.id, payload);
+      if (saved) upsertHostedFlexBlockState(saved);
+    } else {
+      const created = await createHostedFlexBlock({ id: uid(), ...payload });
+      if (created) upsertHostedFlexBlockState(created);
+    }
+    return;
+  }
+  if (existing) {
+    updateLegacyLocalFlexBlock(existing, payload);
+  } else {
+    createLegacyLocalFlexBlock({ id: uid(), ...payload });
+  }
+  saveState();
 }
 
 async function saveInstructionOrderOverridesForStudentDate(studentId, date, orderedCourseIds) {
@@ -15217,9 +15420,49 @@ function bindEvents() {
       })();
       return;
     }
+    const schoolDayEditFlexBlockKey = t.getAttribute("data-school-day-edit-flex-block");
+    if (schoolDayEditFlexBlockKey) {
+      if (!ensureAdminAction()) return;
+      editingInstructionActualKey = "";
+      editingSharedClassActualKey = "";
+      editingFlexBlockKey = schoolDayEditFlexBlockKey;
+      renderSchoolDay();
+      return;
+    }
+    const schoolDayCancelFlexBlockKey = t.getAttribute("data-school-day-cancel-flex-block");
+    if (schoolDayCancelFlexBlockKey) {
+      editingFlexBlockKey = "";
+      renderSchoolDay();
+      return;
+    }
+    const schoolDaySaveFlexBlockKey = t.getAttribute("data-school-day-save-flex-block");
+    if (schoolDaySaveFlexBlockKey) {
+      if (!ensureAdminAction()) return;
+      const studentId = t.getAttribute("data-student-id") || "";
+      const date = t.getAttribute("data-date") || "";
+      const startMinutes = Number(t.getAttribute("data-start"));
+      const endMinutes = Number(t.getAttribute("data-end"));
+      const purposeInput = document.querySelector(`[data-flex-block-purpose="${schoolDaySaveFlexBlockKey}"]`);
+      const purpose = String(purposeInput?.value || "").trim();
+      if (!studentId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isInteger(startMinutes) || !Number.isInteger(endMinutes) || endMinutes <= startMinutes) {
+        alert("Unable to save flex block purpose.");
+        return;
+      }
+      (async () => {
+        try {
+          await saveFlexBlockPurpose({ studentId, date, startMinutes, endMinutes, purpose });
+          editingFlexBlockKey = "";
+          renderSchoolDay();
+        } catch (error) {
+          alert(error.message || "Unable to save flex block purpose.");
+        }
+      })();
+      return;
+    }
     const schoolDayEditInstructionActualKey = t.getAttribute("data-school-day-edit-instruction-actual");
     if (schoolDayEditInstructionActualKey) {
       if (!ensureAdminAction()) return;
+      editingFlexBlockKey = "";
       editingSharedClassActualKey = "";
       editingInstructionActualKey = schoolDayEditInstructionActualKey;
       renderSchoolDay();
@@ -15229,6 +15472,7 @@ function bindEvents() {
     if (schoolDayEditClassActualKey) {
       if (!ensureAdminAction()) return;
       editingInstructionActualKey = "";
+      editingFlexBlockKey = "";
       editingSharedClassActualKey = schoolDayEditClassActualKey;
       renderSchoolDay();
       return;
@@ -15237,12 +15481,14 @@ function bindEvents() {
     if (schoolDayCancelInstructionActualKey) {
       editingInstructionActualKey = "";
       editingSharedClassActualKey = "";
+      editingFlexBlockKey = "";
       renderSchoolDay();
       return;
     }
     const schoolDayCancelClassActualKey = t.getAttribute("data-school-day-cancel-class-actual");
     if (schoolDayCancelClassActualKey) {
       editingSharedClassActualKey = "";
+      editingFlexBlockKey = "";
       renderSchoolDay();
       return;
     }

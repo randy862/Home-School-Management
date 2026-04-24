@@ -27,6 +27,17 @@ function registerRecordsRoutes(app, deps) {
     }
   });
 
+  app.get("/api/flex-blocks", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Flex blocks")) return;
+    if (!ensureAuthenticated(req, res)) return;
+
+    try {
+      res.json(await recordsService.listFlexBlocksForUser(req.auth.user));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/attendance", async (req, res) => {
     if (!ensurePostgresMode(res, isPostgresMode, "Attendance")) return;
     if (!ensureAdmin(req, res)) return;
@@ -47,6 +58,17 @@ function registerRecordsRoutes(app, deps) {
 
     try {
       res.status(201).json(await recordsService.createActualInstructionMinutes(req.body));
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/flex-blocks", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Flex blocks")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      res.status(201).json(await recordsService.createFlexBlock(req.body));
     } catch (error) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
@@ -103,6 +125,22 @@ function registerRecordsRoutes(app, deps) {
     }
   });
 
+  app.patch("/api/flex-blocks/:id", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Flex blocks")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const updated = await recordsService.updateFlexBlock(req.params.id, req.body);
+      if (!updated) {
+        res.status(404).json({ error: "Flex block not found." });
+        return;
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/instruction-actuals/:id", async (req, res) => {
     if (!ensurePostgresMode(res, isPostgresMode, "Actual instructional minutes")) return;
     if (!ensureAdmin(req, res)) return;
@@ -111,6 +149,22 @@ function registerRecordsRoutes(app, deps) {
       const deleted = await recordsService.deleteActualInstructionMinutes(req.params.id);
       if (!deleted) {
         res.status(404).json({ error: "Actual instructional minute record not found." });
+        return;
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/flex-blocks/:id", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Flex blocks")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const deleted = await recordsService.deleteFlexBlock(req.params.id);
+      if (!deleted) {
+        res.status(404).json({ error: "Flex block not found." });
         return;
       }
       res.status(204).send();
