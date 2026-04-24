@@ -7754,19 +7754,25 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
   }
   const cards = roster.map((student) => {
     const studentBlocks = dailyScheduledBlocks(referenceISO, [student.id]);
-    const instructionBlocks = (studentBlocks.get(student.id) || [])
-      .filter((block) => block.type === "instruction")
+    const visibleBlocks = (studentBlocks.get(student.id) || [])
       .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
-      .sort((a, b) => a.start - b.start || getCourseName(a.courseId).localeCompare(getCourseName(b.courseId)));
-    if (!instructionBlocks.length) return "";
-    const rows = instructionBlocks.map((block) => {
-      const isCompleted = effectiveInstructionCompleted(student.id, block.courseId, referenceISO);
-      const needsGrade = gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length === 0;
-      const status = isCompleted ? "complete" : (needsGrade ? "needs-grade" : "open");
-      const statusLabel = isCompleted ? "Completed" : (needsGrade ? "Needs Grade" : "Open");
+      .sort((a, b) => a.start - b.start || (a.label || "").localeCompare(b.label || ""));
+    if (!visibleBlocks.length) return "";
+    const instructionCount = visibleBlocks.filter((block) => block.type === "instruction").length;
+    const rows = visibleBlocks.map((block) => {
+      const isInstruction = block.type === "instruction";
+      const isCompleted = isInstruction ? effectiveInstructionCompleted(student.id, block.courseId, referenceISO) : false;
+      const needsGrade = isInstruction ? gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length === 0 : false;
+      const status = isInstruction
+        ? (isCompleted ? "complete" : (needsGrade ? "needs-grade" : "open"))
+        : (block.type === "flex" ? "info" : "open");
+      const statusLabel = isInstruction
+        ? (isCompleted ? "Completed" : (needsGrade ? "Needs Grade" : "Open"))
+        : (block.type === "flex" ? "Flex" : "Scheduled");
+      const rowLabel = isInstruction ? getCourseName(block.courseId) : block.label;
       return `<div class="school-day-overview-row">
         <span class="school-day-overview-time">${escapeHtml(formatClockTime(block.start))}</span>
-        <span class="school-day-overview-course">${escapeHtml(getCourseName(block.courseId))}</span>
+        <span class="school-day-overview-course">${escapeHtml(rowLabel)}</span>
         <span class="school-day-overview-status ${status}">${statusLabel}</span>
       </div>`;
     }).join("");
@@ -7776,7 +7782,7 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
           <span class="school-day-card-student-label">Student</span>
           <h4>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</h4>
         </div>
-        <span>${instructionBlocks.length} classes</span>
+        <span>${instructionCount} classes</span>
       </div>
       <div class="school-day-overview-body">${rows}</div>
     </button>`;
