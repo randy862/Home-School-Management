@@ -107,6 +107,73 @@ The next implementation/design session should focus on:
 - defining how the scheduler handles direct enrollments versus shared-section enrollments
 - sketching the first UI for creating sections and assigning students to them
 
+## Current Implementation Status
+
+As of April 23, 2026, the first working slice is live:
+
+- `Course Sections` and `Section Enrollments` exist in the backend
+- admins can create sections under `Curriculum > Courses > Add Sections`
+- students can be assigned to a section from `Students > Current Schedule`
+- section-based classes now keep the section's configured shared time instead of drifting per student
+- direct per-student time editing for section-based rows has been constrained so section time is treated as shared
+- hard overlaps between a fixed section time and another class for the same student were addressed in the scheduler
+
+## Remaining Problem
+
+Even after the overlap fixes, the current scheduling behavior can still feel awkward because the scheduler treats section times as hard anchors and then tries to route the rest of the day around them.
+
+That avoids collisions, but it can leave dead space before or after a section.
+
+Example observed in live testing:
+
+- `PJ Mitchell` assigned to `Piano Group 2`
+- `Piano Group 2` configured for `9:00 AM - 10:00 AM`
+- overlap with another class was fixed
+- but the resulting day still left an undesirable `15 minute` gap before the section
+
+This means the current implementation is functionally safer, but it still does not feel like a clean schedule.
+
+## Design Questions For Tomorrow
+
+Tomorrow's follow-up should start here:
+
+1. Decide how section anchors should participate in schedule generation
+- should the scheduler split the day into segments around section anchors and pack flexible classes into those segments?
+- should anchored sections be treated as first-class schedule boundaries instead of just fixed blocks inserted into a rolling cursor?
+
+2. Decide how to handle dead space around anchored sections
+- should flexible classes compress backward or forward to eliminate small gaps?
+- should there be a tolerance rule, such as allowing a nearby class to shift in 5-minute increments to close the space?
+
+3. Revisit the meaning of `Student Current Schedule` order for section-based items
+- fixed-time sections should not be movable like ordinary courses
+- but the student's schedule still needs a clean way to express whether a flexible class should fall before or after a section
+
+4. Decide whether section scheduling needs a more explicit planner model
+- the current model is "section has start time"
+- we may need a richer concept like "anchored window" plus flexible packing before/after that window
+
+## Recommended Starting Point
+
+Start the next session by reviewing the scheduler with this goal:
+
+- keep section times shared and authoritative
+- prevent overlaps
+- remove awkward dead gaps when a better non-conflicting arrangement exists
+
+The likely better long-term direction is:
+
+- compute fixed section windows first
+- break the student's day into open segments around those windows
+- schedule non-section courses within those segments
+- only then apply same-day adjustments or overrides that do not violate the section windows
+
+## Related Follow-up
+
+Also track this related improvement:
+
+- add a configurable `school day start time`, likely in `School Year` settings, instead of hard-coding the day to begin at `8:00 AM`
+
 ## Important Constraint
 
 Do not try to solve this only by adding more logic to the current `resourceGroup + concurrentCapacity` course fields.
