@@ -11344,6 +11344,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         : plannedDuration;
       const hasStartOverride = block.type === "instruction" && hasInstructionStartOverride(block.studentId, block.courseId, dateKey);
       const hasFixedSectionStart = block.type === "instruction" && !!block.courseSectionId && !hasStartOverride;
+      const hasFlexibleScheduleBlockTiming = block.type !== "instruction" && !!block.scheduleBlockId;
       const actualStartTarget = block.type === "instruction"
         ? (hasFixedSectionStart || hasStartOverride
           ? effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, plannedStart)
@@ -11354,6 +11355,8 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         : actualCursor == null
         ? actualStartTarget
         : (block.type === "instruction" && !hasStartOverride
+          ? actualCursor
+          : hasFlexibleScheduleBlockTiming
           ? actualCursor
           : Math.max(actualStartTarget, actualCursor));
       let resolvedActualStart = actualStart;
