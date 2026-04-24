@@ -133,6 +133,42 @@ Example observed in live testing:
 
 This means the current implementation is functionally safer, but it still does not feel like a clean schedule.
 
+There is also a more important product concern:
+
+- the rigid section-time approach undermines one of the best parts of homeschool scheduling
+- in real use, a class may run long, start late, or need to shift in the moment
+- `School Day` currently supports that kind of live adjustment well for ordinary classes
+- a section model that removes that flexibility is the wrong end state
+
+## Updated Model Direction
+
+The better model is:
+
+- a section defines a shared planned anchor
+- not a permanently rigid time lock
+
+That means a section should still coordinate students together, but it should not make the day behave like a traditional bell schedule.
+
+The target behavior should be:
+
+1. Shared planned section time
+- example: `Piano Group 2` is planned for `9:00 AM`
+- all enrolled students should initially schedule together at that planned time
+
+2. Same-day shared override
+- if the section starts late or runs long, the admin should be able to change the section for that day
+- that change should move all students in the section together for that specific date
+
+3. Student-level flexibility outside the section
+- non-section classes before and after the section should still slide naturally
+- same-day edits for ordinary classes should remain easy
+
+So the design should become:
+
+- section time is the default shared plan
+- same-day execution can override that shared plan as a group
+- the app should preserve homeschool flexibility instead of taking it away
+
 ## Design Questions For Tomorrow
 
 Tomorrow's follow-up should start here:
@@ -153,6 +189,15 @@ Tomorrow's follow-up should start here:
 - the current model is "section has start time"
 - we may need a richer concept like "anchored window" plus flexible packing before/after that window
 
+5. Define section-level same-day overrides
+- `School Day` should likely allow changing a section start time and possibly duration for a given day
+- that override should apply to every student in that section for that date
+- this is different from the current per-student override model and should probably have its own data shape
+
+6. Protect the good existing `School Day` behavior
+- the existing beauty of the app is that classes can run long or shift on the fly
+- section support should extend that flexibility to shared groups, not remove it
+
 ## Recommended Starting Point
 
 Start the next session by reviewing the scheduler with this goal:
@@ -167,6 +212,28 @@ The likely better long-term direction is:
 - break the student's day into open segments around those windows
 - schedule non-section courses within those segments
 - only then apply same-day adjustments or overrides that do not violate the section windows
+
+But with one important refinement:
+
+- section windows should be treated as the planned shared schedule
+- the live day should also support a section-level daily override so the whole group can shift together when real life happens
+
+## Suggested Next Session Starting Questions
+
+Tomorrow should likely start with these questions:
+
+1. Should sections have:
+- a planned time
+- plus an optional per-day shared override time and duration?
+
+2. Should `School Day` show section-based rows with:
+- `Edit Section For Today`
+- instead of a student-specific edit action?
+
+3. Should the scheduler:
+- place planned section anchors first
+- then compress flexible classes around them
+- then apply any section-level day overrides before student-level non-section overrides?
 
 ## Related Follow-up
 
