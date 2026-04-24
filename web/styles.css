@@ -2476,6 +2476,15 @@ td {
   color: #627a97;
 }
 
+.school-day-overview-status.flex {
+  background: #e8f4f1;
+  color: #2f6f64;
+}
+
+.school-day-overview-status.break {
+  background: #f1ebdc;
+  color: #6d5a28;
+}
 
 .school-day-grades-callout {
   margin-top: 0.85rem;

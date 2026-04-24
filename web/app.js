@@ -7732,6 +7732,41 @@ function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], su
   saveSchoolDayPreferences();
 }
 
+function schoolDayOverviewBlockLabel(block) {
+  if (!block) return "";
+  if (block.type === "instruction") return getCourseName(block.courseId);
+  return block.label || SCHEDULE_BLOCK_TYPE_LABELS[block.type] || "Scheduled Break";
+}
+
+function schoolDayOverviewBlockStatus(block, referenceISO) {
+  if (!block) return { className: "open", label: "Open" };
+  if (block.type !== "instruction") {
+    if (block.type === "flex") return { className: "flex", label: "Flex" };
+    return { className: "break", label: block.scheduleBlockId ? "Schedule" : "Break" };
+  }
+  const isCompleted = effectiveInstructionCompleted(block.studentId, block.courseId, referenceISO);
+  const needsGrade = gradeRecordsForStudentCourseDate(block.studentId, block.courseId, referenceISO).length === 0;
+  return {
+    className: isCompleted ? "complete" : (needsGrade ? "needs-grade" : "open"),
+    label: isCompleted ? "Completed" : (needsGrade ? "Needs Grade" : "Open")
+  };
+}
+
+function schoolDayOverviewSummaryLabel(blocks) {
+  const instructionCount = blocks.filter((block) => block.type === "instruction").length;
+  const breakCount = blocks.length - instructionCount;
+  const parts = [];
+  if (instructionCount) parts.push(`${instructionCount} class${instructionCount === 1 ? "" : "es"}`);
+  if (breakCount) parts.push(`${breakCount} break${breakCount === 1 ? "" : "s"}`);
+  return parts.join(", ") || "No items";
+}
+
+function schoolDayOverviewBlockMatchesDisplayFilters(block, subjectFilterIds = [], courseFilterIds = []) {
+  if (!block) return false;
+  if (block.type !== "instruction") return true;
+  return schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds);
+}
+
 function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const host = document.getElementById("school-day-overview-grid");
   const header = document.getElementById("school-day-overview-header");
@@ -7755,25 +7790,15 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
   const cards = roster.map((student) => {
     const studentBlocks = dailyScheduledBlocks(referenceISO, [student.id]);
     const visibleBlocks = (studentBlocks.get(student.id) || [])
-      .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
-      .sort((a, b) => a.start - b.start || (a.label || "").localeCompare(b.label || ""));
+      .filter((block) => schoolDayOverviewBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
+      .sort((a, b) => a.start - b.start || schoolDayOverviewBlockLabel(a).localeCompare(schoolDayOverviewBlockLabel(b)));
     if (!visibleBlocks.length) return "";
-    const instructionCount = visibleBlocks.filter((block) => block.type === "instruction").length;
     const rows = visibleBlocks.map((block) => {
-      const isInstruction = block.type === "instruction";
-      const isCompleted = isInstruction ? effectiveInstructionCompleted(student.id, block.courseId, referenceISO) : false;
-      const needsGrade = isInstruction ? gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length === 0 : false;
-      const status = isInstruction
-        ? (isCompleted ? "complete" : (needsGrade ? "needs-grade" : "open"))
-        : (block.type === "flex" ? "info" : "open");
-      const statusLabel = isInstruction
-        ? (isCompleted ? "Completed" : (needsGrade ? "Needs Grade" : "Open"))
-        : (block.type === "flex" ? "Flex" : "Scheduled");
-      const rowLabel = isInstruction ? getCourseName(block.courseId) : block.label;
+      const status = schoolDayOverviewBlockStatus(block, referenceISO);
       return `<div class="school-day-overview-row">
         <span class="school-day-overview-time">${escapeHtml(formatClockTime(block.start))}</span>
-        <span class="school-day-overview-course">${escapeHtml(rowLabel)}</span>
-        <span class="school-day-overview-status ${status}">${statusLabel}</span>
+        <span class="school-day-overview-course">${escapeHtml(schoolDayOverviewBlockLabel(block))}</span>
+        <span class="school-day-overview-status ${status.className}">${escapeHtml(status.label)}</span>
       </div>`;
     }).join("");
     return `<button type="button" class="school-day-overview-card" data-school-day-summary-student="${student.id}">
@@ -7782,7 +7807,7 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
           <span class="school-day-card-student-label">Student</span>
           <h4>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</h4>
         </div>
-        <span>${instructionCount} classes</span>
+        <span>${escapeHtml(schoolDayOverviewSummaryLabel(visibleBlocks))}</span>
       </div>
       <div class="school-day-overview-body">${rows}</div>
     </button>`;
@@ -9954,7 +9979,7 @@ function formatDashboardInstructionalHoursCell(bucketMetrics) {
 }
 
 function renderDashboardToggleGlyph(expanded) {
-  return `<span class="student-avg-toggle-glyph" aria-hidden="true">${expanded ? "−" : "+"}</span>`;
+  return `<span class="student-avg-toggle-glyph" aria-hidden="true">${expanded ? "-" : "+"}</span>`;
 }
 
 function renderDashboardExpandableTables() {
@@ -10988,6 +11013,54 @@ function orderedScheduleBlocksForStudentDate(studentId, dateKey) {
     }));
 }
 
+function savedFlexBlocksForStudentDate(studentName, studentId, dateKey) {
+  return (state.flexBlocks || [])
+    .filter((entry) =>
+      entry.studentId === studentId
+      && entry.date === dateKey
+      && Number.isFinite(Number(entry.startMinutes))
+      && Number.isFinite(Number(entry.endMinutes))
+      && Number(entry.endMinutes) > Number(entry.startMinutes))
+    .map((entry) => {
+      const start = Number(entry.startMinutes);
+      const end = Number(entry.endMinutes);
+      return {
+        student: studentName,
+        studentId,
+        label: flexBlockDisplayLabel({ purpose: entry.purpose || "" }),
+        plannedStart: start,
+        plannedEnd: end,
+        start,
+        end,
+        durationMinutes: end - start,
+        actualMinutes: end - start,
+        type: "flex",
+        flexPurpose: entry.purpose || "",
+        flexBlockId: entry.id || ""
+      };
+    });
+}
+
+function blocksOverlap(first, second) {
+  return Number(first?.start) < Number(second?.end) && Number(first?.end) > Number(second?.start);
+}
+
+function buildScheduledBreakBlock(studentName, studentId, breakEntry) {
+  return {
+    student: studentName,
+    studentId,
+    scheduleBlockId: breakEntry.scheduleBlockId || "",
+    dailyBreakId: breakEntry.scheduleBlockId ? "" : (breakEntry.id || ""),
+    label: breakEntry.label,
+    plannedStart: breakEntry.start,
+    plannedEnd: breakEntry.end,
+    start: breakEntry.start,
+    end: breakEntry.end,
+    durationMinutes: breakEntry.durationMinutes,
+    type: breakEntry.type
+  };
+}
+
 function resourceOverlaps(existing, start, end) {
   return start < existing.end && end > existing.start;
 }
@@ -11111,6 +11184,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     const orderedBlockEntries = orderedScheduleBlocksForStudentDate(studentId, dateKey);
     const orderedBlockByAssignmentId = new Map(orderedBlockEntries.map((entry) => [entry.id, entry]));
     const hasOrderedBlocks = orderedBlockEntries.length > 0;
+    const dailyBreakBlocks = hasOrderedBlocks ? [] : dailyBreaksForStudentDate(studentId, dateKey);
     const orderedItems = hasOrderedBlocks
       ? orderedScheduleEntries
       : [];
@@ -11142,6 +11216,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
             student: studentName,
             studentId,
             scheduleBlockId: blockEntry.scheduleBlockId,
+            dailyBreakId: "",
             label: blockEntry.label,
             plannedStart: startMin,
             plannedEnd: endMin,
@@ -11202,23 +11277,12 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         return baseOrderedEvents.findIndex((entry) => entry.courseId === a.courseId)
           - baseOrderedEvents.findIndex((entry) => entry.courseId === b.courseId);
       });
-      const breakBlocks = dailyBreaksForStudentDate(studentId, dateKey);
       let breakIndex = 0;
 
-      while (remaining.length || breakIndex < breakBlocks.length) {
-        const nextBreak = breakBlocks[breakIndex] || null;
+      while (remaining.length || breakIndex < dailyBreakBlocks.length) {
+        const nextBreak = dailyBreakBlocks[breakIndex] || null;
         if (nextBreak && slot >= nextBreak.start) {
-          blocks.push({
-            student: studentName,
-            studentId,
-            label: nextBreak.label,
-            plannedStart: nextBreak.start,
-            plannedEnd: nextBreak.end,
-            start: nextBreak.start,
-            end: nextBreak.end,
-            durationMinutes: nextBreak.durationMinutes,
-            type: nextBreak.type
-          });
+          blocks.push(buildScheduledBreakBlock(studentName, studentId, nextBreak));
           slot = Math.max(slot, nextBreak.end);
           breakIndex += 1;
           continue;
@@ -11390,9 +11454,11 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
 
     const adjustedWithFlexBlocks = [];
     let previousEnd = schoolDayStartMinutes;
-    adjustedBlocks.forEach((block) => {
+    adjustedBlocks.forEach((block, index) => {
       const gapMinutes = Math.max(0, block.start - previousEnd);
-      if (gapMinutes > FLEX_BLOCK_MIN_GAP_MINUTES) {
+      const isLeadingBreakGap = block.type !== "instruction" && index === 0 && previousEnd === schoolDayStartMinutes;
+      const flexBlockThresholdMinutes = minutesBetweenClasses + 5;
+      if (gapMinutes >= flexBlockThresholdMinutes && !isLeadingBreakGap) {
         const flexRecord = findFlexBlockRecord(studentId, dateKey, previousEnd, block.start);
         adjustedWithFlexBlocks.push({
           student: studentName,
@@ -11412,6 +11478,28 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       adjustedWithFlexBlocks.push(block);
       previousEnd = Math.max(previousEnd, block.end);
     });
+
+    if (!hasOrderedBlocks) {
+      dailyBreakBlocks.forEach((breakEntry) => {
+        const breakExists = adjustedWithFlexBlocks.some((block) =>
+          block.type !== "instruction"
+          && block.dailyBreakId === breakEntry.id
+          && block.start === breakEntry.start
+          && block.end === breakEntry.end);
+        if (!breakExists) adjustedWithFlexBlocks.push(buildScheduledBreakBlock(studentName, studentId, breakEntry));
+      });
+    }
+
+    savedFlexBlocksForStudentDate(studentName, studentId, dateKey).forEach((savedFlexBlock) => {
+      const overlapsNonFlexBlock = adjustedWithFlexBlocks.some((block) =>
+        block.type !== "flex" && blocksOverlap(savedFlexBlock, block));
+      if (overlapsNonFlexBlock) return;
+      const flexExists = adjustedWithFlexBlocks.some((block) =>
+        block.type === "flex"
+        && blocksOverlap(savedFlexBlock, block));
+      if (!flexExists) adjustedWithFlexBlocks.push(savedFlexBlock);
+    });
+    adjustedWithFlexBlocks.sort((a, b) => a.start - b.start || a.end - b.end || (a.label || "").localeCompare(b.label || ""));
 
     const instructionBlocks = adjustedWithFlexBlocks.filter((entry) => entry.type === "instruction");
     instructionBlocks.forEach((entry, index) => {
