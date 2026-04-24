@@ -11118,18 +11118,27 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         : actualCursor == null
         ? actualStartTarget
         : Math.max(actualStartTarget, actualCursor);
-      const actualEnd = Math.min(24 * 60, actualStart + actualDuration);
+      let resolvedActualStart = actualStart;
+      let resolvedActualEnd = Math.min(24 * 60, resolvedActualStart + actualDuration);
+      if (block.type === "instruction" && !hasFixedSectionStart) {
+        let blockedWindow = nextBlockedSectionWindow(fixedSectionWindows, resolvedActualStart, resolvedActualEnd, block.courseId);
+        while (blockedWindow) {
+          resolvedActualStart = blockedWindow.end;
+          resolvedActualEnd = Math.min(24 * 60, resolvedActualStart + actualDuration);
+          blockedWindow = nextBlockedSectionWindow(fixedSectionWindows, resolvedActualStart, resolvedActualEnd, block.courseId);
+        }
+      }
       adjustedBlocks.push({
         ...block,
         plannedStart,
         plannedEnd,
-        start: actualStart,
-        end: actualEnd,
+        start: resolvedActualStart,
+        end: resolvedActualEnd,
         actualMinutes: actualDuration
       });
       actualCursor = block.type === "instruction"
-        ? Math.min(24 * 60, actualEnd + 5)
-        : actualEnd;
+        ? Math.min(24 * 60, resolvedActualEnd + 5)
+        : resolvedActualEnd;
     });
 
     const instructionBlocks = adjustedBlocks.filter((entry) => entry.type === "instruction");
