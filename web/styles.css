@@ -2818,6 +2818,10 @@ td {
   gap: 0.9rem;
 }
 
+.management-courses-subtabs {
+  margin: 0.25rem 0 1rem;
+}
+
 #course-form label {
   display: grid;
   gap: 0.35rem;
@@ -2863,7 +2867,7 @@ td {
 }
 
 .course-section-form {
-  grid-template-columns: minmax(210px, 1.25fr) minmax(160px, 0.9fr) minmax(170px, 0.9fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: end;
   padding: 1rem;
   border: 1px solid var(--edge);
@@ -2876,12 +2880,19 @@ td {
   min-width: 0;
 }
 
+.course-section-form input,
+.course-section-form select {
+  width: 100%;
+  min-width: 0;
+}
+
 .course-section-weekdays-field {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.65rem;
   min-height: calc(1em + 0.84rem + 2px);
+  grid-column: 1 / 4;
 }
 
 .course-section-weekdays-field legend {

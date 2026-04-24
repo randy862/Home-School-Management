@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202604231640">
+  <link rel="stylesheet" href="styles.css?v=202604231730">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -947,61 +947,69 @@
 
       <div id="management-courses-wrap" class="management-tab-panel management-section management-section-courses hidden">
         <h3>Courses</h3>
-          <div class="course-management-actions">
-            <button id="course-show-form-btn" type="button">Add Course</button>
+          <div class="subtabs management-courses-subtabs" aria-label="Course setup sections">
+            <button class="subtab-btn active" data-management-courses-tab="course-form" type="button">Add Course</button>
+            <button class="subtab-btn" data-management-courses-tab="course-sections" type="button">Add Sections</button>
           </div>
-          <form id="course-form" class="grid-form hidden">
-            <label>Course Name<input id="course-name" type="text" required></label>
-            <label>Resource Group<input id="course-resource-group" type="text" placeholder="Piano Lab"></label>
-            <label>Concurrent Capacity<input id="course-resource-capacity" type="number" min="1" step="1" placeholder="1"></label>
-            <label>Subject<select id="course-subject" required></select></label>
-            <label>Instructor<select id="course-instructor"><option value="">Unassigned</option></select></label>
-            <label class="course-hours-field">Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
-            <p class="muted course-form-note">Use the same resource group on courses that share a room, teacher, or equipment. Leave capacity blank when the course has no shared limit.</p>
-            <details id="course-materials-details" class="course-materials-panel">
-              <summary>Course Materials</summary>
-              <div id="course-materials-list" class="course-materials-list"></div>
-              <button id="course-material-add-btn" type="button" class="secondary-action">Add Material</button>
-            </details>
-            <div class="course-form-actions">
-              <button id="course-submit-btn" type="submit">Add Course</button>
-              <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+          <div id="management-course-form-wrap">
+            <div class="course-management-actions">
+              <button id="course-show-form-btn" type="button">Add Course</button>
             </div>
-          </form>
-          <h4>Configured Courses</h4>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th>Hours / Day</th><th>Resource</th><th>Actions</th></tr></thead>
-              <tbody id="course-table"></tbody>
-            </table>
-          </div>
-          <div class="course-sections-wrap">
-            <h4>Course Sections</h4>
-            <p class="muted course-form-note">Use sections when a shared class needs fixed meeting times and shared enrollment. Students assigned to the same section will keep that course together on the schedule.</p>
-            <form id="course-section-form" class="grid-form course-section-form">
-              <label>Course<select id="course-section-course" required></select></label>
-              <label>Section Label<input id="course-section-label" type="text" placeholder="Group A" required></label>
-              <label>Resource Group<input id="course-section-resource-group" type="text" placeholder="Piano Room A"></label>
-              <label>Concurrent Capacity<input id="course-section-capacity" type="number" min="1" step="1" placeholder="3"></label>
-              <label>Start Time<input id="course-section-start-time" type="time" required value="08:00"></label>
-              <fieldset class="weekday-set course-section-weekdays-field">
-                <legend>Weekdays</legend>
-                <label><input type="checkbox" name="course-section-weekday" value="1" checked>Mon</label>
-                <label><input type="checkbox" name="course-section-weekday" value="2" checked>Tue</label>
-                <label><input type="checkbox" name="course-section-weekday" value="3" checked>Wed</label>
-                <label><input type="checkbox" name="course-section-weekday" value="4" checked>Thu</label>
-                <label><input type="checkbox" name="course-section-weekday" value="5" checked>Fri</label>
-              </fieldset>
+            <form id="course-form" class="grid-form hidden">
+              <label>Course Name<input id="course-name" type="text" required></label>
+              <label>Resource Group<input id="course-resource-group" type="text" placeholder="Piano Lab"></label>
+              <label>Concurrent Capacity<input id="course-resource-capacity" type="number" min="1" step="1" placeholder="1"></label>
+              <label>Subject<select id="course-subject" required></select></label>
+              <label>Instructor<select id="course-instructor"><option value="">Unassigned</option></select></label>
+              <label class="course-hours-field">Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
+              <p class="muted course-form-note">Use the same resource group on courses that share a room, teacher, or equipment. Leave capacity blank when the course has no shared limit.</p>
+              <details id="course-materials-details" class="course-materials-panel">
+                <summary>Course Materials</summary>
+                <div id="course-materials-list" class="course-materials-list"></div>
+                <button id="course-material-add-btn" type="button" class="secondary-action">Add Material</button>
+              </details>
               <div class="course-form-actions">
-                <button id="course-section-submit-btn" type="submit">Add Section</button>
-                <button id="course-section-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+                <button id="course-submit-btn" type="submit">Add Course</button>
+                <button id="course-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
               </div>
             </form>
+            <h4>Configured Courses</h4>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Course</th><th>Section</th><th>Meeting Pattern</th><th>Resource</th><th>Enrolled</th><th>Actions</th></tr></thead>
-                <tbody id="course-section-table"></tbody>
+                <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th>Hours / Day</th><th>Resource</th><th>Actions</th></tr></thead>
+                <tbody id="course-table"></tbody>
               </table>
+            </div>
+          </div>
+          <div id="management-course-sections-wrap" class="hidden">
+            <div class="course-sections-wrap">
+              <h4>Course Sections</h4>
+              <p class="muted course-form-note">Use sections when a shared class needs fixed meeting times and shared enrollment. Students assigned to the same section will keep that course together on the schedule.</p>
+              <form id="course-section-form" class="grid-form course-section-form">
+                <label>Course<select id="course-section-course" required></select></label>
+                <label>Section Label<input id="course-section-label" type="text" placeholder="Group A" required></label>
+                <label>Resource Group<input id="course-section-resource-group" type="text" placeholder="Piano Room A"></label>
+                <label>Concurrent Capacity<input id="course-section-capacity" type="number" min="1" step="1" placeholder="3"></label>
+                <label>Start Time<input id="course-section-start-time" type="time" required value="08:00"></label>
+                <fieldset class="weekday-set course-section-weekdays-field">
+                  <legend>Weekdays</legend>
+                  <label><input type="checkbox" name="course-section-weekday" value="1" checked>Mon</label>
+                  <label><input type="checkbox" name="course-section-weekday" value="2" checked>Tue</label>
+                  <label><input type="checkbox" name="course-section-weekday" value="3" checked>Wed</label>
+                  <label><input type="checkbox" name="course-section-weekday" value="4" checked>Thu</label>
+                  <label><input type="checkbox" name="course-section-weekday" value="5" checked>Fri</label>
+                </fieldset>
+                <div class="course-form-actions">
+                  <button id="course-section-submit-btn" type="submit">Add Section</button>
+                  <button id="course-section-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+                </div>
+              </form>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Course</th><th>Section</th><th>Meeting Pattern</th><th>Resource</th><th>Enrolled</th><th>Actions</th></tr></thead>
+                  <tbody id="course-section-table"></tbody>
+                </table>
+              </div>
             </div>
           </div>
       </div>
@@ -1630,6 +1638,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202604231640"></script>
+  <script src="app.js?v=202604231730"></script>
   </body>
   </html>

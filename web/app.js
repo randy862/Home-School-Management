@@ -1244,6 +1244,7 @@ let editingCourseId = "";
 let courseFormOpen = false;
 let courseMaterialsDraft = [];
 let editingCourseSectionId = "";
+let currentManagementCoursesTab = "course-form";
 let editingHolidayId = "";
 let editingPlanId = "";
 let editingSchoolYearId = "";
@@ -6743,6 +6744,9 @@ function renderManagementSectionVisibility() {
   document.querySelectorAll("[data-management-tab]").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-management-tab") === currentManagementTab);
   });
+  if (currentManagementTab === "courses") {
+    renderManagementCoursesSectionVisibility();
+  }
 }
 
 function effectiveInstructionOrderIndex(studentId, courseId, date, fallbackOrderIndex = null) {
@@ -6821,6 +6825,7 @@ function renderCourses() {
     .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td>${escapeHtml(formatCourseResourceSummary(c))}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
   rowOrEmpty(tableBody, rows, "No courses added yet.", 6);
   renderCourseSections();
+  renderManagementCoursesSectionVisibility();
 }
 
 function syncCourseSectionFormFromCourse(courseId, { preserveExisting = true } = {}) {
@@ -6881,6 +6886,23 @@ function renderCourseSections() {
     return `<tr><td>${escapeHtml(getCourseName(section.courseId))}</td><td>${escapeHtml(section.label)}</td><td>${escapeHtml(formatClockTime(section.startTime))}<br><span class="muted">${escapeHtml(weekdays || "Mon-Fri")}</span></td><td>${escapeHtml(resourceSummary)}</td><td>${courseSectionEnrollmentCount(section.id)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course-section='${section.id}' type='button'>Edit</button><button data-remove-course-section='${section.id}' type='button'>Remove</button></div></td></tr>`;
   });
   rowOrEmpty(tableBody, rows, "No course sections added yet.", 6);
+}
+
+function renderManagementCoursesSectionVisibility() {
+  const visibleTab = currentManagementCoursesTab === "course-sections" ? "course-sections" : "course-form";
+  currentManagementCoursesTab = visibleTab;
+  const mappings = [
+    { wrapId: "management-course-form-wrap", tab: "course-form" },
+    { wrapId: "management-course-sections-wrap", tab: "course-sections" }
+  ];
+  mappings.forEach((entry) => {
+    const wrap = document.getElementById(entry.wrapId);
+    if (!wrap) return;
+    wrap.classList.toggle("hidden", entry.tab !== visibleTab);
+  });
+  document.querySelectorAll("[data-management-courses-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-management-courses-tab") === visibleTab);
+  });
 }
 
 function renderGradeTypes() {
@@ -11005,17 +11027,31 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
 
     const adjustedBlocks = [];
     let actualCursor = null;
-    blocks.forEach((block) => {
+    const positionedBlocks = [...blocks].sort((a, b) => {
+      const plannedStartA = Number.isFinite(a.plannedStart) ? a.plannedStart : a.start;
+      const plannedStartB = Number.isFinite(b.plannedStart) ? b.plannedStart : b.start;
+      const fixedA = !!a.courseSectionId;
+      const fixedB = !!b.courseSectionId;
+      if (plannedStartA !== plannedStartB) return plannedStartA - plannedStartB;
+      if (fixedA !== fixedB) return fixedA ? -1 : 1;
+      return (a.label || "").localeCompare(b.label || "");
+    });
+    positionedBlocks.forEach((block) => {
       const plannedStart = Number.isFinite(block.plannedStart) ? block.plannedStart : block.start;
       const plannedEnd = Number.isFinite(block.plannedEnd) ? block.plannedEnd : block.end;
       const plannedDuration = Math.max(1, plannedEnd - plannedStart);
       const actualDuration = block.type === "instruction"
         ? effectiveInstructionMinutes(block.studentId, block.courseId, dateKey)
         : plannedDuration;
+      const hasFixedSectionStart = block.type === "instruction" && !!block.courseSectionId && !hasInstructionStartOverride(block.studentId, block.courseId, dateKey);
       const actualStartTarget = block.type === "instruction"
-        ? effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, plannedStart)
+        ? (hasFixedSectionStart
+          ? plannedStart
+          : effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, plannedStart))
         : plannedStart;
-      const actualStart = actualCursor == null
+      const actualStart = hasFixedSectionStart
+        ? actualStartTarget
+        : actualCursor == null
         ? actualStartTarget
         : Math.max(actualStartTarget, actualCursor);
       const actualEnd = Math.min(24 * 60, actualStart + actualDuration);
@@ -14957,6 +14993,12 @@ function bindEvents() {
     if (managementTab) {
       currentManagementTab = managementTab;
       renderManagementSectionVisibility();
+      return;
+    }
+    const managementCoursesTab = t.getAttribute("data-management-courses-tab");
+    if (managementCoursesTab) {
+      currentManagementCoursesTab = managementCoursesTab === "course-sections" ? "course-sections" : "course-form";
+      renderManagementCoursesSectionVisibility();
       return;
     }
     const scheduleTab = t.getAttribute("data-schedule-tab");
