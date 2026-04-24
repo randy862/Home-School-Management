@@ -10792,6 +10792,61 @@ function sectionStartMinutesForStudentCourse(studentId, courseId, dateKey) {
   return Number.isFinite(startMinutes) ? startMinutes : null;
 }
 
+function fixedSectionWindowsForStudentDate(studentId, events, dateKey) {
+  return events
+    .map((event) => {
+      const course = getCourse(event.courseId);
+      const start = sectionStartMinutesForStudentCourse(studentId, event.courseId, dateKey);
+      const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
+      if (!course || !Number.isFinite(start)) return null;
+      return {
+        courseId: event.courseId,
+        start,
+        end: Math.min(24 * 60, start + durationMinutes)
+      };
+    })
+    .filter((entry) => !!entry)
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+}
+
+function nextBlockedSectionWindow(blockedWindows, start, end, ignoreCourseId = "") {
+  return (blockedWindows || []).find((window) =>
+    window.courseId !== ignoreCourseId
+    && start < window.end
+    && end > window.start) || null;
+}
+
+function findInstructionPlacementStart({
+  requestedStart,
+  durationMinutes,
+  course,
+  studentId,
+  courseId,
+  dateKey,
+  resourceAllocations,
+  blockedWindows = [],
+  latestEnd = 24 * 60
+}) {
+  const sectionStartMinutes = sectionStartMinutesForStudentCourse(studentId, courseId, dateKey);
+  if (Number.isFinite(sectionStartMinutes)) return sectionStartMinutes;
+  const resourceKey = courseResourceKey(course);
+  const resourceCapacity = courseResourceCapacity(course);
+  let candidate = requestedStart;
+  while (candidate + durationMinutes <= latestEnd) {
+    const candidateEnd = candidate + durationMinutes;
+    const blockedWindow = nextBlockedSectionWindow(blockedWindows, candidate, candidateEnd, courseId);
+    if (blockedWindow) {
+      candidate = blockedWindow.end;
+      continue;
+    }
+    if (!resourceKey || !(resourceCapacity > 0) || resourceHasCapacity(resourceAllocations.get(resourceKey) || [], candidate, candidateEnd, resourceCapacity)) {
+      return candidate;
+    }
+    candidate += 5;
+  }
+  return null;
+}
+
 function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const events = calendarEventsForDate(dateKey, studentFilterIds, subjectFilterIds, courseFilterIds);
   const byStudent = new Map();
@@ -10809,6 +10864,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     const studentName = getStudentName(studentId);
     const blocks = [];
     const baseOrderedEvents = orderedEventsForStudent(studentId, byStudent.get(studentId) || []);
+    const fixedSectionWindows = fixedSectionWindowsForStudentDate(studentId, baseOrderedEvents, dateKey);
     const remainingByCourseId = new Map(baseOrderedEvents.map((event) => [event.courseId, event]));
     const orderedScheduleEntries = sortedStudentScheduledEntries(studentId);
     const orderedBlockEntries = orderedScheduleBlocksForStudentDate(studentId, dateKey);
@@ -10865,14 +10921,16 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         if (!course) return;
         const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
         const requestedStart = slot;
-        const sectionStartMinutes = sectionStartMinutesForStudentCourse(studentId, event.courseId, dateKey);
-        const resourceKey = courseResourceKey(course);
-        const resourceCapacity = courseResourceCapacity(course);
-        const startMin = Number.isFinite(sectionStartMinutes)
-          ? sectionStartMinutes
-          : (resourceKey
-          ? findResourceConstrainedStart(requestedStart, durationMinutes, resourceCapacity, resourceAllocations.get(resourceKey) || [])
-          : requestedStart);
+        const startMin = findInstructionPlacementStart({
+          requestedStart,
+          durationMinutes,
+          course,
+          studentId,
+          courseId: event.courseId,
+          dateKey,
+          resourceAllocations,
+          blockedWindows: fixedSectionWindows
+        });
         if (startMin == null) return;
         const endMin = Math.min(24 * 60, startMin + durationMinutes);
         const section = courseSectionForStudentCourse(studentId, event.courseId);
@@ -10928,16 +10986,17 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         const candidates = remaining.map((event) => {
           const course = getCourse(event.courseId);
           const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
-          const sectionStartMinutes = sectionStartMinutesForStudentCourse(studentId, event.courseId, dateKey);
-          const resourceKey = courseResourceKey(course);
-          const resourceCapacity = courseResourceCapacity(course);
-          const earliestStart = findResourceConstrainedStart(
-            Number.isFinite(sectionStartMinutes) ? sectionStartMinutes : slot,
+          const earliestStart = findInstructionPlacementStart({
+            requestedStart: slot,
             durationMinutes,
-            resourceCapacity,
-            resourceAllocations.get(resourceKey) || [],
-            nextBreak && !Number.isFinite(sectionStartMinutes) ? nextBreak.start : 24 * 60
-          );
+            course,
+            studentId,
+            courseId: event.courseId,
+            dateKey,
+            resourceAllocations,
+            blockedWindows: fixedSectionWindows,
+            latestEnd: nextBreak ? nextBreak.start : 24 * 60
+          });
           return {
             event,
             course,
@@ -10997,14 +11056,16 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         const course = getCourse(event.courseId);
         if (!course) return;
         const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
-        const sectionStartMinutes = sectionStartMinutesForStudentCourse(studentId, event.courseId, dateKey);
-        const resourceKey = courseResourceKey(course);
-        const resourceCapacity = courseResourceCapacity(course);
-        const startMin = Number.isFinite(sectionStartMinutes)
-          ? sectionStartMinutes
-          : (resourceKey
-          ? findResourceConstrainedStart(slot, durationMinutes, resourceCapacity, resourceAllocations.get(resourceKey) || [])
-          : slot);
+        const startMin = findInstructionPlacementStart({
+          requestedStart: slot,
+          durationMinutes,
+          course,
+          studentId,
+          courseId: event.courseId,
+          dateKey,
+          resourceAllocations,
+          blockedWindows: fixedSectionWindows
+        });
         if (startMin == null) return;
         const endMin = Math.min(24 * 60, startMin + durationMinutes);
         const section = courseSectionForStudentCourse(studentId, event.courseId);
