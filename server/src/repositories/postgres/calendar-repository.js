@@ -127,6 +127,7 @@ function createCalendarRepository(deps) {
 
     createSchoolYear: async (schoolYear) => {
       const pool = getPostgresPool();
+      await ensureSchoolYearTableColumns(pool);
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -141,9 +142,11 @@ function createCalendarRepository(deps) {
             end_date,
             required_instructional_days,
             required_instructional_hours,
+            school_day_start_time,
+            minutes_between_classes,
             is_current
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           RETURNING
             id,
             label,
@@ -151,6 +154,8 @@ function createCalendarRepository(deps) {
             end_date AS "endDate",
             required_instructional_days AS "requiredInstructionalDays",
             required_instructional_hours AS "requiredInstructionalHours",
+            school_day_start_time AS "schoolDayStartTime",
+            minutes_between_classes AS "minutesBetweenClasses",
             is_current AS "isCurrent"
         `, [
           schoolYear.id,
@@ -159,6 +164,8 @@ function createCalendarRepository(deps) {
           schoolYear.endDate,
           schoolYear.requiredInstructionalDays,
           schoolYear.requiredInstructionalHours,
+          schoolYear.schoolDayStartTime,
+          schoolYear.minutesBetweenClasses,
           !!schoolYear.isCurrent
         ]);
         await client.query("COMMIT");
@@ -355,6 +362,7 @@ function createCalendarRepository(deps) {
 
     listSchoolYears: async () => {
       const pool = getPostgresPool();
+      await ensureSchoolYearTableColumns(pool);
       const result = await pool.query(`
         SELECT
           id,
@@ -363,6 +371,8 @@ function createCalendarRepository(deps) {
           end_date AS "endDate",
           required_instructional_days AS "requiredInstructionalDays",
           required_instructional_hours AS "requiredInstructionalHours",
+          school_day_start_time AS "schoolDayStartTime",
+          minutes_between_classes AS "minutesBetweenClasses",
           is_current AS "isCurrent"
         FROM school_years
         ORDER BY start_date
@@ -584,6 +594,7 @@ function createCalendarRepository(deps) {
 
     updateSchoolYear: async (id, schoolYear) => {
       const pool = getPostgresPool();
+      await ensureSchoolYearTableColumns(pool);
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -609,7 +620,9 @@ function createCalendarRepository(deps) {
             end_date = $4,
             required_instructional_days = $5,
             required_instructional_hours = $6,
-            is_current = $7
+            school_day_start_time = $7,
+            minutes_between_classes = $8,
+            is_current = $9
           WHERE id = $1
           RETURNING
             id,
@@ -618,6 +631,8 @@ function createCalendarRepository(deps) {
             end_date AS "endDate",
             required_instructional_days AS "requiredInstructionalDays",
             required_instructional_hours AS "requiredInstructionalHours",
+            school_day_start_time AS "schoolDayStartTime",
+            minutes_between_classes AS "minutesBetweenClasses",
             is_current AS "isCurrent"
         `, [
           id,
@@ -626,6 +641,8 @@ function createCalendarRepository(deps) {
           schoolYear.endDate,
           schoolYear.requiredInstructionalDays,
           schoolYear.requiredInstructionalHours,
+          schoolYear.schoolDayStartTime,
+          schoolYear.minutesBetweenClasses,
           !!schoolYear.isCurrent
         ]);
         await client.query(`
@@ -689,8 +706,21 @@ function mapSchoolYearRow(row) {
     ...row,
     requiredInstructionalDays: row.requiredInstructionalDays == null ? null : Number(row.requiredInstructionalDays),
     requiredInstructionalHours: row.requiredInstructionalHours == null ? null : Number(row.requiredInstructionalHours),
+    schoolDayStartTime: String(row.schoolDayStartTime || "08:00").slice(0, 5),
+    minutesBetweenClasses: row.minutesBetweenClasses == null ? 5 : Number(row.minutesBetweenClasses),
     isCurrent: !!row.isCurrent
   };
+}
+
+async function ensureSchoolYearTableColumns(pool) {
+  await pool.query(`
+    ALTER TABLE school_years
+    ADD COLUMN IF NOT EXISTS school_day_start_time TEXT NOT NULL DEFAULT '08:00'
+  `);
+  await pool.query(`
+    ALTER TABLE school_years
+    ADD COLUMN IF NOT EXISTS minutes_between_classes INTEGER NOT NULL DEFAULT 5
+  `);
 }
 
 module.exports = {

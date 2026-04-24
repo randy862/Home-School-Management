@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202604231730">
+  <link rel="stylesheet" href="styles.css?v=202604241030">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -949,7 +949,7 @@
         <h3>Courses</h3>
           <div class="subtabs management-courses-subtabs" aria-label="Course setup sections">
             <button class="subtab-btn active" data-management-courses-tab="course-form" type="button">Add Course</button>
-            <button class="subtab-btn" data-management-courses-tab="course-sections" type="button">Add Sections</button>
+            <button class="subtab-btn" data-management-courses-tab="course-sections" type="button">Add Classes</button>
           </div>
           <div id="management-course-form-wrap">
             <div class="course-management-actions">
@@ -983,11 +983,11 @@
           </div>
           <div id="management-course-sections-wrap" class="hidden">
             <div class="course-sections-wrap">
-              <h4>Course Sections</h4>
-              <p class="muted course-form-note">Use sections when a shared class needs fixed meeting times and shared enrollment. Students assigned to the same section will keep that course together on the schedule.</p>
+              <h4>Classes</h4>
+              <p class="muted course-form-note">Use classes when a shared group needs planned meeting times and shared enrollment. Students assigned to the same class will keep that course together on the schedule.</p>
               <form id="course-section-form" class="grid-form course-section-form">
                 <label>Course<select id="course-section-course" required></select></label>
-                <label>Section Label<input id="course-section-label" type="text" placeholder="Group A" required></label>
+                <label>Class Label<input id="course-section-label" type="text" placeholder="Group A" required></label>
                 <label>Resource Group<input id="course-section-resource-group" type="text" placeholder="Piano Room A"></label>
                 <label>Concurrent Capacity<input id="course-section-capacity" type="number" min="1" step="1" placeholder="3"></label>
                 <label>Start Time<input id="course-section-start-time" type="time" required value="08:00"></label>
@@ -1000,13 +1000,13 @@
                   <label><input type="checkbox" name="course-section-weekday" value="5" checked>Fri</label>
                 </fieldset>
                 <div class="course-form-actions">
-                  <button id="course-section-submit-btn" type="submit">Add Section</button>
+                  <button id="course-section-submit-btn" type="submit">Add Class</button>
                   <button id="course-section-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
                 </div>
               </form>
               <div class="table-wrap">
                 <table>
-                  <thead><tr><th>Course</th><th>Section</th><th>Meeting Pattern</th><th>Resource</th><th>Enrolled</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Course</th><th>Class</th><th>Meeting Pattern</th><th>Resource</th><th>Enrolled</th><th>Actions</th></tr></thead>
                   <tbody id="course-section-table"></tbody>
                 </table>
               </div>
@@ -1084,6 +1084,7 @@
       <div class="subtabs schedule-subtabs" aria-label="Schedule sections">
         <button class="subtab-btn active" data-schedule-tab="school-years" type="button">School Years</button>
         <button class="subtab-btn" data-schedule-tab="quarters" type="button">Quarters</button>
+        <button class="subtab-btn" data-schedule-tab="school-day" type="button">School Day</button>
         <button class="subtab-btn" data-schedule-tab="daily-breaks" type="button">Schedule Blocks</button>
         <button class="subtab-btn" data-schedule-tab="holidays" type="button">Holidays and Breaks</button>
         <button class="subtab-btn" data-schedule-tab="plans" type="button">Instruction Plans</button>
@@ -1131,6 +1132,21 @@
             </table>
           </div>
           <p id="quarter-summary-warning" class="muted hidden"></p>
+      </div>
+
+      <div id="schedule-school-day-wrap" class="schedule-tab-panel schedule-section schedule-section-school-day hidden">
+        <h3>School Day</h3>
+          <p class="muted">Set the automatic school day start and the spacing used between classes for each school year.</p>
+          <form id="school-day-settings-form" class="grid-form school-day-settings-form">
+            <label>School Year<select id="school-day-school-year" required></select></label>
+            <label>School Day Start Time<input id="school-day-start-time" type="time" required></label>
+            <label>Time Between Classes (minutes)<input id="school-day-gap-minutes" type="number" min="0" step="5" required></label>
+            <div class="course-form-actions">
+              <button id="school-day-settings-submit-btn" type="submit">Save School Day Settings</button>
+              <button id="school-day-settings-reset-btn" type="button">Reset</button>
+            </div>
+          </form>
+          <p id="school-day-settings-current" class="muted"></p>
       </div>
 
       <div id="schedule-daily-breaks-wrap" class="schedule-tab-panel schedule-section schedule-section-daily-breaks hidden">
@@ -1638,6 +1654,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202604231815"></script>
+  <script src="app.js?v=202604241030"></script>
   </body>
   </html>

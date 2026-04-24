@@ -1,0 +1,5 @@
+ALTER TABLE school_years
+ADD COLUMN IF NOT EXISTS school_day_start_time TEXT NOT NULL DEFAULT '08:00';
+
+ALTER TABLE school_years
+ADD COLUMN IF NOT EXISTS minutes_between_classes INTEGER NOT NULL DEFAULT 5;

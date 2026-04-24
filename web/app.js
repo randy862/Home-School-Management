@@ -38,6 +38,8 @@ const SESSION_KEY = "hsm_session_v1";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+const DEFAULT_SCHOOL_DAY_START_TIME = "08:00";
+const DEFAULT_MINUTES_BETWEEN_CLASSES = 5;
 const EXCLUDED_GRADE_TYPE_FILTER_OPTIONS = new Set(["homework"]);
 const STUDENT_PERFORMANCE_GRADE_METHODS = ["Percentage", "Letter", "GPA"];
 const LETTER_GRADE_ORDER = ["A", "B", "C", "D", "F"];
@@ -352,7 +354,16 @@ function calculateAge(birthdate, ref = new Date()) {
 function defaultState() {
   const y = new Date().getFullYear();
   const schoolYearId = uid();
-  const schoolYear = { id: schoolYearId, label: `${y}-${y+1}`, startDate: `${y}-01-01`, endDate: `${y}-12-31`, requiredInstructionalDays: null, requiredInstructionalHours: null };
+  const schoolYear = {
+    id: schoolYearId,
+    label: `${y}-${y+1}`,
+    startDate: `${y}-01-01`,
+    endDate: `${y}-12-31`,
+    requiredInstructionalDays: null,
+    requiredInstructionalHours: null,
+    schoolDayStartTime: DEFAULT_SCHOOL_DAY_START_TIME,
+    minutesBetweenClasses: DEFAULT_MINUTES_BETWEEN_CLASSES
+  };
   const quarters = [
     { id: uid(), schoolYearId, name: "Q1", startDate: `${y}-01-01`, endDate: `${y}-03-31` },
     { id: uid(), schoolYearId, name: "Q2", startDate: `${y}-04-01`, endDate: `${y}-06-30` },
@@ -554,7 +565,7 @@ function sortedCourseSections(courseId = "") {
 
 function sectionDisplayName(sectionId) {
   const section = getCourseSection(sectionId);
-  if (!section) return "Unknown Section";
+  if (!section) return "Unknown Class";
   const courseName = getCourseName(section.courseId);
   return `${courseName} - ${section.label}`;
 }
@@ -588,7 +599,7 @@ function studentScheduledEntrySubjectLabel(entry) {
     const course = section ? getCourse(section.courseId) : null;
     const weekdays = (section?.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
     const timeLabel = section?.startTime ? formatClockTime(section.startTime) : "";
-    const parts = ["Section"];
+    const parts = ["Class"];
     if (course?.subjectId) parts.push(getSubjectName(course.subjectId));
     if (timeLabel) parts.push(timeLabel);
     if (weekdays) parts.push(weekdays);
@@ -957,7 +968,9 @@ function normalizeSettingsShape(inputState) {
         startDate: legacySchoolYear.startDate,
         endDate: legacySchoolYear.endDate,
         requiredInstructionalDays: normalizeRequiredValue(legacySchoolYear.requiredInstructionalDays),
-        requiredInstructionalHours: normalizeRequiredValue(legacySchoolYear.requiredInstructionalHours, true)
+        requiredInstructionalHours: normalizeRequiredValue(legacySchoolYear.requiredInstructionalHours, true),
+        schoolDayStartTime: normalizeSchoolDayStartTime(legacySchoolYear.schoolDayStartTime),
+        minutesBetweenClasses: normalizeMinutesBetweenClasses(legacySchoolYear.minutesBetweenClasses)
       }];
     } else {
       const fallback = defaultState().settings.schoolYears[0];
@@ -971,7 +984,9 @@ function normalizeSettingsShape(inputState) {
         id: year.id || uid(),
         label: year.label || `${year.startDate} to ${year.endDate}`,
         requiredInstructionalDays: normalizeRequiredValue(year.requiredInstructionalDays),
-        requiredInstructionalHours: normalizeRequiredValue(year.requiredInstructionalHours, true)
+        requiredInstructionalHours: normalizeRequiredValue(year.requiredInstructionalHours, true),
+        schoolDayStartTime: normalizeSchoolDayStartTime(year.schoolDayStartTime),
+        minutesBetweenClasses: normalizeMinutesBetweenClasses(year.minutesBetweenClasses)
       }));
     if (!s.settings.schoolYears.length) s.settings.schoolYears = defaultState().settings.schoolYears;
   }
@@ -987,7 +1002,9 @@ function normalizeSettingsShape(inputState) {
     startDate: currentSchoolYear.startDate,
     endDate: currentSchoolYear.endDate,
     requiredInstructionalDays: currentSchoolYear.requiredInstructionalDays,
-    requiredInstructionalHours: currentSchoolYear.requiredInstructionalHours
+    requiredInstructionalHours: currentSchoolYear.requiredInstructionalHours,
+    schoolDayStartTime: currentSchoolYear.schoolDayStartTime,
+    minutesBetweenClasses: currentSchoolYear.minutesBetweenClasses
   };
 
   const legacyQuarters = Array.isArray(s.settings.quarters) ? s.settings.quarters : [];
@@ -1730,7 +1747,9 @@ async function refreshHostedSchoolYears() {
     startDate: normalizeApiDate(schoolYear.startDate),
     endDate: normalizeApiDate(schoolYear.endDate),
     requiredInstructionalDays: schoolYear.requiredInstructionalDays == null ? null : Number(schoolYear.requiredInstructionalDays),
-    requiredInstructionalHours: schoolYear.requiredInstructionalHours == null ? null : Number(schoolYear.requiredInstructionalHours)
+    requiredInstructionalHours: schoolYear.requiredInstructionalHours == null ? null : Number(schoolYear.requiredInstructionalHours),
+    schoolDayStartTime: normalizeSchoolDayStartTime(schoolYear.schoolDayStartTime),
+    minutesBetweenClasses: normalizeMinutesBetweenClasses(schoolYear.minutesBetweenClasses)
   }));
   const current = normalized.find((schoolYear) => schoolYear.isCurrent) || normalized[0];
 
@@ -1742,7 +1761,9 @@ async function refreshHostedSchoolYears() {
     startDate: current.startDate,
     endDate: current.endDate,
     requiredInstructionalDays: current.requiredInstructionalDays,
-    requiredInstructionalHours: current.requiredInstructionalHours
+    requiredInstructionalHours: current.requiredInstructionalHours,
+    schoolDayStartTime: current.schoolDayStartTime,
+    minutesBetweenClasses: current.minutesBetweenClasses
   };
 }
 
@@ -2047,6 +2068,8 @@ async function ensureHostedSchoolYearRecord(schoolYear, options = {}) {
     endDate: target.endDate,
     requiredInstructionalDays: target.requiredInstructionalDays ?? null,
     requiredInstructionalHours: target.requiredInstructionalHours ?? null,
+    schoolDayStartTime: normalizeSchoolDayStartTime(target.schoolDayStartTime),
+    minutesBetweenClasses: normalizeMinutesBetweenClasses(target.minutesBetweenClasses),
     isCurrent: options.isCurrent !== false
   };
 
@@ -3814,7 +3837,9 @@ function setCurrentSchoolYear(schoolYearId) {
     startDate: schoolYear.startDate,
     endDate: schoolYear.endDate,
     requiredInstructionalDays: schoolYear.requiredInstructionalDays ?? null,
-    requiredInstructionalHours: schoolYear.requiredInstructionalHours ?? null
+    requiredInstructionalHours: schoolYear.requiredInstructionalHours ?? null,
+    schoolDayStartTime: normalizeSchoolDayStartTime(schoolYear.schoolDayStartTime),
+    minutesBetweenClasses: normalizeMinutesBetweenClasses(schoolYear.minutesBetweenClasses)
   };
   state.settings.quarters = state.settings.allQuarters
     .filter((q) => q.schoolYearId === schoolYear.id)
@@ -4492,6 +4517,17 @@ function parseTimeToMinutes(value) {
   return (hours * 60) + minutes;
 }
 
+function normalizeSchoolDayStartTime(value) {
+  const parsed = parseTimeToMinutes(value);
+  return Number.isFinite(parsed) ? formatTimeInputValue(parsed) : DEFAULT_SCHOOL_DAY_START_TIME;
+}
+
+function normalizeMinutesBetweenClasses(value) {
+  if (value === "" || value == null) return DEFAULT_MINUTES_BETWEEN_CLASSES;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : DEFAULT_MINUTES_BETWEEN_CLASSES;
+}
+
 function formatClockTime(value) {
   const minutes = typeof value === "number" ? value : parseTimeToMinutes(value);
   if (!Number.isFinite(minutes)) return "";
@@ -4508,6 +4544,22 @@ function formatTimeInputValue(value) {
   const h24 = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return `${String(h24).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+}
+
+function schoolYearForDate(dateKey) {
+  const target = String(dateKey || "").trim();
+  return state.settings.schoolYears.find((year) => target >= year.startDate && target <= year.endDate)
+    || currentSchoolYear();
+}
+
+function schoolDayStartMinutesForDate(dateKey) {
+  const schoolYear = schoolYearForDate(dateKey);
+  return parseTimeToMinutes(schoolYear?.schoolDayStartTime || DEFAULT_SCHOOL_DAY_START_TIME);
+}
+
+function minutesBetweenClassesForDate(dateKey) {
+  const schoolYear = schoolYearForDate(dateKey);
+  return normalizeMinutesBetweenClasses(schoolYear?.minutesBetweenClasses);
 }
 
 function dailyBreakLabel(entry) {
@@ -6346,7 +6398,7 @@ function renderStudentEnrollmentCourseChecklist(preselectedCourseIds = [], stude
     return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${escapeHtml(block.name)} (${escapeHtml(SCHEDULE_BLOCK_TYPE_LABELS[block.type] || "Schedule Block")})</label></div>`;
   }).join("");
   const sections = [];
-  if (sectionCheckboxes) sections.push(`<div class="checklist-group-label">Course Sections</div>${sectionCheckboxes}`);
+  if (sectionCheckboxes) sections.push(`<div class="checklist-group-label">Classes</div>${sectionCheckboxes}`);
   if (courseCheckboxes) sections.push(`<div class="checklist-group-label">Courses</div>${courseCheckboxes}`);
   if (blockCheckboxes) sections.push(`<div class="checklist-group-label">Schedule Blocks</div>${blockCheckboxes}`);
   optionsWrap.innerHTML = sections.join("") || `<span>${studentId ? "No additional scheduled items available for this student." : "Select a student first."}</span>`;
@@ -6795,6 +6847,7 @@ function renderScheduleSectionVisibility() {
   const mappings = [
     { wrapId: "schedule-school-years-wrap", tab: "school-years" },
     { wrapId: "schedule-quarters-wrap", tab: "quarters" },
+    { wrapId: "schedule-school-day-wrap", tab: "school-day" },
     { wrapId: "schedule-daily-breaks-wrap", tab: "daily-breaks" },
     { wrapId: "schedule-holidays-wrap", tab: "holidays" },
     { wrapId: "schedule-plans-wrap", tab: "plans" }
@@ -6850,7 +6903,7 @@ function resetCourseSectionForm() {
     checkbox.checked = true;
   });
   const timeInput = document.getElementById("course-section-start-time");
-  if (timeInput) timeInput.value = "08:00";
+  if (timeInput) timeInput.value = normalizeSchoolDayStartTime(currentSchoolYear()?.schoolDayStartTime);
   const courseSelect = document.getElementById("course-section-course");
   if (courseSelect?.value) syncCourseSectionFormFromCourse(courseSelect.value, { preserveExisting: false });
   renderCourseSections();
@@ -6875,7 +6928,7 @@ function renderCourseSections() {
   const tableBody = document.getElementById("course-section-table");
   const submitBtn = document.getElementById("course-section-submit-btn");
   const cancelBtn = document.getElementById("course-section-cancel-edit-btn");
-  if (submitBtn) submitBtn.textContent = editingCourseSectionId ? "Update Section" : "Add Section";
+  if (submitBtn) submitBtn.textContent = editingCourseSectionId ? "Update Class" : "Add Class";
   if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingCourseSectionId);
   if (!tableBody) return;
   const rows = sortedCourseSections().map((section) => {
@@ -6885,7 +6938,7 @@ function renderCourseSections() {
       : `${section.resourceGroup || getCourseName(section.courseId)} (${section.concurrentCapacity})`;
     return `<tr><td>${escapeHtml(getCourseName(section.courseId))}</td><td>${escapeHtml(section.label)}</td><td>${escapeHtml(formatClockTime(section.startTime))}<br><span class="muted">${escapeHtml(weekdays || "Mon-Fri")}</span></td><td>${escapeHtml(resourceSummary)}</td><td>${courseSectionEnrollmentCount(section.id)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course-section='${section.id}' type='button'>Edit</button><button data-remove-course-section='${section.id}' type='button'>Remove</button></div></td></tr>`;
   });
-  rowOrEmpty(tableBody, rows, "No course sections added yet.", 6);
+  rowOrEmpty(tableBody, rows, "No classes added yet.", 6);
 }
 
 function renderManagementCoursesSectionVisibility() {
@@ -7094,7 +7147,7 @@ function renderStudentDetail() {
         .join("");
       const entryType = isScheduleBlock ? "scheduleBlock" : (e.itemType === "courseSection" ? "courseSection" : "course");
       const orderControl = isCourseSection
-        ? `<span class="muted">Managed by section time</span>`
+        ? `<span class="muted">Managed by class time</span>`
         : isAdminUser()
         ? `<select class="student-schedule-order-select" data-enrollment-order-id="${e.id}" data-enrollment-item-type="${entryType}" aria-label="Schedule order for ${escapeHtml(studentScheduledEntryDisplayName(e))}"${studentEnrollmentEditMode ? "" : " disabled"}>${orderOptions}</select>`
         : (parseScheduleOrderValue(e.scheduleOrder) != null ? String(parseScheduleOrderValue(e.scheduleOrder)) : "Auto");
@@ -7328,6 +7381,34 @@ function renderPlanningSettings() {
   const quartersCancelBtn = document.getElementById("quarters-cancel-edit-btn");
   if (quartersSubmitBtn) quartersSubmitBtn.textContent = editingQuarterSchoolYearId ? "Update Quarters" : "Save Quarters";
   if (quartersCancelBtn) quartersCancelBtn.classList.toggle("hidden", !editingQuarterSchoolYearId);
+
+  renderSchoolDaySettings();
+}
+
+function renderSchoolDaySettings() {
+  const schoolYearSelect = document.getElementById("school-day-school-year");
+  if (!schoolYearSelect) return;
+  const selectedSchoolYearId = schoolYearSelect.value && state.settings.schoolYears.some((year) => year.id === schoolYearSelect.value)
+    ? schoolYearSelect.value
+    : state.settings.currentSchoolYearId;
+  options("school-day-school-year", state.settings.schoolYears, (year) => year.label);
+  schoolYearSelect.value = selectedSchoolYearId;
+  fillSchoolDaySettingsForm(selectedSchoolYearId);
+}
+
+function fillSchoolDaySettingsForm(schoolYearId = "") {
+  const schoolYear = getSchoolYear(schoolYearId) || currentSchoolYear();
+  if (!schoolYear) return;
+  const schoolYearSelect = document.getElementById("school-day-school-year");
+  const startTimeInput = document.getElementById("school-day-start-time");
+  const gapInput = document.getElementById("school-day-gap-minutes");
+  const currentSummary = document.getElementById("school-day-settings-current");
+  if (schoolYearSelect) schoolYearSelect.value = schoolYear.id;
+  if (startTimeInput) startTimeInput.value = normalizeSchoolDayStartTime(schoolYear.schoolDayStartTime);
+  if (gapInput) gapInput.value = String(normalizeMinutesBetweenClasses(schoolYear.minutesBetweenClasses));
+  if (currentSummary) {
+    currentSummary.textContent = `${schoolYear.label}: School day starts at ${formatClockTime(schoolYear.schoolDayStartTime || DEFAULT_SCHOOL_DAY_START_TIME)} with ${normalizeMinutesBetweenClasses(schoolYear.minutesBetweenClasses)} minute${normalizeMinutesBetweenClasses(schoolYear.minutesBetweenClasses) === 1 ? "" : "s"} between classes.`;
+  }
 }
 
 function renderPlans() {
@@ -10829,6 +10910,7 @@ function findInstructionPlacementStart({
 }) {
   const sectionStartMinutes = sectionStartMinutesForStudentCourse(studentId, courseId, dateKey);
   if (Number.isFinite(sectionStartMinutes)) return sectionStartMinutes;
+  const minutesBetweenClasses = minutesBetweenClassesForDate(dateKey);
   const resourceKey = courseResourceKey(course);
   const resourceCapacity = courseResourceCapacity(course);
   let candidate = requestedStart;
@@ -10842,7 +10924,7 @@ function findInstructionPlacementStart({
     if (!resourceKey || !(resourceCapacity > 0) || resourceHasCapacity(resourceAllocations.get(resourceKey) || [], candidate, candidateEnd, resourceCapacity)) {
       return candidate;
     }
-    candidate += 5;
+    candidate += Math.max(1, minutesBetweenClasses);
   }
   return null;
 }
@@ -10862,6 +10944,8 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
 
   studentIdsInOrder.forEach((studentId) => {
     const studentName = getStudentName(studentId);
+    const schoolDayStartMinutes = schoolDayStartMinutesForDate(dateKey);
+    const minutesBetweenClasses = minutesBetweenClassesForDate(dateKey);
     const blocks = [];
     const baseOrderedEvents = orderedEventsForStudent(studentId, byStudent.get(studentId) || []);
     const fixedSectionWindows = fixedSectionWindowsForStudentDate(studentId, baseOrderedEvents, dateKey);
@@ -10888,7 +10972,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       : [];
     let orderedInstructionIndex = 0;
 
-    let slot = 8 * 60;
+    let slot = schoolDayStartMinutes;
 
     if (hasOrderedBlocks) {
       orderedItems.forEach((entry) => {
@@ -10951,7 +11035,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         pushResourceAllocation(resourceAllocations, course, startMin, endMin);
         remainingByCourseId.delete(event.courseId);
         slot = Math.max(slot, endMin);
-        if (slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
+        if (slot < 24 * 60) slot = Math.min(24 * 60, slot + minutesBetweenClasses);
       });
     } else {
       const remaining = [...baseOrderedEvents].sort((a, b) => {
@@ -11047,7 +11131,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         if (removeIndex >= 0) remaining.splice(removeIndex, 1);
 
         slot = Math.max(slot, endMin);
-        if (remaining.length && slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
+        if (remaining.length && slot < 24 * 60) slot = Math.min(24 * 60, slot + minutesBetweenClasses);
       }
     }
 
@@ -11085,7 +11169,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         });
         pushResourceAllocation(resourceAllocations, course, startMin, endMin);
         slot = Math.max(slot, endMin);
-        if (slot < 24 * 60) slot = Math.min(24 * 60, slot + 5);
+        if (slot < 24 * 60) slot = Math.min(24 * 60, slot + minutesBetweenClasses);
       });
     }
 
@@ -11137,7 +11221,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         actualMinutes: actualDuration
       });
       actualCursor = block.type === "instruction"
-        ? Math.min(24 * 60, resolvedActualEnd + 5)
+        ? Math.min(24 * 60, resolvedActualEnd + minutesBetweenClasses)
         : resolvedActualEnd;
     });
 
@@ -11401,7 +11485,7 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
         ? ""
         : (isEditing
           ? `<div class="table-action-row"><button type="button" ${saveAttr}="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" ${cancelAttr}="${editKey}">Cancel</button></div>`
-          : `<div class="school-day-actions-wrap"><label class="school-day-complete-toggle"><input type="checkbox" data-school-day-completed-toggle="1" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}"${isCompleted ? " checked" : ""}> Completed</label><div class="table-action-row">${inlineGradeActions}${isSectionBoundInstruction ? `<span class="muted">Time managed in section</span>` : `<button type="button" ${editAttr}="${editKey}">Edit</button>`}${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}</div></div>`);
+          : `<div class="school-day-actions-wrap"><label class="school-day-complete-toggle"><input type="checkbox" data-school-day-completed-toggle="1" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}"${isCompleted ? " checked" : ""}> Completed</label><div class="table-action-row">${inlineGradeActions}${isSectionBoundInstruction ? `<span class="muted">Time managed in class</span>` : `<button type="button" ${editAttr}="${editKey}">Edit</button>`}${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}</div></div>`);
       const renderedRows = [`<tr class="${rowStateClasses}${isEditing ? " school-day-editing-row" : ""}"><td class="school-day-hour-column">${hourDisplay}</td><td class="school-day-student-column">${block.student}</td><td class="school-day-planned-column"><div class="school-day-planned-copy">${block.label}</div>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td class="school-day-instructor-column">${instructorCell}</td><td class="school-day-minutes-column">${minutesCell}</td><td class="calendar-actions-cell school-day-actions-column">${actionsCell}</td></tr>`];
       if (showInlineGrade) {
         const gradeRow = buildGradeEntryRow(null, {
@@ -11604,6 +11688,7 @@ function fillSettingsForms() {
   const dailyBreakDurationInput = document.getElementById("daily-break-duration");
   if (dailyBreakStartInput && !dailyBreakStartInput.value) dailyBreakStartInput.value = "12:00";
   if (dailyBreakDurationInput && !dailyBreakDurationInput.value) dailyBreakDurationInput.value = "60";
+  fillSchoolDaySettingsForm(schoolYear.id);
   renderGradingCriteria();
 }
 
@@ -11616,6 +11701,7 @@ function beginSchoolYearEdit(schoolYearId) {
   document.getElementById("school-year-end").value = schoolYear.endDate;
   document.getElementById("school-year-required-days").value = schoolYear.requiredInstructionalDays == null ? "" : String(schoolYear.requiredInstructionalDays);
   document.getElementById("school-year-required-hours").value = schoolYear.requiredInstructionalHours == null ? "" : String(schoolYear.requiredInstructionalHours);
+  fillSchoolDaySettingsForm(schoolYear.id);
   renderPlanningSettings();
 }
 
@@ -12067,10 +12153,17 @@ function updateLegacyLocalSchoolYear(existingSchoolYear, payload) {
   existingSchoolYear.endDate = payload.endDate;
   existingSchoolYear.requiredInstructionalDays = payload.requiredInstructionalDays;
   existingSchoolYear.requiredInstructionalHours = payload.requiredInstructionalHours;
+  existingSchoolYear.schoolDayStartTime = normalizeSchoolDayStartTime(payload.schoolDayStartTime);
+  existingSchoolYear.minutesBetweenClasses = normalizeMinutesBetweenClasses(payload.minutesBetweenClasses);
 }
 
 function createLegacyLocalSchoolYear(payload) {
-  const schoolYear = { id: uid(), ...payload };
+  const schoolYear = {
+    id: uid(),
+    ...payload,
+    schoolDayStartTime: normalizeSchoolDayStartTime(payload.schoolDayStartTime),
+    minutesBetweenClasses: normalizeMinutesBetweenClasses(payload.minutesBetweenClasses)
+  };
   state.settings.schoolYears.push(schoolYear);
   return schoolYear;
 }
@@ -12935,8 +13028,8 @@ function bindEvents() {
     const concurrentCapacity = capacityRaw === "" ? null : Number(capacityRaw);
     const startTime = document.getElementById("course-section-start-time").value;
     const weekdays = Array.from(document.querySelectorAll("input[name='course-section-weekday']:checked")).map((checkbox) => Number(checkbox.value));
-    if (!courseId || !label || !startTime || !weekdays.length) { alert("Provide a course, section label, start time, and at least one weekday."); return; }
-    if (concurrentCapacity != null && (!Number.isInteger(concurrentCapacity) || concurrentCapacity <= 0)) { alert("Section capacity must be a whole number greater than 0."); return; }
+    if (!courseId || !label || !startTime || !weekdays.length) { alert("Provide a course, class label, start time, and at least one weekday."); return; }
+    if (concurrentCapacity != null && (!Number.isInteger(concurrentCapacity) || concurrentCapacity <= 0)) { alert("Class capacity must be a whole number greater than 0."); return; }
     const payload = { courseId, label, resourceGroup, concurrentCapacity, startTime, weekdays, scheduleOrder: null };
     if (hostedModeEnabled) {
       (async () => {
@@ -13507,6 +13600,12 @@ function bindEvents() {
     const requiredInstructionalHoursRaw = document.getElementById("school-year-required-hours").value;
     const requiredInstructionalDays = requiredInstructionalDaysRaw === "" ? null : Number(requiredInstructionalDaysRaw);
     const requiredInstructionalHours = requiredInstructionalHoursRaw === "" ? null : Number(requiredInstructionalHoursRaw);
+    const existingSchoolDayStartTime = editingSchoolYearId
+      ? normalizeSchoolDayStartTime(getSchoolYear(editingSchoolYearId)?.schoolDayStartTime)
+      : DEFAULT_SCHOOL_DAY_START_TIME;
+    const existingMinutesBetweenClasses = editingSchoolYearId
+      ? normalizeMinutesBetweenClasses(getSchoolYear(editingSchoolYearId)?.minutesBetweenClasses)
+      : DEFAULT_MINUTES_BETWEEN_CLASSES;
     if (!label) { alert("School year label is required."); return; }
     if (!validRange(startDate, endDate)) { alert("School year range is invalid."); return; }
     if (requiredInstructionalDays != null && (!Number.isInteger(requiredInstructionalDays) || requiredInstructionalDays < 0)) { alert("Required Instructional Days must be a whole number 0 or greater."); return; }
@@ -13520,6 +13619,8 @@ function bindEvents() {
             endDate,
             requiredInstructionalDays,
             requiredInstructionalHours,
+            schoolDayStartTime: existingSchoolDayStartTime,
+            minutesBetweenClasses: existingMinutesBetweenClasses,
             isCurrent: editingSchoolYearId ? (getSchoolYear(editingSchoolYearId)?.id === state.settings.currentSchoolYearId) : state.settings.schoolYears.length === 0
           };
           if (editingSchoolYearId) {
@@ -13551,7 +13652,9 @@ function bindEvents() {
         startDate,
         endDate,
         requiredInstructionalDays,
-        requiredInstructionalHours
+        requiredInstructionalHours,
+        schoolDayStartTime: existingSchoolDayStartTime,
+        minutesBetweenClasses: existingMinutesBetweenClasses
       });
       syncAnnualPlansForSchoolYear(previousStartDate, previousEndDate, startDate, endDate);
     } else {
@@ -13560,7 +13663,15 @@ function bindEvents() {
         && year.startDate === startDate
         && year.endDate === endDate);
       if (duplicate) { alert("That school year already exists."); return; }
-      createLegacyLocalSchoolYear({ label, startDate, endDate, requiredInstructionalDays, requiredInstructionalHours });
+      createLegacyLocalSchoolYear({
+        label,
+        startDate,
+        endDate,
+        requiredInstructionalDays,
+        requiredInstructionalHours,
+        schoolDayStartTime: existingSchoolDayStartTime,
+        minutesBetweenClasses: existingMinutesBetweenClasses
+      });
     }
     const schoolYearId = existing ? existing.id : state.settings.schoolYears[state.settings.schoolYears.length - 1].id;
     setCurrentSchoolYear(schoolYearId);
@@ -13572,6 +13683,53 @@ function bindEvents() {
   if (schoolYearCancelEditBtn) {
     schoolYearCancelEditBtn.addEventListener("click", () => cancelSchoolYearEdit());
   }
+
+  document.getElementById("school-day-school-year")?.addEventListener("change", (event) => {
+    fillSchoolDaySettingsForm(event.target.value);
+  });
+
+  document.getElementById("school-day-settings-reset-btn")?.addEventListener("click", () => {
+    fillSchoolDaySettingsForm(document.getElementById("school-day-school-year")?.value || state.settings.currentSchoolYearId);
+  });
+
+  document.getElementById("school-day-settings-form")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!ensureAdminAction()) return;
+    const schoolYearId = document.getElementById("school-day-school-year").value;
+    const schoolYear = getSchoolYear(schoolYearId);
+    const schoolDayStartTime = normalizeSchoolDayStartTime(document.getElementById("school-day-start-time").value);
+    const minutesBetweenClasses = normalizeMinutesBetweenClasses(document.getElementById("school-day-gap-minutes").value);
+    if (!schoolYear) { alert("Select a school year."); return; }
+    if (hostedModeEnabled) {
+      (async () => {
+        try {
+          await ensureHostedSchoolYearRecord({
+            ...schoolYear,
+            schoolDayStartTime,
+            minutesBetweenClasses
+          }, {
+            id: schoolYear.id,
+            isCurrent: schoolYear.id === state.settings.currentSchoolYearId
+          });
+          await refreshHostedSchoolConfigState();
+          fillSchoolDaySettingsForm(schoolYearId);
+          renderAll();
+        } catch (error) {
+          alert(error.message || "Unable to save school day settings.");
+        }
+      })();
+      return;
+    }
+    updateLegacyLocalSchoolYear(schoolYear, {
+      ...schoolYear,
+      schoolDayStartTime,
+      minutesBetweenClasses
+    });
+    if (schoolYear.id === state.settings.currentSchoolYearId) setCurrentSchoolYear(schoolYear.id);
+    saveState();
+    fillSchoolDaySettingsForm(schoolYearId);
+    renderAll();
+  });
 
   document.getElementById("quarters-form").addEventListener("submit", (e) => {
     e.preventDefault();

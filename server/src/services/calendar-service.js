@@ -109,18 +109,34 @@ function normalizeSchoolYearPayload(input) {
   const requiredInstructionalHours = input?.requiredInstructionalHours === "" || input?.requiredInstructionalHours == null
     ? null
     : Number(input.requiredInstructionalHours);
+  const schoolDayStartTime = normalizeDailyBreakStartTime(input?.schoolDayStartTime || "08:00") || "08:00";
+  const minutesBetweenClasses = input?.minutesBetweenClasses === "" || input?.minutesBetweenClasses == null
+    ? 5
+    : Number(input.minutesBetweenClasses);
   const isCurrent = !!input?.isCurrent;
   if (!label
     || !isIsoDate(startDate)
     || !isIsoDate(endDate)
     || startDate > endDate
     || (requiredInstructionalDays != null && (!Number.isInteger(requiredInstructionalDays) || requiredInstructionalDays < 0))
-    || (requiredInstructionalHours != null && (!Number.isFinite(requiredInstructionalHours) || requiredInstructionalHours < 0))) {
+    || (requiredInstructionalHours != null && (!Number.isFinite(requiredInstructionalHours) || requiredInstructionalHours < 0))
+    || !schoolDayStartTime
+    || (!Number.isInteger(minutesBetweenClasses) || minutesBetweenClasses < 0)) {
     const error = new Error("Provide valid school year values.");
     error.statusCode = 400;
     throw error;
   }
-  return { id, label, startDate, endDate, requiredInstructionalDays, requiredInstructionalHours, isCurrent };
+  return {
+    id,
+    label,
+    startDate,
+    endDate,
+    requiredInstructionalDays,
+    requiredInstructionalHours,
+    schoolDayStartTime,
+    minutesBetweenClasses,
+    isCurrent
+  };
 }
 
 function normalizeQuarterPayload(input, schoolYearId) {

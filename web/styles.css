@@ -2867,7 +2867,7 @@ td {
 }
 
 .course-section-form {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   align-items: end;
   padding: 1rem;
   border: 1px solid var(--edge);
@@ -2892,12 +2892,21 @@ td {
   align-items: center;
   gap: 0.65rem;
   min-height: calc(1em + 0.84rem + 2px);
-  grid-column: 1 / 4;
+  grid-column: 1 / -1;
 }
 
 .course-section-weekdays-field legend {
   width: 100%;
   margin-bottom: 0.35rem;
+}
+
+.school-day-settings-form {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+}
+
+#school-day-settings-current {
+  margin-top: 0.75rem;
 }
 
 .course-materials-panel {

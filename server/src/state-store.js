@@ -24,7 +24,7 @@ function toIsoDate(value) {
 function fallbackSettings() {
   const year = new Date().getFullYear();
   const schoolYearId = "default-school-year";
-  const schoolYear = { id: schoolYearId, label: `${year}-${year + 1}`, startDate: `${year}-01-01`, endDate: `${year}-12-31`, requiredInstructionalDays: null, requiredInstructionalHours: null };
+  const schoolYear = { id: schoolYearId, label: `${year}-${year + 1}`, startDate: `${year}-01-01`, endDate: `${year}-12-31`, requiredInstructionalDays: null, requiredInstructionalHours: null, schoolDayStartTime: "08:00", minutesBetweenClasses: 5 };
   const quarters = [
     { id: "default-q1", schoolYearId, name: "Q1", startDate: `${year}-01-01`, endDate: `${year}-03-31` },
     { id: "default-q2", schoolYearId, name: "Q2", startDate: `${year}-04-01`, endDate: `${year}-06-30` },
@@ -67,11 +67,15 @@ async function readState() {
   const schoolYearColumns = await pool.request().query(`
     SELECT
       CAST(CASE WHEN COL_LENGTH('dbo.school_years', 'required_instructional_days') IS NULL THEN 0 ELSE 1 END AS INT) AS has_required_instructional_days,
-      CAST(CASE WHEN COL_LENGTH('dbo.school_years', 'required_instructional_hours') IS NULL THEN 0 ELSE 1 END AS INT) AS has_required_instructional_hours
+      CAST(CASE WHEN COL_LENGTH('dbo.school_years', 'required_instructional_hours') IS NULL THEN 0 ELSE 1 END AS INT) AS has_required_instructional_hours,
+      CAST(CASE WHEN COL_LENGTH('dbo.school_years', 'school_day_start_time') IS NULL THEN 0 ELSE 1 END AS INT) AS has_school_day_start_time,
+      CAST(CASE WHEN COL_LENGTH('dbo.school_years', 'minutes_between_classes') IS NULL THEN 0 ELSE 1 END AS INT) AS has_minutes_between_classes
   `);
   const hasRequiredInstructionalDays = !!schoolYearColumns.recordset[0]?.has_required_instructional_days;
   const hasRequiredInstructionalHours = !!schoolYearColumns.recordset[0]?.has_required_instructional_hours;
-  const schoolYearsQuery = hasRequiredInstructionalDays && hasRequiredInstructionalHours
+  const hasSchoolDayStartTime = !!schoolYearColumns.recordset[0]?.has_school_day_start_time;
+  const hasMinutesBetweenClasses = !!schoolYearColumns.recordset[0]?.has_minutes_between_classes;
+  const schoolYearsQuery = hasRequiredInstructionalDays && hasRequiredInstructionalHours && hasSchoolDayStartTime && hasMinutesBetweenClasses
     ? `
       SELECT
         id,
@@ -80,6 +84,8 @@ async function readState() {
         end_date,
         required_instructional_days,
         required_instructional_hours,
+        school_day_start_time,
+        minutes_between_classes,
         is_current
       FROM dbo.school_years
       ORDER BY start_date
@@ -92,6 +98,8 @@ async function readState() {
         end_date,
         CAST(NULL AS INT) AS required_instructional_days,
         CAST(NULL AS DECIMAL(8,2)) AS required_instructional_hours,
+        CAST('08:00' AS NVARCHAR(5)) AS school_day_start_time,
+        CAST(5 AS INT) AS minutes_between_classes,
         is_current
       FROM dbo.school_years
       ORDER BY start_date
@@ -250,6 +258,8 @@ async function readState() {
     endDate: toIsoDate(r.end_date),
     requiredInstructionalDays: r.required_instructional_days == null ? null : Number(r.required_instructional_days),
     requiredInstructionalHours: r.required_instructional_hours == null ? null : Number(r.required_instructional_hours),
+    schoolDayStartTime: String(r.school_day_start_time || "08:00").slice(0, 5),
+    minutesBetweenClasses: r.minutes_between_classes == null ? 5 : Number(r.minutes_between_classes),
     isCurrent: !!r.is_current
   }));
   const allQuarters = quartersR.recordset.map((r) => ({
@@ -369,7 +379,9 @@ async function readState() {
       startDate: current.startDate,
       endDate: current.endDate,
       requiredInstructionalDays: current.requiredInstructionalDays,
-      requiredInstructionalHours: current.requiredInstructionalHours
+      requiredInstructionalHours: current.requiredInstructionalHours,
+      schoolDayStartTime: current.schoolDayStartTime,
+      minutesBetweenClasses: current.minutesBetweenClasses
     },
     schoolYears: schoolYears.map(({ isCurrent, ...rest }) => rest),
     currentSchoolYearId: current.id,
@@ -550,6 +562,8 @@ async function writeState(state) {
         .input("end_date", sql.Date, row.endDate || null)
         .input("required_instructional_days", sql.Int, row.requiredInstructionalDays == null ? null : Number(row.requiredInstructionalDays))
         .input("required_instructional_hours", sql.Decimal(8, 2), row.requiredInstructionalHours == null ? null : Number(row.requiredInstructionalHours))
+        .input("school_day_start_time", sql.NVarChar(5), String(row.schoolDayStartTime || "08:00").slice(0, 5))
+        .input("minutes_between_classes", sql.Int, row.minutesBetweenClasses == null ? 5 : Number(row.minutesBetweenClasses))
         .input("is_current", sql.Bit, row.id === settings.currentSchoolYearId ? 1 : 0)
         .query(`
           IF COL_LENGTH('dbo.school_years', 'required_instructional_days') IS NULL
@@ -560,8 +574,16 @@ async function writeState(state) {
           BEGIN
             ALTER TABLE dbo.school_years ADD required_instructional_hours DECIMAL(8,2) NULL
           END
-          INSERT INTO dbo.school_years (id, label, start_date, end_date, required_instructional_days, required_instructional_hours, is_current)
-          VALUES (@id, @label, @start_date, @end_date, @required_instructional_days, @required_instructional_hours, @is_current)
+          IF COL_LENGTH('dbo.school_years', 'school_day_start_time') IS NULL
+          BEGIN
+            ALTER TABLE dbo.school_years ADD school_day_start_time NVARCHAR(5) NOT NULL CONSTRAINT DF_school_years_school_day_start_time DEFAULT '08:00'
+          END
+          IF COL_LENGTH('dbo.school_years', 'minutes_between_classes') IS NULL
+          BEGIN
+            ALTER TABLE dbo.school_years ADD minutes_between_classes INT NOT NULL CONSTRAINT DF_school_years_minutes_between_classes DEFAULT 5
+          END
+          INSERT INTO dbo.school_years (id, label, start_date, end_date, required_instructional_days, required_instructional_hours, school_day_start_time, minutes_between_classes, is_current)
+          VALUES (@id, @label, @start_date, @end_date, @required_instructional_days, @required_instructional_hours, @school_day_start_time, @minutes_between_classes, @is_current)
         `);
     }
 
