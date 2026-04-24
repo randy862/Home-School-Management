@@ -10,3 +10,4 @@
 - Fix the hosted tenant runtime/routing mismatch where live responses for `mitchell.navigrader.com` still advertise `mail04222026.navigrader.com` in runtime headers/config.
 - Fix the `Concurrent Capacity` field so hosted course saves persist values greater than `1`; right now non-`1` entries fall back to `Unrestricted`.
 - Design and implement section-based shared course scheduling so one course can have multiple resource groups/time slots and students enroll into a specific shared section.
+- Add a configurable school day start time, likely under School Year settings, instead of hard-coding the scheduling day to begin at `8:00 AM`.

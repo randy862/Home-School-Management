@@ -7080,6 +7080,7 @@ function renderStudentDetail() {
   const enrollmentRows = studentEnrollments
     .map((e) => {
       const isScheduleBlock = e.itemType === "scheduleBlock";
+      const isCourseSection = e.itemType === "courseSection";
       const course = isScheduleBlock ? null : getCourse(entryCourseId(e));
       const subject = studentScheduledEntrySubjectLabel(e);
       const courseAvg = isScheduleBlock ? 0 : gradeSummary.courseAverage(entryCourseId(e));
@@ -7092,7 +7093,9 @@ function renderStudentDetail() {
         }))
         .join("");
       const entryType = isScheduleBlock ? "scheduleBlock" : (e.itemType === "courseSection" ? "courseSection" : "course");
-      const orderControl = isAdminUser()
+      const orderControl = isCourseSection
+        ? `<span class="muted">Managed by section time</span>`
+        : isAdminUser()
         ? `<select class="student-schedule-order-select" data-enrollment-order-id="${e.id}" data-enrollment-item-type="${entryType}" aria-label="Schedule order for ${escapeHtml(studentScheduledEntryDisplayName(e))}"${studentEnrollmentEditMode ? "" : " disabled"}>${orderOptions}</select>`
         : (parseScheduleOrderValue(e.scheduleOrder) != null ? String(parseScheduleOrderValue(e.scheduleOrder)) : "Auto");
       const actions = studentEnrollmentEditMode
@@ -11287,12 +11290,15 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
       const editKey = instructionActualEditKey(block.studentId, block.courseId, dateKey);
       const isEditing = editingInstructionActualKey === editKey;
       const canEditActualMinutes = isAdminUser();
+      const isSectionBoundInstruction = !!block.courseSectionId;
       const instructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
       const startTimeValue = Number.isFinite(block.start)
         ? block.start
         : effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, block.plannedStart);
       const hourCell = isEditing
-        ? `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Start Time<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-instruction-actual-start="${editKey}"></label></div>`
+        ? (isSectionBoundInstruction
+          ? `${actualRange}<br><span class="muted">Managed by section</span>`
+          : `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Start Time<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-instruction-actual-start="${editKey}"></label></div>`)
         : actualRange;
       const instructorCell = isEditing
         ? `<select class="school-day-instructor-editor" data-instruction-actual-instructor="${editKey}">${buildInstructionInstructorOptions(instructorId)}</select>`
@@ -11309,10 +11315,10 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
       const cancelAttr = mode === "school-day" ? "data-school-day-cancel-instruction-actual" : "data-cancel-instruction-actual";
       const saveAttr = mode === "school-day" ? "data-school-day-save-instruction-actual" : "data-save-instruction-actual";
       const resetAttr = mode === "school-day" ? "data-school-day-reset-instruction-actual" : "data-reset-instruction-actual";
-      const moveUpButton = mode === "school-day" && canEditActualMinutes && Number(block.orderPosition || 0) > 1
+      const moveUpButton = mode === "school-day" && canEditActualMinutes && !isSectionBoundInstruction && Number(block.orderPosition || 0) > 1
         ? `<button type="button" class="school-day-reorder-btn" aria-label="Move class up" title="Move class up" data-school-day-move-instruction="up" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">&#9650;</button>`
         : "";
-      const moveDownButton = mode === "school-day" && canEditActualMinutes && Number(block.orderPosition || 0) < Number(block.orderTotal || 0)
+      const moveDownButton = mode === "school-day" && canEditActualMinutes && !isSectionBoundInstruction && Number(block.orderPosition || 0) < Number(block.orderTotal || 0)
         ? `<button type="button" class="school-day-reorder-btn" aria-label="Move class down" title="Move class down" data-school-day-move-instruction="down" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">&#9660;</button>`
         : "";
       const reorderControls = moveUpButton || moveDownButton
@@ -11325,7 +11331,7 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
         ? ""
         : (isEditing
           ? `<div class="table-action-row"><button type="button" ${saveAttr}="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" ${cancelAttr}="${editKey}">Cancel</button></div>`
-          : `<div class="school-day-actions-wrap"><label class="school-day-complete-toggle"><input type="checkbox" data-school-day-completed-toggle="1" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}"${isCompleted ? " checked" : ""}> Completed</label><div class="table-action-row">${inlineGradeActions}<button type="button" ${editAttr}="${editKey}">Edit</button>${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}</div></div>`);
+          : `<div class="school-day-actions-wrap"><label class="school-day-complete-toggle"><input type="checkbox" data-school-day-completed-toggle="1" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}"${isCompleted ? " checked" : ""}> Completed</label><div class="table-action-row">${inlineGradeActions}${isSectionBoundInstruction ? `<span class="muted">Time managed in section</span>` : `<button type="button" ${editAttr}="${editKey}">Edit</button>`}${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}</div></div>`);
       const renderedRows = [`<tr class="${rowStateClasses}${isEditing ? " school-day-editing-row" : ""}"><td class="school-day-hour-column">${hourDisplay}</td><td class="school-day-student-column">${block.student}</td><td class="school-day-planned-column"><div class="school-day-planned-copy">${block.label}</div>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td class="school-day-instructor-column">${instructorCell}</td><td class="school-day-minutes-column">${minutesCell}</td><td class="calendar-actions-cell school-day-actions-column">${actionsCell}</td></tr>`];
       if (showInlineGrade) {
         const gradeRow = buildGradeEntryRow(null, {
@@ -11649,6 +11655,9 @@ function effectiveInstructionMinutes(studentId, courseId, date) {
 }
 
 function effectiveInstructionStartMinutes(studentId, courseId, date, fallbackStartMinutes = null) {
+  if (courseSectionForStudentCourse(studentId, courseId)) {
+    return Number.isFinite(fallbackStartMinutes) ? fallbackStartMinutes : null;
+  }
   const existing = findInstructionActualRecord(studentId, courseId, date);
   if (existing && Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0) {
     return existing.startMinutes;
@@ -11657,6 +11666,7 @@ function effectiveInstructionStartMinutes(studentId, courseId, date, fallbackSta
 }
 
 function hasInstructionStartOverride(studentId, courseId, date) {
+  if (courseSectionForStudentCourse(studentId, courseId)) return false;
   const existing = findInstructionActualRecord(studentId, courseId, date);
   return !!(existing && Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0);
 }
@@ -11715,8 +11725,9 @@ function instructionCountsTowardCompletedHours(studentId, courseId, date) {
 function hasInstructionExecutionOverride(studentId, courseId, date) {
   const existing = findInstructionActualRecord(studentId, courseId, date);
   if (!existing) return false;
-  if (Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0) return true;
-  if (Number.isInteger(existing.orderIndex) && existing.orderIndex > 0) return true;
+  const sectionBound = !!courseSectionForStudentCourse(studentId, courseId);
+  if (!sectionBound && Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0) return true;
+  if (!sectionBound && Number.isInteger(existing.orderIndex) && existing.orderIndex > 0) return true;
   if (String(existing.instructorId || "").trim() !== String(defaultInstructorIdForCourse(courseId) || "").trim()) return true;
   if (Number.isInteger(existing.actualMinutes) && existing.actualMinutes > 0 && existing.actualMinutes !== plannedInstructionMinutesForCourse(courseId)) return true;
   return false;
