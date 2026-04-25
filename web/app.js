@@ -11478,15 +11478,16 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       const actualDuration = blockActualDuration(block);
       const hasStartOverride = block.type === "instruction" && hasInstructionStartOverride(block.studentId, block.courseId, dateKey);
       const hasFixedSectionStart = block.type === "instruction" && !!block.courseSectionId && !hasStartOverride;
+      const hasAnchoredInstructionStart = hasFixedSectionStart || hasStartOverride;
       const hasFlexibleScheduleBlockTiming = block.type !== "instruction" && !!block.scheduleBlockId;
       const actualStartTarget = block.type === "instruction"
-        ? (hasFixedSectionStart || hasStartOverride
+        ? (hasAnchoredInstructionStart
           ? effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, plannedStart)
           : Number.isFinite(forcedStartMinutes)
           ? forcedStartMinutes
           : plannedStart)
         : plannedStart;
-      const actualStart = hasFixedSectionStart
+      const actualStart = hasAnchoredInstructionStart
         ? actualStartTarget
         : actualCursor == null
         ? actualStartTarget
