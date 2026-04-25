@@ -11470,7 +11470,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       });
     }
 
-    function pushAdjustedBlock(block) {
+    function pushAdjustedBlock(block, forcedStartMinutes = null) {
       const plannedStart = Number.isFinite(block.plannedStart) ? block.plannedStart : block.start;
       const plannedEnd = Number.isFinite(block.plannedEnd) ? block.plannedEnd : block.end;
       const actualDuration = blockActualDuration(block);
@@ -11480,6 +11480,8 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       const actualStartTarget = block.type === "instruction"
         ? (hasFixedSectionStart || hasStartOverride
           ? effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, plannedStart)
+          : Number.isFinite(forcedStartMinutes)
+          ? forcedStartMinutes
           : plannedStart)
         : plannedStart;
       const actualStart = hasFixedSectionStart
@@ -11523,7 +11525,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         const fitIndex = findInstructionThatFitsGap(pendingPositionedBlocks, gapStart, anchorStart);
         if (fitIndex > 0) {
           const [fittingBlock] = pendingPositionedBlocks.splice(fitIndex, 1);
-          pushAdjustedBlock(fittingBlock);
+          pushAdjustedBlock(fittingBlock, gapStart);
           continue;
         }
       }
