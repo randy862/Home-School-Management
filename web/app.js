@@ -11131,9 +11131,11 @@ function fixedSectionWindowsForStudentDate(studentId, events, dateKey) {
   return events
     .map((event) => {
       const course = getCourse(event.courseId);
-      const start = sectionStartMinutesForStudentCourse(studentId, event.courseId, dateKey);
+      const plannedStart = sectionStartMinutesForStudentCourse(studentId, event.courseId, dateKey);
       const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
-      if (!course || !Number.isFinite(start)) return null;
+      if (!course || !Number.isFinite(plannedStart)) return null;
+      const start = effectiveInstructionStartMinutes(studentId, event.courseId, dateKey, plannedStart);
+      if (!Number.isFinite(start)) return null;
       return {
         courseId: event.courseId,
         start,
@@ -11520,12 +11522,14 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     while (pendingPositionedBlocks.length) {
       const block = pendingPositionedBlocks[0];
       const anchorStart = blockAnchorStart(block);
-      const gapStart = actualCursor == null ? schoolDayStartMinutes : actualCursor;
-      if (isFixedSectionAnchor(block) && gapStart < anchorStart) {
-        const fitIndex = findInstructionThatFitsGap(pendingPositionedBlocks, gapStart, anchorStart);
+      const visibleGapStart = adjustedBlocks.length
+        ? adjustedBlocks.reduce((latestEnd, entry) => Math.max(latestEnd, Number(entry.end) || 0), schoolDayStartMinutes)
+        : schoolDayStartMinutes;
+      if (isFixedSectionAnchor(block) && visibleGapStart < anchorStart) {
+        const fitIndex = findInstructionThatFitsGap(pendingPositionedBlocks, visibleGapStart, anchorStart);
         if (fitIndex > 0) {
           const [fittingBlock] = pendingPositionedBlocks.splice(fitIndex, 1);
-          pushAdjustedBlock(fittingBlock, gapStart);
+          pushAdjustedBlock(fittingBlock, visibleGapStart);
           continue;
         }
       }
