@@ -1359,8 +1359,9 @@
       </div>
       <div id="attendance-enter-wrap" class="attendance-tab-panel">
         <div class="attendance-section attendance-section-tracker">
-          <h3>Attendance Tracker</h3>
-          <form id="attendance-form" class="grid-form">
+          <h3>Enter New Attendance Record</h3>
+          <button id="add-attendance-record-btn" type="button">Enter New Attendance</button>
+          <form id="attendance-form" class="grid-form attendance-entry-form hidden">
             <label class="attendance-student-field">Student
               <details id="attendance-student-dropdown" class="multi-select-dropdown">
                 <summary id="attendance-student-summary">Students (0 selected)</summary>
@@ -1374,8 +1375,10 @@
                 <option value="absent">Absent</option>
               </select>
             </label>
-            <button id="attendance-submit-btn" type="submit">Save Attendance</button>
-            <button id="attendance-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
+            <div class="attendance-entry-actions">
+              <button id="attendance-submit-btn" type="submit">Save</button>
+              <button id="attendance-cancel-edit-btn" type="button">Cancel</button>
+            </div>
           </form>
         </div>
         <div id="attendance-enter-records-host"></div>
@@ -1654,6 +1657,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202604250035"></script>
+  <script src="app.js?v=202604250105"></script>
   </body>
   </html>

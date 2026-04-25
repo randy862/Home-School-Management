@@ -1290,6 +1290,7 @@ let legacyBridgeSyncReady = false;
 let selectedStudentId = "";
 let editingInstructorId = "";
 let editingAttendanceId = "";
+let attendanceEntryOpen = false;
 let editingInstructionActualKey = "";
 let editingSharedClassActualKey = "";
 let editingFlexBlockKey = "";
@@ -8077,23 +8078,40 @@ function renderSchoolDayGrades() {
 
 function resetAttendanceEditMode() {
   editingAttendanceId = "";
+  attendanceEntryOpen = false;
   const submitBtn = document.getElementById("attendance-submit-btn");
-  const cancelBtn = document.getElementById("attendance-cancel-edit-btn");
-  if (submitBtn) submitBtn.textContent = "Save Attendance";
-  if (cancelBtn) cancelBtn.classList.add("hidden");
+  const form = document.getElementById("attendance-form");
+  if (submitBtn) submitBtn.textContent = "Save";
+  if (form) form.classList.add("hidden");
   const dateInput = document.getElementById("attendance-date");
   if (dateInput) dateInput.value = todayISO();
+  renderAttendanceStudentChecklist([]);
+}
+
+function openNewAttendanceEntry() {
+  editingAttendanceId = "";
+  attendanceEntryOpen = true;
+  const form = document.getElementById("attendance-form");
+  const submitBtn = document.getElementById("attendance-submit-btn");
+  const dateInput = document.getElementById("attendance-date");
+  const statusInput = document.getElementById("attendance-status");
+  if (form) form.classList.remove("hidden");
+  if (submitBtn) submitBtn.textContent = "Save";
+  if (dateInput) dateInput.value = todayISO();
+  if (statusInput) statusInput.value = "present";
   renderAttendanceStudentChecklist([]);
 }
 
 function beginAttendanceEdit(target) {
   if (!target) return;
   editingAttendanceId = target.id;
+  attendanceEntryOpen = true;
+  const form = document.getElementById("attendance-form");
+  if (form) form.classList.remove("hidden");
   renderAttendanceStudentChecklist([target.studentId]);
   document.getElementById("attendance-date").value = target.date;
   document.getElementById("attendance-status").value = target.present ? "present" : "absent";
-  document.getElementById("attendance-submit-btn").textContent = "Update Attendance";
-  document.getElementById("attendance-cancel-edit-btn").classList.remove("hidden");
+  document.getElementById("attendance-submit-btn").textContent = "Save";
 }
 
 function renderTests() {
@@ -14726,6 +14744,18 @@ function bindEvents() {
     });
   }
 
+  const addAttendanceRecordBtn = document.getElementById("add-attendance-record-btn");
+  if (addAttendanceRecordBtn) {
+    addAttendanceRecordBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      if (!visibleStudents().length) {
+        alert("Add at least one student before entering attendance.");
+        return;
+      }
+      openNewAttendanceEntry();
+    });
+  }
+
   document.getElementById("attendance-form").addEventListener("submit", (e) => {
     e.preventDefault();
     if (!ensureAdminAction()) return;
@@ -14754,12 +14784,7 @@ function bindEvents() {
                 const existing = duplicates[0];
                 const shouldEdit = confirm(`An attendance record already exists for ${getStudentName(existing.studentId)} on ${date}. Select OK to edit the existing record instead.`);
                 if (shouldEdit) {
-                  editingAttendanceId = existing.id;
-                  renderAttendanceStudentChecklist([existing.studentId]);
-                  document.getElementById("attendance-date").value = existing.date;
-                  document.getElementById("attendance-status").value = existing.present ? "present" : "absent";
-                  document.getElementById("attendance-submit-btn").textContent = "Update Attendance";
-                  document.getElementById("attendance-cancel-edit-btn").classList.remove("hidden");
+                  beginAttendanceEdit(existing);
                 }
                 return;
               }
@@ -14809,12 +14834,7 @@ function bindEvents() {
           const existing = duplicates[0];
           const shouldEdit = confirm(`An attendance record already exists for ${getStudentName(existing.studentId)} on ${date}. Select OK to edit the existing record instead.`);
           if (shouldEdit) {
-            editingAttendanceId = existing.id;
-            renderAttendanceStudentChecklist([existing.studentId]);
-            document.getElementById("attendance-date").value = existing.date;
-            document.getElementById("attendance-status").value = existing.present ? "present" : "absent";
-            document.getElementById("attendance-submit-btn").textContent = "Update Attendance";
-            document.getElementById("attendance-cancel-edit-btn").classList.remove("hidden");
+            beginAttendanceEdit(existing);
           }
           return;
         }
@@ -16638,12 +16658,14 @@ function renderAll() {
   const planForm = document.getElementById("plan-form");
   const planFilterForm = document.getElementById("plan-filter-form");
   const attendanceForm = document.getElementById("attendance-form");
+  const addAttendanceRecordBtn = document.getElementById("add-attendance-record-btn");
   const addGradeBtn = document.getElementById("add-grade-row-btn");
   const gradeEntryWrap = document.getElementById("grade-entry-wrap");
   const calendarForm = document.getElementById("calendar-form");
   if (planForm) planForm.classList.toggle("hidden", studentMode);
   if (planFilterForm) planFilterForm.classList.toggle("hidden", studentMode);
-  if (attendanceForm) attendanceForm.classList.toggle("hidden", studentMode);
+  if (attendanceForm) attendanceForm.classList.toggle("hidden", studentMode || !attendanceEntryOpen);
+  if (addAttendanceRecordBtn) addAttendanceRecordBtn.classList.toggle("hidden", studentMode);
   if (addGradeBtn) addGradeBtn.classList.toggle("hidden", studentMode);
   if (gradeEntryWrap && studentMode) gradeEntryWrap.classList.add("hidden");
   if (calendarForm) calendarForm.classList.remove("hidden");
