@@ -11440,8 +11440,14 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
 
     function isFixedSectionAnchor(block) {
       return block.type === "instruction"
-        && !!block.courseSectionId
-        && !hasInstructionStartOverride(block.studentId, block.courseId, dateKey);
+        && (!!block.courseSectionId || hasInstructionStartOverride(block.studentId, block.courseId, dateKey));
+    }
+
+    function blockAnchorStart(block) {
+      const plannedStart = Number.isFinite(block.plannedStart) ? block.plannedStart : block.start;
+      if (block.type !== "instruction") return plannedStart;
+      if (!isFixedSectionAnchor(block)) return plannedStart;
+      return effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, plannedStart);
     }
 
     function isFlexibleInstructionCandidate(block) {
@@ -11511,7 +11517,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     const pendingPositionedBlocks = [...positionedBlocks];
     while (pendingPositionedBlocks.length) {
       const block = pendingPositionedBlocks[0];
-      const anchorStart = Number.isFinite(block.plannedStart) ? block.plannedStart : block.start;
+      const anchorStart = blockAnchorStart(block);
       const gapStart = actualCursor == null ? schoolDayStartMinutes : actualCursor;
       if (isFixedSectionAnchor(block) && gapStart < anchorStart) {
         const fitIndex = findInstructionThatFitsGap(pendingPositionedBlocks, gapStart, anchorStart);
