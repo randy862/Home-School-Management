@@ -610,6 +610,21 @@ button:hover {
   box-shadow: 0 12px 24px rgba(85, 101, 124, 0.22);
 }
 
+.danger-btn {
+  background: linear-gradient(135deg, #a64242 0%, #7d2c2c 100%);
+  color: #fff;
+  border: 1px solid transparent;
+  box-shadow: 0 12px 24px rgba(125, 44, 44, 0.2);
+}
+
+button:disabled,
+button:disabled:hover {
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+  opacity: 0.55;
+  transform: none;
+}
+
 .flash {
   margin: 0 0 1rem;
   padding: 0.9rem 1rem;
@@ -834,6 +849,19 @@ button:hover {
 
 .detail-badges-compact {
   margin-bottom: 0;
+}
+
+.tenant-lifecycle-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tenant-lifecycle-copy .detail-copy {
+  margin-top: 0;
+}
+
+.tenant-lifecycle-actions {
+  align-items: center;
 }
 
 .detail-grid {

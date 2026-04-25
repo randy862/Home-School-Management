@@ -105,35 +105,37 @@ The first implemented slice exposes these operations:
 
 Lifecycle operations include a notes field for reason/ticket context. Decommission is intentionally labeled as customer decommissioning, not deletion.
 
+## Tenant Detail Action Panel Slice
+
+The Control tenant detail view now includes a dedicated `Lifecycle Actions` panel. It:
+
+- targets the tenant's current environment, preferring ready/degraded/provisioning/pending before archived environments
+- requires `Manage Operations` permission for live lifecycle actions
+- queues `suspend_tenant`, `resume_tenant`, and `decommission_tenant` through the existing audited environment operation endpoints
+- uses confirmation prompts for suspend/resume
+- requires typing the tenant slug before decommission
+- states that decommission archives access and does not delete tenant data
+- shows disabled placeholders for `Export Tenant Data` and `Purge Tenant Data`
+
+This slice still intentionally does not implement hard delete, schema drop, database drop, or archive generation.
+
 ## Next Implementation Slice
 
 Recommended next session continuation:
 
-1. Add a dedicated tenant detail action panel:
-   - Suspend Access
-   - Resume Access
-   - Decommission Customer
-   - Export Tenant Data
-   - Purge Tenant Data, disabled until supported
-
-2. Add stronger operator confirmations:
-   - decommission requires explicit confirmation
-   - purge requires typing the tenant slug
-   - purge requires Super Admin/full operations permission
-
-3. Add commercial automation:
+1. Add commercial automation:
    - Stripe `past_due` starts a grace-period clock
    - grace-period expiry queues `suspend_tenant`
    - canceled/unpaid beyond retention queues or recommends `decommission_tenant`
    - restored payment queues `resume_tenant`
 
-4. Add archive/export jobs:
+2. Add archive/export jobs:
    - PostgreSQL tenant dump
    - archive checksum
    - retention metadata
    - operator-visible artifact status
 
-5. Add purge jobs:
+3. Add purge jobs:
    - only after archive success or explicit test-tenant bypass
    - drop schema/database
    - keep minimal control-plane record and audit history
@@ -145,4 +147,3 @@ Recommended next session continuation:
 - Never make a tenant routable unless status is `active`.
 - Keep every lifecycle mutation as a queued/audited operation.
 - Treat test-tenant cleanup as a distinct operational path so production customer retention rules stay conservative.
-

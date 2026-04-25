@@ -373,10 +373,15 @@ function renderTenantDetail(tenant) {
       ${renderTenantEnvironmentSummary(tenantEnvironments)}
     </section>
     <section class="history-block">
+      <h4>Lifecycle Actions</h4>
+      ${renderTenantLifecycleActions(tenant, tenantEnvironments)}
+    </section>
+    <section class="history-block">
       <h4>Operator Activity</h4>
       ${renderAuditTrail(tenant.auditEntries || [], "No operator activity recorded for this customer yet.")}
     </section>
   `;
+  bindTenantLifecycleActions(tenant, tenantEnvironments);
 }
 
 function renderTenantSummary(tenants, records) {
@@ -478,6 +483,60 @@ function renderTenantEnvironmentSummary(environments) {
       `).join("")}
     </div>
   `;
+}
+
+function renderTenantLifecycleActions(tenant, environments) {
+  const primaryEnvironment = selectTenantLifecycleEnvironment(environments);
+  const status = String(tenant.status || "").trim().toLowerCase();
+  const canRunLifecycle = canManage("manageOperations") && !!primaryEnvironment;
+  const disabledReason = !primaryEnvironment
+    ? "No environment is attached to this customer yet."
+    : "Manage Operations permission is required.";
+  const disabledAttr = canRunLifecycle ? "" : `disabled title="${escapeHtml(disabledReason)}"`;
+  const suspendDisabled = canRunLifecycle && status !== "suspended" && status !== "decommissioned" ? "" : disabledAttr || 'disabled title="Customer is already suspended or decommissioned."';
+  const resumeDisabled = canRunLifecycle && status === "suspended" ? "" : disabledAttr || 'disabled title="Only suspended customers can be resumed from this panel."';
+  const decommissionDisabled = canRunLifecycle && status !== "decommissioned" ? "" : disabledAttr || 'disabled title="Customer is already decommissioned."';
+  const environmentLabel = primaryEnvironment
+    ? `${primaryEnvironment.displayName || primaryEnvironment.environmentKey || "Environment"} (${formatEnvironmentStatus(primaryEnvironment.status) || "Unknown"})`
+    : "No environment available";
+
+  return `
+    <div class="tenant-lifecycle-panel">
+      <div class="tenant-lifecycle-copy">
+        <p class="detail-copy">Queue audited lifecycle jobs for this customer. Decommission archives access only; it does not delete tenant data.</p>
+        <p class="table-subcopy">Target environment: ${escapeHtml(environmentLabel)}</p>
+      </div>
+      <div class="tenant-lifecycle-actions operator-actions">
+        <button type="button" class="secondary-btn" data-tenant-lifecycle-action="suspend_tenant" ${suspendDisabled}>Suspend Access</button>
+        <button type="button" class="primary-btn" data-tenant-lifecycle-action="resume_tenant" ${resumeDisabled}>Resume Access</button>
+        <button type="button" class="danger-btn" data-tenant-lifecycle-action="decommission_tenant" ${decommissionDisabled}>Decommission Customer</button>
+        <button type="button" class="secondary-btn" disabled title="Export/archive jobs are planned for the next housekeeping slice.">Export Tenant Data</button>
+        <button type="button" class="danger-btn" disabled title="Purge is intentionally unavailable until export/archive guardrails exist.">Purge Tenant Data</button>
+      </div>
+    </div>
+  `;
+}
+
+function selectTenantLifecycleEnvironment(environments) {
+  const sorted = [...environments].sort((a, b) => {
+    const rank = { ready: 0, degraded: 1, provisioning: 2, pending: 3, archived: 4 };
+    return (rank[String(a.status || "").toLowerCase()] ?? 9) - (rank[String(b.status || "").toLowerCase()] ?? 9);
+  });
+  return sorted[0] || null;
+}
+
+function bindTenantLifecycleActions(tenant, environments) {
+  const primaryEnvironment = selectTenantLifecycleEnvironment(environments);
+  document.querySelectorAll("[data-tenant-lifecycle-action]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!primaryEnvironment) {
+        setFlash("error", "No environment is attached to this customer.");
+        return;
+      }
+      const action = button.getAttribute("data-tenant-lifecycle-action");
+      await queueTenantLifecycleAction(tenant, primaryEnvironment, action);
+    });
+  });
 }
 
 function renderCommercialSummary(records, activeSubscriptions, provisioningAttention) {
@@ -1813,6 +1872,48 @@ function buildOperationPath(environmentId, jobType) {
     throw new Error("Choose a valid operation type.");
   }
   return `/api/control/environments/${encodedEnvironmentId}/${operationPath}`;
+}
+
+async function queueTenantLifecycleAction(tenant, environment, jobType) {
+  if (!canManage("manageOperations")) {
+    setFlash("error", "Manage Operations permission is required.");
+    return;
+  }
+  if (!isLifecycleJobType(jobType)) {
+    setFlash("error", "Choose a valid lifecycle action.");
+    return;
+  }
+
+  const actionLabel = formatJobType(jobType);
+  const tenantName = tenant.displayName || tenant.slug || tenant.id;
+  if (jobType === "decommission_tenant") {
+    const typed = window.prompt(`Type ${tenant.slug || tenant.id} to confirm ${actionLabel.toLowerCase()} for ${tenantName}. This archives access but does not delete tenant data.`);
+    if (typed !== (tenant.slug || tenant.id)) {
+      setFlash("info", "Decommission canceled.");
+      return;
+    }
+  } else if (!window.confirm(`Queue ${actionLabel.toLowerCase()} for ${tenantName}?`)) {
+    setFlash("info", "Lifecycle action canceled.");
+    return;
+  }
+
+  const notes = window.prompt("Optional lifecycle notes or ticket reference:", "") || "";
+  setFlash("info", `Queueing ${actionLabel.toLowerCase()}...`);
+  try {
+    const job = await apiFetch(buildOperationPath(environment.id, jobType), {
+      method: "POST",
+      body: JSON.stringify({
+        tenantId: tenant.id,
+        notes: notes.trim(),
+        idempotencyKey: ""
+      })
+    });
+    await refreshData(false);
+    await loadTenantDetail(tenant.id, true);
+    setFlash("success", `${actionLabel} queued as ${job.id}.`);
+  } catch (error) {
+    setFlash("error", error.message);
+  }
 }
 
 function collectUserPermissions() {
