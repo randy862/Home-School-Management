@@ -61,6 +61,27 @@ function mapProvisioningJobEventRow(row) {
   };
 }
 
+function mapTenantDataArchiveRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    tenantId: row.tenantId ?? row.tenant_id ?? null,
+    tenantEnvironmentId: row.tenantEnvironmentId ?? row.tenant_environment_id ?? null,
+    provisioningJobId: row.provisioningJobId ?? row.provisioning_job_id ?? null,
+    archiveType: row.archiveType ?? row.archive_type ?? "internal",
+    status: row.status,
+    databaseHost: row.databaseHost ?? row.database_host ?? null,
+    databaseName: row.databaseName ?? row.database_name ?? null,
+    databaseSchema: row.databaseSchema ?? row.database_schema ?? null,
+    artifactPath: row.artifactPath ?? row.artifact_path ?? null,
+    artifactChecksum: row.artifactChecksum ?? row.artifact_checksum ?? null,
+    notes: row.notes || "",
+    createdByOperatorUserId: row.createdByOperatorUserId ?? row.created_by_operator_user_id ?? null,
+    createdAt: row.createdAt ?? row.created_at ?? null,
+    updatedAt: row.updatedAt ?? row.updated_at ?? null
+  };
+}
+
 function mapOperatorAuditLogRow(row) {
   if (!row) return null;
   return {
@@ -504,7 +525,36 @@ async function getTenantById(id) {
     WHERE t.id = $1
     LIMIT 1
   `, [id]);
-  return result.rows[0] || null;
+  const tenant = result.rows[0] || null;
+  if (!tenant) return null;
+  tenant.dataArchives = await listTenantDataArchivesByTenantId(id);
+  return tenant;
+}
+
+async function listTenantDataArchivesByTenantId(tenantId) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      tenant_id AS "tenantId",
+      tenant_environment_id AS "tenantEnvironmentId",
+      provisioning_job_id AS "provisioningJobId",
+      archive_type AS "archiveType",
+      status,
+      database_host AS "databaseHost",
+      database_name AS "databaseName",
+      database_schema AS "databaseSchema",
+      artifact_path AS "artifactPath",
+      artifact_checksum AS "artifactChecksum",
+      notes,
+      created_by_operator_user_id AS "createdByOperatorUserId",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM tenant_data_archives
+    WHERE tenant_id = $1
+    ORDER BY created_at DESC
+  `, [tenantId]);
+  return result.rows.map(mapTenantDataArchiveRow);
 }
 
 async function createTenant(tenant, context = {}) {
@@ -2182,6 +2232,158 @@ async function completeTenantLifecycleJob(job, environment) {
   }
 }
 
+async function completeArchiveTenantDataJob(job, environment) {
+  const pool = getPostgresPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const environmentResult = await client.query(`
+      SELECT
+        e.id,
+        e.tenant_id AS "tenantId",
+        e.environment_key AS "environmentKey",
+        e.display_name AS "displayName",
+        e.status,
+        e.database_host AS "databaseHost",
+        e.database_name AS "databaseName",
+        e.database_schema AS "databaseSchema",
+        t.slug AS "tenantSlug",
+        t.display_name AS "tenantDisplayName"
+      FROM tenant_environments e
+      JOIN tenants t ON t.id = e.tenant_id
+      WHERE e.id = $1
+      LIMIT 1
+    `, [environment.id]);
+    const current = environmentResult.rows[0];
+    if (!current) {
+      const error = new Error("Environment not found for tenant archive job.");
+      error.code = "environment_not_found";
+      throw error;
+    }
+
+    const archiveId = `tenant-archive-${randomUUID()}`;
+    const archiveResult = await client.query(`
+      INSERT INTO tenant_data_archives (
+        id,
+        tenant_id,
+        tenant_environment_id,
+        provisioning_job_id,
+        archive_type,
+        status,
+        database_host,
+        database_name,
+        database_schema,
+        artifact_path,
+        artifact_checksum,
+        notes,
+        created_by_operator_user_id,
+        created_at,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, 'internal', 'metadata_recorded', $5, $6, $7, NULL, NULL, $8, $9, NOW(), NOW())
+      RETURNING
+        id,
+        tenant_id AS "tenantId",
+        tenant_environment_id AS "tenantEnvironmentId",
+        provisioning_job_id AS "provisioningJobId",
+        archive_type AS "archiveType",
+        status,
+        database_host AS "databaseHost",
+        database_name AS "databaseName",
+        database_schema AS "databaseSchema",
+        artifact_path AS "artifactPath",
+        artifact_checksum AS "artifactChecksum",
+        notes,
+        created_by_operator_user_id AS "createdByOperatorUserId",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+    `, [
+      archiveId,
+      current.tenantId,
+      current.id,
+      job.id,
+      current.databaseHost || null,
+      current.databaseName || null,
+      current.databaseSchema || null,
+      String(job.payload?.notes || "").trim() || null,
+      job.requestedByOperatorUserId || null
+    ]);
+
+    const resultPayload = {
+      archiveId,
+      archiveStatus: "metadata_recorded",
+      archiveType: "internal",
+      tenantId: current.tenantId,
+      tenantSlug: current.tenantSlug,
+      tenantDisplayName: current.tenantDisplayName,
+      tenantEnvironmentId: current.id,
+      environmentKey: current.environmentKey,
+      databaseHost: current.databaseHost || null,
+      databaseName: current.databaseName || null,
+      databaseSchema: current.databaseSchema || null,
+      artifactPath: null,
+      artifactChecksum: null,
+      notes: String(job.payload?.notes || "").trim() || null
+    };
+
+    const completedJobResult = await client.query(`
+      UPDATE provisioning_jobs
+      SET
+        status = 'succeeded',
+        completed_at = NOW(),
+        result_json = $2::jsonb
+      WHERE id = $1
+      RETURNING
+        id,
+        tenant_id AS "tenantId",
+        tenant_environment_id AS "tenantEnvironmentId",
+        job_type AS "jobType",
+        status,
+        requested_by_operator_user_id AS "requestedByOperatorUserId",
+        requested_at AS "requestedAt",
+        started_at AS "startedAt",
+        completed_at AS "completedAt",
+        last_attempt_at AS "lastAttemptAt",
+        next_attempt_at AS "nextAttemptAt",
+        attempt_count AS "attemptCount",
+        max_attempts AS "maxAttempts",
+        retry_of_job_id AS "retryOfJobId",
+        error_code AS "errorCode",
+        error_message AS "errorMessage",
+        idempotency_key AS "idempotencyKey",
+        payload_json AS "payload",
+        result_json AS "result"
+    `, [job.id, JSON.stringify(resultPayload)]);
+
+    await client.query(`
+      INSERT INTO provisioning_job_events (provisioning_job_id, event_type, message, details_json)
+      VALUES ($1, 'succeeded', 'Internal tenant archive metadata recorded', $2::jsonb)
+    `, [job.id, JSON.stringify(resultPayload)]);
+
+    await client.query(`
+      INSERT INTO operator_audit_log (operator_user_id, action_type, target_type, target_id, tenant_id, details_json)
+      VALUES ($1, 'archive_tenant_data', 'tenant_data_archive', $2, $3, $4::jsonb)
+    `, [
+      job.requestedByOperatorUserId || null,
+      archiveId,
+      current.tenantId,
+      JSON.stringify(resultPayload)
+    ]);
+
+    await client.query("COMMIT");
+    return {
+      job: mapProvisioningJobRow(completedJobResult.rows[0]),
+      archive: mapTenantDataArchiveRow(archiveResult.rows[0])
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function retryProvisioningJob(jobId, options = {}, context = {}) {
   const pool = getPostgresPool();
   const client = await pool.connect();
@@ -2346,6 +2548,7 @@ function stableJson(value) {
 module.exports = {
   appendProvisioningJobEvent,
   claimNextProvisioningJob,
+  completeArchiveTenantDataJob,
   completeDeployReleaseJob,
   completeProvisionEnvironmentJob,
   completeSetupTokenJob,
@@ -2363,6 +2566,7 @@ module.exports = {
   getProvisioningJobById,
   getTenantById,
   getTenantEnvironmentById,
+  listTenantDataArchivesByTenantId,
   listOperators,
   listOperatorAuditLog,
   listSetupSyncCandidates,

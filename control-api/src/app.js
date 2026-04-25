@@ -12,6 +12,7 @@ const {
 const {
   appendProvisioningJobEvent,
   claimNextProvisioningJob,
+  completeArchiveTenantDataJob,
   completeDeployReleaseJob,
   completeProvisionEnvironmentJob,
   completeSetupTokenJob,
@@ -288,6 +289,14 @@ async function executeProvisioningJob(job) {
         throw Object.assign(new Error("Environment not found for tenant lifecycle job."), { code: "environment_not_found" });
       }
       await completeTenantLifecycleJob(job, environment);
+      return;
+    }
+    if (job.jobType === "archive_tenant_data") {
+      const environment = await getTenantEnvironmentById(job.tenantEnvironmentId);
+      if (!environment) {
+        throw Object.assign(new Error("Environment not found for tenant archive job."), { code: "environment_not_found" });
+      }
+      await completeArchiveTenantDataJob(job, environment);
       return;
     }
 

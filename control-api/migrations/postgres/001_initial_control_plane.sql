@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS provisioning_jobs (
   id TEXT PRIMARY KEY,
   tenant_id TEXT NULL REFERENCES tenants(id) ON DELETE SET NULL,
   tenant_environment_id TEXT NULL REFERENCES tenant_environments(id) ON DELETE SET NULL,
-  job_type TEXT NOT NULL CHECK (job_type IN ('provision_environment', 'deploy_release', 'issue_setup_token', 'suspend_tenant', 'resume_tenant', 'decommission_tenant')),
+  job_type TEXT NOT NULL CHECK (job_type IN ('provision_environment', 'deploy_release', 'issue_setup_token', 'suspend_tenant', 'resume_tenant', 'decommission_tenant', 'archive_tenant_data')),
   status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'succeeded', 'failed', 'canceled')),
   requested_by_operator_user_id TEXT NULL REFERENCES operator_users(id) ON DELETE SET NULL,
   requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

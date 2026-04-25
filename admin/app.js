@@ -339,6 +339,7 @@ function renderTenantTable(tenants) {
 function renderTenantDetail(tenant) {
   const commercialRecord = findCommercialRecordForTenant(tenant.id);
   const tenantEnvironments = state.environments.filter((environment) => environment.tenantId === tenant.id);
+  const tenantArchives = Array.isArray(tenant.dataArchives) ? tenant.dataArchives : [];
   const contactEmail = getTenantContactEmail(tenant, commercialRecord);
   refs.tenantDetailShell.classList.remove("hidden");
   syncTenantWorkspaceFocus();
@@ -374,7 +375,11 @@ function renderTenantDetail(tenant) {
     </section>
     <section class="history-block">
       <h4>Lifecycle Actions</h4>
-      ${renderTenantLifecycleActions(tenant, tenantEnvironments)}
+      ${renderTenantLifecycleActions(tenant, tenantEnvironments, tenantArchives)}
+    </section>
+    <section class="history-block">
+      <h4>Internal Archives</h4>
+      ${renderTenantDataArchives(tenantArchives)}
     </section>
     <section class="history-block">
       <h4>Operator Activity</h4>
@@ -485,7 +490,7 @@ function renderTenantEnvironmentSummary(environments) {
   `;
 }
 
-function renderTenantLifecycleActions(tenant, environments) {
+function renderTenantLifecycleActions(tenant, environments, archives = []) {
   const primaryEnvironment = selectTenantLifecycleEnvironment(environments);
   const status = String(tenant.status || "").trim().toLowerCase();
   const canRunLifecycle = canManage("manageOperations") && !!primaryEnvironment;
@@ -499,20 +504,54 @@ function renderTenantLifecycleActions(tenant, environments) {
   const environmentLabel = primaryEnvironment
     ? `${primaryEnvironment.displayName || primaryEnvironment.environmentKey || "Environment"} (${formatEnvironmentStatus(primaryEnvironment.status) || "Unknown"})`
     : "No environment available";
+  const latestArchive = archives[0] || null;
 
   return `
     <div class="tenant-lifecycle-panel">
       <div class="tenant-lifecycle-copy">
         <p class="detail-copy">Queue audited lifecycle jobs for this customer. Decommission archives access only; it does not delete tenant data.</p>
         <p class="table-subcopy">Target environment: ${escapeHtml(environmentLabel)}</p>
+        <p class="table-subcopy">Latest internal archive: ${escapeHtml(latestArchive ? `${formatArchiveStatus(latestArchive.status)} on ${formatDateTime(latestArchive.createdAt)}` : "None recorded")}</p>
       </div>
       <div class="tenant-lifecycle-actions operator-actions">
         <button type="button" class="secondary-btn" data-tenant-lifecycle-action="suspend_tenant" ${suspendDisabled}>Suspend Access</button>
         <button type="button" class="primary-btn" data-tenant-lifecycle-action="resume_tenant" ${resumeDisabled}>Resume Access</button>
         <button type="button" class="danger-btn" data-tenant-lifecycle-action="decommission_tenant" ${decommissionDisabled}>Decommission Customer</button>
-        <button type="button" class="secondary-btn" disabled title="Export/archive jobs are planned for the next housekeeping slice.">Export Tenant Data</button>
+        <button type="button" class="secondary-btn" data-tenant-lifecycle-action="archive_tenant_data" ${canRunLifecycle ? "" : disabledAttr}>Record Internal Archive</button>
         <button type="button" class="danger-btn" disabled title="Purge is intentionally unavailable until export/archive guardrails exist.">Purge Tenant Data</button>
       </div>
+    </div>
+  `;
+}
+
+function renderTenantDataArchives(archives) {
+  if (!archives.length) {
+    return '<div class="empty-state">No internal archive records exist for this customer yet.</div>';
+  }
+  return `
+    <div class="table-shell">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Database Target</th>
+            <th>Artifact</th>
+            <th>Created</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${archives.map((archive) => `
+            <tr>
+              <td data-label="Status">${renderStatusTag(archive.status || "metadata_recorded", "job", formatArchiveStatus(archive.status))}</td>
+              <td data-label="Database Target">${escapeHtml([archive.databaseHost, archive.databaseName, archive.databaseSchema].filter(Boolean).join(" / ") || "Not recorded")}</td>
+              <td data-label="Artifact">${escapeHtml(archive.artifactPath || "Metadata only")}</td>
+              <td data-label="Created">${escapeHtml(formatDateTime(archive.createdAt) || "Not recorded")}</td>
+              <td data-label="Notes">${escapeHtml(archive.notes || "None")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
     </div>
   `;
 }
@@ -1854,7 +1893,7 @@ function syncJobFormMode() {
 }
 
 function isLifecycleJobType(jobType) {
-  return ["suspend_tenant", "resume_tenant", "decommission_tenant"].includes(String(jobType || "").trim());
+  return ["suspend_tenant", "resume_tenant", "decommission_tenant", "archive_tenant_data"].includes(String(jobType || "").trim());
 }
 
 function buildOperationPath(environmentId, jobType) {
@@ -1865,7 +1904,8 @@ function buildOperationPath(environmentId, jobType) {
     issue_setup_token: "setup-token",
     suspend_tenant: "suspend",
     resume_tenant: "resume",
-    decommission_tenant: "decommission"
+    decommission_tenant: "decommission",
+    archive_tenant_data: "archive-data"
   };
   const operationPath = operationPaths[jobType];
   if (!operationPath) {
@@ -1890,6 +1930,11 @@ async function queueTenantLifecycleAction(tenant, environment, jobType) {
     const typed = window.prompt(`Type ${tenant.slug || tenant.id} to confirm ${actionLabel.toLowerCase()} for ${tenantName}. This archives access but does not delete tenant data.`);
     if (typed !== (tenant.slug || tenant.id)) {
       setFlash("info", "Decommission canceled.");
+      return;
+    }
+  } else if (jobType === "archive_tenant_data") {
+    if (!window.confirm(`Record internal archive metadata for ${tenantName}? This does not create a customer export and does not purge data.`)) {
+      setFlash("info", "Archive action canceled.");
       return;
     }
   } else if (!window.confirm(`Queue ${actionLabel.toLowerCase()} for ${tenantName}?`)) {
@@ -2424,7 +2469,16 @@ function formatJobType(value) {
   if (normalized === "suspend_tenant") return "Suspend Customer Access";
   if (normalized === "resume_tenant") return "Resume Customer Access";
   if (normalized === "decommission_tenant") return "Decommission Customer";
+  if (normalized === "archive_tenant_data") return "Record Internal Archive";
   return startCase(value || "job");
+}
+
+function formatArchiveStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "metadata_recorded") return "Metadata Recorded";
+  if (normalized === "exported") return "Exported";
+  if (normalized === "failed") return "Failed";
+  return startCase(value || "unknown");
 }
 
 function formatCustomerDisplayName(value) {

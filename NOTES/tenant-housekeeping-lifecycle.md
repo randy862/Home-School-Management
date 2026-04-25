@@ -119,6 +119,25 @@ The Control tenant detail view now includes a dedicated `Lifecycle Actions` pane
 
 This slice still intentionally does not implement hard delete, schema drop, database drop, or archive generation.
 
+## Internal Archive Metadata Slice
+
+The control plane now has the first internal archive job path:
+
+- new job type: `archive_tenant_data`
+- new endpoint: `POST /api/control/environments/:id/archive-data`
+- new table: `tenant_data_archives`
+- Control tenant detail displays `Internal Archives`
+- tenant detail can queue `Record Internal Archive`
+
+This slice records the tenant environment database target and audit/job metadata. It is intentionally metadata-only:
+
+- it does not run `pg_dump`
+- it does not create an encrypted artifact
+- it does not make purge safe for real customers
+- it does not create the paid customer export package
+
+Until artifact generation exists, archive status `metadata_recorded` should be treated as planning/traceability, not as a recoverable backup.
+
 ## Next Implementation Slice
 
 Recommended next session continuation:
@@ -129,8 +148,9 @@ Recommended next session continuation:
    - canceled/unpaid beyond retention queues or recommends `decommission_tenant`
    - restored payment queues `resume_tenant`
 
-2. Add archive/export jobs:
+2. Add real archive artifact generation:
    - PostgreSQL tenant dump
+   - encrypted artifact storage
    - archive checksum
    - retention metadata
    - operator-visible artifact status

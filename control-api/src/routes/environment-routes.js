@@ -126,6 +126,19 @@ function registerEnvironmentRoutes(app, deps) {
     }
   });
 
+  app.post("/api/control/environments/:id/archive-data", async (req, res) => {
+    if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
+
+    try {
+      const job = await queueProvisioningJob(normalizeArchiveJobPayload(req.body, req.params.id), {
+        operatorUserId: req.auth.user.id
+      });
+      res.status(201).json(job);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/control/environments/:id/sync-setup", async (req, res) => {
     if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
@@ -320,6 +333,32 @@ function normalizeLifecycleJobPayload(input, tenantEnvironmentId, jobType, messa
     idempotencyKey: idempotencyKey || null,
     maxAttempts,
     message,
+    payload: {
+      notes
+    }
+  };
+}
+
+function normalizeArchiveJobPayload(input, tenantEnvironmentId) {
+  const tenantId = String(input?.tenantId || "").trim() || null;
+  const idempotencyKey = String(input?.idempotencyKey || "").trim();
+  const maxAttempts = normalizeMaxAttempts(input?.maxAttempts);
+  const notes = String(input?.notes || "").trim();
+
+  if (!tenantEnvironmentId) {
+    const error = new Error("Environment id is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    id: `job-${randomUUID()}`,
+    tenantId,
+    tenantEnvironmentId,
+    jobType: "archive_tenant_data",
+    idempotencyKey: idempotencyKey || null,
+    maxAttempts,
+    message: "Internal tenant archive queued",
     payload: {
       notes
     }
