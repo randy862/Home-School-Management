@@ -11461,12 +11461,11 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     function findInstructionThatFitsGap(pendingBlocks, gapStart, gapEnd) {
       const gapMinutes = gapEnd - gapStart;
       if (gapMinutes <= 0) return -1;
-      const minimumHandoffMinutes = 5;
       return pendingBlocks.findIndex((candidate, index) => {
         if (index === 0 || !isFlexibleInstructionCandidate(candidate)) return false;
         const duration = blockActualDuration(candidate);
         const candidateEnd = gapStart + duration;
-        const requiredEnd = candidateEnd + minimumHandoffMinutes;
+        const requiredEnd = candidateEnd + minutesBetweenClasses;
         if (requiredEnd > gapEnd) return false;
         return !nextBlockedSectionWindow(fixedSectionWindows, gapStart, candidateEnd, candidate.courseId);
       });
