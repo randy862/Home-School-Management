@@ -2889,11 +2889,6 @@ td {
   max-width: 140px;
 }
 
-#course-resource-capacity {
-  width: 100%;
-  max-width: 170px;
-}
-
 .course-form-note {
   grid-column: 1 / -1;
   margin: -0.1rem 0 0;
@@ -3374,8 +3369,7 @@ td {
     max-width: none;
   }
 
-  #course-hours,
-  #course-resource-capacity {
+  #course-hours {
     max-width: none;
   }
 

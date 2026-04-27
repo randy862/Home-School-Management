@@ -562,11 +562,11 @@ function normalizeCourseResourceCapacity(value, legacyExclusive = false) {
 }
 
 function courseResourceCapacity(course) {
-  return normalizeCourseResourceCapacity(course?.resourceCapacity, !!course?.exclusiveResource);
+  return null;
 }
 
 function courseResourceGroup(course) {
-  return String(course?.resourceGroup || "").trim();
+  return "";
 }
 
 function courseResourceKey(course) {
@@ -7019,8 +7019,8 @@ function renderCourses() {
   renderCourseMaterialsDraft();
   if (!tableBody) return;
   const rows = state.courses
-    .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td>${escapeHtml(formatCourseResourceSummary(c))}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
-  rowOrEmpty(tableBody, rows, "No courses added yet.", 6);
+    .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
+  rowOrEmpty(tableBody, rows, "No courses added yet.", 5);
   renderCourseSections();
   renderManagementCoursesSectionVisibility();
 }
@@ -12505,8 +12505,6 @@ function beginCourseEdit(courseId) {
   document.getElementById("course-subject").value = course.subjectId;
   document.getElementById("course-instructor").value = course.instructorId || "";
   document.getElementById("course-hours").value = String(Number(course.hoursPerDay));
-  document.getElementById("course-resource-group").value = courseResourceGroup(course);
-  document.getElementById("course-resource-capacity").value = courseResourceCapacity(course) == null ? "" : String(courseResourceCapacity(course));
   fillCourseMaterialFields(course.materials || course.material);
   renderCourses();
 }
@@ -12517,10 +12515,6 @@ function cancelCourseEdit() {
   document.getElementById("course-form").reset();
   const instructorInput = document.getElementById("course-instructor");
   if (instructorInput) instructorInput.value = "";
-  const resourceGroupInput = document.getElementById("course-resource-group");
-  if (resourceGroupInput) resourceGroupInput.value = "";
-  const resourceCapacityInput = document.getElementById("course-resource-capacity");
-  if (resourceCapacityInput) resourceCapacityInput.value = "";
   fillCourseMaterialFields();
   renderSelects();
   renderCourses();
@@ -12532,10 +12526,6 @@ function beginCourseCreate() {
   document.getElementById("course-form").reset();
   const instructorInput = document.getElementById("course-instructor");
   if (instructorInput) instructorInput.value = "";
-  const resourceGroupInput = document.getElementById("course-resource-group");
-  if (resourceGroupInput) resourceGroupInput.value = "";
-  const resourceCapacityInput = document.getElementById("course-resource-capacity");
-  if (resourceCapacityInput) resourceCapacityInput.value = "";
   fillCourseMaterialFields();
   renderSelects();
   renderCourses();
@@ -13499,15 +13489,10 @@ function bindEvents() {
     const subjectId = document.getElementById("course-subject").value;
     const instructorId = document.getElementById("course-instructor").value.trim();
     const hoursPerDay = Number(document.getElementById("course-hours").value);
-    const resourceGroup = document.getElementById("course-resource-group").value.trim();
-    const resourceCapacityRaw = document.getElementById("course-resource-capacity").value;
-    const resourceCapacity = normalizeCourseResourceCapacity(resourceCapacityRaw, false);
-    const exclusiveResource = resourceCapacity === 1;
     const materials = readCourseMaterialFields();
     if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) { alert("Provide course name, subject, and hours/day."); return; }
-    if (resourceCapacityRaw !== "" && resourceCapacity == null) { alert("Concurrent Capacity must be a whole number greater than 0."); return; }
     if (materials.some((material) => material.type === "other" && !material.other)) { alert("Provide details when Material Type is Other."); return; }
-    const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource, resourceGroup, resourceCapacity, materials };
+    const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource: false, resourceGroup: "", resourceCapacity: null, materials };
     if (hostedModeEnabled) {
       (async () => {
         try {
@@ -13520,8 +13505,6 @@ function bindEvents() {
           courseFormOpen = false;
           e.target.reset();
           document.getElementById("course-instructor").value = "";
-          document.getElementById("course-resource-group").value = "";
-          document.getElementById("course-resource-capacity").value = "";
           fillCourseMaterialFields();
           await refreshHostedCourses();
           renderAll();
@@ -13540,8 +13523,6 @@ function bindEvents() {
     courseFormOpen = false;
     e.target.reset();
     document.getElementById("course-instructor").value = "";
-    document.getElementById("course-resource-group").value = "";
-    document.getElementById("course-resource-capacity").value = "";
     fillCourseMaterialFields();
     saveState();
     renderAll();
