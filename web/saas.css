@@ -317,6 +317,7 @@ h3 {
   color: var(--text);
   font-size: clamp(1.15rem, 2vw, 1.45rem);
   font-weight: 700;
+  line-height: 1.16;
   letter-spacing: -0.02em;
 }
 
