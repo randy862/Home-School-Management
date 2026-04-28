@@ -23,6 +23,6 @@ UPDATE commercial_plans
 SET
   name = 'Co-op Pro',
   description = 'Hosted access for co-ops and larger programs with a monthly base plus per-student overage after eleven billable students.',
-  feature_summary_json = '["11 students included","$0.99 per billable student above 11","Add students as needed","Full grades, attendance, and reports","Great for organized group instruction","Historical records preserved"]'::jsonb,
+  feature_summary_json = '["11 students included","$0.99 per billable student above 11","Performance, compliance, and execution analytics","Add students as needed","Full grades, attendance, and reports","Great for organized group instruction","Historical records preserved"]'::jsonb,
   updated_at = NOW()
 WHERE code = 'large_monthly';

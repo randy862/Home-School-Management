@@ -126,7 +126,7 @@ VALUES
     TRUE,
     TRUE,
     30,
-    '["11 students included","$0.99 per billable student above 11","Add students as needed","Full grades, attendance, and reports","Great for organized group instruction","Historical records preserved"]'::jsonb,
+    '["11 students included","$0.99 per billable student above 11","Performance, compliance, and execution analytics","Add students as needed","Full grades, attendance, and reports","Great for organized group instruction","Historical records preserved"]'::jsonb,
     '{"includedBillableStudents":11,"perStudentOverageCents":99,"allowsOverage":true,"dormantBasePricePercentage":25}'::jsonb,
     NOW(),
     NOW()
