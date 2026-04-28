@@ -710,35 +710,40 @@ h3 {
 
 .summary-card {
   display: grid;
-  gap: 0.68rem;
+  gap: 0.58rem;
 }
 
 .summary-message-block {
   display: grid;
-  gap: 0.26rem;
+  gap: 0.12rem;
 }
 
-.summary-message-block h3,
-.summary-message-title {
-  margin-bottom: 0;
+.summary-card .summary-message-block h3,
+.summary-card .summary-message-block .summary-message-title {
+  margin: 0;
   color: var(--text);
-  font-size: 1.08rem;
+  font-size: 1.02rem;
   font-weight: 800;
   line-height: 1.14;
 }
 
-.summary-message-block p {
-  margin-bottom: 0;
-  font-size: 0.92rem;
-  line-height: 1.34;
+.summary-card .summary-message-block p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.28;
 }
 
-.summary-message-block ul {
+.summary-card .summary-message-block ul {
   margin: 0;
   padding-left: 1.05rem;
   color: var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.36;
+  font-size: 0.88rem;
+  line-height: 1.3;
+}
+
+.summary-card .summary-message-block li {
+  margin: 0;
 }
 
 .form-block + .form-block {
