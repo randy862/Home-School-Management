@@ -206,9 +206,9 @@
    - [x] Add the first lightweight billing/activity history section to the tenant account view.
    - [x] Add tenant self-service reactivation plus dormant-aware account-option button states so dormant tenants can make the account active again.
    - [x] Display a support-friendly `Site ID` in tenant account settings using the canonical tenant identifier.
-   - [x] Add tenant-facing `Valedictorian` usage and overage messaging in `Account` and `Upgrade Subscription` so the plan clearly reads as `10 included + automatic $0.99/student overage`.
+   - [x] Add tenant-facing `Valedictorian` usage and overage messaging in `Account` and `Upgrade Subscription` so the plan reads from the configured included-student and overage policy.
    - [x] Sync `Valedictorian` overage student counts into Stripe from tenant billable-count refreshes using a recurring overage subscription item/quantity model.
-   - [x] Run the staged `Valedictorian` overage proof on `pj-cool`, wire a dedicated staged Stripe overage `price_...` id for `large_monthly`, and confirm Stripe subscription plus invoice-preview behavior for `11` billable / `1` overage student.
+   - [x] Run the staged `Valedictorian` overage proof on `pj-cool`, wire a dedicated staged Stripe overage `price_...` id for `large_monthly`, and confirm Stripe subscription plus invoice-preview behavior for `12` billable / `1` overage student.
    - [ ] Update `Valedictorian` pricing to `$15.99/month`, `11` included billable students, and `$0.99` per billable student above `11`; use `NOTES/valedictorian-pricing-change-plan.md` as the implementation and rollout checklist.
    - [x] Expose existing Control lifecycle jobs (`suspend_tenant`, `resume_tenant`, `decommission_tenant`) through the operator `Queue Operation` form and document the tenant housekeeping model in `NOTES/tenant-housekeeping-lifecycle.md`.
    - [x] Add a dedicated tenant detail lifecycle action panel with stronger confirmation UX for suspend/resume/decommission and disabled placeholders for export/purge.

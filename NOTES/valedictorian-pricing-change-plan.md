@@ -2,7 +2,7 @@
 
 Date: 2026-04-27
 Owner: Product / Platform
-Status: Planned
+Status: Repo-side implementation prepared; live Stripe and live database rollout still pending operator confirmation
 
 ## Target Change
 
@@ -13,11 +13,11 @@ Update the `Valedictorian` plan, internal code `large_monthly`, to:
 - overage: `$0.99` per billable student above `11`
 - overage behavior remains automatic recurring usage via the existing overage subscription item model
 
-This plan is intentionally documentation-only. Do not change live Stripe or database pricing until the rollout steps below are executed together.
+The repo-side implementation has been prepared. Do not change live Stripe or live database pricing until the Stripe price ID rollout step is confirmed and executed.
 
 ## Current Known State
 
-Current repo policy and staged behavior still describe `Valedictorian` as:
+Prior repo policy and staged behavior described `Valedictorian` as:
 
 - `$14.99/month`
 - `10 included billable students`
@@ -25,16 +25,16 @@ Current repo policy and staged behavior still describe `Valedictorian` as:
 
 Known references:
 
-- `control-api/migrations/postgres/005_subscription_billing_policy.sql`
-- `NOTES/subscription-billing-policy.md`
-- `WORKPLAN.md`
-- `NOTES/stripe-staged-rollout.md`
-- public plan API data rendered by `web/saas.js`
+- clean-database seed policy in `control-api/migrations/postgres/005_subscription_billing_policy.sql`
+- forward catalog migration in `control-api/migrations/postgres/008_valedictorian_pricing_update.sql`
+- policy documentation in `NOTES/subscription-billing-policy.md`
+- rollout documentation in `NOTES/stripe-staged-rollout.md`
+- customer-facing plan API data rendered by `web/saas.js`
 - tenant account/upgrade messaging rendered by `web/app.js`
-- control-plane commercial plan records in PostgreSQL table `commercial_plans`
-- customer subscription snapshots in PostgreSQL table `customer_subscriptions`
-- Stripe recurring base price for `large_monthly`
-- Stripe recurring overage price or dynamic overage price configuration
+- live control-plane commercial plan records in PostgreSQL table `commercial_plans`
+- live customer subscription snapshots in PostgreSQL table `customer_subscriptions`
+- live Stripe recurring base price for `large_monthly`
+- live Stripe recurring overage price or dynamic overage price configuration
 
 ## Implementation Surfaces
 
@@ -45,7 +45,7 @@ Update documentation so future sessions do not reintroduce the old numbers:
 - `NOTES/subscription-billing-policy.md`
   - change Large/Valedictorian base price from `$14.99` to `$15.99`
   - change included students from `10` to `11`
-  - change overage text from `over 10` to `above 11`
+  - change overage text from `above 11` to `above 11`
   - update dormant examples because dormant is based on base subscription price
 - `NOTES/stripe-staged-rollout.md`
   - add a note that `large_monthly` must map to the new `$15.99` Stripe recurring base price
@@ -275,4 +275,3 @@ Minimum staged checks:
 - Should existing production customers ever be grandfathered on the old `$14.99 / 10 included` plan, or should all active Valedictorian subscriptions move at the next billing period?
 - Should the public checkout radio label become API-driven so static labels cannot drift from the pricing cards?
 - Should plan price ids be managed through an operator UI/config table update flow instead of manual SQL?
-

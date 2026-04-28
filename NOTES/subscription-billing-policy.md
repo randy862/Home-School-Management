@@ -32,8 +32,8 @@ The first recommended public monthly plans are:
   - price: `$14.99/month`
   - included billable students: `4-10`
 - `Large`
-  - price: `$14.99/month` base
-  - overage: `$0.99` per billable student over `10`
+  - price: `$15.99/month` base
+  - overage: `$0.99` per billable student above `11`
 
 ### Billing Unit
 
@@ -122,7 +122,7 @@ Interpretation for the first release:
 
 - `Starter`: `25%` of `$9.99`
 - `Growth`: `25%` of `$14.99`
-- `Large`: `25%` of the normal monthly base price only
+- `Large`: `25%` of the `$15.99` monthly base price only
 
 Recommended first-release rule for `Large`:
 

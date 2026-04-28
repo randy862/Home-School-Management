@@ -25,6 +25,8 @@ This rollout does **not** complete every later billing feature. Dormant billing 
 
 These internal codes must remain the keys used when loading Stripe `price_...` IDs into `commercial_plans`.
 
+Current Valedictorian target pricing is `$15.99/month`, `11` included billable students, and `$0.99` per billable student above `11`. Because Stripe prices are immutable, `large_monthly` must be mapped to a newly-created `$15.99` recurring monthly Stripe base price before the live database plan record is reconciled.
+
 ## Step 1. Deploy Repo Updates
 
 Deploy the current repo changes to staging before loading Stripe secrets:
