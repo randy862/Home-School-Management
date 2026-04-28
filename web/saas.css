@@ -502,6 +502,11 @@ h3 {
   max-width: 68ch;
 }
 
+.pricing-section .section-heading p:not(.eyebrow),
+.subscribe-section .section-heading p:not(.eyebrow) {
+  max-width: none;
+}
+
 .feature-grid,
 .story-grid,
 .pricing-grid,
@@ -711,11 +716,15 @@ h3 {
 .summary-card {
   display: grid;
   gap: 0.58rem;
+  align-content: start;
+  align-items: start;
 }
 
 .summary-message-block {
   display: grid;
   gap: 0.12rem;
+  align-content: start;
+  align-items: start;
 }
 
 .summary-card .summary-message-block h3,
