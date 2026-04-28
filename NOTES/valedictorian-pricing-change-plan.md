@@ -26,6 +26,16 @@ Completed on 2026-04-28:
 - updated the Stripe test overage item quantity to `2`
 - verified `GET /control-api/api/public/plans` returns the new Valedictorian price, limits, feature summary, and Stripe price mapping
 - verified Stripe subscription items show `$15.99 x 1` plus `$0.99 x 2`
+- completed a fresh public SaaS test signup for `valedictorian.navigrader.com`
+- verified Stripe Checkout completed successfully for the new Valedictorian tenant
+- verified automated provisioning completed successfully
+- verified login to the new tenant succeeds
+- verified tenant Account subscription details show `$15.99/month`, `11` included billable students, and `$0.99` per-student overage policy
+- verified Control Commercial Account Details show the same plan, included-student, and overage policy
+
+Remaining later proof:
+
+- create more than `11` active/billable students in a Valedictorian tenant and verify tenant Account, Control, and Stripe overage quantity update to match the overage count
 
 ## Current Known State
 
