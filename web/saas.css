@@ -715,14 +715,14 @@ h3 {
 
 .summary-card {
   display: grid;
-  gap: 0.58rem;
+  gap: 0.72rem;
   align-content: start;
   align-items: start;
 }
 
 .summary-message-block {
   display: grid;
-  gap: 0.12rem;
+  gap: 0.16rem;
   align-content: start;
   align-items: start;
 }
@@ -731,7 +731,7 @@ h3 {
 .summary-card .summary-message-block .summary-message-title {
   margin: 0;
   color: var(--text);
-  font-size: 1.02rem;
+  font-size: 1.14rem;
   font-weight: 800;
   line-height: 1.14;
 }
@@ -739,16 +739,16 @@ h3 {
 .summary-card .summary-message-block p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.88rem;
-  line-height: 1.28;
+  font-size: 0.98rem;
+  line-height: 1.34;
 }
 
 .summary-card .summary-message-block ul {
   margin: 0;
   padding-left: 1.05rem;
   color: var(--muted);
-  font-size: 0.88rem;
-  line-height: 1.3;
+  font-size: 0.98rem;
+  line-height: 1.38;
 }
 
 .summary-card .summary-message-block li {
