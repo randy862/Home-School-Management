@@ -2,7 +2,7 @@
 
 Date: 2026-04-27
 Owner: Product / Platform
-Status: Repo-side implementation prepared; live Stripe and live database rollout still pending operator confirmation
+Status: Completed in Stripe test mode and staged control database on 2026-04-28
 
 ## Target Change
 
@@ -13,7 +13,19 @@ Update the `Valedictorian` plan, internal code `large_monthly`, to:
 - overage: `$0.99` per billable student above `11`
 - overage behavior remains automatic recurring usage via the existing overage subscription item model
 
-The repo-side implementation has been prepared. Do not change live Stripe or live database pricing until the Stripe price ID rollout step is confirmed and executed.
+The repo-side implementation has been prepared and the staged/test rollout has been completed. Production-mode Stripe pricing remains a separate future rollout if/when live mode is enabled.
+
+## Completed Test-Mode Rollout
+
+Completed on 2026-04-28:
+
+- created a new Stripe test recurring monthly base price for `Valedictorian` at `$15.99`
+- updated the staged control-plane `large_monthly` plan catalog to `$15.99`, `11` included billable students, and `$0.99` per billable student above `11`
+- updated the active staged Valedictorian subscription snapshot from `10` included / `3` overage to `11` included / `2` overage for the current `13` billable students
+- updated the Stripe test subscription base item to the new `$15.99` price
+- updated the Stripe test overage item quantity to `2`
+- verified `GET /control-api/api/public/plans` returns the new Valedictorian price, limits, feature summary, and Stripe price mapping
+- verified Stripe subscription items show `$15.99 x 1` plus `$0.99 x 2`
 
 ## Current Known State
 

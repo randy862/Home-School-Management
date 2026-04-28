@@ -209,7 +209,7 @@
    - [x] Add tenant-facing `Valedictorian` usage and overage messaging in `Account` and `Upgrade Subscription` so the plan reads from the configured included-student and overage policy.
    - [x] Sync `Valedictorian` overage student counts into Stripe from tenant billable-count refreshes using a recurring overage subscription item/quantity model.
    - [x] Run the staged `Valedictorian` overage proof on `pj-cool`, wire a dedicated staged Stripe overage `price_...` id for `large_monthly`, and confirm Stripe subscription plus invoice-preview behavior for `12` billable / `1` overage student.
-   - [ ] Update `Valedictorian` pricing to `$15.99/month`, `11` included billable students, and `$0.99` per billable student above `11`; use `NOTES/valedictorian-pricing-change-plan.md` as the implementation and rollout checklist.
+   - [x] Update `Valedictorian` pricing to `$15.99/month`, `11` included billable students, and `$0.99` per billable student above `11`; use `NOTES/valedictorian-pricing-change-plan.md` as the implementation and rollout checklist.
    - [x] Expose existing Control lifecycle jobs (`suspend_tenant`, `resume_tenant`, `decommission_tenant`) through the operator `Queue Operation` form and document the tenant housekeeping model in `NOTES/tenant-housekeeping-lifecycle.md`.
    - [x] Add a dedicated tenant detail lifecycle action panel with stronger confirmation UX for suspend/resume/decommission and disabled placeholders for export/purge.
    - [x] Add first internal tenant archive job metadata and Control archive visibility without enabling destructive purge.
