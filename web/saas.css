@@ -646,6 +646,10 @@ h3 {
   gap: 0.65rem;
 }
 
+.pricing-card h3 {
+  min-height: 2.9em;
+}
+
 .loading-card {
   min-height: 100%;
 }
