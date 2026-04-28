@@ -94,7 +94,7 @@ Current first-release pricing policy:
 
 - `Starter`: `$9.99/month` for `1-3` billable students
 - `Growth`: `$14.99/month` for `4-10` billable students
-- `Large`: `$15.99/month` plus `$0.99` per billable student above `11`
+- `Co-op Pro`: `$15.99/month` plus `$0.99` per billable student above `11`
 
 See `NOTES/subscription-billing-policy.md` for the exact definition of `billable student`.
 

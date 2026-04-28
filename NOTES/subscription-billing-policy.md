@@ -31,7 +31,7 @@ The first recommended public monthly plans are:
 - `Growth`
   - price: `$14.99/month`
   - included billable students: `4-10`
-- `Large`
+- `Co-op Pro`
   - price: `$15.99/month` base
   - overage: `$0.99` per billable student above `11`
 
@@ -122,9 +122,9 @@ Interpretation for the first release:
 
 - `Starter`: `25%` of `$9.99`
 - `Growth`: `25%` of `$14.99`
-- `Large`: `25%` of the `$15.99` monthly base price only
+- `Co-op Pro`: `25%` of the `$15.99` monthly base price only
 
-Recommended first-release rule for `Large`:
+Recommended first-release rule for `Co-op Pro`:
 
 - dormant billing does not include per-student overage charges while the tenant is dormant
 

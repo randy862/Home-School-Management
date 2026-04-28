@@ -33,10 +33,10 @@ function escapeHtml(value) {
 
 function getPlanMarketingCopy(planCode) {
   const copyByCode = {
-    starter_monthly: "For a family that wants the full hosted system without extra operational overhead.",
-    growth_monthly: "For families or small learning groups that want more operating room with a more polished academic feel.",
-    large_monthly: "For larger schools that need stronger capacity and a premium, institution-ready hosted footprint.",
-    support_plus_monthly: "For larger schools that need stronger capacity and a premium, institution-ready hosted footprint."
+    starter_monthly: "Best for smaller homeschool families.",
+    growth_monthly: "Best for larger families and small learning groups.",
+    large_monthly: "Best for co-ops and larger programs.",
+    support_plus_monthly: "Best for co-ops and larger programs."
   };
   return copyByCode[planCode] || "Hosted access for the Navigrader Homeschool Records Management platform.";
 }
@@ -60,7 +60,7 @@ function renderPricingCards(plans) {
     const features = Array.isArray(plan.featureSummary) ? plan.featureSummary : [];
     return `
       <article class="pricing-card${featured ? " featured-plan" : ""}">
-        ${featured ? '<p class="featured-badge">Most Practical</p>' : ""}
+        ${featured ? '<p class="featured-badge">Most Popular</p>' : ""}
         <p class="plan-kicker">${escapeHtml(plan.name)}</p>
         <h3>${escapeHtml(getPlanMarketingCopy(plan.code))}</h3>
         <p class="price-line">${escapeHtml(formatPrice(plan.priceCents, plan.currency))}<span>/${escapeHtml(plan.billingInterval)}</span></p>

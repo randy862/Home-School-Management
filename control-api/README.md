@@ -91,8 +91,8 @@ Commercial checkout / public-host environment variables:
 
 Current commercial plan-code mapping:
 - `starter_monthly` -> `Starter`
-- `growth_monthly` -> `Extra Credit`
-- `large_monthly` -> `Valedictorian`
+- `growth_monthly` -> `Growth`
+- `large_monthly` -> `Co-op Pro`
 
 The public-facing names can change without changing the internal plan codes, but the `commercial_plans.stripe_price_id` values must be mapped to those three internal codes correctly.
 

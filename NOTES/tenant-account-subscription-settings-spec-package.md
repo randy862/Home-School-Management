@@ -191,9 +191,9 @@ The tenant-facing upgrade UI should:
 
 Examples:
 
-- Starter tenant can upgrade to `Extra Credit`
-- Extra Credit tenant can upgrade to `Valedictorian`
-- Valedictorian likely has no higher plan in current catalog
+- Starter tenant can upgrade to `Growth`
+- Growth tenant can upgrade to `Co-op Pro`
+- Co-op Pro likely has no higher plan in current catalog
 
 ### Blocked-Write Follow-Through
 

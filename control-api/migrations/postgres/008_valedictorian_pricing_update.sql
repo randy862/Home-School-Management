@@ -1,4 +1,4 @@
--- Updates the Valedictorian catalog policy to $15.99/month with 11 included
+-- Updates the large_monthly catalog policy to $15.99/month with 11 included
 -- billable students and $0.99 per billable student above 11.
 --
 -- This migration intentionally does not change stripe_price_id or existing

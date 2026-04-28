@@ -668,6 +668,14 @@ h3 {
   color: var(--muted);
 }
 
+.pricing-microcopy {
+  margin: 0.95rem 0 0;
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 .featured-plan {
   position: relative;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
