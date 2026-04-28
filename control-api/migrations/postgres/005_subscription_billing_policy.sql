@@ -94,7 +94,7 @@ VALUES
     TRUE,
     TRUE,
     10,
-    '["1-3 students","Grades, attendance, and reports","Scheduling and planning tools","Historical records preserved","Secure online access"]'::jsonb,
+    '["1-3 students","Grades, attendance, and reports","Performance and compliance dashboards","Scheduling and planning tools","Historical records preserved","Secure online access"]'::jsonb,
     '{"includedBillableStudents":3,"perStudentOverageCents":0,"allowsOverage":false,"dormantBasePricePercentage":25}'::jsonb,
     NOW(),
     NOW()
@@ -126,7 +126,7 @@ VALUES
     TRUE,
     TRUE,
     30,
-    '["11 students included","Add students as needed","Full grades, attendance, and reports","Great for organized group instruction","Historical records preserved"]'::jsonb,
+    '["11 students included","$0.99 per billable student above 11","Add students as needed","Full grades, attendance, and reports","Great for organized group instruction","Historical records preserved"]'::jsonb,
     '{"includedBillableStudents":11,"perStudentOverageCents":99,"allowsOverage":true,"dormantBasePricePercentage":25}'::jsonb,
     NOW(),
     NOW()
