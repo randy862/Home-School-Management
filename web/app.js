@@ -6053,7 +6053,8 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
     table { width: 100%; border-collapse: collapse; }
     .report-page table + table { margin-top: 18px; }
     .report-table { table-layout: fixed; }
-    th, td { border: 1px solid #c8d9ea; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th, td { border: 1px solid #c8d9ea; padding: 8px 10px; text-align: center; vertical-align: top; }
+    th:first-child, td:first-child { text-align: left; }
     th { background: #f4f9ff; }
     @media print {
       body { background: #fff; }
@@ -6140,7 +6141,8 @@ function buildPrintableInstructorReportHtml({ range, instructorId = "all" }) {
     .report-meta { margin: 0 0 18px; color: #59718d; }
     table { width: 100%; border-collapse: collapse; }
     .report-page table + table { margin-top: 18px; }
-    th, td { border: 1px solid #c8d9ea; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th, td { border: 1px solid #c8d9ea; padding: 8px 10px; text-align: center; vertical-align: top; }
+    th:first-child, td:first-child { text-align: left; }
     th { background: #f4f9ff; }
     @media print {
       body { background: #fff; }
