@@ -495,7 +495,7 @@ h3 {
 }
 
 .feature-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .joy-section {
@@ -563,6 +563,24 @@ h3 {
 .pricing-card,
 .faq-card {
   padding: 1.1rem 1.1rem 1.2rem;
+}
+
+.feature-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.feature-card h3,
+.feature-card p,
+.feature-card ul {
+  margin-bottom: 0;
+}
+
+.feature-card ul {
+  padding-left: 1.1rem;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .faq-card {
