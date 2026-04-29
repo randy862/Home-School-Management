@@ -332,6 +332,10 @@ h3 {
   letter-spacing: -0.02em;
 }
 
+h1 + .hero-lead-emphasis {
+  margin-top: 0.35rem;
+}
+
 .hero-visual-column {
   grid-column: 2;
   grid-row: 1;
