@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   session_token_hash TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL,
   revoked_at TIMESTAMPTZ NULL
 );

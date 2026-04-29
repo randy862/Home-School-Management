@@ -32,7 +32,9 @@ function createOperatorAuthContextMiddleware(options) {
         return;
       }
 
-      const session = await getOperatorSessionByTokenHash(hashSessionToken(token));
+      const session = await getOperatorSessionByTokenHash(hashSessionToken(token), {
+        idleTimeoutHours: sessionConfig.idleTimeoutHours
+      });
       req.auth = {
         user: session?.user || null,
         session: session || null

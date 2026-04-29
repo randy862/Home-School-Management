@@ -36,14 +36,15 @@ function registerAuthRoutes(app, deps) {
       }
 
       const token = createSessionToken();
-      const expiresAt = new Date(Date.now() + (sessionConfig.ttlHours * 60 * 60 * 1000));
+      const maxAgeSeconds = sessionCookieMaxAgeSeconds(sessionConfig);
+      const expiresAt = new Date(Date.now() + (maxAgeSeconds * 1000));
       await createSession(user.id, hashSessionToken(token), expiresAt);
       await updateLastLogin(user.id);
 
       res.setHeader("Set-Cookie", serializeSessionCookie(sessionConfig.cookieName, token, {
         sameSite: sessionConfig.cookieSameSite,
         secure: sessionConfig.cookieSecure,
-        maxAge: sessionConfig.ttlHours * 60 * 60
+        maxAge: maxAgeSeconds
       }));
       res.json({ user: mapUserSummary(user) });
     } catch (error) {
@@ -84,6 +85,11 @@ function ensurePostgresMode(res, isPostgresMode) {
   if (isPostgresMode) return true;
   res.status(404).json({ error: "Auth endpoints are available only in postgres mode." });
   return false;
+}
+
+function sessionCookieMaxAgeSeconds(sessionConfig) {
+  const hours = Number(sessionConfig.absoluteTtlHours || sessionConfig.ttlHours || 0);
+  return Math.max(1, hours) * 60 * 60;
 }
 
 module.exports = {

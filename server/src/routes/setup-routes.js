@@ -27,7 +27,8 @@ function registerSetupRoutes(app, deps) {
     try {
       const payload = await normalizeSetupPayload(req.body);
       const token = createSessionToken();
-      const expiresAt = new Date(Date.now() + (sessionConfig.ttlHours * 60 * 60 * 1000));
+      const maxAgeSeconds = sessionCookieMaxAgeSeconds(sessionConfig);
+      const expiresAt = new Date(Date.now() + (maxAgeSeconds * 1000));
       const user = await initializeSetup(
         payload.user,
         payload.setupTokenHash,
@@ -38,7 +39,7 @@ function registerSetupRoutes(app, deps) {
       res.setHeader("Set-Cookie", serializeSessionCookie(sessionConfig.cookieName, token, {
         sameSite: sessionConfig.cookieSameSite,
         secure: sessionConfig.cookieSecure,
-        maxAge: sessionConfig.ttlHours * 60 * 60
+        maxAge: maxAgeSeconds
       }));
       res.status(201).json({ user: mapUserSummary(user) });
     } catch (error) {
@@ -101,6 +102,11 @@ function ensureInternalControlPlaneRequest(req, res, internalConfig) {
 
   res.status(503).json({ error: "Internal control-plane access is not configured." });
   return false;
+}
+
+function sessionCookieMaxAgeSeconds(sessionConfig) {
+  const hours = Number(sessionConfig.absoluteTtlHours || sessionConfig.ttlHours || 0);
+  return Math.max(1, hours) * 60 * 60;
 }
 
 async function normalizeSetupPayload(input) {

@@ -208,17 +208,20 @@ async function createBootstrapOperator(user) {
 async function createOperatorSession(operatorUserId, tokenHash, expiresAt) {
   const pool = getPostgresPool();
   await pool.query(`
-    INSERT INTO operator_sessions (operator_user_id, session_token_hash, expires_at)
-    VALUES ($1, $2, $3)
+    INSERT INTO operator_sessions (operator_user_id, session_token_hash, expires_at, last_seen_at)
+    VALUES ($1, $2, $3, NOW())
   `, [operatorUserId, tokenHash, expiresAt]);
 }
 
-async function getOperatorSessionByTokenHash(tokenHash) {
+async function getOperatorSessionByTokenHash(tokenHash, options = {}) {
   const pool = getPostgresPool();
+  const idleTimeoutHours = Number(options.idleTimeoutHours || 0);
   const result = await pool.query(`
     SELECT
       s.id AS session_id,
       s.operator_user_id,
+      s.created_at,
+      s.last_seen_at,
       s.expires_at,
       u.id,
       u.username,
@@ -239,17 +242,40 @@ async function getOperatorSessionByTokenHash(tokenHash) {
     WHERE s.session_token_hash = $1
       AND s.revoked_at IS NULL
       AND s.expires_at > NOW()
+      AND (
+        $2::NUMERIC <= 0
+        OR COALESCE(s.last_seen_at, s.created_at) > NOW() - ($2::TEXT || ' hours')::INTERVAL
+      )
       AND u.is_active = TRUE
     LIMIT 1
-  `, [tokenHash]);
+  `, [tokenHash, idleTimeoutHours]);
 
   const row = result.rows[0];
   if (!row) return null;
 
+  await touchOperatorSessionById(row.session_id);
+
   return {
     sessionId: row.session_id,
+    createdAt: row.created_at,
+    lastSeenAt: row.last_seen_at,
+    expiresAt: row.expires_at,
     user: mapOperatorRow(row)
   };
+}
+
+async function touchOperatorSessionById(sessionId) {
+  const pool = getPostgresPool();
+  await pool.query(`
+    UPDATE operator_sessions
+    SET last_seen_at = NOW()
+    WHERE id = $1
+      AND revoked_at IS NULL
+      AND (
+        last_seen_at IS NULL
+        OR last_seen_at < NOW() - INTERVAL '5 minutes'
+      )
+  `, [sessionId]);
 }
 
 async function revokeOperatorSessionByTokenHash(tokenHash) {

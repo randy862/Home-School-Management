@@ -93,7 +93,9 @@ module.exports = {
     cookieName: process.env.CONTROL_SESSION_COOKIE_NAME || "hsm_operator_session",
     cookieSecure: toBool(process.env.CONTROL_SESSION_COOKIE_SECURE, false),
     cookieSameSite: process.env.CONTROL_SESSION_COOKIE_SAMESITE || "Lax",
-    ttlHours: Number(process.env.CONTROL_SESSION_TTL_HOURS || 12)
+    ttlHours: Number(process.env.CONTROL_SESSION_TTL_HOURS || 12),
+    idleTimeoutHours: Number(process.env.CONTROL_SESSION_IDLE_TIMEOUT_HOURS || 2),
+    absoluteTtlHours: Number(process.env.CONTROL_SESSION_ABSOLUTE_TTL_HOURS || 12)
   },
   stripe: {
     secretKey: String(process.env.STRIPE_SECRET_KEY || "").trim(),

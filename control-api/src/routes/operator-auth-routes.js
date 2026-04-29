@@ -37,14 +37,15 @@ function registerOperatorAuthRoutes(app, deps) {
       const payload = await normalizeBootstrapPayload(req.body);
       const createdUser = await createBootstrapOperator(payload.user);
       const token = createSessionToken();
-      const expiresAt = new Date(Date.now() + (sessionConfig.ttlHours * 60 * 60 * 1000));
+      const maxAgeSeconds = sessionCookieMaxAgeSeconds(sessionConfig);
+      const expiresAt = new Date(Date.now() + (maxAgeSeconds * 1000));
       await createOperatorSession(createdUser.id, hashSessionToken(token), expiresAt);
       await updateOperatorLastLogin(createdUser.id);
 
       res.setHeader("Set-Cookie", serializeSessionCookie(sessionConfig.cookieName, token, {
         sameSite: sessionConfig.cookieSameSite,
         secure: sessionConfig.cookieSecure,
-        maxAge: sessionConfig.ttlHours * 60 * 60
+        maxAge: maxAgeSeconds
       }));
       res.status(201).json({ user: mapOperatorSummary(createdUser) });
     } catch (error) {
@@ -68,14 +69,15 @@ function registerOperatorAuthRoutes(app, deps) {
       }
 
       const token = createSessionToken();
-      const expiresAt = new Date(Date.now() + (sessionConfig.ttlHours * 60 * 60 * 1000));
+      const maxAgeSeconds = sessionCookieMaxAgeSeconds(sessionConfig);
+      const expiresAt = new Date(Date.now() + (maxAgeSeconds * 1000));
       await createOperatorSession(user.id, hashSessionToken(token), expiresAt);
       await updateOperatorLastLogin(user.id);
 
       res.setHeader("Set-Cookie", serializeSessionCookie(sessionConfig.cookieName, token, {
         sameSite: sessionConfig.cookieSameSite,
         secure: sessionConfig.cookieSecure,
-        maxAge: sessionConfig.ttlHours * 60 * 60
+        maxAge: maxAgeSeconds
       }));
       res.json({ user: mapOperatorSummary(user) });
     } catch (error) {
@@ -159,6 +161,11 @@ function registerOperatorAuthRoutes(app, deps) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
+}
+
+function sessionCookieMaxAgeSeconds(sessionConfig) {
+  const hours = Number(sessionConfig.absoluteTtlHours || sessionConfig.ttlHours || 0);
+  return Math.max(1, hours) * 60 * 60;
 }
 
 async function normalizeBootstrapPayload(input) {

@@ -28,7 +28,9 @@ module.exports = {
     cookieName: process.env.SESSION_COOKIE_NAME || "hsm_session",
     cookieSecure: toBool(process.env.SESSION_COOKIE_SECURE, false),
     cookieSameSite: process.env.SESSION_COOKIE_SAMESITE || "Lax",
-    ttlHours: Number(process.env.SESSION_TTL_HOURS || 168)
+    ttlHours: Number(process.env.SESSION_TTL_HOURS || 168),
+    idleTimeoutHours: Number(process.env.SESSION_IDLE_TIMEOUT_HOURS || 4),
+    absoluteTtlHours: Number(process.env.SESSION_ABSOLUTE_TTL_HOURS || 336)
   },
   db: (() => {
     const rawServer = process.env.MSSQL_SERVER || "localhost\\SQLEXPRESS";

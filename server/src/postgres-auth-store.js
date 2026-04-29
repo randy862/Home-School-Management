@@ -213,17 +213,20 @@ async function deleteUser(id) {
 async function createSession(userId, tokenHash, expiresAt) {
   const pool = getPostgresPool();
   await pool.query(`
-    INSERT INTO user_sessions (id, user_id, session_token_hash, expires_at)
-    VALUES (gen_random_uuid(), $1, $2, $3)
+    INSERT INTO user_sessions (id, user_id, session_token_hash, expires_at, last_seen_at)
+    VALUES (gen_random_uuid(), $1, $2, $3, NOW())
   `, [userId, tokenHash, expiresAt]);
 }
 
-async function getSessionByTokenHash(tokenHash) {
+async function getSessionByTokenHash(tokenHash, options = {}) {
   const pool = getPostgresPool();
+  const idleTimeoutHours = Number(options.idleTimeoutHours || 0);
   const result = await pool.query(`
     SELECT
       s.id AS session_id,
       s.user_id,
+      s.created_at,
+      s.last_seen_at,
       s.expires_at,
       u.id,
       u.username,
@@ -243,16 +246,39 @@ async function getSessionByTokenHash(tokenHash) {
     WHERE s.session_token_hash = $1
       AND s.revoked_at IS NULL
       AND s.expires_at > NOW()
+      AND (
+        $2::NUMERIC <= 0
+        OR COALESCE(s.last_seen_at, s.created_at) > NOW() - ($2::TEXT || ' hours')::INTERVAL
+      )
     LIMIT 1
-  `, [tokenHash]);
+  `, [tokenHash, idleTimeoutHours]);
 
   const row = result.rows[0];
   if (!row) return null;
 
+  await touchSessionById(row.session_id);
+
   return {
     sessionId: row.session_id,
+    createdAt: row.created_at,
+    lastSeenAt: row.last_seen_at,
+    expiresAt: row.expires_at,
     user: mapUserRow(row)
   };
+}
+
+async function touchSessionById(sessionId) {
+  const pool = getPostgresPool();
+  await pool.query(`
+    UPDATE user_sessions
+    SET last_seen_at = NOW()
+    WHERE id = $1
+      AND revoked_at IS NULL
+      AND (
+        last_seen_at IS NULL
+        OR last_seen_at < NOW() - INTERVAL '5 minutes'
+      )
+  `, [sessionId]);
 }
 
 async function revokeSessionByTokenHash(tokenHash) {
@@ -425,8 +451,8 @@ async function initializeSetup(user, setupTokenHash, sessionTokenHash, sessionEx
     `, [createdUser.id]);
 
     await client.query(`
-      INSERT INTO user_sessions (id, user_id, session_token_hash, expires_at)
-      VALUES (gen_random_uuid(), $1, $2, $3)
+      INSERT INTO user_sessions (id, user_id, session_token_hash, expires_at, last_seen_at)
+      VALUES (gen_random_uuid(), $1, $2, $3, NOW())
     `, [createdUser.id, sessionTokenHash, sessionExpiresAt]);
 
     await client.query(`

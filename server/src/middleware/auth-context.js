@@ -42,7 +42,9 @@ function createAuthContextMiddleware(options) {
         return;
       }
 
-      const session = await getSessionByTokenHash(hashSessionToken(token));
+      const session = await getSessionByTokenHash(hashSessionToken(token), {
+        idleTimeoutHours: sessionConfig.idleTimeoutHours
+      });
       req.auth = {
         user: session?.user || null,
         session: session || null
