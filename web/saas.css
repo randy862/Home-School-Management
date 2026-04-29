@@ -271,11 +271,16 @@ ol {
 }
 
 h1 {
-  max-width: 13.5ch;
+  max-width: none;
   margin-bottom: 0.8rem;
   font-size: clamp(2.4rem, 4.7vw, 4.25rem);
   line-height: 1;
   letter-spacing: -0.05em;
+}
+
+.hero-title span {
+  display: block;
+  white-space: nowrap;
 }
 
 h2 {
