@@ -100,6 +100,10 @@
 0. Dashboard refinement backlog.
    - [x] Capture a product/design refinement plan for a more polished, meaningful tenant Dashboard in `NOTES/dashboard-refinement-plan.md`.
    - [ ] When ready, start with the Dashboard Overview redesign slice: glanceable Today Snapshot, Student Health, Compliance Confidence, and improved gauge/card styling.
+0. Pre-production commercial security hardening.
+   - [x] Capture the commercial SaaS security hardening plan in `NOTES/commercial-security-hardening-plan.md`.
+   - [ ] Start with the static repo security audit: injection, XSS, CSRF, auth bypass, IDOR, tenant isolation, secrets exposure, and dependency risks.
+   - [ ] Follow with runtime hardening for Apache/TLS, Debian patching, PostgreSQL access control, AWS network boundaries, secrets, monitoring, backups, and incident response.
 1. Complete Session 5 control-plane UI polish and naming cleanup.
    - [x] Review remaining technical labels and replace them with more business-facing language where appropriate.
    - [x] Improve hierarchy, spacing, and detail layout so audit, jobs, lifecycle views, and user management feel cohesive.
