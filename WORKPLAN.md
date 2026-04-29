@@ -97,6 +97,9 @@
 
 ## Active Next Actions
 
+0. Dashboard refinement backlog.
+   - [x] Capture a product/design refinement plan for a more polished, meaningful tenant Dashboard in `NOTES/dashboard-refinement-plan.md`.
+   - [ ] When ready, start with the Dashboard Overview redesign slice: glanceable Today Snapshot, Student Health, Compliance Confidence, and improved gauge/card styling.
 1. Complete Session 5 control-plane UI polish and naming cleanup.
    - [x] Review remaining technical labels and replace them with more business-facing language where appropriate.
    - [x] Improve hierarchy, spacing, and detail layout so audit, jobs, lifecycle views, and user management feel cohesive.
