@@ -503,7 +503,8 @@ h3 {
 }
 
 .pricing-section .section-heading p:not(.eyebrow),
-.subscribe-section .section-heading p:not(.eyebrow) {
+.subscribe-section .section-heading p:not(.eyebrow),
+#features .section-heading p:not(.eyebrow) {
   max-width: none;
 }
 
