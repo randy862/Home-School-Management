@@ -535,6 +535,141 @@ h1 + .hero-lead-emphasis {
 }
 
 .audience-card::before,
+.solution-panel::before,
+.feature-card::before,
+.faq-card::before {
+  display: none;
+}
+
+.card-icon,
+.caption-icon {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  border: 1px solid rgba(172, 188, 211, 0.72);
+  background:
+    linear-gradient(135deg, rgba(62, 123, 250, 0.14), rgba(111, 175, 58, 0.12)),
+    #f8fbff;
+  box-shadow: 0 10px 22px rgba(16, 32, 59, 0.08);
+}
+
+.card-icon img,
+.caption-icon img {
+  display: none;
+}
+
+.card-icon::before,
+.caption-icon::before {
+  content: "";
+  width: 58%;
+  height: 58%;
+  background: currentColor;
+  -webkit-mask: var(--icon-url) center / contain no-repeat;
+  mask: var(--icon-url) center / contain no-repeat;
+}
+
+.audience-card > .card-icon,
+.solution-panel > .card-icon {
+  left: 1.1rem;
+  top: 1rem;
+  width: 2.45rem;
+  height: 2.45rem;
+  border-radius: 15px;
+}
+
+.feature-card > .card-icon {
+  left: 50%;
+  top: 1rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 14px;
+  transform: translateX(-50%);
+}
+
+.faq-card > .card-icon {
+  left: 50%;
+  top: 0.85rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 13px;
+  transform: translateX(-50%);
+}
+
+[data-icon="home"] > .card-icon,
+[data-icon="family"] > .card-icon {
+  --icon-url: url("assets/icons/home.svg");
+  color: var(--accent);
+}
+
+[data-icon="group"] > .card-icon,
+[data-icon="students"] > .card-icon {
+  --icon-url: url("assets/icons/Users.svg");
+  color: var(--accent);
+}
+
+[data-icon="compass"] > .card-icon {
+  --icon-url: url("assets/icons/compass.svg");
+  color: #4f8f25;
+}
+
+[data-icon="calendar"] > .card-icon {
+  --icon-url: url("assets/icons/calendar.svg");
+  color: #2f78d8;
+}
+
+[data-icon="check"] > .card-icon {
+  --icon-url: url("assets/icons/check-circle.svg");
+  color: #4f8f25;
+}
+
+[data-icon="book"] > .card-icon {
+  --icon-url: url("assets/icons/book-open.svg");
+  color: #8057d8;
+}
+
+[data-icon="clock"] > .card-icon {
+  --icon-url: url("assets/icons/clock.svg");
+  color: #db7b36;
+}
+
+[data-icon="report"] > .card-icon {
+  --icon-url: url("assets/icons/reports.svg");
+  color: #2d8ca3;
+}
+
+[data-icon="cloud"] > .card-icon {
+  --icon-url: url("assets/icons/cloud.svg");
+  color: #3e7bfa;
+}
+
+[data-icon="question"] > .card-icon {
+  --icon-url: url("assets/icons/help-circle.svg");
+  color: #4f74c8;
+}
+
+[data-icon="print"] > .card-icon {
+  --icon-url: url("assets/icons/printer.svg");
+  color: #2d8ca3;
+}
+
+[data-icon="coop"] > .card-icon {
+  --icon-url: url("assets/icons/user-round.svg");
+  color: var(--accent);
+}
+
+[data-icon="chart"] > .card-icon {
+  --icon-url: url("assets/icons/trending-up.svg");
+  color: #4f8f25;
+}
+
+[data-icon="cancel"] > .card-icon {
+  --icon-url: url("assets/icons/x-circle.svg");
+  color: #4f74c8;
+}
+
+.audience-card::before,
 .solution-panel::before {
   content: "";
   position: absolute;
@@ -766,6 +901,36 @@ h1 + .hero-lead-emphasis {
 
 .joy-photo-card figcaption strong {
   color: var(--text);
+}
+
+.joy-photo-card figcaption::before,
+.audience-card::before,
+.solution-panel::before,
+.feature-card::before,
+.faq-card::before {
+  content: none;
+  display: none;
+}
+
+.joy-photo-card .caption-icon {
+  left: 1rem;
+  bottom: 1.05rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 14px;
+  color: #4f8f25;
+}
+
+.joy-photo-card[data-icon="calendar"] .caption-icon {
+  --icon-url: url("assets/icons/clipboard-check.svg");
+}
+
+.joy-photo-card[data-icon="heart"] .caption-icon {
+  --icon-url: url("assets/icons/heart.svg");
+}
+
+.joy-photo-card[data-icon="star"] .caption-icon {
+  --icon-url: url("assets/icons/star.svg");
 }
 
 .story-grid {
@@ -1318,6 +1483,15 @@ h1 + .hero-lead-emphasis {
   display: block;
   width: min(210px, 54vw);
   margin: 1.15rem 0 0;
+}
+
+.audience-card::before,
+.solution-panel::before,
+.feature-card::before,
+.faq-card::before,
+.joy-photo-card figcaption::before {
+  content: none;
+  display: none;
 }
 
 @media (max-width: 1040px) {
