@@ -767,11 +767,6 @@ h1 + .hero-lead-emphasis {
   margin: 0;
 }
 
-.summary-card .summary-message-block .summary-closing-line {
-  color: var(--text);
-  font-weight: 700;
-}
-
 .summary-photo-card {
   width: 100%;
   height: clamp(210px, 23vw, 310px);
