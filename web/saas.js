@@ -1,5 +1,52 @@
 const SAAS_API_BASE = `${window.location.origin}/control-api/api/public`;
 const SIGNUP_STATUS_PAGE = `${window.location.origin}/signup-status.html`;
+const LOCAL_PLAN_FALLBACK = [
+  {
+    code: "starter_monthly",
+    name: "Starter",
+    priceCents: 999,
+    currency: "usd",
+    billingInterval: "month",
+    featureSummary: [
+      "1-3 students",
+      "Grades, attendance, and reports",
+      "Performance and compliance dashboards",
+      "Scheduling and planning tools",
+      "Historical records preserved",
+      "Secure online access"
+    ]
+  },
+  {
+    code: "growth_monthly",
+    name: "Growth",
+    priceCents: 1499,
+    currency: "usd",
+    billingInterval: "month",
+    featureSummary: [
+      "4-10 students",
+      "Everything in Starter",
+      "More room to grow",
+      "Great for multi-child households",
+      "Ideal for pods and shared teaching groups"
+    ]
+  },
+  {
+    code: "large_monthly",
+    name: "Co-op Pro",
+    priceCents: 1599,
+    currency: "usd",
+    billingInterval: "month",
+    featureSummary: [
+      "11 students included",
+      "$0.99 per billable student above 11",
+      "Add students as needed",
+      "Everything in Growth",
+      "Full grades, attendance, and reports",
+      "Great for organized group instruction",
+      "Historical records preserved"
+    ]
+  }
+];
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -104,6 +151,12 @@ async function loadPlans() {
     renderPricingCards(plans);
     renderCheckoutPlanOptions(plans);
   } catch (error) {
+    if (window.location.protocol === "file:") {
+      renderPricingCards(LOCAL_PLAN_FALLBACK);
+      renderCheckoutPlanOptions(LOCAL_PLAN_FALLBACK);
+      setCheckoutMessage("Local preview is showing the approved plan copy. Open the hosted page to use live checkout.", "");
+      return;
+    }
     renderPricingCards([]);
     setCheckoutMessage(error.message || "Unable to load the current public plans.", "error");
   }
