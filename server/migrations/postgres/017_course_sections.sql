@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS course_sections (
   resource_group TEXT NOT NULL DEFAULT '',
   concurrent_capacity INTEGER NULL,
   start_time TEXT NOT NULL DEFAULT '08:00',
+  quarter_names_json JSONB NOT NULL DEFAULT '[]'::jsonb,
   weekdays_json JSONB NOT NULL DEFAULT '[1,2,3,4,5]'::jsonb,
   schedule_order INTEGER NULL
 );

@@ -70,6 +70,8 @@ CREATE TABLE IF NOT EXISTS courses (
   subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE RESTRICT,
   hours_per_day NUMERIC(6, 2) NOT NULL DEFAULT 0,
   exclusive_resource BOOLEAN NOT NULL DEFAULT FALSE,
+  quarter_names_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+  weekdays_json JSONB NOT NULL DEFAULT '[1,2,3,4,5]'::jsonb,
   course_materials JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 

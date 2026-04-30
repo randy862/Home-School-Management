@@ -2850,7 +2850,12 @@ td {
 .course-sections-wrap {
   margin-top: 1.25rem;
   display: grid;
-  gap: 0.9rem;
+  gap: 0.55rem;
+}
+
+.course-sections-wrap h4,
+.course-sections-wrap .course-form-note {
+  margin-bottom: 0;
 }
 
 .management-courses-subtabs {
@@ -2882,6 +2887,11 @@ td {
 
 .course-hours-field {
   max-width: 160px;
+}
+
+.course-quarters-field,
+.course-section-quarters-field {
+  min-width: 220px;
 }
 
 #course-hours {
@@ -2916,6 +2926,7 @@ td {
   min-width: 0;
 }
 
+.course-weekdays-field,
 .course-section-weekdays-field {
   display: flex;
   flex-wrap: wrap;
@@ -2925,6 +2936,7 @@ td {
   grid-column: 1 / -1;
 }
 
+.course-weekdays-field legend,
 .course-section-weekdays-field legend {
   width: 100%;
   margin-bottom: 0.35rem;

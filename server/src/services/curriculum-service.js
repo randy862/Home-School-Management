@@ -51,9 +51,16 @@ function normalizeCoursePayload(input) {
   const resourceGroup = String(input?.resourceGroup || "").trim();
   const resourceCapacity = normalizeCourseResourceCapacity(input?.resourceCapacity, !!input?.exclusiveResource);
   const exclusiveResource = resourceCapacity === 1 || (!!input?.exclusiveResource && resourceCapacity == null);
+  const quarterNames = normalizeQuarterNames(input?.quarterNames);
+  const weekdays = normalizeWeekdays(input?.weekdays, [1, 2, 3, 4, 5]);
   const materials = normalizeCourseMaterials(input?.materials || input?.material);
   if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) {
     const error = new Error("Provide course name, subject, and hours/day.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!weekdays.length) {
+    const error = new Error("Select at least one weekday for the course.");
     error.statusCode = 400;
     throw error;
   }
@@ -76,6 +83,8 @@ function normalizeCoursePayload(input) {
     exclusiveResource,
     resourceGroup,
     resourceCapacity,
+    quarterNames,
+    weekdays,
     materials
   };
 }
@@ -137,6 +146,7 @@ function normalizeCourseSectionPayload(input) {
   const weekdays = Array.isArray(input?.weekdays)
     ? Array.from(new Set(input.weekdays.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5))).sort((a, b) => a - b)
     : [];
+  const quarterNames = normalizeQuarterNames(input?.quarterNames);
   const scheduleOrder = input?.scheduleOrder === "" || input?.scheduleOrder == null ? null : Number(input.scheduleOrder);
   if (!courseId || !label || !startTime || !weekdays.length
     || (concurrentCapacity != null && (!Number.isInteger(concurrentCapacity) || concurrentCapacity <= 0))
@@ -145,7 +155,26 @@ function normalizeCourseSectionPayload(input) {
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), courseId, label, resourceGroup, concurrentCapacity, startTime, weekdays, scheduleOrder };
+  return { ...(id ? { id } : {}), courseId, label, resourceGroup, concurrentCapacity, startTime, quarterNames, weekdays, scheduleOrder };
+}
+
+function normalizeWeekdays(input, fallback = []) {
+  const weekdays = Array.isArray(input)
+    ? Array.from(new Set(input.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5))).sort((a, b) => a - b)
+    : [];
+  return weekdays.length ? weekdays : [...fallback];
+}
+
+function normalizeQuarterNames(input) {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set();
+  return input
+    .map((name) => String(name || "").trim())
+    .filter((name) => {
+      if (!name || seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
 }
 
 function normalizeSectionEnrollmentPayload(input) {

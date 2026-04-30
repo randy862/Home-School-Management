@@ -28,13 +28,21 @@ function createCurriculumRepository(deps) {
         insertColumns.push("resource_capacity");
         insertValues.push(course.resourceCapacity == null ? null : Number(course.resourceCapacity));
       }
+      if (features.hasQuarterNames) {
+        insertColumns.push("quarter_names_json");
+        insertValues.push(JSON.stringify(course.quarterNames || []));
+      }
+      if (features.hasWeekdays) {
+        insertColumns.push("weekdays_json");
+        insertValues.push(JSON.stringify(course.weekdays || [1, 2, 3, 4, 5]));
+      }
       if (features.hasCourseMaterials) {
         insertColumns.push("course_materials");
         insertValues.push(JSON.stringify(materials));
       }
 
       const placeholders = insertColumns.map((column, index) =>
-        column === "course_materials" ? `$${index + 1}::jsonb` : `$${index + 1}`);
+        column === "course_materials" || column === "quarter_names_json" || column === "weekdays_json" ? `$${index + 1}::jsonb` : `$${index + 1}`);
       const result = await pool.query(`
         INSERT INTO courses (
           ${insertColumns.join(",\n          ")}
@@ -71,10 +79,11 @@ function createCurriculumRepository(deps) {
           resource_group,
           concurrent_capacity,
           start_time,
+          quarter_names_json,
           weekdays_json,
           schedule_order
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9)
         RETURNING
           id,
           course_id AS "courseId",
@@ -82,6 +91,7 @@ function createCurriculumRepository(deps) {
           resource_group AS "resourceGroup",
           concurrent_capacity AS "concurrentCapacity",
           start_time AS "startTime",
+          quarter_names_json AS "quarterNamesJson",
           weekdays_json AS "weekdaysJson",
           schedule_order AS "scheduleOrder"
       `, [
@@ -91,6 +101,7 @@ function createCurriculumRepository(deps) {
         section.resourceGroup || "",
         section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
         section.startTime,
+        JSON.stringify(section.quarterNames || []),
         JSON.stringify(section.weekdays || []),
         section.scheduleOrder
       ]);
@@ -273,6 +284,7 @@ function createCurriculumRepository(deps) {
             cs.resource_group AS "resourceGroup",
             cs.concurrent_capacity AS "concurrentCapacity",
             cs.start_time AS "startTime",
+            cs.quarter_names_json AS "quarterNamesJson",
             cs.weekdays_json AS "weekdaysJson",
             cs.schedule_order AS "scheduleOrder"
           FROM course_sections cs
@@ -288,6 +300,7 @@ function createCurriculumRepository(deps) {
             resource_group AS "resourceGroup",
             concurrent_capacity AS "concurrentCapacity",
             start_time AS "startTime",
+            quarter_names_json AS "quarterNamesJson",
             weekdays_json AS "weekdaysJson",
             schedule_order AS "scheduleOrder"
           FROM course_sections
@@ -410,9 +423,20 @@ function createCurriculumRepository(deps) {
         values.push(course.resourceCapacity == null ? null : Number(course.resourceCapacity));
         parameterIndex += 1;
       }
+      if (features.hasQuarterNames) {
+        setClauses.push(`quarter_names_json = $${parameterIndex}::jsonb`);
+        values.push(JSON.stringify(course.quarterNames || []));
+        parameterIndex += 1;
+      }
+      if (features.hasWeekdays) {
+        setClauses.push(`weekdays_json = $${parameterIndex}::jsonb`);
+        values.push(JSON.stringify(course.weekdays || [1, 2, 3, 4, 5]));
+        parameterIndex += 1;
+      }
       if (features.hasCourseMaterials) {
         setClauses.push(`course_materials = $${parameterIndex}::jsonb`);
         values.push(JSON.stringify(materials));
+        parameterIndex += 1;
       }
 
       const result = await pool.query(`
@@ -455,8 +479,9 @@ function createCurriculumRepository(deps) {
           resource_group = $4,
           concurrent_capacity = $5,
           start_time = $6,
-          weekdays_json = $7::jsonb,
-          schedule_order = $8
+          quarter_names_json = $7::jsonb,
+          weekdays_json = $8::jsonb,
+          schedule_order = $9
         WHERE id = $1
         RETURNING
           id,
@@ -465,6 +490,7 @@ function createCurriculumRepository(deps) {
           resource_group AS "resourceGroup",
           concurrent_capacity AS "concurrentCapacity",
           start_time AS "startTime",
+          quarter_names_json AS "quarterNamesJson",
           weekdays_json AS "weekdaysJson",
           schedule_order AS "scheduleOrder"
       `, [
@@ -474,6 +500,7 @@ function createCurriculumRepository(deps) {
         section.resourceGroup || "",
         section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
         section.startTime,
+        JSON.stringify(section.quarterNames || []),
         JSON.stringify(section.weekdays || []),
         section.scheduleOrder
       ]);
@@ -546,6 +573,8 @@ async function getCourseTableFeatures(pool) {
     hasExclusiveResource: columns.has("exclusive_resource"),
     hasResourceGroup: columns.has("resource_group"),
     hasResourceCapacity: columns.has("resource_capacity"),
+    hasQuarterNames: columns.has("quarter_names_json"),
+    hasWeekdays: columns.has("weekdays_json"),
     hasCourseMaterials: columns.has("course_materials")
   };
 }
@@ -558,6 +587,14 @@ async function ensureCourseTableColumns(pool) {
   await pool.query(`
     ALTER TABLE courses
     ADD COLUMN IF NOT EXISTS resource_capacity INTEGER
+  `);
+  await pool.query(`
+    ALTER TABLE courses
+    ADD COLUMN IF NOT EXISTS quarter_names_json JSONB NOT NULL DEFAULT '[]'::jsonb
+  `);
+  await pool.query(`
+    ALTER TABLE courses
+    ADD COLUMN IF NOT EXISTS weekdays_json JSONB NOT NULL DEFAULT '[1,2,3,4,5]'::jsonb
   `);
   await pool.query(`
     UPDATE courses
@@ -576,9 +613,14 @@ async function ensureCourseSectionTables(pool) {
       resource_group TEXT NOT NULL DEFAULT '',
       concurrent_capacity INTEGER,
       start_time TEXT NOT NULL DEFAULT '08:00',
+      quarter_names_json JSONB NOT NULL DEFAULT '[]'::jsonb,
       weekdays_json JSONB NOT NULL DEFAULT '[1,2,3,4,5]'::jsonb,
       schedule_order INTEGER
     )
+  `);
+  await pool.query(`
+    ALTER TABLE course_sections
+    ADD COLUMN IF NOT EXISTS quarter_names_json JSONB NOT NULL DEFAULT '[]'::jsonb
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS section_enrollments (
@@ -622,6 +664,12 @@ function buildCourseSelectColumns(features, tableAlias = "") {
     features.hasResourceCapacity
       ? `${prefix}resource_capacity AS "resourceCapacity"`
       : `NULL::integer AS "resourceCapacity"`,
+    features.hasQuarterNames
+      ? `${prefix}quarter_names_json AS "quarterNamesJson"`
+      : `'[]'::jsonb AS "quarterNamesJson"`,
+    features.hasWeekdays
+      ? `${prefix}weekdays_json AS "weekdaysJson"`
+      : `'[1,2,3,4,5]'::jsonb AS "weekdaysJson"`,
     features.hasCourseMaterials
       ? `${prefix}course_materials AS "courseMaterials"`
       : `'[]'::jsonb AS "courseMaterials"`
@@ -638,6 +686,8 @@ function mapCourseRow(row) {
     exclusiveResource: !!row.exclusiveResource,
     resourceGroup: row.resourceGroup || "",
     resourceCapacity: row.resourceCapacity == null ? null : Number(row.resourceCapacity),
+    quarterNames: Array.isArray(row.quarterNamesJson) ? row.quarterNamesJson.map((name) => String(name || "").trim()).filter(Boolean) : [],
+    weekdays: Array.isArray(row.weekdaysJson) ? row.weekdaysJson.map((day) => Number(day)).filter(Number.isInteger) : [1, 2, 3, 4, 5],
     materials: normalizeCourseMaterials(row.courseMaterials)
   };
 }
@@ -683,6 +733,7 @@ function mapCourseSectionRow(row) {
     resourceGroup: row.resourceGroup || "",
     concurrentCapacity: row.concurrentCapacity == null ? null : Number(row.concurrentCapacity),
     startTime: row.startTime || "08:00",
+    quarterNames: Array.isArray(row.quarterNamesJson) ? row.quarterNamesJson.map((name) => String(name || "").trim()).filter(Boolean) : [],
     weekdays: Array.isArray(row.weekdaysJson) ? row.weekdaysJson.map((day) => Number(day)).filter(Number.isInteger) : [],
     scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)
   };

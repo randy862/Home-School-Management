@@ -960,6 +960,20 @@
               <label>Subject<select id="course-subject" required></select></label>
               <label>Instructor<select id="course-instructor"><option value="">Unassigned</option></select></label>
               <label class="course-hours-field">Hours / Day<input id="course-hours" type="number" min="0.25" step="0.25" required></label>
+              <label class="course-quarters-field">Quarters
+                <details id="course-quarters-dropdown" class="multi-select-dropdown">
+                  <summary id="course-quarters-summary">All Quarters</summary>
+                  <div id="course-quarters-options" class="checklist-vertical"></div>
+                </details>
+              </label>
+              <fieldset class="weekday-set course-weekdays-field">
+                <legend>Weekdays</legend>
+                <label><input type="checkbox" name="course-weekday" value="1" checked>Mon</label>
+                <label><input type="checkbox" name="course-weekday" value="2" checked>Tue</label>
+                <label><input type="checkbox" name="course-weekday" value="3" checked>Wed</label>
+                <label><input type="checkbox" name="course-weekday" value="4" checked>Thu</label>
+                <label><input type="checkbox" name="course-weekday" value="5" checked>Fri</label>
+              </fieldset>
               <details id="course-materials-details" class="course-materials-panel">
                 <summary>Course Materials</summary>
                 <div id="course-materials-list" class="course-materials-list"></div>
@@ -982,12 +996,21 @@
             <div class="course-sections-wrap">
               <h4>Classes</h4>
               <p class="muted course-form-note">Use classes when a shared group needs planned meeting times and shared enrollment. Students assigned to the same class will keep that course together on the schedule.</p>
-              <form id="course-section-form" class="grid-form course-section-form">
+              <div class="course-management-actions">
+                <button id="course-section-show-form-btn" type="button">Add Class</button>
+              </div>
+              <form id="course-section-form" class="grid-form course-section-form hidden">
                 <label>Course<select id="course-section-course" required></select></label>
                 <label>Class Label<input id="course-section-label" type="text" placeholder="Group A" required></label>
                 <label>Resource Group<input id="course-section-resource-group" type="text" placeholder="Piano Room A"></label>
                 <label>Concurrent Capacity<input id="course-section-capacity" type="number" min="1" step="1" placeholder="3"></label>
                 <label>Start Time<input id="course-section-start-time" type="time" required value="08:00"></label>
+                <label class="course-section-quarters-field">Quarters
+                  <details id="course-section-quarters-dropdown" class="multi-select-dropdown">
+                    <summary id="course-section-quarters-summary">All Quarters</summary>
+                    <div id="course-section-quarters-options" class="checklist-vertical"></div>
+                  </details>
+                </label>
                 <fieldset class="weekday-set course-section-weekdays-field">
                   <legend>Weekdays</legend>
                   <label><input type="checkbox" name="course-section-weekday" value="1" checked>Mon</label>

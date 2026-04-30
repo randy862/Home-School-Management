@@ -518,6 +518,8 @@ function normalizeCoursesShape(inputState) {
     exclusiveResource: !!course.exclusiveResource,
     resourceGroup: String(course.resourceGroup || "").trim(),
     resourceCapacity: normalizeCourseResourceCapacity(course.resourceCapacity, !!course.exclusiveResource),
+    quarterNames: normalizeQuarterNames(course.quarterNames),
+    weekdays: normalizeWeekdays(course.weekdays, [1, 2, 3, 4, 5]),
     materials: normalizeCourseMaterials(course.materials || course.material)
   }));
 }
@@ -548,11 +550,33 @@ function normalizeCourseSectionsShape(inputState) {
         resourceGroup: String(section.resourceGroup || "").trim(),
         concurrentCapacity: Number.isInteger(concurrentCapacity) && concurrentCapacity > 0 ? concurrentCapacity : null,
         startTime: /^\d{2}:\d{2}$/.test(String(section.startTime || "")) ? String(section.startTime) : "08:00",
+        quarterNames: normalizeQuarterNames(section.quarterNames),
         weekdays: weekdays.length ? weekdays : [1, 2, 3, 4, 5],
         scheduleOrder: Number.isInteger(scheduleOrder) && scheduleOrder > 0 ? scheduleOrder : null
       };
     })
     .filter((section) => !!section.label);
+}
+
+function normalizeWeekdays(value, fallback = []) {
+  const normalized = Array.isArray(value)
+    ? Array.from(new Set(value.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5))).sort((a, b) => a - b)
+    : [];
+  return normalized.length ? normalized : [...fallback];
+}
+
+function normalizeQuarterNames(value) {
+  if (!Array.isArray(value)) return [];
+  const validQuarterNames = new Set((state?.settings?.allQuarters || state?.settings?.quarters || []).map((quarter) => String(quarter.name || "").trim()).filter(Boolean));
+  const seen = new Set();
+  return value
+    .map((name) => String(name || "").trim())
+    .filter((name) => {
+      if (!name || seen.has(name)) return false;
+      if (validQuarterNames.size && !validQuarterNames.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
 }
 
 function normalizeCourseResourceCapacity(value, legacyExclusive = false) {
@@ -653,6 +677,29 @@ function sectionWeekdayIncludes(section, dateKey) {
   if (Number.isNaN(date.getTime())) return false;
   const weekdays = Array.isArray(section?.weekdays) && section.weekdays.length ? section.weekdays : [1, 2, 3, 4, 5];
   return weekdays.includes(date.getDay());
+}
+
+function quarterNamesIncludeDate(quarterNames, dateKey) {
+  const names = Array.isArray(quarterNames) ? quarterNames.filter(Boolean) : [];
+  if (!names.length) return true;
+  const nameSet = new Set(names);
+  return (state.settings.quarters || []).some((quarter) =>
+    nameSet.has(quarter.name)
+    && inRange(dateKey, quarter.startDate, quarter.endDate));
+}
+
+function courseAvailableOnDate(course, dateKey) {
+  const date = toDate(dateKey);
+  if (!course || Number.isNaN(date.getTime())) return false;
+  const weekdays = Array.isArray(course.weekdays) && course.weekdays.length ? course.weekdays : [1, 2, 3, 4, 5];
+  return weekdays.includes(date.getDay()) && quarterNamesIncludeDate(course.quarterNames, dateKey);
+}
+
+function courseSectionAvailableOnDate(section, dateKey) {
+  if (!section || !sectionWeekdayIncludes(section, dateKey)) return false;
+  const sectionQuarterNames = Array.isArray(section.quarterNames) ? section.quarterNames : [];
+  if (sectionQuarterNames.length) return quarterNamesIncludeDate(sectionQuarterNames, dateKey);
+  return courseAvailableOnDate(getCourse(section.courseId), dateKey);
 }
 
 function sectionEnrollmentForStudentCourse(studentId, courseId) {
@@ -848,6 +895,8 @@ function mergeLegacyBridgeCoursesWithLocalState(remoteState, localState) {
       exclusiveResource: !!localCourse.exclusiveResource,
       resourceGroup: String(localCourse.resourceGroup || "").trim(),
       resourceCapacity: normalizeCourseResourceCapacity(localCourse.resourceCapacity, !!localCourse.exclusiveResource),
+      quarterNames: normalizeQuarterNames(localCourse.quarterNames),
+      weekdays: normalizeWeekdays(localCourse.weekdays, [1, 2, 3, 4, 5]),
       materials: normalizeCourseMaterials(localCourse.materials || localCourse.material)
     };
     if (JSON.stringify(mergedCourse) !== JSON.stringify(course)) changed = true;
@@ -861,6 +910,8 @@ function mergeLegacyBridgeCoursesWithLocalState(remoteState, localState) {
       exclusiveResource: !!course.exclusiveResource,
       resourceGroup: String(course.resourceGroup || "").trim(),
       resourceCapacity: normalizeCourseResourceCapacity(course.resourceCapacity, !!course.exclusiveResource),
+      quarterNames: normalizeQuarterNames(course.quarterNames),
+      weekdays: normalizeWeekdays(course.weekdays, [1, 2, 3, 4, 5]),
       materials: normalizeCourseMaterials(course.materials || course.material)
     });
   });
@@ -1326,6 +1377,7 @@ let workDistributionGradeTypesInitialized = false;
 let editingCourseId = "";
 let courseFormOpen = false;
 let courseMaterialsDraft = [];
+let courseSectionFormOpen = false;
 let editingCourseSectionId = "";
 let currentManagementCoursesTab = "course-form";
 let editingHolidayId = "";
@@ -1729,6 +1781,8 @@ async function refreshHostedCourses() {
       exclusiveResource: !!course.exclusiveResource,
       resourceGroup: String(course.resourceGroup || "").trim(),
       resourceCapacity: normalizeCourseResourceCapacity(course.resourceCapacity, !!course.exclusiveResource),
+      quarterNames: normalizeQuarterNames(course.quarterNames),
+      weekdays: normalizeWeekdays(course.weekdays, [1, 2, 3, 4, 5]),
       materials: normalizeCourseMaterials(course.materials || course.material)
     }));
   }
@@ -1744,6 +1798,7 @@ async function refreshHostedCourseSections() {
       resourceGroup: String(section.resourceGroup || "").trim(),
       concurrentCapacity: section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
       startTime: /^\d{2}:\d{2}$/.test(String(section.startTime || "")) ? String(section.startTime) : "08:00",
+      quarterNames: normalizeQuarterNames(section.quarterNames),
       weekdays: Array.isArray(section.weekdays) ? section.weekdays.map((day) => Number(day)).filter(Number.isInteger) : [1, 2, 3, 4, 5],
       scheduleOrder: section.scheduleOrder == null ? null : Number(section.scheduleOrder)
     }));
@@ -7018,13 +7073,78 @@ function renderCourses() {
   if (showFormBtn) showFormBtn.classList.toggle("hidden", courseFormOpen);
   if (submitBtn) submitBtn.textContent = editingCourseId ? "Update Course" : "Add Course";
   if (cancelBtn) cancelBtn.classList.toggle("hidden", !courseFormOpen);
+  renderCourseQuarterChecklist(getSelectedCourseQuarterNames());
   renderCourseMaterialsDraft();
   if (!tableBody) return;
   const rows = state.courses
-    .map((c) => `<tr><td>${escapeHtml(c.name)}</td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
+    .map((c) => `<tr><td>${escapeHtml(c.name)}<br><span class="muted">${escapeHtml(courseAvailabilitySummary(c))}</span></td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
   rowOrEmpty(tableBody, rows, "No courses added yet.", 5);
   renderCourseSections();
   renderManagementCoursesSectionVisibility();
+}
+
+function renderQuarterChecklist({ optionsWrapId, summaryId, checkboxClass, selectedNames = [] }) {
+  const optionsWrap = document.getElementById(optionsWrapId);
+  const summary = document.getElementById(summaryId);
+  if (!optionsWrap || !summary) return;
+  const selected = new Set(selectedNames || []);
+  const quarters = state.settings.quarters || [];
+  if (!quarters.length) {
+    optionsWrap.innerHTML = `<span>No quarters configured.</span>`;
+    summary.textContent = "All Quarters";
+    return;
+  }
+  optionsWrap.innerHTML = quarters.map((quarter, index) => {
+    const inputId = `${optionsWrapId}-${index}`;
+    const checked = selected.has(quarter.name) ? " checked" : "";
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="${checkboxClass}" value="${escapeHtml(quarter.name)}"${checked}><label for="${inputId}">${escapeHtml(quarter.name)}</label></div>`;
+  }).join("");
+  summary.textContent = selected.size
+    ? `${selected.size} quarter${selected.size === 1 ? "" : "s"} selected`
+    : "All Quarters";
+}
+
+function renderCourseQuarterChecklist(selectedNames = []) {
+  renderQuarterChecklist({
+    optionsWrapId: "course-quarters-options",
+    summaryId: "course-quarters-summary",
+    checkboxClass: "course-quarter-checkbox",
+    selectedNames
+  });
+}
+
+function renderCourseSectionQuarterChecklist(selectedNames = []) {
+  renderQuarterChecklist({
+    optionsWrapId: "course-section-quarters-options",
+    summaryId: "course-section-quarters-summary",
+    checkboxClass: "course-section-quarter-checkbox",
+    selectedNames
+  });
+}
+
+function getSelectedQuarterNames(checkboxClass) {
+  return Array.from(document.querySelectorAll(`.${checkboxClass}:checked`)).map((checkbox) => checkbox.value);
+}
+
+function getSelectedCourseQuarterNames() {
+  return getSelectedQuarterNames("course-quarter-checkbox");
+}
+
+function getSelectedCourseSectionQuarterNames() {
+  return getSelectedQuarterNames("course-section-quarter-checkbox");
+}
+
+function setCourseWeekdaySelection(weekdays = [1, 2, 3, 4, 5]) {
+  const selected = new Set(normalizeWeekdays(weekdays, [1, 2, 3, 4, 5]));
+  document.querySelectorAll("input[name='course-weekday']").forEach((checkbox) => {
+    checkbox.checked = selected.has(Number(checkbox.value));
+  });
+}
+
+function courseAvailabilitySummary(course) {
+  const quarters = Array.isArray(course?.quarterNames) && course.quarterNames.length ? course.quarterNames.join(", ") : "All quarters";
+  const weekdays = normalizeWeekdays(course?.weekdays, [1, 2, 3, 4, 5]).map((day) => DAY_NAMES[day]).join(", ");
+  return `${quarters} | ${weekdays || "Mon-Fri"}`;
 }
 
 function syncCourseSectionFormFromCourse(courseId, { preserveExisting = true } = {}) {
@@ -7039,15 +7159,20 @@ function syncCourseSectionFormFromCourse(courseId, { preserveExisting = true } =
     const capacity = courseResourceCapacity(course);
     capacityInput.value = capacity == null ? "" : String(capacity);
   }
+  if (!preserveExisting || !getSelectedCourseSectionQuarterNames().length) {
+    renderCourseSectionQuarterChecklist(course.quarterNames || []);
+  }
 }
 
 function resetCourseSectionForm() {
   editingCourseSectionId = "";
+  courseSectionFormOpen = false;
   const form = document.getElementById("course-section-form");
   if (form) form.reset();
   document.querySelectorAll("input[name='course-section-weekday']").forEach((checkbox) => {
     checkbox.checked = true;
   });
+  renderCourseSectionQuarterChecklist([]);
   const timeInput = document.getElementById("course-section-start-time");
   if (timeInput) timeInput.value = normalizeSchoolDayStartTime(currentSchoolYear()?.schoolDayStartTime);
   const courseSelect = document.getElementById("course-section-course");
@@ -7059,28 +7184,52 @@ function beginCourseSectionEdit(sectionId) {
   const section = getCourseSection(sectionId);
   if (!section) return;
   editingCourseSectionId = section.id;
+  courseSectionFormOpen = true;
   document.getElementById("course-section-course").value = section.courseId;
   document.getElementById("course-section-label").value = section.label || "";
   document.getElementById("course-section-resource-group").value = section.resourceGroup || "";
   document.getElementById("course-section-capacity").value = section.concurrentCapacity == null ? "" : String(section.concurrentCapacity);
   document.getElementById("course-section-start-time").value = section.startTime || "08:00";
+  renderCourseSectionQuarterChecklist(section.quarterNames || []);
   document.querySelectorAll("input[name='course-section-weekday']").forEach((checkbox) => {
     checkbox.checked = Array.isArray(section.weekdays) && section.weekdays.includes(Number(checkbox.value));
   });
   renderCourseSections();
 }
 
+function beginCourseSectionCreate() {
+  editingCourseSectionId = "";
+  courseSectionFormOpen = true;
+  const form = document.getElementById("course-section-form");
+  if (form) form.reset();
+  document.querySelectorAll("input[name='course-section-weekday']").forEach((checkbox) => {
+    checkbox.checked = true;
+  });
+  renderCourseSectionQuarterChecklist([]);
+  const timeInput = document.getElementById("course-section-start-time");
+  if (timeInput) timeInput.value = normalizeSchoolDayStartTime(currentSchoolYear()?.schoolDayStartTime);
+  const courseSelect = document.getElementById("course-section-course");
+  if (courseSelect?.value) syncCourseSectionFormFromCourse(courseSelect.value, { preserveExisting: false });
+  renderCourseSections();
+}
+
 function renderCourseSections() {
   const tableBody = document.getElementById("course-section-table");
   const submitBtn = document.getElementById("course-section-submit-btn");
+  const form = document.getElementById("course-section-form");
+  const showFormBtn = document.getElementById("course-section-show-form-btn");
+  if (form) form.classList.toggle("hidden", !courseSectionFormOpen);
+  if (showFormBtn) showFormBtn.classList.toggle("hidden", courseSectionFormOpen);
   if (submitBtn) submitBtn.textContent = editingCourseSectionId ? "Update Class" : "Add Class";
+  renderCourseSectionQuarterChecklist(getSelectedCourseSectionQuarterNames());
   if (!tableBody) return;
   const rows = sortedCourseSections().map((section) => {
     const weekdays = (section.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
+    const quarters = Array.isArray(section.quarterNames) && section.quarterNames.length ? section.quarterNames.join(", ") : "Course quarters";
     const resourceSummary = section.concurrentCapacity == null
       ? (section.resourceGroup || "Unrestricted")
       : `${section.resourceGroup || getCourseName(section.courseId)} (${section.concurrentCapacity})`;
-    return `<tr><td>${escapeHtml(getCourseName(section.courseId))}</td><td>${escapeHtml(section.label)}</td><td>${escapeHtml(formatClockTime(section.startTime))}<br><span class="muted">${escapeHtml(weekdays || "Mon-Fri")}</span></td><td>${escapeHtml(resourceSummary)}</td><td>${courseSectionEnrollmentCount(section.id)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course-section='${section.id}' type='button'>Edit</button><button data-remove-course-section='${section.id}' type='button'>Remove</button></div></td></tr>`;
+    return `<tr><td>${escapeHtml(getCourseName(section.courseId))}</td><td>${escapeHtml(section.label)}</td><td>${escapeHtml(formatClockTime(section.startTime))}<br><span class="muted">${escapeHtml(weekdays || "Mon-Fri")} | ${escapeHtml(quarters)}</span></td><td>${escapeHtml(resourceSummary)}</td><td>${courseSectionEnrollmentCount(section.id)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course-section='${section.id}' type='button'>Edit</button><button data-remove-course-section='${section.id}' type='button'>Remove</button></div></td></tr>`;
   });
   rowOrEmpty(tableBody, rows, "No classes added yet.", 6);
 }
@@ -10918,11 +11067,15 @@ function calendarEvents(rangeStart, rangeEnd, studentFilterIds = [], subjectFilt
     const start = s > rangeStart ? new Date(s) : new Date(rangeStart);
     const end = e < rangeEnd ? new Date(e) : new Date(rangeEnd);
     if (end < start) return;
-    const days = new Set(p.weekdays || [1,2,3,4,5]);
+    const planDays = normalizeWeekdays(p.weekdays, [1, 2, 3, 4, 5]);
+    const courseDays = normalizeWeekdays(course.weekdays, [1, 2, 3, 4, 5]);
+    const days = new Set(planDays.filter((day) => courseDays.includes(day)));
     const c = new Date(start);
     while (c <= end) {
       const key = toISO(c);
-      if (days.has(c.getDay()) && !excluded.has(key)) {
+      const section = courseSectionForStudentCourse(p.studentId, p.courseId);
+      const available = section ? courseSectionAvailableOnDate(section, key) : courseAvailableOnDate(course, key);
+      if (days.has(c.getDay()) && !excluded.has(key) && available) {
         events.push({ date: key, studentId: p.studentId, courseId: p.courseId, planType: p.planType });
       }
       c.setDate(c.getDate() + 1);
@@ -10954,7 +11107,8 @@ function calendarEventsForDate(dateKey, studentFilterIds = [], subjectFilterIds 
         if (!course) return;
         if (subjectFilterIds.length && !subjectFilterIds.includes(course.subjectId)) return;
         const section = courseSectionForStudentCourse(studentId, courseId);
-        if (section && !sectionWeekdayIncludes(section, dateKey)) return;
+        if (section && !courseSectionAvailableOnDate(section, dateKey)) return;
+        if (!section && !courseAvailableOnDate(course, dateKey)) return;
         const pairKey = `${studentId}||${courseId}`;
         if (plannedPairSet.has(pairKey)) return;
 
@@ -11142,7 +11296,7 @@ function pushResourceAllocation(resourceAllocations, course, start, end) {
 function sectionStartMinutesForStudentCourse(studentId, courseId, dateKey) {
   const section = courseSectionForStudentCourse(studentId, courseId);
   if (!section) return null;
-  if (!sectionWeekdayIncludes(section, dateKey)) return null;
+  if (!courseSectionAvailableOnDate(section, dateKey)) return null;
   const startMinutes = parseTimeToMinutes(section.startTime);
   return Number.isFinite(startMinutes) ? startMinutes : null;
 }
@@ -12507,6 +12661,8 @@ function beginCourseEdit(courseId) {
   document.getElementById("course-subject").value = course.subjectId;
   document.getElementById("course-instructor").value = course.instructorId || "";
   document.getElementById("course-hours").value = String(Number(course.hoursPerDay));
+  renderCourseQuarterChecklist(course.quarterNames || []);
+  setCourseWeekdaySelection(course.weekdays || [1, 2, 3, 4, 5]);
   fillCourseMaterialFields(course.materials || course.material);
   renderCourses();
 }
@@ -12517,6 +12673,8 @@ function cancelCourseEdit() {
   document.getElementById("course-form").reset();
   const instructorInput = document.getElementById("course-instructor");
   if (instructorInput) instructorInput.value = "";
+  renderCourseQuarterChecklist([]);
+  setCourseWeekdaySelection([1, 2, 3, 4, 5]);
   fillCourseMaterialFields();
   renderSelects();
   renderCourses();
@@ -12528,6 +12686,8 @@ function beginCourseCreate() {
   document.getElementById("course-form").reset();
   const instructorInput = document.getElementById("course-instructor");
   if (instructorInput) instructorInput.value = "";
+  renderCourseQuarterChecklist([]);
+  setCourseWeekdaySelection([1, 2, 3, 4, 5]);
   fillCourseMaterialFields();
   renderSelects();
   renderCourses();
@@ -12845,6 +13005,8 @@ function updateLegacyLocalCourse(existingCourse, payload) {
   existingCourse.exclusiveResource = payload.exclusiveResource;
   existingCourse.resourceGroup = String(payload.resourceGroup || "").trim();
   existingCourse.resourceCapacity = normalizeCourseResourceCapacity(payload.resourceCapacity, payload.exclusiveResource);
+  existingCourse.quarterNames = normalizeQuarterNames(payload.quarterNames);
+  existingCourse.weekdays = normalizeWeekdays(payload.weekdays, [1, 2, 3, 4, 5]);
   existingCourse.materials = normalizeCourseMaterials(payload.materials || payload.material);
 }
 
@@ -12854,6 +13016,8 @@ function createLegacyLocalCourse(payload) {
     ...payload,
     resourceGroup: String(payload.resourceGroup || "").trim(),
     resourceCapacity: normalizeCourseResourceCapacity(payload.resourceCapacity, payload.exclusiveResource),
+    quarterNames: normalizeQuarterNames(payload.quarterNames),
+    weekdays: normalizeWeekdays(payload.weekdays, [1, 2, 3, 4, 5]),
     materials: normalizeCourseMaterials(payload.materials || payload.material)
   });
 }
@@ -12868,6 +13032,7 @@ function createLegacyLocalCourseSection(payload) {
     ...payload,
     resourceGroup: String(payload.resourceGroup || "").trim(),
     concurrentCapacity: payload.concurrentCapacity == null ? null : Number(payload.concurrentCapacity),
+    quarterNames: normalizeQuarterNames(payload.quarterNames),
     weekdays: Array.isArray(payload.weekdays) ? payload.weekdays.slice() : [1, 2, 3, 4, 5]
   });
 }
@@ -12879,6 +13044,7 @@ function updateLegacyLocalCourseSection(existingSection, payload) {
   existingSection.resourceGroup = String(payload.resourceGroup || "").trim();
   existingSection.concurrentCapacity = payload.concurrentCapacity == null ? null : Number(payload.concurrentCapacity);
   existingSection.startTime = payload.startTime;
+  existingSection.quarterNames = normalizeQuarterNames(payload.quarterNames);
   existingSection.weekdays = Array.isArray(payload.weekdays) ? payload.weekdays.slice() : [1, 2, 3, 4, 5];
   existingSection.scheduleOrder = payload.scheduleOrder == null ? null : Number(payload.scheduleOrder);
 }
@@ -13491,10 +13657,13 @@ function bindEvents() {
     const subjectId = document.getElementById("course-subject").value;
     const instructorId = document.getElementById("course-instructor").value.trim();
     const hoursPerDay = Number(document.getElementById("course-hours").value);
+    const quarterNames = getSelectedCourseQuarterNames();
+    const weekdays = Array.from(document.querySelectorAll("input[name='course-weekday']:checked")).map((checkbox) => Number(checkbox.value));
     const materials = readCourseMaterialFields();
     if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) { alert("Provide course name, subject, and hours/day."); return; }
+    if (!weekdays.length) { alert("Select at least one weekday for the course."); return; }
     if (materials.some((material) => material.type === "other" && !material.other)) { alert("Provide details when Material Type is Other."); return; }
-    const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource: false, resourceGroup: "", resourceCapacity: null, materials };
+    const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource: false, resourceGroup: "", resourceCapacity: null, quarterNames, weekdays, materials };
     if (hostedModeEnabled) {
       (async () => {
         try {
@@ -13507,6 +13676,8 @@ function bindEvents() {
           courseFormOpen = false;
           e.target.reset();
           document.getElementById("course-instructor").value = "";
+          renderCourseQuarterChecklist([]);
+          setCourseWeekdaySelection([1, 2, 3, 4, 5]);
           fillCourseMaterialFields();
           await refreshHostedCourses();
           renderAll();
@@ -13525,6 +13696,8 @@ function bindEvents() {
     courseFormOpen = false;
     e.target.reset();
     document.getElementById("course-instructor").value = "";
+    renderCourseQuarterChecklist([]);
+    setCourseWeekdaySelection([1, 2, 3, 4, 5]);
     fillCourseMaterialFields();
     saveState();
     renderAll();
@@ -13532,6 +13705,10 @@ function bindEvents() {
   document.getElementById("course-show-form-btn")?.addEventListener("click", () => {
     if (!ensureAdminAction()) return;
     beginCourseCreate();
+  });
+  document.getElementById("course-section-show-form-btn")?.addEventListener("click", () => {
+    if (!ensureAdminAction()) return;
+    beginCourseSectionCreate();
   });
   document.getElementById("course-section-course")?.addEventListener("change", (event) => {
     const target = event.target;
@@ -13547,11 +13724,12 @@ function bindEvents() {
     const capacityRaw = document.getElementById("course-section-capacity").value.trim();
     const concurrentCapacity = capacityRaw === "" ? null : Number(capacityRaw);
     const startTime = document.getElementById("course-section-start-time").value;
+    const quarterNames = getSelectedCourseSectionQuarterNames();
     const weekdays = Array.from(document.querySelectorAll("input[name='course-section-weekday']:checked")).map((checkbox) => Number(checkbox.value));
     if (!courseId || !label || !startTime || !weekdays.length) { alert("Provide a course, class label, start time, and at least one weekday."); return; }
     if (concurrentCapacity != null && (!Number.isInteger(concurrentCapacity) || concurrentCapacity <= 0)) { alert("Class capacity must be a whole number greater than 0."); return; }
     if (!confirmEarlyClassStart(startTime)) return;
-    const payload = { courseId, label, resourceGroup, concurrentCapacity, startTime, weekdays, scheduleOrder: null };
+    const payload = { courseId, label, resourceGroup, concurrentCapacity, startTime, quarterNames, weekdays, scheduleOrder: null };
     if (hostedModeEnabled) {
       (async () => {
         try {
@@ -15143,6 +15321,14 @@ function bindEvents() {
     }
     if (t.classList.contains("plan-course-checkbox")) {
       updatePlanCourseSummary();
+      return;
+    }
+    if (t.classList.contains("course-quarter-checkbox")) {
+      renderCourseQuarterChecklist(getSelectedCourseQuarterNames());
+      return;
+    }
+    if (t.classList.contains("course-section-quarter-checkbox")) {
+      renderCourseSectionQuarterChecklist(getSelectedCourseSectionQuarterNames());
       return;
     }
     if (t.classList.contains("student-enroll-course-checkbox")) {
