@@ -38,12 +38,11 @@ const LOCAL_PLAN_FALLBACK = [
     billingInterval: "month",
     featureSummary: [
       "11 students included",
-      "$0.99 per billable student above 11",
-      "Add students as needed",
+      "Add additional students as needed",
+      "$0.99 for each additional student",
       "Everything in Growth",
       "Full grades, attendance, and reports",
-      "Great for organized group instruction",
-      "Historical records preserved"
+      "Great for organized group instruction"
     ]
   }
 ];
