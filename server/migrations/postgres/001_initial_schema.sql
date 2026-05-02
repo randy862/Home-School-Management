@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS students (
   grade TEXT NOT NULL DEFAULT '',
   age_recorded INTEGER NULL,
   created_at DATE NULL,
+  archived_at TIMESTAMPTZ NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

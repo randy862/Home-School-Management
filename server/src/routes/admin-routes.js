@@ -152,7 +152,8 @@ function registerAdminRoutes(app, deps) {
           birthdate,
           grade,
           age_recorded AS ageRecorded,
-          created_at AS createdAt
+          created_at AS createdAt,
+          NULL AS archivedAt
         FROM dbo.students
         ORDER BY last_name, first_name
       `);

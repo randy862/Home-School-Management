@@ -779,7 +779,7 @@
           <h3>Students</h3>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Name</th><th>Grade</th><th>Age</th><th>Overall Avg</th><th>Absences</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Grade</th><th>Age</th><th>Status</th><th>Overall Avg</th><th>Absences</th><th>Actions</th></tr></thead>
               <tbody id="student-table"></tbody>
             </table>
           </div>
@@ -841,6 +841,20 @@
               </div>
             </div>
             <div id="student-detail-summary-wrap" class="student-detail-tab-panel hidden">
+              <div class="student-detail-section student-detail-section-profile-summary">
+                <h4>Student Information</h4>
+                <form id="student-summary-form" class="grid-form student-summary-form">
+                  <label>First Name<input id="student-summary-first" type="text" required></label>
+                  <label>Last Name<input id="student-summary-last" type="text" required></label>
+                  <label>Birthdate<input id="student-summary-birthdate" type="date" required></label>
+                  <label>Grade<input id="student-summary-grade" type="text" required></label>
+                  <div class="student-detail-action-row student-summary-profile-actions">
+                    <button id="student-summary-save-btn" type="submit">Save Student</button>
+                    <button id="student-summary-delete-btn" type="button">Delete Student</button>
+                  </div>
+                  <p id="student-summary-profile-message" class="status-text hidden"></p>
+                </form>
+              </div>
               <div class="student-detail-section student-detail-section-attendance">
                 <h4>Attendance Summary</h4>
                 <div class="table-wrap">

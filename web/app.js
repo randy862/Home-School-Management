@@ -2067,6 +2067,15 @@ async function createHostedStudent(payload) {
   return parseApiResponse(response, `Student save failed (${response.status})`);
 }
 
+async function updateHostedStudent(id, payload) {
+  const response = await authFetch(`${API_STUDENTS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Student update failed (${response.status})`);
+}
+
 async function createHostedInstructor(payload) {
   const response = await authFetch(API_INSTRUCTORS_ENDPOINT, {
     method: "POST",
@@ -2792,10 +2801,12 @@ function currentStudentId() {
   return isStudentUser(user) ? (user.studentId || "") : "";
 }
 
-function visibleStudents() {
+function visibleStudents(includeArchived = false) {
   const studentId = currentStudentId();
-  if (!studentId) return state.students.slice();
-  return state.students.filter((student) => student.id === studentId);
+  const students = studentId
+    ? state.students.filter((student) => student.id === studentId)
+    : state.students.slice();
+  return includeArchived ? students : students.filter((student) => !studentIsArchived(student));
 }
 
 function visibleStudentIds() {
@@ -3940,6 +3951,7 @@ async function bootstrapApplicationState() {
 }
 
 function getStudentName(id) { const s = state.students.find((x) => x.id === id); return s ? `${s.firstName} ${s.lastName}` : "Unknown Student"; }
+function studentIsArchived(student) { return !!(student && student.archivedAt); }
 function getInstructorName(id) { const instructor = state.instructors.find((entry) => entry.id === id); return instructor ? `${instructor.firstName} ${instructor.lastName}` : "Unknown Instructor"; }
 function normalizeInstructorFilterIds(filterSelection) {
   if (!filterSelection || filterSelection === "all") return null;
@@ -4821,7 +4833,7 @@ function updateDailyBreakStudentSummary() {
 function renderDailyBreakStudentChecklist(preselectedStudentIds = []) {
   const optionsWrap = document.getElementById("daily-break-student-options");
   if (!optionsWrap) return;
-  const students = state.students.slice().sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
+  const students = visibleStudents().sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`));
   const selected = new Set(preselectedStudentIds.filter((studentId) => students.some((student) => student.id === studentId)));
   const allChecked = students.length > 0 && students.every((student) => selected.has(student.id));
   const allRow = students.length ? `<div class="checklist-row"><input id="daily-break-student-all" type="checkbox" class="daily-break-student-all-checkbox"${allChecked ? " checked" : ""}><label for="daily-break-student-all">All</label></div>` : "";
@@ -4945,7 +4957,7 @@ function renderSelects() {
   options("test-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
   options("plan-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, viewerStudents.length ? null : "Add a student first");
   options("test-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, viewerStudents.length ? null : "Add a student first");
-  options("user-student-id", state.students, (s) => `${s.firstName} ${s.lastName}`, "Select student");
+  options("user-student-id", visibleStudents(), (s) => `${s.firstName} ${s.lastName}`, "Select student");
   renderStudentEnrollmentCourseChecklist(selectedStudentEnrollmentCourseIds, selectedStudentId);
   renderDailyBreakStudentChecklist(getSelectedDailyBreakStudentIds());
   renderAttendanceStudentChecklist();
@@ -5403,11 +5415,13 @@ function populateInstructorFilterSelect(selectId, allLabel = "All Instructors") 
 function renderReportStudentChecklist(preselectedStudentIds = []) {
   const optionsWrap = document.getElementById("reports-student-options");
   if (!optionsWrap) return;
-  const selected = new Set(preselectedStudentIds.filter((studentId) => visibleStudents().some((student) => student.id === studentId)));
-  const checkboxes = visibleStudents().map((student, idx) => {
+  const reportStudents = visibleStudents(true);
+  const selected = new Set(preselectedStudentIds.filter((studentId) => reportStudents.some((student) => student.id === studentId)));
+  const checkboxes = reportStudents.map((student, idx) => {
     const checked = selected.has(student.id) ? " checked" : "";
     const inputId = `reports-student-${idx}-${student.id}`;
-    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="reports-student-checkbox" value="${student.id}"${checked}><label for="${inputId}">${student.firstName} ${student.lastName}</label></div>`;
+    const archivedLabel = studentIsArchived(student) ? " (Archived)" : "";
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="reports-student-checkbox" value="${student.id}"${checked}><label for="${inputId}">${student.firstName} ${student.lastName}${archivedLabel}</label></div>`;
   }).join("");
   optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
   updateReportStudentSummary();
@@ -6955,9 +6969,13 @@ function renderStudents() {
     const ageNow = calculateAge(s.birthdate);
     const overallAvg = studentOverallAverage(s.id);
     const absences = studentAbsenceCount(s.id);
-    return `<tr><td>${s.firstName} ${s.lastName}</td><td>${s.grade}</td><td>${ageNow}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}' type='button'>Edit/Enroll</button></div></td></tr>`;
+    const archived = studentIsArchived(s);
+    const status = archived
+      ? `<span class="student-status-pill archived">Archived</span>`
+      : `<span class="student-status-pill">Active</span>`;
+    return `<tr><td>${escapeHtml(s.firstName)} ${escapeHtml(s.lastName)}</td><td>${escapeHtml(s.grade)}</td><td>${ageNow}</td><td>${status}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}' type='button'>Edit/Enroll</button></div></td></tr>`;
   });
-  rowOrEmpty(document.getElementById("student-table"), rows, "No students added yet.", 6);
+  rowOrEmpty(document.getElementById("student-table"), rows, "No students added yet.", 7);
 }
 
 function renderInstructors() {
@@ -7405,8 +7423,22 @@ function renderStudentDetail() {
     return;
   }
 
-  document.getElementById("student-detail-title").textContent = `${student.firstName} ${student.lastName} | Grade ${student.grade} | Age ${calculateAge(student.birthdate)}`;
+  const archived = studentIsArchived(student);
+  document.getElementById("student-detail-title").textContent = `${student.firstName} ${student.lastName} | Grade ${student.grade} | Age ${calculateAge(student.birthdate)}${archived ? " | Archived" : ""}`;
   renderStudentDetailSectionVisibility();
+  const summaryFirst = document.getElementById("student-summary-first");
+  const summaryLast = document.getElementById("student-summary-last");
+  const summaryBirthdate = document.getElementById("student-summary-birthdate");
+  const summaryGrade = document.getElementById("student-summary-grade");
+  const summaryDeleteBtn = document.getElementById("student-summary-delete-btn");
+  if (summaryFirst) summaryFirst.value = student.firstName || "";
+  if (summaryLast) summaryLast.value = student.lastName || "";
+  if (summaryBirthdate) summaryBirthdate.value = normalizeApiDate(student.birthdate);
+  if (summaryGrade) summaryGrade.value = student.grade || "";
+  if (summaryDeleteBtn) {
+    summaryDeleteBtn.textContent = archived ? "Student Archived" : "Delete Student";
+    summaryDeleteBtn.disabled = archived;
+  }
   const applyBtn = document.getElementById("student-detail-apply-btn");
   if (applyBtn) {
     applyBtn.textContent = "Apply Changes";
@@ -10969,8 +11001,9 @@ function renderDashboard() {
   Array.from(workSelectedStudentIds).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) workSelectedStudentIds.delete(studentId);
   });
+  const validReportStudentIds = new Set(visibleStudents(true).map((student) => student.id));
   Array.from(reportSelectedStudentIds).forEach((studentId) => {
-    if (!validStudentIds.has(studentId)) reportSelectedStudentIds.delete(studentId);
+    if (!validReportStudentIds.has(studentId)) reportSelectedStudentIds.delete(studentId);
   });
   const validInstructorIds = new Set(state.instructors.map((instructor) => instructor.id));
   Array.from(studentPerformanceSelectedInstructorIds).forEach((instructorId) => {
@@ -12892,7 +12925,8 @@ function deleteLegacyLocalHoliday(holidayId) {
 }
 
 function removeLegacyLocalStudent(studentId) {
-  removeStudent(studentId);
+  const student = state.students.find((entry) => entry.id === studentId);
+  if (student) student.archivedAt = student.archivedAt || new Date().toISOString();
 }
 
 function removeLegacyLocalInstructor(instructorId) {
@@ -12975,7 +13009,16 @@ async function updateLegacyLocalUser(existingUser, payload) {
 }
 
 function createLegacyLocalStudent(payload) {
-  state.students.push({ id: uid(), ...payload });
+  state.students.push({ id: uid(), archivedAt: "", ...payload });
+}
+
+function updateLegacyLocalStudent(existingStudent, payload) {
+  if (!existingStudent) return;
+  existingStudent.firstName = payload.firstName;
+  existingStudent.lastName = payload.lastName;
+  existingStudent.birthdate = payload.birthdate;
+  existingStudent.grade = payload.grade;
+  existingStudent.ageRecorded = payload.ageRecorded;
 }
 
 function updateLegacyLocalInstructor(existingInstructor, payload) {
@@ -13612,6 +13655,77 @@ function bindEvents() {
       renderStudentViewMode();
       const form = document.getElementById("student-form");
       if (form) form.reset();
+    });
+  }
+
+  const studentSummaryForm = document.getElementById("student-summary-form");
+  if (studentSummaryForm) {
+    studentSummaryForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (!ensureAdminAction()) return;
+      const student = state.students.find((entry) => entry.id === selectedStudentId);
+      if (!student) return;
+      const firstName = document.getElementById("student-summary-first").value.trim();
+      const lastName = document.getElementById("student-summary-last").value.trim();
+      const birthdate = document.getElementById("student-summary-birthdate").value;
+      const grade = document.getElementById("student-summary-grade").value.trim();
+      if (!firstName || !lastName || !birthdate || !grade) {
+        setStatusMessage("student-summary-profile-message", "error", "Complete the student name, birthdate, and grade.");
+        return;
+      }
+      const payload = {
+        firstName,
+        lastName,
+        birthdate,
+        grade,
+        ageRecorded: calculateAge(birthdate),
+        createdAt: student.createdAt || todayISO()
+      };
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            const updated = await updateHostedStudent(student.id, payload);
+            state.students = state.students.map((entry) => entry.id === student.id ? { ...entry, ...updated } : entry);
+            setStatusMessage("student-summary-profile-message", "success", "Student information saved.");
+            renderAll();
+          } catch (error) {
+            setStatusMessage("student-summary-profile-message", "error", error.message || "Unable to update student.");
+          }
+        })();
+        return;
+      }
+      updateLegacyLocalStudent(student, payload);
+      saveState();
+      setStatusMessage("student-summary-profile-message", "success", "Student information saved.");
+      renderAll();
+    });
+  }
+
+  const studentSummaryDeleteBtn = document.getElementById("student-summary-delete-btn");
+  if (studentSummaryDeleteBtn) {
+    studentSummaryDeleteBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      const student = state.students.find((entry) => entry.id === selectedStudentId);
+      if (!student || studentIsArchived(student)) return;
+      const confirmed = confirm(`Delete ${getStudentName(student.id)} from the active student roster? Existing grades, attendance, schedules, and reports will be preserved.`);
+      if (!confirmed) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await deleteHostedStudent(student.id);
+            await refreshHostedStudents();
+            setStatusMessage("student-summary-profile-message", "success", "Student archived. Historical records are preserved.");
+            renderAll();
+          } catch (error) {
+            setStatusMessage("student-summary-profile-message", "error", error.message || "Unable to delete student.");
+          }
+        })();
+        return;
+      }
+      removeLegacyLocalStudent(student.id);
+      saveState();
+      setStatusMessage("student-summary-profile-message", "success", "Student archived. Historical records are preserved.");
+      renderAll();
     });
   }
 
