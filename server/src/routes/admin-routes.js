@@ -16,6 +16,7 @@ function registerAdminRoutes(app, deps) {
     listInstructors,
     listStudents,
     listUsers,
+    restoreStudent,
     revokeSessionByTokenHash,
     sessionConfig,
     updateInstructor,
@@ -206,6 +207,22 @@ function registerAdminRoutes(app, deps) {
       res.json({ ok: true });
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/students/:id/restore", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode, "Students")) return;
+    if (!ensureAdmin(req, res)) return;
+
+    try {
+      const restored = await restoreStudent(req.params.id);
+      if (!restored) {
+        res.status(404).json({ error: "Student not found." });
+        return;
+      }
+      res.json(restored);
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
 

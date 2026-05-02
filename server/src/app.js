@@ -26,6 +26,7 @@ const {
   deleteStudent,
   getStudentById,
   listStudents,
+  restoreStudent,
   updateStudent
 } = require("./postgres-student-store");
 const {
@@ -104,6 +105,7 @@ const adminRouteDeps = {
   listInstructors,
   listStudents,
   listUsers,
+  restoreStudent,
   revokeSessionByTokenHash,
   sessionConfig,
   updateInstructor,

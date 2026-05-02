@@ -90,10 +90,30 @@ async function deleteStudent(id) {
   return result.rowCount > 0;
 }
 
+async function restoreStudent(id) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    UPDATE students
+    SET archived_at = NULL
+    WHERE id = $1
+    RETURNING
+      id,
+      first_name AS "firstName",
+      last_name AS "lastName",
+      birthdate,
+      grade,
+      age_recorded AS "ageRecorded",
+      created_at AS "createdAt",
+      archived_at AS "archivedAt"
+  `, [id]);
+  return result.rows[0] || null;
+}
+
 module.exports = {
   createStudent,
   deleteStudent,
   getStudentById,
   listStudents,
+  restoreStudent,
   updateStudent
 };

@@ -2076,6 +2076,13 @@ async function updateHostedStudent(id, payload) {
   return parseApiResponse(response, `Student update failed (${response.status})`);
 }
 
+async function restoreHostedStudent(id) {
+  const response = await authFetch(`${API_STUDENTS_ENDPOINT}/${encodeURIComponent(id)}/restore`, {
+    method: "POST"
+  });
+  return parseApiResponse(response, `Student restore failed (${response.status})`);
+}
+
 async function createHostedInstructor(payload) {
   const response = await authFetch(API_INSTRUCTORS_ENDPOINT, {
     method: "POST",
@@ -6965,7 +6972,14 @@ function renderAdministration() {
 
 function renderStudents() {
   if (!isAdminUser()) return;
-  const rows = state.students.map((s) => {
+  const rows = state.students
+    .slice()
+    .sort((a, b) => {
+      const archivedDelta = Number(studentIsArchived(a)) - Number(studentIsArchived(b));
+      if (archivedDelta) return archivedDelta;
+      return `${a.lastName || ""} ${a.firstName || ""}`.localeCompare(`${b.lastName || ""} ${b.firstName || ""}`);
+    })
+    .map((s) => {
     const ageNow = calculateAge(s.birthdate);
     const overallAvg = studentOverallAverage(s.id);
     const absences = studentAbsenceCount(s.id);
@@ -6973,8 +6987,9 @@ function renderStudents() {
     const status = archived
       ? `<span class="student-status-pill archived">Archived</span>`
       : `<span class="student-status-pill">Active</span>`;
-    return `<tr><td>${escapeHtml(s.firstName)} ${escapeHtml(s.lastName)}</td><td>${escapeHtml(s.grade)}</td><td>${ageNow}</td><td>${status}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}' type='button'>Edit/Enroll</button></div></td></tr>`;
-  });
+      const restoreButton = archived ? `<button data-restore-student='${s.id}' type='button'>Restore</button>` : "";
+      return `<tr><td>${escapeHtml(s.firstName)} ${escapeHtml(s.lastName)}</td><td>${escapeHtml(s.grade)}</td><td>${ageNow}</td><td>${status}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}' type='button'>Edit/Enroll</button>${restoreButton}</div></td></tr>`;
+    });
   rowOrEmpty(document.getElementById("student-table"), rows, "No students added yet.", 7);
 }
 
@@ -7431,6 +7446,7 @@ function renderStudentDetail() {
   const summaryBirthdate = document.getElementById("student-summary-birthdate");
   const summaryGrade = document.getElementById("student-summary-grade");
   const summaryDeleteBtn = document.getElementById("student-summary-delete-btn");
+  const summaryRestoreBtn = document.getElementById("student-summary-restore-btn");
   if (summaryFirst) summaryFirst.value = student.firstName || "";
   if (summaryLast) summaryLast.value = student.lastName || "";
   if (summaryBirthdate) summaryBirthdate.value = normalizeApiDate(student.birthdate);
@@ -7438,6 +7454,10 @@ function renderStudentDetail() {
   if (summaryDeleteBtn) {
     summaryDeleteBtn.textContent = archived ? "Student Archived" : "Delete Student";
     summaryDeleteBtn.disabled = archived;
+    summaryDeleteBtn.classList.toggle("hidden", archived);
+  }
+  if (summaryRestoreBtn) {
+    summaryRestoreBtn.classList.toggle("hidden", !archived);
   }
   const applyBtn = document.getElementById("student-detail-apply-btn");
   if (applyBtn) {
@@ -12929,6 +12949,11 @@ function removeLegacyLocalStudent(studentId) {
   if (student) student.archivedAt = student.archivedAt || new Date().toISOString();
 }
 
+function restoreLegacyLocalStudent(studentId) {
+  const student = state.students.find((entry) => entry.id === studentId);
+  if (student) student.archivedAt = "";
+}
+
 function removeLegacyLocalInstructor(instructorId) {
   state.instructors = state.instructors.filter((entry) => entry.id !== instructorId);
 }
@@ -13725,6 +13750,32 @@ function bindEvents() {
       removeLegacyLocalStudent(student.id);
       saveState();
       setStatusMessage("student-summary-profile-message", "success", "Student archived. Historical records are preserved.");
+      renderAll();
+    });
+  }
+
+  const studentSummaryRestoreBtn = document.getElementById("student-summary-restore-btn");
+  if (studentSummaryRestoreBtn) {
+    studentSummaryRestoreBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      const student = state.students.find((entry) => entry.id === selectedStudentId);
+      if (!student || !studentIsArchived(student)) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            const restored = await restoreHostedStudent(student.id);
+            state.students = state.students.map((entry) => entry.id === student.id ? { ...entry, ...restored } : entry);
+            setStatusMessage("student-summary-profile-message", "success", "Student restored to the active roster.");
+            renderAll();
+          } catch (error) {
+            setStatusMessage("student-summary-profile-message", "error", error.message || "Unable to restore student.");
+          }
+        })();
+        return;
+      }
+      restoreLegacyLocalStudent(student.id);
+      saveState();
+      setStatusMessage("student-summary-profile-message", "success", "Student restored to the active roster.");
       renderAll();
     });
   }
@@ -16558,6 +16609,28 @@ function bindEvents() {
       return;
     }
 
+    const restoreStudentId = t.getAttribute("data-restore-student");
+    if (restoreStudentId) {
+      if (!ensureAdminAction()) return;
+      const student = state.students.find((entry) => entry.id === restoreStudentId);
+      if (!student || !studentIsArchived(student)) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await restoreHostedStudent(restoreStudentId);
+            await refreshHostedStudents();
+            renderAll();
+          } catch (error) {
+            alert(error.message || "Unable to restore student.");
+          }
+        })();
+        return;
+      }
+      restoreLegacyLocalStudent(restoreStudentId);
+      saveState();
+      renderAll();
+      return;
+    }
     const editStudentId = t.getAttribute("data-edit-student"); if (editStudentId) { beginStudentDetail(editStudentId); renderAll(); return; }
     const editInstructorId = t.getAttribute("data-edit-instructor");
     if (editInstructorId) {
