@@ -392,11 +392,10 @@ h1 + .hero-lead-emphasis {
 
 .hero-trust-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.55rem;
-  align-self: end;
   padding: 0;
-  margin-bottom: 0;
+  margin: 0.75rem 0 0;
   list-style: none;
 }
 
@@ -410,6 +409,7 @@ h1 + .hero-lead-emphasis {
   font-size: 0.84rem;
   font-weight: 600;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .hero-trust-list li::before {
@@ -426,8 +426,7 @@ h1 + .hero-lead-emphasis {
 
 .hero-aside {
   display: grid;
-  grid-template-rows: 1fr auto;
-  gap: 0.8rem;
+  align-items: stretch;
 }
 
 .hero-panel,
@@ -445,6 +444,13 @@ h1 + .hero-lead-emphasis {
 
 .hero-panel {
   padding: 1.05rem 1.1rem;
+}
+
+.problem-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100%;
 }
 
 .hero-proof-panel {
@@ -1734,6 +1740,10 @@ h1 + .hero-lead-emphasis {
   .hero-actions,
   .site-nav {
     flex-direction: column;
+  }
+
+  .hero-trust-list {
+    flex-wrap: wrap;
   }
 
   .hero-copy {
