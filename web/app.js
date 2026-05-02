@@ -11107,8 +11107,11 @@ function viewRange(view, refISO) {
 function calendarEvents(rangeStart, rangeEnd, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const excluded = holidaySet();
   const events = [];
+  const allowedStudentIds = new Set(studentFilterIds.length
+    ? studentFilterIds
+    : visibleStudents().map((student) => student.id));
   state.plans.forEach((p) => {
-    if (studentFilterIds.length && !studentFilterIds.includes(p.studentId)) return;
+    if (!allowedStudentIds.has(p.studentId)) return;
     if (courseFilterIds.length && !courseFilterIds.includes(p.courseId)) return;
     if (!isStudentEnrolledInCourse(p.studentId, p.courseId)) return;
     const course = getCourse(p.courseId);
@@ -11148,7 +11151,7 @@ function calendarEventsForDate(dateKey, studentFilterIds = [], subjectFilterIds 
   if (isInstructionalWeekday && !excludedDates.has(dateKey)) {
     const studentsToFill = studentFilterIds.length
       ? [...studentFilterIds]
-      : state.students.map((student) => student.id);
+      : visibleStudents().map((student) => student.id);
     const plannedPairSet = new Set(events.map((event) => `${event.studentId}||${event.courseId}`));
 
     studentsToFill.forEach((studentId) => {
@@ -11849,7 +11852,7 @@ function buildFlexBlockPurposeOptions(selectedPurpose = "") {
 function calendarDateStudentRows(rangeStart, rangeEnd, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const students = studentFilterIds.length
     ? state.students.filter((s) => studentFilterIds.includes(s.id))
-    : [...state.students];
+    : visibleStudents();
   if (!students.length) return [];
 
   const rows = [];
