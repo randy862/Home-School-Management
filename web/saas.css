@@ -459,7 +459,8 @@ h1 + .hero-lead-emphasis {
   font-size: clamp(1.35rem, 1.85vw, 1.8rem);
 }
 
-.problem-panel h2 {
+.problem-panel h2,
+.solution-panel h2 {
   font-size: clamp(1.65rem, 2.25vw, 2.15rem);
   line-height: 1.06;
 }
