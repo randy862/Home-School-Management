@@ -5259,8 +5259,11 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-summary-copy {
-  gap: 0.1rem;
-  padding: 0.1rem 0 0.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.1rem 0 0.2rem;
 }
 
 #app-shell .school-day-summary-copy .muted,
@@ -5270,6 +5273,14 @@ tbody tr:hover {
 
 #app-shell .school-day-hours-summary {
   color: #31435d;
+  white-space: nowrap;
+}
+
+#app-shell .school-day-hours-summary:not(:empty)::before {
+  content: "|";
+  margin-right: 0.35rem;
+  color: #9aa8ba;
+  font-weight: 400;
 }
 
 #app-shell .school-day-student-summaries-header {
