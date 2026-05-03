@@ -5076,11 +5076,15 @@ tbody tr:hover {
 
 #app-shell #tab-school-day.active {
   display: grid;
-  gap: 1rem;
+  gap: 0.55rem;
 }
 
 #app-shell #tab-school-day > h2:first-child {
-  display: none;
+  display: block;
+  margin: 0;
+  color: #17243d;
+  font-size: 1.05rem;
+  line-height: 1.2;
 }
 
 #app-shell .school-day-dashboard-return,
@@ -5092,11 +5096,11 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-dashboard-return {
-  padding: 0.9rem 1rem;
+  padding: 0.65rem 0.8rem;
 }
 
 #app-shell .school-day-section {
-  padding: 1rem;
+  padding: 0.75rem;
 }
 
 #app-shell .school-day-section + .school-day-section {
@@ -5104,13 +5108,14 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-section-shell {
+  padding: 0.55rem 0.75rem;
   background: #f8fbfd;
 }
 
 #app-shell .school-day-form {
   display: grid;
   grid-template-columns: minmax(185px, 0.68fr) repeat(3, minmax(230px, 1fr));
-  gap: 0.75rem;
+  gap: 0.55rem;
 }
 
 #app-shell .school-day-form > label {
@@ -5125,7 +5130,7 @@ tbody tr:hover {
 
 #app-shell .school-day-form input,
 #app-shell .school-day-form .multi-select-dropdown summary {
-  min-height: 42px;
+  min-height: 34px;
   border-radius: 12px;
   background: #ffffff;
   text-transform: none;
@@ -5139,12 +5144,21 @@ tbody tr:hover {
 
 #app-shell .school-day-nav-row {
   align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0;
+}
+
+#app-shell .school-day-nav-row .school-day-subtabs {
+  order: 2;
+}
+
+#app-shell .school-day-nav-row .school-day-quick-filters {
+  order: 1;
 }
 
 #app-shell .school-day-quick-filters,
 #app-shell .school-day-subtabs {
-  padding: 0.28rem;
+  padding: 0.18rem;
   border: 1px solid #dbe4f0;
   border-radius: 14px;
   background: #f6f9fc;
@@ -5153,8 +5167,8 @@ tbody tr:hover {
 
 #app-shell .school-day-subtabs .subtab-btn,
 #app-shell .school-day-quick-filter-btn {
-  min-height: 38px;
-  padding: 0.45rem 0.72rem;
+  min-height: 32px;
+  padding: 0.34rem 0.62rem;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -5182,8 +5196,8 @@ tbody tr:hover {
 
 #app-shell .school-day-section-header {
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  padding-bottom: 0.9rem;
-  margin-bottom: 0.9rem;
+  padding-bottom: 0.55rem;
+  margin-bottom: 0.55rem;
   border-bottom: 1px solid #edf1f6;
 }
 
@@ -5191,11 +5205,12 @@ tbody tr:hover {
   color: #17243d;
   font-size: 1rem;
   line-height: 1.2;
+  margin: 0;
 }
 
 #app-shell .school-day-date-nav {
   gap: 0.45rem;
-  padding: 0.28rem;
+  padding: 0.18rem;
   border: 1px solid #dbe4f0;
   border-radius: 14px;
   background: #f6f9fc;
@@ -5204,8 +5219,8 @@ tbody tr:hover {
 #app-shell .school-day-date-nav button,
 #app-shell #school-day-reset-student-btn,
 #app-shell #school-day-reset-day-btn {
-  min-height: 36px;
-  padding: 0.42rem 0.75rem;
+  min-height: 32px;
+  padding: 0.32rem 0.65rem;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -5230,14 +5245,19 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-attendance-toolbar {
-  padding: 0.85rem;
+  padding: 0.55rem 0.65rem;
   border: 1px solid #e2eaf4;
   border-radius: 14px;
   background: #f8fbfd;
 }
 
 #app-shell .school-day-summary-copy {
-  gap: 0.22rem;
+  gap: 0.1rem;
+}
+
+#app-shell .school-day-summary-copy .muted,
+#app-shell .school-day-attendance-toolbar > .muted {
+  margin: 0;
 }
 
 #app-shell .school-day-hours-summary {
@@ -5245,7 +5265,7 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-student-summaries-header {
-  margin-top: 0.15rem;
+  margin: 0.15rem 0 0.25rem;
 }
 
 #app-shell .school-day-student-summaries-header h4 {
@@ -5305,7 +5325,7 @@ tbody tr:hover {
 
 #app-shell .school-day-section .table-wrap,
 #app-shell .school-day-inline-grade-wrap {
-  margin-top: 0.9rem;
+  margin-top: 0.55rem;
   border: 1px solid #e3eaf4;
   border-radius: 14px;
   background: #ffffff;
