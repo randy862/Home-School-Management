@@ -4850,7 +4850,7 @@ tbody tr:hover {
 }
 
 #app-shell #tab-dashboard > h2:first-child {
-  margin-bottom: 0;
+  display: none;
 }
 
 #app-shell .dashboard-subtabs {
@@ -5080,7 +5080,7 @@ tbody tr:hover {
 }
 
 #app-shell #tab-school-day > h2:first-child {
-  margin-bottom: 0;
+  display: none;
 }
 
 #app-shell .school-day-dashboard-return,
