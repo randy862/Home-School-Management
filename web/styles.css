@@ -1951,9 +1951,8 @@ td {
   align-items: center;
   gap: 0.4rem;
   min-height: 0;
-  height: 1.55rem;
   margin: 0;
-  padding: 0;
+  padding: 0.16rem 0;
 }
 
 #school-day-form .multi-select-dropdown[open] .checklist-row input[type="checkbox"] {
@@ -1968,8 +1967,9 @@ td {
   margin: 0;
   padding: 0;
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.15;
+  white-space: nowrap;
 }
 
 .school-day-nav-row {
