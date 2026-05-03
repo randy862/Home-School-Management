@@ -1,69 +1,51 @@
-# Agent Roster
+# Agent Operating Model
 
-## 1) CEO Orchestrator Agent
-- Specialty: Program leadership and dependency management
-- Scope: Prioritization, sequencing, blocker removal, status synthesis
-- Inputs: `WORKPLAN.md`, `STATUS.md`, `DECISIONS.md`, handoff notes
-- Outputs: Updated priorities, owner assignments, escalation decisions
-- Definition of done: Workstreams are assigned, unblocked, and moving
-- Interface rules:
-  - Updates root governance docs
-  - Maintains single source of truth for workstream status
-  - Ensures one clear owner per file/workstream
+## Core Rule
+One owner per workstream. One source of truth per topic.
 
-## 2) Product Architect Agent
-- Specialty: Product requirements and domain modeling
-- Scope: Features, user stories, entities, acceptance criteria
-- Inputs: User goals, discovery notes, constraints
-- Outputs: Specs in `NOTES/` and backlog details in `WORKPLAN.md`
-- Definition of done: Requirements are testable and implementation-ready
-- Interface rules:
-  - Owns requirement sections in `WORKPLAN.md`
-  - Logs assumptions in `DECISIONS.md`
+## Agents
 
-## 3) Frontend Engineer Agent
-- Specialty: UI implementation (HTML/CSS/JS)
-- Scope: Screens, interactions, accessibility, responsiveness
-- Inputs: Feature specs and API contracts
-- Outputs: Files in `web/` and UI notes in `NOTES/`
-- Definition of done: UI works on desktop/mobile and passes smoke checks
-- Interface rules:
-  - Owns `web/` files unless delegated
-  - Documents UI test notes in `STATUS.md`
+| Agent | Owns | Responsibility |
+|------|------|------|
+| CEO Orchestrator | Governance | Priorities, sequencing, blockers |
+| Product Architect | NOTES/ | Product specs, domain models |
+| Frontend Engineer | web/ | UI, UX, accessibility |
+| Backend/API Engineer | server/ | APIs, persistence, auth |
+| QA & Release Agent | CHECKLISTS/, RUNBOOKS/ | Validation, release gates |
 
-## 4) Backend/API Engineer Agent
-- Specialty: APIs, persistence, server-side logic
-- Scope: Endpoints, validation, transactions, storage integration
-- Inputs: Domain model, migration plan, integration requirements
-- Outputs: Server code in `server/` and API contracts in `NOTES/`
-- Definition of done: Endpoints are documented, testable, and migration-ready
-- Interface rules:
-  - Owns `server/` code and schema migrations
-  - Publishes API handoff notes in `NOTES/`
+## Handoff Format
 
-## 5) Data Migration Engineer Agent
-- Specialty: Data mapping and migration execution
-- Scope: Local state export/import, transformation, integrity checks
-- Inputs: Existing local state shape, MSSQL schema, target constraints
-- Outputs: Import scripts, mapping docs, migration check results
-- Definition of done: Data migrates with referential integrity and row-level parity checks
-- Interface rules:
-  - Owns migration scripts and notes under `server/src/scripts/` and `NOTES/`
-  - Logs migration risks and rollback notes in `DECISIONS.md`
+Every handoff must include:
 
-## 6) QA & Release Agent
-- Specialty: Test strategy and release readiness
-- Scope: Regression checks, migration validation, cutover gates
-- Inputs: Requirements, implementation diffs, acceptance criteria
-- Outputs: Checklists, test results, release recommendations
-- Definition of done: Risks are documented and go/no-go gate is explicit
-- Interface rules:
-  - Owns `CHECKLISTS/` and release-test sections in `STATUS.md`
-  - Records go/no-go rationale in `DECISIONS.md`
+### Context
+What feature/workstream is being worked.
 
-# Ownership Rules
+### Current State
+What is completed.
 
-- One owner per file/workstream.
-- Handoffs must include: context, current state, next command/action, risks.
-- Reporting format for presented output: `[Agent: NAME | Specialty: X]`.
-- If blocked, update `STATUS.md` immediately and reroute parallel work.
+### Next Action
+Exact next command, file, or implementation target.
+
+### Risks
+Known blockers, regressions, assumptions.
+
+## Token Efficiency Rules
+
+Read files in this order:
+
+1. CODEX_CONTEXT.md
+2. HANDOFF.md
+3. STATUS.md
+
+Do NOT read:
+
+- JOURNAL/
+- DECISIONS_ARCHIVE.md
+- archive/
+
+Unless current work requires it.
+
+Do not summarize completed history unless directly relevant.
+
+Keep STATUS.md under 100 lines.
+Keep HANDOFF.md under 75 lines.
