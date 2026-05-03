@@ -4814,6 +4814,236 @@ tbody tr:hover {
   margin-bottom: 1.25rem;
 }
 
+#app-shell #tab-dashboard.active {
+  display: grid;
+  gap: 1rem;
+}
+
+#app-shell #tab-dashboard > h2:first-child {
+  margin-bottom: 0;
+}
+
+#app-shell .dashboard-subtabs {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.28rem;
+  margin-bottom: 0.2rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f6f9fc;
+  gap: 0.18rem;
+  overflow-x: auto;
+}
+
+#app-shell .dashboard-subtabs .subtab-btn {
+  min-height: 38px;
+  padding: 0.45rem 0.78rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #58677c;
+  box-shadow: none;
+  font-size: 0.92rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#app-shell .dashboard-subtabs .subtab-btn:hover {
+  background: #edf3fa;
+  color: #1f3f6d;
+  box-shadow: none;
+  transform: none;
+}
+
+#app-shell .dashboard-subtabs .subtab-btn.active {
+  background: #ffffff;
+  color: #155bc3;
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+}
+
+#app-shell .dashboard-section {
+  padding: 1rem;
+  border: 1px solid #dfe7f1;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(25, 42, 70, 0.06);
+}
+
+#app-shell .dashboard-section + .dashboard-section {
+  margin-top: 0;
+}
+
+#app-shell .dashboard-section h3 {
+  color: #17243d;
+  font-size: 1rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+#app-shell .dashboard-section-header {
+  align-items: center;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid #edf1f6;
+}
+
+#app-shell .dashboard-section-header .muted {
+  margin-top: 0.28rem;
+}
+
+#app-shell .dashboard-section-overview {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbfd 100%);
+}
+
+#app-shell .dashboard-section-overview .kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+#app-shell .dashboard-section-overview .kpi,
+#app-shell .dashboard-summary-card,
+#app-shell .dashboard-chip-card {
+  border: 1px solid #e2eaf4;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+#app-shell .dashboard-section-overview .kpi {
+  min-height: 112px;
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+#app-shell .dashboard-section-overview .kpi-label,
+#app-shell .dashboard-summary-label,
+#app-shell .dashboard-chip-label {
+  color: #6b778c;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+#app-shell .dashboard-section-overview .kpi-value {
+  color: #14233b;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+#app-shell .progress-wrap {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0;
+  padding: 0.85rem;
+  border: 1px solid #e2eaf4;
+  border-radius: 14px;
+  background: #f7fafc;
+}
+
+#app-shell .progress-title {
+  margin-bottom: 0.45rem;
+  color: #263755;
+}
+
+#app-shell .progress-bar {
+  height: 9px;
+  background: #e8edf4;
+  border-radius: 999px;
+}
+
+#app-shell .progress-fill {
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f8f68 0%, #1761ae 100%);
+}
+
+#app-shell .dashboard-summary-grid,
+#app-shell .dashboard-pace-grid,
+#app-shell .dashboard-chip-grid {
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+#app-shell .dashboard-summary-card,
+#app-shell .dashboard-chip-card {
+  padding: 0.9rem;
+  min-height: 112px;
+}
+
+#app-shell .dashboard-chip-card {
+  text-align: left;
+  color: inherit;
+}
+
+#app-shell button.dashboard-chip-card:hover {
+  border-color: #c8d8ec;
+  background: #f8fbff;
+  box-shadow: 0 12px 24px rgba(31, 47, 69, 0.08);
+  transform: translateY(-1px);
+}
+
+#app-shell .dashboard-summary-value,
+#app-shell .dashboard-chip-value {
+  color: #14233b;
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+#app-shell .dashboard-summary-note {
+  color: #6b778c;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+#app-shell .dashboard-pill-metric {
+  min-width: 82px;
+  border: 1px solid #cfe0f3;
+  border-radius: 999px;
+  background: #f4f8fd;
+  color: #155bc3;
+  box-shadow: none;
+}
+
+#app-shell .dashboard-section .table-wrap,
+#app-shell .dashboard-section .chart-wrap {
+  margin-top: 0.9rem;
+  border: 1px solid #e3eaf4;
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: auto;
+}
+
+#app-shell .dashboard-section table {
+  width: 100%;
+}
+
+#app-shell .dashboard-section th {
+  background: #f7f9fc;
+  color: #68778d;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+#app-shell .dashboard-section td {
+  background: #ffffff;
+}
+
+#app-shell .dashboard-section-placeholder {
+  padding: 1rem;
+  border-style: dashed;
+  background: #f8fafc;
+}
+
 @media (max-width: 1120px) {
   #app-shell .app-topbar {
     grid-template-columns: 240px 1fr auto;
@@ -4826,6 +5056,10 @@ tbody tr:hover {
 
   #app-shell .app-layout {
     grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  #app-shell .dashboard-section-overview .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -4860,6 +5094,14 @@ tbody tr:hover {
   #app-shell .app-main {
     padding: 1rem;
   }
+
+  #app-shell .dashboard-subtabs {
+    width: 100%;
+  }
+
+  #app-shell .progress-wrap {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 560px) {
@@ -4880,5 +5122,17 @@ tbody tr:hover {
 
   #app-shell .app-sidebar-nav {
     grid-template-columns: 1fr;
+  }
+
+  #app-shell .dashboard-section-overview .kpi-grid,
+  #app-shell .dashboard-summary-grid,
+  #app-shell .dashboard-pace-grid,
+  #app-shell .dashboard-chip-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .dashboard-section-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
