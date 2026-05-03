@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605031145">
+  <link rel="stylesheet" href="styles.css?v=202605031220">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -728,15 +728,15 @@
             <p id="school-day-range" class="school-day-date-title">04-05-2026</p>
             <button id="school-day-next-period" type="button">Next</button>
           </div>
+          <div class="table-action-row school-day-reset-actions">
+            <button type="button" id="school-day-reset-student-btn">Reset Student Day</button>
+            <button type="button" id="school-day-reset-day-btn">Reset Filtered Day</button>
+          </div>
         </div>
         <div class="school-day-attendance-toolbar">
           <div class="school-day-summary-copy">
             <p id="school-day-daily-message" class="muted">Review or adjust the selected School Day schedule.</p>
             <p id="school-day-hours-summary" class="muted school-day-hours-summary"></p>
-          </div>
-          <div class="table-action-row">
-            <button type="button" id="school-day-reset-student-btn">Reset Student Day</button>
-            <button type="button" id="school-day-reset-day-btn">Reset Filtered Day</button>
           </div>
         </div>
         <div id="school-day-student-summaries-header" class="school-day-student-summaries-header hidden">
