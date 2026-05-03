@@ -5414,6 +5414,209 @@ tbody tr:hover {
   background: #f8fbfd;
 }
 
+#app-shell #tab-attendance.active {
+  display: grid;
+  gap: 0.65rem;
+}
+
+#app-shell #tab-attendance > h2:first-child {
+  display: block;
+  margin: 0;
+  color: #17243d;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+#app-shell .attendance-subtabs {
+  width: fit-content;
+  margin: 0;
+  padding: 0.18rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f6f9fc;
+  gap: 0.18rem;
+}
+
+#app-shell .attendance-subtabs .subtab-btn {
+  min-height: 32px;
+  padding: 0.34rem 0.7rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #58677c;
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#app-shell .attendance-subtabs .subtab-btn:hover {
+  background: #edf3fa;
+  color: #1f3f6d;
+  box-shadow: none;
+  transform: none;
+}
+
+#app-shell .attendance-subtabs .subtab-btn.active {
+  background: #ffffff;
+  color: #155bc3;
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+}
+
+#app-shell .attendance-tab-panel {
+  gap: 0.65rem;
+}
+
+#app-shell .attendance-section {
+  border: 1px solid #dfe7f1;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(25, 42, 70, 0.06);
+  padding: 0.75rem;
+}
+
+#app-shell .attendance-section + .attendance-section {
+  margin-top: 0;
+}
+
+#app-shell .attendance-section h3 {
+  color: #17243d;
+  font-size: 1rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+#app-shell .attendance-section-tracker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+#app-shell #add-attendance-record-btn {
+  min-height: 34px;
+  padding: 0.42rem 0.68rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+#app-shell #attendance-form {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(240px, 1.3fr) minmax(160px, 0.8fr) minmax(150px, 0.7fr) auto;
+  gap: 0.55rem;
+  margin: 0.55rem 0 0;
+}
+
+#app-shell #attendance-form label,
+#app-shell #attendance-filter-form label {
+  color: #5b6a80;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+#app-shell #attendance-form input,
+#app-shell #attendance-form select,
+#app-shell #attendance-form .multi-select-dropdown summary,
+#app-shell #attendance-filter-form input,
+#app-shell #attendance-filter-form select {
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 12px;
+  color: #17243d;
+  font-weight: 400;
+}
+
+#app-shell #attendance-form .multi-select-dropdown summary {
+  background: #ffffff;
+}
+
+#app-shell #attendance-form .multi-select-dropdown[open] .checklist-vertical {
+  border-color: #cbd8ea;
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(31, 47, 69, 0.14);
+}
+
+#app-shell .attendance-entry-actions {
+  gap: 0.35rem;
+}
+
+#app-shell .attendance-entry-actions button,
+#app-shell .attendance-section .table-action-row button {
+  min-height: 32px;
+  padding: 0.36rem 0.58rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+#app-shell .attendance-section-filters {
+  padding: 0.75rem;
+}
+
+#app-shell #attendance-filter-form {
+  grid-template-columns: minmax(190px, 1.3fr) minmax(160px, 0.8fr) minmax(150px, 0.75fr) minmax(150px, 0.75fr) auto;
+  gap: 0.55rem;
+  margin: 0.65rem 0 0;
+}
+
+#app-shell #attendance-clear-filters-btn {
+  min-height: 34px;
+  width: auto;
+  padding: 0.42rem 0.72rem;
+  border-radius: 10px;
+  background: #f3f7fc;
+  color: #526179;
+  box-shadow: none;
+  font-size: 0.84rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#app-shell #attendance-clear-filters-btn:hover {
+  background: #edf3fa;
+  color: #1f3f6d;
+  transform: none;
+}
+
+#app-shell .attendance-section .table-wrap {
+  margin-top: 0.55rem;
+  border: 1px solid #e3eaf4;
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: auto;
+}
+
+#app-shell .attendance-section table {
+  width: 100%;
+}
+
+#app-shell .attendance-section th {
+  background: #f7f9fc;
+  color: #68778d;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+#app-shell .attendance-section td {
+  background: #ffffff;
+}
+
+#app-shell .attendance-search-edit-row td {
+  background: #f8fbff;
+}
+
+#app-shell .attendance-search-edit-row input,
+#app-shell .attendance-search-edit-row select {
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 10px;
+  font-weight: 400;
+}
+
 #app-shell #tab-grades.active {
   display: grid;
   gap: 0.65rem;
@@ -5639,6 +5842,11 @@ tbody tr:hover {
   #app-shell #grades-filter-form {
     grid-template-columns: repeat(3, minmax(150px, 1fr));
   }
+
+  #app-shell #attendance-filter-form,
+  #app-shell #attendance-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 820px) {
@@ -5709,6 +5917,19 @@ tbody tr:hover {
   }
 
   #app-shell #add-grade-row-btn {
+    justify-self: start;
+  }
+
+  #app-shell #attendance-filter-form,
+  #app-shell #attendance-form {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .attendance-section-tracker {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell #add-attendance-record-btn {
     justify-self: start;
   }
 }

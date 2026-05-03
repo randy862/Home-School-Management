@@ -215,10 +215,13 @@ Do not add these unless a later slice intentionally wires them into the app.
   - Grades now uses compact segmented tabs
   - entry/search/records sections use the same white card surface as School Day
   - filters, grade entry controls, tables, action buttons, and grade calculator panels were visually aligned with the modern preview style
+- Attendance modernization followed Grades:
+  - Attendance now uses compact segmented tabs
+  - entry/search/records sections use the same white card surface
+  - the entry form, student picker, search filters, records table, inline edit row, and action buttons were visually aligned with the current modern preview style
 - Validate the current white-canvas Dashboard, School Day, and Grades preview in-browser before starting another visual slice.
 - If the current School Day dropdown density still feels off, adjust only the scoped `#school-day-form .multi-select-dropdown[open]` rules before broader modernization continues.
 - Continue page-by-page modernization after Grades:
-  - Attendance surface
   - Students surface
   - Curriculum / Management surface
   - Schedule surface
@@ -234,5 +237,5 @@ Do not add these unless a later slice intentionally wires them into the app.
 Use this prompt to pick back up:
 
 ```text
-Pick up the main app interface modernization from NOTES/app-interface-modernization-plan.md on branch app-modern-interface-shell. The modern preview is published at https://mitchell.navigrader.com/modern-preview/ and currently includes the shell, Dashboard surface, compressed School Day surface, narrowed sidebar, scoped School Day dropdown fixes, white app canvas, and the first Grades surface modernization pass. Continue improving the modern app shell against the preview path only unless I explicitly approve replacing the live tenant app. Preserve existing app behavior and navigation. Start by validating the current preview, especially School Day density and Grades entry/search presentation, before beginning another visual slice.
+Pick up the main app interface modernization from NOTES/app-interface-modernization-plan.md on branch app-modern-interface-shell. The modern preview is published at https://mitchell.navigrader.com/modern-preview/ and currently includes the shell, Dashboard surface, compressed School Day surface, narrowed sidebar, scoped School Day dropdown fixes, white app canvas, plus Grades and Attendance surface modernization passes. Continue improving the modern app shell against the preview path only unless I explicitly approve replacing the live tenant app. Preserve existing app behavior and navigation. Start by validating the current preview, especially School Day density and Grades/Attendance entry/search presentation, before beginning another visual slice.
 ```
