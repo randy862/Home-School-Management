@@ -3167,6 +3167,7 @@ function renderSessionChrome() {
   const setupCard = document.getElementById("setup-card");
   const loginForm = document.getElementById("login-form");
   const sessionSummary = document.getElementById("session-summary");
+  const accountMenuRole = document.getElementById("account-menu-role");
   const accountMenuShell = document.getElementById("account-menu-shell");
   const accountMenuTrigger = document.getElementById("account-menu-trigger");
   const accountMenu = document.getElementById("account-menu");
@@ -3196,8 +3197,11 @@ function renderSessionChrome() {
 
   if (sessionSummary) {
     if (!user) sessionSummary.textContent = "Not signed in";
-    else if (isAdminUser(user)) sessionSummary.textContent = `Signed in as ${user.username} | Administrator`;
-    else sessionSummary.textContent = `Signed in as ${user.username} | Student`;
+    else sessionSummary.textContent = user.username || "User";
+  }
+  if (accountMenuRole) {
+    if (!user) accountMenuRole.textContent = "";
+    else accountMenuRole.textContent = roleDisplayLabel(user.role);
   }
   if (accountMenuShell) accountMenuShell.classList.toggle("hidden", !signedIn);
   if (accountMenuTrigger) accountMenuTrigger.setAttribute("aria-expanded", accountMenuOpen ? "true" : "false");

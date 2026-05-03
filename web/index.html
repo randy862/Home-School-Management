@@ -52,15 +52,30 @@
   </main>
 
   <main id="app-shell" class="shell hidden">
-    <header class="top">
+    <header class="top app-topbar">
       <div class="app-brand-lockup">
         <img class="title-logo" src="assets/Mitchell_Logo.png" alt="Navigrader teach more, manage less">
       </div>
+      <div class="app-global-search" role="search">
+        <img src="assets/icons/search.svg" alt="" aria-hidden="true">
+        <input type="search" placeholder="Search students, classes, reports..." aria-label="Search students, classes, reports">
+        <kbd>&#8984; K</kbd>
+      </div>
       <div class="session-bar">
+        <button class="app-icon-button" type="button" aria-label="Notifications">
+          <img src="assets/icons/bell.svg" alt="" aria-hidden="true">
+        </button>
+        <button class="app-icon-button" type="button" aria-label="Help">
+          <img src="assets/icons/help-circle.svg" alt="" aria-hidden="true">
+        </button>
         <div id="account-menu-shell" class="account-menu-shell hidden">
           <button id="account-menu-trigger" class="account-menu-trigger" type="button" aria-expanded="false" aria-haspopup="menu">
-            <span id="session-summary" class="muted">Not signed in</span>
-            <span class="account-menu-caret" aria-hidden="true">&#9662;</span>
+            <span class="account-avatar" aria-hidden="true">A</span>
+            <span class="account-menu-copy">
+              <span id="session-summary" class="muted">Not signed in</span>
+              <span id="account-menu-role" class="account-menu-role">School Admin</span>
+            </span>
+            <img class="account-menu-caret" src="assets/icons/chevron-down.svg" alt="" aria-hidden="true">
           </button>
           <div id="account-menu" class="account-menu hidden" role="menu" aria-label="Account menu">
             <button id="account-menu-view-btn" type="button" role="menuitem">View Account</button>
@@ -75,17 +90,26 @@
     <div class="app-layout">
       <aside class="app-sidebar panel">
         <nav class="tabs app-sidebar-nav" aria-label="Primary">
-          <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
-          <button class="tab-btn" data-tab="school-day" type="button">School Day</button>
-          <button class="tab-btn" data-tab="grades" type="button">Grades</button>
-          <button class="tab-btn" data-tab="attendance" type="button">Attendance</button>
-          <button class="tab-btn" data-tab="students" type="button">Students</button>
-          <button class="tab-btn" data-tab="management" type="button">Curriculum</button>
-          <button class="tab-btn" data-tab="planning" type="button">Schedule</button>
-          <button class="tab-btn" data-tab="calendar" type="button">Calendar</button>
-          <button class="tab-btn" data-tab="administration" type="button">Administration</button>
-          <button class="tab-btn" data-tab="reports" type="button">Reports</button>
+          <button class="tab-btn active" data-tab="dashboard" type="button"><img src="assets/icons/home.svg" alt="" aria-hidden="true"><span>Dashboard</span></button>
+          <button class="tab-btn" data-tab="school-day" type="button"><img src="assets/icons/calendar.svg" alt="" aria-hidden="true"><span>School Day</span></button>
+          <button class="tab-btn" data-tab="grades" type="button"><img src="assets/icons/chart-bar.svg" alt="" aria-hidden="true"><span>Grades</span></button>
+          <button class="tab-btn" data-tab="attendance" type="button"><img src="assets/icons/Users2.svg" alt="" aria-hidden="true"><span>Attendance</span></button>
+          <button class="tab-btn" data-tab="students" type="button"><img src="assets/icons/graduation-cap.svg" alt="" aria-hidden="true"><span>Students</span></button>
+          <button class="tab-btn" data-tab="management" type="button"><img src="assets/icons/book-open.svg" alt="" aria-hidden="true"><span>Curriculum</span></button>
+          <button class="tab-btn" data-tab="planning" type="button"><img src="assets/icons/clock.svg" alt="" aria-hidden="true"><span>Schedule</span></button>
+          <button class="tab-btn" data-tab="calendar" type="button"><img src="assets/icons/calendar.svg" alt="" aria-hidden="true"><span>Calendar</span></button>
+          <button class="tab-btn" data-tab="administration" type="button"><img src="assets/icons/secure-shield.svg" alt="" aria-hidden="true"><span>Administration</span></button>
+          <button class="tab-btn" data-tab="reports" type="button"><img src="assets/icons/reports.svg" alt="" aria-hidden="true"><span>Reports</span></button>
         </nav>
+        <div class="sidebar-support-card sidebar-year-card">
+          <span>Academic Year</span>
+          <strong>2025-2026</strong>
+          <img src="assets/icons/chevron-down.svg" alt="" aria-hidden="true">
+        </div>
+        <div class="sidebar-support-card">
+          <strong>Need Help?</strong>
+          <span>Visit our help center</span>
+        </div>
       </aside>
 
       <div class="app-main">
