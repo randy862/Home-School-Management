@@ -4548,7 +4548,7 @@ tbody tr:hover {
   min-height: 100vh;
   margin: 0;
   gap: 0;
-  background: #f8fbff;
+  background: #ffffff;
 }
 
 #app-shell .app-topbar {
@@ -4564,10 +4564,10 @@ tbody tr:hover {
   min-height: 96px;
   padding: 1rem 1.7rem;
   border: 0;
-  border-bottom: 1px solid #e3eaf4;
+  border-bottom: 1px solid #e7edf5;
   border-radius: 0;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 10px 35px rgba(20, 42, 78, 0.05);
+  background: #ffffff;
+  box-shadow: none;
   backdrop-filter: blur(14px);
 }
 
@@ -4730,11 +4730,11 @@ tbody tr:hover {
   position: sticky;
   top: 96px;
   border: 0;
-  border-right: 1px solid #e3eaf4;
+  border-right: 1px solid #e7edf5;
   border-radius: 0;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 18px 0 34px rgba(34, 61, 94, 0.04);
-  backdrop-filter: blur(14px);
+  background: #ffffff;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 #app-shell .app-sidebar-nav {
@@ -4826,6 +4826,7 @@ tbody tr:hover {
   display: grid;
   gap: 1rem;
   padding: 2rem;
+  background: #ffffff;
 }
 
 #app-shell .tab-panel.panel {
