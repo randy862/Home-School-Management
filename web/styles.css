@@ -1928,8 +1928,7 @@ td {
 }
 
 #school-day-form .multi-select-dropdown[open] .checklist-vertical {
-  display: flex;
-  flex-direction: column;
+  display: block;
   position: absolute;
   top: calc(100% + 0.35rem);
   left: 0;
@@ -1947,17 +1946,17 @@ td {
 }
 
 #school-day-form .multi-select-dropdown[open] .checklist-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 14px max-content;
   align-items: center;
-  flex: 0 0 auto;
   gap: 0.4rem;
-  min-height: 0;
+  height: 1.35rem;
+  min-height: 1.35rem;
   margin: 0;
-  padding: 0.06rem 0;
+  padding: 0;
 }
 
 #school-day-form .multi-select-dropdown[open] .checklist-row input[type="checkbox"] {
-  flex: 0 0 auto;
   width: 13px;
   height: 13px;
   margin: 0;
