@@ -203,12 +203,27 @@ Do not add these unless a later slice intentionally wires them into the app.
 
 ## Later Slices
 
-- Validate the current white-canvas Dashboard and School Day preview in-browser before starting another visual slice.
+- Dashboard and School Day title treatment was tested after the white-canvas pass:
+  - Dashboard currently works well without the large page title.
+  - School Day currently keeps a compact title because the page has dense controls and benefits from a small anchor.
+- School Day was compressed above the fold after preview review:
+  - filter/control spacing was tightened
+  - the stale daily message was cleared when date/filter context changes
+  - reset actions moved into the Daily Schedule header
+  - the class completion and planned/completed hours summary became one inline status line
+- Grades modernization started after School Day:
+  - Grades now uses compact segmented tabs
+  - entry/search/records sections use the same white card surface as School Day
+  - filters, grade entry controls, tables, action buttons, and grade calculator panels were visually aligned with the modern preview style
+- Validate the current white-canvas Dashboard, School Day, and Grades preview in-browser before starting another visual slice.
 - If the current School Day dropdown density still feels off, adjust only the scoped `#school-day-form .multi-select-dropdown[open]` rules before broader modernization continues.
-- Continue modernizing School Day toward the reference image only after the filter/dropdown polish is accepted:
-  - cleaner summary metric cards
-  - table rows with modern status chips
-  - icon buttons for edit/more actions
+- Continue page-by-page modernization after Grades:
+  - Attendance surface
+  - Students surface
+  - Curriculum / Management surface
+  - Schedule surface
+  - Calendar surface
+  - Administration and Reports
 - Modernize forms, tabs, buttons, and modals.
 - Modernize Reports presentation.
 - Wire remaining downloaded icon assets only as needed.
@@ -219,5 +234,5 @@ Do not add these unless a later slice intentionally wires them into the app.
 Use this prompt to pick back up:
 
 ```text
-Pick up the main app interface modernization from NOTES/app-interface-modernization-plan.md on branch app-modern-interface-shell. The modern preview is published at https://mitchell.navigrader.com/modern-preview/ and currently includes the shell, Dashboard surface, School Day surface, narrowed sidebar, scoped School Day dropdown fixes, and white app canvas through commit 05e146b. Continue improving the modern app shell against the preview path only unless I explicitly approve replacing the live tenant app. Preserve existing app behavior and navigation. Start by validating the current preview, especially School Day filter/dropdown density, before beginning another visual slice.
+Pick up the main app interface modernization from NOTES/app-interface-modernization-plan.md on branch app-modern-interface-shell. The modern preview is published at https://mitchell.navigrader.com/modern-preview/ and currently includes the shell, Dashboard surface, compressed School Day surface, narrowed sidebar, scoped School Day dropdown fixes, white app canvas, and the first Grades surface modernization pass. Continue improving the modern app shell against the preview path only unless I explicitly approve replacing the live tenant app. Preserve existing app behavior and navigation. Start by validating the current preview, especially School Day density and Grades entry/search presentation, before beginning another visual slice.
 ```

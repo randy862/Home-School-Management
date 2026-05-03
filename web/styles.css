@@ -5414,6 +5414,206 @@ tbody tr:hover {
   background: #f8fbfd;
 }
 
+#app-shell #tab-grades.active {
+  display: grid;
+  gap: 0.65rem;
+}
+
+#app-shell #tab-grades > h2:first-child {
+  display: block;
+  margin: 0;
+  color: #17243d;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+#app-shell .grades-subtabs {
+  width: fit-content;
+  margin: 0;
+  padding: 0.18rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f6f9fc;
+  gap: 0.18rem;
+}
+
+#app-shell .grades-subtabs .subtab-btn {
+  min-height: 32px;
+  padding: 0.34rem 0.7rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #58677c;
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#app-shell .grades-subtabs .subtab-btn:hover {
+  background: #edf3fa;
+  color: #1f3f6d;
+  box-shadow: none;
+  transform: none;
+}
+
+#app-shell .grades-subtabs .subtab-btn.active {
+  background: #ffffff;
+  color: #155bc3;
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+}
+
+#app-shell .grades-tab-panel {
+  gap: 0.65rem;
+}
+
+#app-shell .grades-section {
+  border: 1px solid #dfe7f1;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(25, 42, 70, 0.06);
+  padding: 0.75rem;
+}
+
+#app-shell .grades-section + .grades-section {
+  margin-top: 0;
+}
+
+#app-shell .grades-section h3 {
+  color: #17243d;
+  font-size: 1rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+#app-shell .grades-section-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+#app-shell #add-grade-row-btn {
+  min-height: 34px;
+  padding: 0.42rem 0.68rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+#app-shell #grade-entry-wrap {
+  grid-column: 1 / -1;
+}
+
+#app-shell .grades-section-filters {
+  padding: 0.75rem;
+}
+
+#app-shell #grades-filter-form {
+  grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+  align-items: end;
+  gap: 0.55rem;
+  margin: 0.65rem 0 0;
+}
+
+#app-shell #grades-filter-form label {
+  color: #5b6a80;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+#app-shell #grades-filter-form select {
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 12px;
+  color: #17243d;
+  font-weight: 400;
+}
+
+#app-shell #grades-clear-filters-btn {
+  min-height: 34px;
+  width: auto;
+  max-width: none;
+  padding: 0.42rem 0.72rem;
+  border-radius: 10px;
+  background: #f3f7fc;
+  color: #526179;
+  box-shadow: none;
+  font-size: 0.84rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#app-shell #grades-clear-filters-btn:hover {
+  background: #edf3fa;
+  color: #1f3f6d;
+  transform: none;
+}
+
+#app-shell .grades-section .table-wrap,
+#app-shell .search-grade-edit-wrap {
+  margin-top: 0.55rem;
+  border: 1px solid #e3eaf4;
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: auto;
+}
+
+#app-shell .grades-section table {
+  width: 100%;
+}
+
+#app-shell .grades-section th {
+  background: #f7f9fc;
+  color: #68778d;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+#app-shell .grades-section td {
+  background: #ffffff;
+}
+
+#app-shell .grades-section .table-action-row button,
+#app-shell .grade-entry-actions button,
+#app-shell .grade-calc-actions button {
+  min-height: 32px;
+  padding: 0.36rem 0.58rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+#app-shell .grade-entry-actions {
+  grid-template-columns: 64px 78px 64px;
+  gap: 0.25rem;
+}
+
+#app-shell .grade-calc-panel {
+  border: 1px solid #e2eaf4;
+  border-radius: 14px;
+  background: #f8fbfd;
+  padding: 0.65rem 0.75rem;
+}
+
+#app-shell .grade-calc-panel label span {
+  color: #5f6f84;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+#app-shell #grade-entry-wrap input,
+#app-shell #grade-entry-wrap select {
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 10px;
+  font-weight: 400;
+}
+
 @media (max-width: 1120px) {
   #app-shell .app-topbar {
     grid-template-columns: 240px 1fr auto;
@@ -5434,6 +5634,10 @@ tbody tr:hover {
 
   #app-shell .school-day-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #app-shell #grades-filter-form {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
   }
 }
 
@@ -5494,6 +5698,18 @@ tbody tr:hover {
 
   #app-shell .school-day-date-nav {
     justify-self: stretch;
+  }
+
+  #app-shell #grades-filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .grades-section-entry {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell #add-grade-row-btn {
+    justify-self: start;
   }
 }
 
