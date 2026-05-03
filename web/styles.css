@@ -5044,6 +5044,298 @@ tbody tr:hover {
   background: #f8fafc;
 }
 
+#app-shell #tab-school-day.active {
+  display: grid;
+  gap: 1rem;
+}
+
+#app-shell #tab-school-day > h2:first-child {
+  margin-bottom: 0;
+}
+
+#app-shell .school-day-dashboard-return,
+#app-shell .school-day-section {
+  border: 1px solid #dfe7f1;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(25, 42, 70, 0.06);
+}
+
+#app-shell .school-day-dashboard-return {
+  padding: 0.9rem 1rem;
+}
+
+#app-shell .school-day-section {
+  padding: 1rem;
+}
+
+#app-shell .school-day-section + .school-day-section {
+  margin-top: 0;
+}
+
+#app-shell .school-day-section-shell {
+  background: #f8fbfd;
+}
+
+#app-shell .school-day-form {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.72fr) repeat(3, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+#app-shell .school-day-form > label {
+  color: #5b6a80;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+#app-shell .school-day-form input,
+#app-shell .school-day-form .multi-select-dropdown summary {
+  min-height: 42px;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+#app-shell .school-day-nav-row {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+#app-shell .school-day-quick-filters,
+#app-shell .school-day-subtabs {
+  padding: 0.28rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f6f9fc;
+  gap: 0.18rem;
+}
+
+#app-shell .school-day-subtabs .subtab-btn,
+#app-shell .school-day-quick-filter-btn {
+  min-height: 38px;
+  padding: 0.45rem 0.72rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #58677c;
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#app-shell .school-day-subtabs .subtab-btn:hover,
+#app-shell .school-day-quick-filter-btn:hover {
+  background: #edf3fa;
+  color: #1f3f6d;
+  box-shadow: none;
+  transform: none;
+}
+
+#app-shell .school-day-subtabs .subtab-btn.active,
+#app-shell .school-day-quick-filter-btn.active {
+  background: #ffffff;
+  color: #155bc3;
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+}
+
+#app-shell .school-day-section-header {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  padding-bottom: 0.9rem;
+  margin-bottom: 0.9rem;
+  border-bottom: 1px solid #edf1f6;
+}
+
+#app-shell .school-day-section h3 {
+  color: #17243d;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+#app-shell .school-day-date-nav {
+  gap: 0.45rem;
+  padding: 0.28rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f6f9fc;
+}
+
+#app-shell .school-day-date-nav button,
+#app-shell #school-day-reset-student-btn,
+#app-shell #school-day-reset-day-btn {
+  min-height: 36px;
+  padding: 0.42rem 0.75rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #58677c;
+  box-shadow: none;
+  font-weight: 500;
+}
+
+#app-shell .school-day-date-nav button:hover,
+#app-shell #school-day-reset-student-btn:hover,
+#app-shell #school-day-reset-day-btn:hover {
+  background: #edf3fa;
+  color: #1f3f6d;
+  transform: none;
+}
+
+#app-shell .school-day-date-title {
+  min-width: 8.2rem;
+  color: #17243d;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+#app-shell .school-day-attendance-toolbar {
+  padding: 0.85rem;
+  border: 1px solid #e2eaf4;
+  border-radius: 14px;
+  background: #f8fbfd;
+}
+
+#app-shell .school-day-summary-copy {
+  gap: 0.22rem;
+}
+
+#app-shell .school-day-hours-summary {
+  color: #31435d;
+}
+
+#app-shell .school-day-student-summaries-header {
+  margin-top: 0.15rem;
+}
+
+#app-shell .school-day-student-summaries-header h4 {
+  color: #5f6f84;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+#app-shell .school-day-student-summaries-toggle {
+  width: 1.65rem;
+  min-width: 1.65rem;
+  height: 1.65rem;
+  border-color: #d6e0ec;
+  color: #155bc3;
+}
+
+#app-shell .school-day-student-summary-card,
+#app-shell .school-day-overview-card {
+  border: 1px solid #e2eaf4;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+#app-shell .school-day-student-summary-card:hover,
+#app-shell .school-day-overview-card:hover {
+  border-color: #c8d8ec;
+  background: #f8fbff;
+  box-shadow: 0 12px 24px rgba(31, 47, 69, 0.08);
+  transform: translateY(-1px);
+}
+
+#app-shell .school-day-student-summary-card.active {
+  border-color: #aac5e8;
+  background: #f2f7ff;
+  box-shadow: 0 12px 24px rgba(31, 47, 69, 0.08);
+}
+
+#app-shell .school-day-card-student-label,
+#app-shell .school-day-overview-card-header span {
+  color: #6b778c;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+#app-shell .school-day-card-student h4,
+#app-shell .school-day-overview-card-header h4 {
+  color: #17243d;
+}
+
+#app-shell .school-day-student-summary-stats,
+#app-shell .school-day-overview-course {
+  color: #526179;
+}
+
+#app-shell .school-day-section .table-wrap,
+#app-shell .school-day-inline-grade-wrap {
+  margin-top: 0.9rem;
+  border: 1px solid #e3eaf4;
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: auto;
+}
+
+#app-shell .school-day-section table {
+  width: 100%;
+}
+
+#app-shell .school-day-section th {
+  background: #f7f9fc;
+  color: #68778d;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+#app-shell .school-day-section td {
+  background: #ffffff;
+}
+
+#app-shell #school-day-table tr.school-day-row-needs-attendance td,
+#app-shell #school-day-table tr.school-day-row-needs-grade td,
+#app-shell #school-day-table tr.school-day-row-needs-completion td {
+  background: #f8fbff;
+}
+
+#app-shell #school-day-table tr.school-day-row-completed td {
+  background: #fbfefc;
+}
+
+#app-shell .school-day-status-badge,
+#app-shell .school-day-override-badge,
+#app-shell .school-day-overview-status {
+  padding: 0.16rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+#app-shell .school-day-actions-wrap .table-action-row button,
+#app-shell .school-day-inline-grade-wrap .grade-entry-action-row button,
+#app-shell #school-day-add-grade-row-btn,
+#app-shell #school-day-add-grade-rows-for-students-btn,
+#app-shell #school-day-attendance-save-all-btn {
+  min-height: 34px;
+  padding: 0.42rem 0.68rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.84rem;
+}
+
+#app-shell .school-day-complete-toggle {
+  color: #526179;
+  font-weight: 500;
+}
+
+#app-shell .school-day-inline-grade-row td,
+#app-shell .school-day-inline-grade-wrap .school-day-inline-grade-action-table-row td {
+  background: #f8fbff;
+}
+
+#app-shell .school-day-grades-callout {
+  margin-top: 0.9rem;
+  border: 1px solid #e2eaf4;
+  border-radius: 14px;
+  background: #f8fbfd;
+}
+
 @media (max-width: 1120px) {
   #app-shell .app-topbar {
     grid-template-columns: 240px 1fr auto;
@@ -5059,6 +5351,10 @@ tbody tr:hover {
   }
 
   #app-shell .dashboard-section-overview .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #app-shell .school-day-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -5102,6 +5398,25 @@ tbody tr:hover {
   #app-shell .progress-wrap {
     grid-template-columns: 1fr;
   }
+
+  #app-shell .school-day-nav-row,
+  #app-shell .school-day-quick-filters,
+  #app-shell .school-day-subtabs {
+    width: 100%;
+  }
+
+  #app-shell .school-day-subtabs {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  #app-shell .school-day-section-header {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .school-day-date-nav {
+    justify-self: stretch;
+  }
 }
 
 @media (max-width: 560px) {
@@ -5134,5 +5449,11 @@ tbody tr:hover {
   #app-shell .dashboard-section-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  #app-shell .school-day-form,
+  #app-shell .school-day-student-summaries,
+  #app-shell .school-day-overview-grid {
+    grid-template-columns: 1fr;
   }
 }
