@@ -8136,6 +8136,10 @@ function setSchoolDayDailyMessage(kind, message) {
   el.textContent = message || "";
 }
 
+function clearSchoolDayDailyMessage() {
+  schoolDayDailyMessageState = { kind: "", text: "" };
+}
+
 function setSchoolDayGradesMessage(kind, message) {
   schoolDayGradesMessageState = { kind: kind || "", text: message || "" };
   const el = document.getElementById("school-day-grades-message");
@@ -14993,10 +14997,17 @@ function bindEvents() {
     });
   }
 
-  document.getElementById("school-day-form").addEventListener("submit", (e) => { e.preventDefault(); renderSchoolDay(); });
+  document.getElementById("school-day-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    clearSchoolDayDailyMessage();
+    renderSchoolDay();
+  });
   const schoolDayDateInput = document.getElementById("school-day-date");
   if (schoolDayDateInput) {
-    schoolDayDateInput.addEventListener("change", () => renderSchoolDay());
+    schoolDayDateInput.addEventListener("change", () => {
+      clearSchoolDayDailyMessage();
+      renderSchoolDay();
+    });
   }
   const schoolDayPrevBtn = document.getElementById("school-day-prev-period");
   if (schoolDayPrevBtn) {
@@ -15005,6 +15016,7 @@ function bindEvents() {
       const base = toDate(input?.value || todayISO());
       base.setDate(base.getDate() - 1);
       if (input) input.value = toISO(base);
+      clearSchoolDayDailyMessage();
       renderSchoolDay();
     });
   }
@@ -15015,6 +15027,7 @@ function bindEvents() {
       const base = toDate(input?.value || todayISO());
       base.setDate(base.getDate() + 1);
       if (input) input.value = toISO(base);
+      clearSchoolDayDailyMessage();
       renderSchoolDay();
     });
   }
@@ -15542,6 +15555,7 @@ function bindEvents() {
       schoolDaySelectedStudentIds = new Set(getSchoolDaySelectedStudentIds());
       syncCalendarAllCheckbox("school-day-student-checkbox", "school-day-student-all-checkbox");
       syncSchoolDayFilterSubjectCourseOptions();
+      clearSchoolDayDailyMessage();
       renderSchoolDay();
       return;
     }
@@ -15567,6 +15581,7 @@ function bindEvents() {
       const studentIds = checked ? visibleStudents().map((student) => student.id) : [];
       applySchoolDayFilterSelection({ studentIds });
       syncSchoolDayFilterSubjectCourseOptions();
+      clearSchoolDayDailyMessage();
       renderSchoolDay();
       return;
     }
@@ -15581,6 +15596,7 @@ function bindEvents() {
       schoolDaySelectedSubjectIds = new Set(getSchoolDaySelectedSubjectIds());
       syncCalendarAllCheckbox("school-day-subject-checkbox", "school-day-subject-all-checkbox");
       syncSchoolDayFilterSubjectCourseOptions();
+      clearSchoolDayDailyMessage();
       renderSchoolDay();
       return;
     }
@@ -15601,6 +15617,7 @@ function bindEvents() {
         : [];
       applySchoolDayFilterSelection({ subjectIds });
       syncSchoolDayFilterSubjectCourseOptions();
+      clearSchoolDayDailyMessage();
       renderSchoolDay();
       return;
     }
@@ -15615,6 +15632,7 @@ function bindEvents() {
       schoolDaySelectedCourseIds = new Set(getSchoolDaySelectedCourseIds());
       syncCalendarAllCheckbox("school-day-course-checkbox", "school-day-course-all-checkbox");
       updateSchoolDayCourseSummary();
+      clearSchoolDayDailyMessage();
       renderSchoolDay();
       return;
     }
@@ -15879,6 +15897,7 @@ function bindEvents() {
       if (schoolDayQuickFilter === "needs-completion") schoolDayQuickFilters.needsCompletion = !schoolDayQuickFilters.needsCompletion;
       if (schoolDayQuickFilter === "needs-grade") schoolDayQuickFilters.needsGrade = !schoolDayQuickFilters.needsGrade;
       if (schoolDayQuickFilter === "overridden") schoolDayQuickFilters.overridden = !schoolDayQuickFilters.overridden;
+      clearSchoolDayDailyMessage();
       renderSchoolDay();
       return;
     }
