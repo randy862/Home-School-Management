@@ -14,8 +14,21 @@ Active branch:
 
 Latest branch commits:
 
-- `f617d30 Disable API response caching`
+- `05e146b Use white modern app canvas`
+- `83a63c9 Use regular School Day filter summary weight`
+- `7f01b9e Normalize School Day dropdown row density`
+- `30d8495 Fix School Day dropdown compression`
+- `22889ad Fix School Day dropdown label wrapping`
+- `49f649a Compact School Day dropdown rows`
+- `f01d780 Tighten School Day dropdown option spacing`
+- `a251915 Refine School Day labels and sidebar width`
+- `f24f8dc Modernize School Day surface styling`
+- `00810f9 Bump modern preview stylesheet version`
+- `05e0c48 Modernize dashboard surface styling`
+- `876dda2 Lighten modern sidebar nav labels`
+- `1b47ee1 Document app interface modernization handoff`
 - `e514b58 Start modern app interface shell`
+- `f617d30 Disable API response caching`
 
 Preview URL:
 
@@ -27,6 +40,7 @@ Deployment status:
 - The live tenant app at `https://mitchell.navigrader.com/` is unchanged by the app-shell visual work.
 - A separate preview folder was published to WEB001 at `/var/www/home-school-management/web/modern-preview/`.
 - The preview folder contains copied branch versions of `index.html`, `app.js`, `styles.css`, and `assets/`.
+- As of commit `05e146b`, `/modern-preview/` is serving `styles.css?v=202605030540`.
 - Because the preview runs on the same tenant origin, it talks to the normal Mitchell tenant `/api` endpoints and uses the same login/data.
 
 Important operational fix completed before the visual shell work:
@@ -100,6 +114,71 @@ Verification completed:
 - `git diff --check` passed for changed web files.
 - Preview URL and `search.svg` returned `200 OK` from WEB001.
 
+## Second Session: Dashboard, School Day, And White Canvas Refinement
+
+Status: **Completed as preview-only refinements** through commit `05e146b`.
+
+Important scope note:
+
+- All changes in this session stayed preview-oriented and frontend-only.
+- The live tenant root at `https://mitchell.navigrader.com/` was not replaced.
+- No backend APIs, scheduling generation, attendance save logic, grade save logic, reports logic, tenant lifecycle, billing, or provisioning code was intentionally changed.
+- Preview refreshes copied updated `web/index.html` and `web/styles.css` to WEB001 `/var/www/home-school-management/web/modern-preview/`.
+
+What changed:
+
+- `web/styles.css`
+  - Lightened modern sidebar navigation label weight.
+  - Added a modern Dashboard surface layer:
+    - quieter segmented Dashboard tabs
+    - flatter KPI and summary cards
+    - softer progress bars
+    - lighter Dashboard table/chart wrappers
+    - responsive Dashboard card stacking
+  - Added a modern School Day surface layer:
+    - cleaner filter shell
+    - segmented quick filters and School Day subtabs
+    - softer Daily Schedule, Attendance, and Grades sections
+    - lighter student summary and side-by-side overview cards
+    - tightened status badges, inline grade/edit controls, and table wrappers
+  - Refined School Day filters after preview review:
+    - `Reference Date` label became `Date`
+    - `Student Filter`, `Subject Filter`, and `Course Filter` became `Student`, `Subject`, and `Course`
+    - removed all-caps treatment from School Day filter labels
+    - made date input and dropdown option text regular weight
+    - fixed Course dropdown wrapping/compression when multiple students are selected
+    - normalized dropdown row density without letting rows crush long Course names
+  - Narrowed the modern sidebar from `285px` to `232px` on desktop, and from `240px` to `220px` at the medium breakpoint, to return space to the main content area while keeping `Administration` readable.
+  - Changed the modern app shell canvas from light blue to white to better match the reference image:
+    - `#app-shell`, `.app-main`, `.app-topbar`, and `.app-sidebar` now use white backgrounds
+    - topbar/sidebar heavy shadows were removed
+    - subtle border lines remain for structure
+- `web/index.html`
+  - Bumped stylesheet cache keys after each preview refresh.
+  - Current preview cache key is `styles.css?v=202605030540`.
+
+User review notes from this session:
+
+- The user liked the Dashboard modernization once the preview was refreshed.
+- The user preferred the white main app canvas from the reference image over the blue-tinted main workspace.
+- The user did not like all-caps School Day filter labels or bold filter content.
+- The dropdown spacing took several iterations; the current intended state is compact but not crushed, with Course names kept readable when multiple students are selected.
+
+Verification completed:
+
+- `git diff --check` passed for each committed CSS/HTML slice.
+- `/modern-preview/` was verified over HTTPS after refreshes by checking the active stylesheet cache key.
+- WEB001 preview files were verified in `/var/www/home-school-management/web/modern-preview/` after deployment.
+- Branch `app-modern-interface-shell` was pushed after the committed preview refinements.
+
+Known remaining local untracked files:
+
+- `tmp/`
+- Additional unused icon assets including `chart-bar-popular.svg`, `credit-card.svg`, `more-vertical.svg`, `move-vertical.svg`, `plan.svg`, `settings.svg`, `sliders-horizontal.svg`, `square-pen.svg`
+- `web/assets/icons/trend-up2.svg - Shortcut.lnk`
+
+Do not add these unless a later slice intentionally wires them into the app.
+
 ## Suggested Workflow
 
 1. Continue on `app-modern-interface-shell`.
@@ -124,15 +203,11 @@ Verification completed:
 
 ## Later Slices
 
-- Tighten first shell visual details after user review:
-  - logo sizing/spacing
-  - top bar spacing
-  - sidebar card usefulness
-  - mobile behavior
-- Modernize Dashboard cards and gauges.
-- Modernize School Day tables and controls toward the reference image:
+- Validate the current white-canvas Dashboard and School Day preview in-browser before starting another visual slice.
+- If the current School Day dropdown density still feels off, adjust only the scoped `#school-day-form .multi-select-dropdown[open]` rules before broader modernization continues.
+- Continue modernizing School Day toward the reference image only after the filter/dropdown polish is accepted:
   - cleaner summary metric cards
-  - table rows with more spacing and modern status chips
+  - table rows with modern status chips
   - icon buttons for edit/more actions
 - Modernize forms, tabs, buttons, and modals.
 - Modernize Reports presentation.
@@ -144,5 +219,5 @@ Verification completed:
 Use this prompt to pick back up:
 
 ```text
-Pick up the main app interface modernization from NOTES/app-interface-modernization-plan.md on branch app-modern-interface-shell. The first shell preview is committed as e514b58 and published at https://mitchell.navigrader.com/modern-preview/. Continue improving the modern app shell against the preview path only unless I explicitly approve replacing the live tenant app. Preserve existing app behavior and navigation.
+Pick up the main app interface modernization from NOTES/app-interface-modernization-plan.md on branch app-modern-interface-shell. The modern preview is published at https://mitchell.navigrader.com/modern-preview/ and currently includes the shell, Dashboard surface, School Day surface, narrowed sidebar, scoped School Day dropdown fixes, and white app canvas through commit 05e146b. Continue improving the modern app shell against the preview path only unless I explicitly approve replacing the live tenant app. Preserve existing app behavior and navigation. Start by validating the current preview, especially School Day filter/dropdown density, before beginning another visual slice.
 ```
