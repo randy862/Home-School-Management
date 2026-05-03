@@ -4689,7 +4689,7 @@ tbody tr:hover {
 
 #app-shell .app-layout {
   display: grid;
-  grid-template-columns: 285px minmax(0, 1fr);
+  grid-template-columns: 232px minmax(0, 1fr);
   gap: 0;
   align-items: start;
 }
@@ -5079,16 +5079,18 @@ tbody tr:hover {
 
 #app-shell .school-day-form {
   display: grid;
-  grid-template-columns: minmax(150px, 0.72fr) repeat(3, minmax(180px, 1fr));
+  grid-template-columns: minmax(185px, 0.68fr) repeat(3, minmax(230px, 1fr));
   gap: 0.75rem;
 }
 
 #app-shell .school-day-form > label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   color: #5b6a80;
-  font-size: 0.76rem;
+  font-size: 0.88rem;
   font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 #app-shell .school-day-form input,
@@ -5096,6 +5098,8 @@ tbody tr:hover {
   min-height: 42px;
   border-radius: 12px;
   background: #ffffff;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 #app-shell .school-day-nav-row {
@@ -5347,7 +5351,7 @@ tbody tr:hover {
   }
 
   #app-shell .app-layout {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: 220px minmax(0, 1fr);
   }
 
   #app-shell .dashboard-section-overview .kpi-grid {
