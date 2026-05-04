@@ -5414,6 +5414,445 @@ tbody tr:hover {
   background: #f8fbfd;
 }
 
+#app-shell #tab-students.active {
+  display: grid;
+  gap: 0.65rem;
+}
+
+#app-shell #tab-students > h2:first-child {
+  display: block;
+  margin: 0;
+  color: #17243d;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+#app-shell .students-toolbar {
+  margin: 0 0 0.5rem;
+}
+
+#app-shell #student-new-btn,
+#app-shell #student-submit-btn,
+#app-shell #student-cancel-edit-btn,
+#app-shell .student-detail-action-row button {
+  min-height: 34px;
+  padding: 0.42rem 0.68rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#app-shell .students-helper-text {
+  margin: 0 0 0.6rem;
+  color: #6b778c;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+#app-shell .students-section,
+#app-shell #student-detail-panel,
+#app-shell .student-detail-section {
+  border: 1px solid #dfe7f1;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(25, 42, 70, 0.06);
+  padding: 0.75rem;
+}
+
+#app-shell .students-section h3,
+#app-shell .student-detail-section h4 {
+  color: #17243d;
+  font-size: 1rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+#app-shell #student-form,
+#app-shell #student-summary-form,
+#app-shell #student-enrollment-form {
+  gap: 0.55rem;
+  margin: 0.65rem 0 0;
+}
+
+#app-shell #student-form label,
+#app-shell #student-summary-form label,
+#app-shell #student-enrollment-form label,
+#app-shell #student-detail-filter-form label {
+  color: #5b6a80;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+#app-shell #student-form input,
+#app-shell #student-summary-form input,
+#app-shell #student-detail-filter-form select,
+#app-shell #student-enrollment-form .multi-select-dropdown summary {
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 12px;
+  color: #17243d;
+  font-weight: 400;
+}
+
+#app-shell #student-enrollment-form .multi-select-dropdown summary {
+  background: #ffffff;
+}
+
+#app-shell #student-enrollment-form .multi-select-dropdown[open] .checklist-vertical {
+  border-color: #cbd8ea;
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(31, 47, 69, 0.14);
+}
+
+#app-shell .student-detail-subtabs {
+  width: fit-content;
+  margin: 0.55rem 0 0.65rem;
+  padding: 0.18rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f6f9fc;
+  gap: 0.18rem;
+}
+
+#app-shell .student-detail-subtabs .subtab-btn {
+  min-height: 32px;
+  padding: 0.34rem 0.7rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #58677c;
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#app-shell .student-detail-subtabs .subtab-btn:hover {
+  background: #edf3fa;
+  color: #1f3f6d;
+  box-shadow: none;
+  transform: none;
+}
+
+#app-shell .student-detail-subtabs .subtab-btn.active {
+  background: #ffffff;
+  color: #155bc3;
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+}
+
+#app-shell #student-detail-panel .detail-title {
+  color: #17243d;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+#app-shell .student-detail-tab-panel {
+  gap: 0.65rem;
+}
+
+#app-shell .student-detail-section + .student-detail-section {
+  margin-top: 0;
+}
+
+#app-shell .student-detail-section-profile h4 + h4 {
+  margin-top: 0.45rem;
+  color: #5f6f84;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+#app-shell #student-detail-filter-form {
+  grid-template-columns: minmax(180px, 240px);
+  margin: 0.55rem 0 0;
+}
+
+#app-shell #student-enrollment-form {
+  grid-template-columns: minmax(280px, 1fr) auto;
+}
+
+#app-shell .student-detail-action-row {
+  gap: 0.35rem;
+}
+
+#app-shell #tab-students .table-wrap,
+#app-shell #student-detail-panel .table-wrap {
+  margin-top: 0.55rem;
+  border: 1px solid #e3eaf4;
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: auto;
+}
+
+#app-shell #tab-students table {
+  width: 100%;
+}
+
+#app-shell #tab-students th {
+  background: #f7f9fc;
+  color: #68778d;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+#app-shell #tab-students td {
+  background: #ffffff;
+}
+
+#app-shell #tab-students th,
+#app-shell #tab-students td {
+  text-align: left;
+}
+
+#app-shell .student-status-pill {
+  padding: 0.16rem 0.48rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+#app-shell .student-table-actions .table-action-row button,
+#app-shell #student-enrollment-table .table-action-row button {
+  min-height: 32px;
+  padding: 0.36rem 0.58rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+#app-shell .student-schedule-order-select {
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 10px;
+}
+
+#app-shell #tab-management.active {
+  display: grid;
+  gap: 0.65rem;
+}
+
+#app-shell #tab-management > h2:first-child {
+  display: block;
+  margin: 0;
+  color: #17243d;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+#app-shell .management-subtabs,
+#app-shell .management-courses-subtabs {
+  width: fit-content;
+  margin: 0;
+  padding: 0.18rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f6f9fc;
+  gap: 0.18rem;
+}
+
+#app-shell .management-courses-subtabs {
+  margin: 0.55rem 0 0.65rem;
+}
+
+#app-shell .management-subtabs .subtab-btn,
+#app-shell .management-courses-subtabs .subtab-btn {
+  min-height: 32px;
+  padding: 0.34rem 0.7rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #58677c;
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#app-shell .management-subtabs .subtab-btn:hover,
+#app-shell .management-courses-subtabs .subtab-btn:hover {
+  background: #edf3fa;
+  color: #1f3f6d;
+  box-shadow: none;
+  transform: none;
+}
+
+#app-shell .management-subtabs .subtab-btn.active,
+#app-shell .management-courses-subtabs .subtab-btn.active {
+  background: #ffffff;
+  color: #155bc3;
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+}
+
+#app-shell .management-section {
+  border: 1px solid #dfe7f1;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(25, 42, 70, 0.06);
+  padding: 0.75rem;
+}
+
+#app-shell .management-section + .management-section {
+  margin-top: 0;
+}
+
+#app-shell .management-section h3,
+#app-shell .management-section h4,
+#app-shell .course-sections-wrap h4 {
+  color: #17243d;
+  font-size: 1rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+#app-shell .management-section h4,
+#app-shell .course-sections-wrap h4 {
+  margin-top: 0.65rem;
+}
+
+#app-shell #subject-form,
+#app-shell #grade-type-form,
+#app-shell #course-form,
+#app-shell .course-section-form {
+  gap: 0.55rem;
+  margin: 0.65rem 0 0;
+}
+
+#app-shell #subject-form input,
+#app-shell #grade-type-form input,
+#app-shell #course-form input,
+#app-shell #course-form select,
+#app-shell .course-section-form input,
+#app-shell .course-section-form select,
+#app-shell #grading-criteria-form input,
+#app-shell #grading-criteria-form select,
+#app-shell #course-form .multi-select-dropdown summary,
+#app-shell .course-section-form .multi-select-dropdown summary {
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 12px;
+  color: #17243d;
+  font-weight: 400;
+}
+
+#app-shell #grade-type-form label,
+#app-shell #course-form label,
+#app-shell .course-section-form label,
+#app-shell .course-section-form fieldset,
+#app-shell #grading-criteria-form label {
+  color: #5b6a80;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+#app-shell #course-form,
+#app-shell .course-section-form {
+  border-color: #e2eaf4;
+  border-radius: 14px;
+  background: #f8fbfd;
+  padding: 0.75rem;
+}
+
+#app-shell .course-management-actions,
+#app-shell .grade-types-apply-row {
+  margin: 0.55rem 0 0;
+  gap: 0.35rem;
+}
+
+#app-shell .course-management-actions button,
+#app-shell #subject-form button,
+#app-shell #grade-type-form button,
+#app-shell .grade-types-apply-row button,
+#app-shell .course-form-actions button,
+#app-shell .grading-criteria-actions button,
+#app-shell .course-materials-panel button,
+#app-shell .course-table-actions .table-action-row button {
+  min-height: 34px;
+  padding: 0.42rem 0.68rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#app-shell .course-form-note,
+#app-shell #grade-type-total,
+#app-shell #grading-criteria-message {
+  color: #6b778c;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+#app-shell #course-form .multi-select-dropdown summary,
+#app-shell .course-section-form .multi-select-dropdown summary {
+  background: #ffffff;
+}
+
+#app-shell #course-form .multi-select-dropdown[open] .checklist-vertical,
+#app-shell .course-section-form .multi-select-dropdown[open] .checklist-vertical {
+  border-color: #cbd8ea;
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(31, 47, 69, 0.14);
+}
+
+#app-shell .weekday-set {
+  border-color: #dbe4f0;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 0.55rem 0.65rem;
+}
+
+#app-shell .weekday-set legend {
+  color: #5b6a80;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+#app-shell .course-materials-panel,
+#app-shell .grading-criteria-card {
+  border: 1px solid #e2eaf4;
+  border-radius: 14px;
+  background: #f8fbfd;
+  padding: 0.75rem;
+}
+
+#app-shell .course-materials-grid {
+  border-color: #e2eaf4;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+#app-shell .grading-criteria-card h4 {
+  margin: 0 0 0.45rem;
+}
+
+#app-shell .management-section .table-wrap {
+  margin-top: 0.55rem;
+  border: 1px solid #e3eaf4;
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: auto;
+}
+
+#app-shell .management-section table {
+  width: 100%;
+}
+
+#app-shell .management-section th {
+  background: #f7f9fc;
+  color: #68778d;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+#app-shell .management-section td {
+  background: #ffffff;
+}
+
 #app-shell #tab-attendance.active {
   display: grid;
   gap: 0.65rem;
@@ -5847,6 +6286,15 @@ tbody tr:hover {
   #app-shell #attendance-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  #app-shell #student-enrollment-form {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .management-subtabs,
+  #app-shell .management-courses-subtabs {
+    width: 100%;
+  }
 }
 
 @media (max-width: 820px) {
@@ -5931,6 +6379,15 @@ tbody tr:hover {
 
   #app-shell #add-attendance-record-btn {
     justify-self: start;
+  }
+
+  #app-shell #student-form,
+  #app-shell #student-summary-form {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell #student-detail-filter-form {
+    grid-template-columns: 1fr;
   }
 }
 
