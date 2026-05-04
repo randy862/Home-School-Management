@@ -5853,6 +5853,219 @@ tbody tr:hover {
   background: #ffffff;
 }
 
+#app-shell #tab-planning.active {
+  display: grid;
+  gap: 0.65rem;
+}
+
+#app-shell #tab-planning > h2:first-child {
+  display: block;
+  margin: 0;
+  color: #17243d;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+#app-shell .schedule-subtabs {
+  width: fit-content;
+  margin: 0;
+  padding: 0.18rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f6f9fc;
+  gap: 0.18rem;
+}
+
+#app-shell .schedule-subtabs .subtab-btn {
+  min-height: 32px;
+  padding: 0.34rem 0.7rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #58677c;
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+#app-shell .schedule-subtabs .subtab-btn:hover {
+  background: #edf3fa;
+  color: #1f3f6d;
+  box-shadow: none;
+  transform: none;
+}
+
+#app-shell .schedule-subtabs .subtab-btn.active {
+  background: #ffffff;
+  color: #155bc3;
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+}
+
+#app-shell .schedule-section {
+  border: 1px solid #dfe7f1;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(25, 42, 70, 0.06);
+  padding: 0.75rem;
+}
+
+#app-shell .schedule-section + .schedule-section {
+  margin-top: 0;
+}
+
+#app-shell .schedule-section h3 {
+  color: #17243d;
+  font-size: 1rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
+#app-shell #school-year-form,
+#app-shell #quarters-form,
+#app-shell #school-day-settings-form,
+#app-shell #schedule-block-form,
+#app-shell #holiday-form,
+#app-shell #plan-form,
+#app-shell #plan-filter-form {
+  gap: 0.55rem;
+  margin: 0.65rem 0 0;
+}
+
+#app-shell #school-year-form label,
+#app-shell #quarters-form label,
+#app-shell #school-day-settings-form label,
+#app-shell #schedule-block-form label,
+#app-shell #holiday-form label,
+#app-shell #plan-form label,
+#app-shell #plan-filter-form label,
+#app-shell #schedule-block-form fieldset,
+#app-shell #plan-form fieldset {
+  color: #5b6a80;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+#app-shell #school-year-form input,
+#app-shell #quarters-form input,
+#app-shell #quarters-form select,
+#app-shell #school-day-settings-form input,
+#app-shell #school-day-settings-form select,
+#app-shell #schedule-block-form input,
+#app-shell #schedule-block-form select,
+#app-shell #holiday-form input,
+#app-shell #holiday-form select,
+#app-shell #plan-form input,
+#app-shell #plan-form select,
+#app-shell #plan-filter-form select,
+#app-shell #plan-form .multi-select-dropdown summary {
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 12px;
+  color: #17243d;
+  font-weight: 400;
+}
+
+#app-shell #plan-form .multi-select-dropdown summary {
+  background: #ffffff;
+}
+
+#app-shell #plan-form .multi-select-dropdown[open] .checklist-vertical {
+  border-color: #cbd8ea;
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(31, 47, 69, 0.14);
+}
+
+#app-shell #schedule-block-form,
+#app-shell #plan-form {
+  padding: 0.75rem;
+  border: 1px solid #e2eaf4;
+  border-radius: 14px;
+  background: #f8fbfd;
+}
+
+#app-shell #plan-filter-form {
+  grid-template-columns: minmax(170px, 0.9fr) minmax(220px, 1.2fr) auto;
+  align-items: end;
+  padding: 0.75rem;
+  border: 1px solid #e2eaf4;
+  border-radius: 14px;
+  background: #f8fbfd;
+}
+
+#app-shell #school-year-form button,
+#app-shell #quarters-form button,
+#app-shell #school-day-settings-form button,
+#app-shell #schedule-block-form button,
+#app-shell #holiday-form button,
+#app-shell #plan-form button,
+#app-shell #plan-filter-form button {
+  min-height: 34px;
+  width: auto;
+  padding: 0.42rem 0.68rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+#app-shell #school-year-current,
+#app-shell #quarter-summary-warning,
+#app-shell #school-day-settings-current,
+#app-shell #schedule-school-day-wrap > .muted {
+  color: #6b778c;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+#app-shell #schedule-school-day-wrap > .muted {
+  margin: 0.45rem 0 0;
+}
+
+#app-shell .schedule-block-secondary-row {
+  gap: 0.55rem;
+}
+
+#app-shell #plan-quarter-fieldset .checklist-vertical {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(90px, max-content));
+  gap: 0.35rem 0.75rem;
+}
+
+#app-shell .schedule-section .table-wrap {
+  margin-top: 0.55rem;
+  border: 1px solid #e3eaf4;
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: auto;
+}
+
+#app-shell .schedule-section table {
+  width: 100%;
+}
+
+#app-shell .schedule-section th {
+  background: #f7f9fc;
+  color: #68778d;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+#app-shell .schedule-section td {
+  background: #ffffff;
+}
+
+#app-shell .schedule-section .table-action-row button {
+  min-height: 32px;
+  padding: 0.36rem 0.58rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 #app-shell #tab-attendance.active {
   display: grid;
   gap: 0.65rem;
@@ -6295,6 +6508,14 @@ tbody tr:hover {
   #app-shell .management-courses-subtabs {
     width: 100%;
   }
+
+  #app-shell .schedule-subtabs {
+    width: 100%;
+  }
+
+  #app-shell #plan-filter-form {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 820px) {
@@ -6387,6 +6608,10 @@ tbody tr:hover {
   }
 
   #app-shell #student-detail-filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell #plan-filter-form {
     grid-template-columns: 1fr;
   }
 }
