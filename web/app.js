@@ -59,6 +59,7 @@ const STUDENT_ALLOWED_TABS = new Set(["dashboard", "calendar", "attendance", "gr
 const HOSTED_MODE_STORAGE_KEY = "hsm_hosted_mode_v1";
 const SCHOOL_DAY_PREFS_STORAGE_KEY = "hsm_school_day_prefs_v1";
 const WORKSPACE_CONFIG_PREFS_STORAGE_KEY = "hsm_workspace_config_prefs_v1";
+const ACTIVE_ACADEMIC_YEAR_STORAGE_KEY = "hsm_active_academic_year_v1";
 const INSTRUCTOR_CATEGORY_OPTIONS = ["parent", "volunteer", "compensated", "other"];
 const INSTRUCTOR_CATEGORY_LABELS = {
   parent: "Parent",
@@ -1306,6 +1307,7 @@ async function bootstrapFromLegacyBridge() {
     saveSession();
   }
   setCurrentSchoolYear(state.settings.currentSchoolYearId);
+  applyPreferredAcademicYearContext();
   if (backfillAttendanceToToday() || mergeResult.usersChanged || mergeResult.needsResave) saveState();
   gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
   renderAll();
@@ -1334,6 +1336,7 @@ let hostedBootstrapInFlight = false;
 loadSchoolDayPreferences();
 if (!state.users.some((user) => user.id === currentUserId)) currentUserId = "";
 setCurrentSchoolYear(state.settings.currentSchoolYearId);
+applyPreferredAcademicYearContext();
 const startupBackfillChanged = runLegacyLocalStartupMaintenance();
 let legacyBridgeSaveInFlight = false;
 let legacyBridgeSavePending = false;
@@ -2662,6 +2665,7 @@ async function hydrateHostedDomainState() {
     await refreshHostedUsers();
   }
   normalizeSettingsShape(state);
+  applyPreferredAcademicYearContext();
   gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
   invalidateDashboardCache();
 }
@@ -2701,6 +2705,7 @@ async function refreshHostedStudentCascadeState() {
 async function refreshHostedSchoolConfigState() {
   await refreshHostedSchoolYears();
   await refreshHostedQuarters();
+  applyPreferredAcademicYearContext();
   await refreshHostedPlans();
 }
 
@@ -3206,6 +3211,7 @@ function renderSessionChrome() {
   if (accountMenuShell) accountMenuShell.classList.toggle("hidden", !signedIn);
   if (accountMenuTrigger) accountMenuTrigger.setAttribute("aria-expanded", accountMenuOpen ? "true" : "false");
   if (accountMenu) accountMenu.classList.toggle("hidden", !signedIn || !accountMenuOpen);
+  renderAcademicYearSelector();
   const accountOptionsMenuButton = document.getElementById("account-menu-options-btn");
   const canOpenAccountOptions = !!(
     accountSubscriptionSummary().permissions?.canRequestDormant
@@ -4067,6 +4073,67 @@ function setCurrentSchoolYear(schoolYearId) {
     .filter((q) => q.schoolYearId === schoolYear.id)
     .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
     .map((q) => ({ id: q.id, schoolYearId: q.schoolYearId, name: q.name, startDate: q.startDate, endDate: q.endDate }));
+}
+
+function loadActiveAcademicYearPreference() {
+  try {
+    return localStorage.getItem(ACTIVE_ACADEMIC_YEAR_STORAGE_KEY) || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function saveActiveAcademicYearPreference(schoolYearId) {
+  try {
+    if (schoolYearId) localStorage.setItem(ACTIVE_ACADEMIC_YEAR_STORAGE_KEY, schoolYearId);
+    else localStorage.removeItem(ACTIVE_ACADEMIC_YEAR_STORAGE_KEY);
+  } catch (error) {
+    // Ignore storage failures; the in-memory context still updates for this session.
+  }
+}
+
+function applyPreferredAcademicYearContext() {
+  const preferredSchoolYearId = loadActiveAcademicYearPreference();
+  if (preferredSchoolYearId && getSchoolYear(preferredSchoolYearId)) {
+    setCurrentSchoolYear(preferredSchoolYearId);
+  } else if (preferredSchoolYearId) {
+    saveActiveAcademicYearPreference("");
+  }
+}
+
+function renderAcademicYearSelector() {
+  const select = document.getElementById("active-academic-year-select");
+  if (!(select instanceof HTMLSelectElement)) return;
+  const schoolYears = Array.isArray(state.settings.schoolYears) ? state.settings.schoolYears : [];
+  const currentValue = state.settings.currentSchoolYearId || currentSchoolYear()?.id || "";
+  select.innerHTML = "";
+  schoolYears
+    .slice()
+    .sort((a, b) => String(b.startDate || "").localeCompare(String(a.startDate || "")))
+    .forEach((year) => {
+      const option = document.createElement("option");
+      option.value = year.id;
+      option.textContent = year.label || `${formatDisplayDate(year.startDate)} - ${formatDisplayDate(year.endDate)}`;
+      select.appendChild(option);
+    });
+  select.disabled = schoolYears.length <= 1;
+  if (currentValue && Array.from(select.options).some((option) => option.value === currentValue)) {
+    select.value = currentValue;
+  }
+}
+
+function applyAcademicYearViewContext(schoolYearId) {
+  if (!getSchoolYear(schoolYearId)) return;
+  setCurrentSchoolYear(schoolYearId);
+  saveActiveAcademicYearPreference(schoolYearId);
+  dashboardDirty = true;
+  dashboardExpandableRenderCache = null;
+  dashboardExpandableMetricsCache = null;
+  editingSearchAttendanceId = "";
+  editingSearchGradeId = "";
+  schoolDayInlineGradeKey = "";
+  if (!hostedModeEnabled) saveState();
+  renderAll();
 }
 
 function backfillAttendanceToToday() {
@@ -15433,6 +15500,10 @@ function bindEvents() {
   document.addEventListener("change", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
+    if (t.id === "active-academic-year-select" && t instanceof HTMLSelectElement) {
+      applyAcademicYearViewContext(t.value);
+      return;
+    }
     if (t.classList.contains("attendance-student-checkbox")) {
       updateAttendanceStudentSummary();
       return;

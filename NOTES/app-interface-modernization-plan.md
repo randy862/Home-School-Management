@@ -203,6 +203,21 @@ Do not add these unless a later slice intentionally wires them into the app.
 
 ## Later Slices
 
+- Global shell controls roadmap:
+  - Academic Year:
+    - Use the shell Academic Year selector as a global view context.
+    - Default to the configured current school year, but allow the user to switch to any configured year.
+    - Persist the selected view context locally so review sessions can stay on the intended year.
+    - The selector should not silently change the tenant-wide official current year; Schedule > School Years remains the admin path for that.
+    - All year-aware pages should read the active school-year context through the existing school-year state helpers.
+  - Search:
+    - Build as a global search/command surface for Students, Subjects, Courses, Classes, Instructors, and admin-only Users.
+    - Results should navigate directly to the relevant workflow state, such as Student detail, School Day filtered view, Grades filtered view, Attendance filtered view, Curriculum course/class records, or linked user accounts.
+    - Search result actions should share navigation intent helpers with Alerts so both systems route users consistently.
+  - Alerts:
+    - Add computed alerts for grade risk, attendance risk, days/hours compliance risk, missing grade/attendance/completion work, and overdue class completion.
+    - Add an Administration > Alerts configuration surface for thresholds, enabled categories, scope, cadence, severity, and dismissal behavior.
+    - Start with in-memory computed alerts, then add persistence/cadence once alert behavior is validated.
 - Dashboard and School Day title treatment was tested after the white-canvas pass:
   - Dashboard currently works well without the large page title.
   - School Day currently keeps a compact title because the page has dense controls and benefits from a small anchor.

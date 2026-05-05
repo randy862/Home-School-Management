@@ -4794,21 +4794,26 @@ tbody tr:hover {
 }
 
 #app-shell .sidebar-year-card {
-  grid-template-columns: 1fr 18px;
-  align-items: center;
+  gap: 0.45rem;
   margin-top: 4.5rem;
 }
 
-#app-shell .sidebar-year-card span,
-#app-shell .sidebar-year-card strong {
-  grid-column: 1;
+#app-shell .sidebar-year-card label {
+  color: #5f6f87;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
-#app-shell .sidebar-year-card img {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  width: 18px;
-  height: 18px;
+#app-shell .sidebar-year-card select {
+  width: 100%;
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 10px;
+  color: #17243d;
+  background: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 #app-shell .sidebar-support-card span {

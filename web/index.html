@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605051115">
+  <link rel="stylesheet" href="styles.css?v=202605051245">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -102,9 +102,8 @@
           <button class="tab-btn" data-tab="reports" type="button"><img src="assets/icons/reports.svg" alt="" aria-hidden="true"><span>Reports</span></button>
         </nav>
         <div class="sidebar-support-card sidebar-year-card">
-          <span>Academic Year</span>
-          <strong>2025-2026</strong>
-          <img src="assets/icons/chevron-down.svg" alt="" aria-hidden="true">
+          <label for="active-academic-year-select">Academic Year</label>
+          <select id="active-academic-year-select" aria-label="Academic Year"></select>
         </div>
         <div class="sidebar-support-card">
           <strong>Need Help?</strong>
@@ -1716,6 +1715,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605051045"></script>
+  <script src="app.js?v=202605051245"></script>
   </body>
   </html>
