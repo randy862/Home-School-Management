@@ -308,6 +308,32 @@ function toDate(s) {
 }
 function toISO(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 function todayISO() { return toISO(new Date()); }
+function activeSchoolYearRange() {
+  const schoolYear = currentSchoolYear();
+  return {
+    schoolYear,
+    startDate: schoolYear?.startDate || todayISO(),
+    endDate: schoolYear?.endDate || todayISO()
+  };
+}
+function dateWithinActiveSchoolYear(dateKey) {
+  const { startDate, endDate } = activeSchoolYearRange();
+  const value = String(dateKey || "");
+  return !!value && value >= startDate && value <= endDate;
+}
+function defaultReferenceDateForActiveYear() {
+  const { startDate, endDate } = activeSchoolYearRange();
+  const today = todayISO();
+  if (today < startDate) return startDate;
+  if (today > endDate) return endDate;
+  return today;
+}
+function activeYearDateOrDefault(dateKey) {
+  return dateWithinActiveSchoolYear(dateKey) ? dateKey : defaultReferenceDateForActiveYear();
+}
+function recordDateInActiveYear(record, dateField = "date") {
+  return dateWithinActiveSchoolYear(record?.[dateField]);
+}
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 
 function niceTickStep(maxValue, targetTickCount = 6) {
@@ -4132,6 +4158,15 @@ function applyAcademicYearViewContext(schoolYearId) {
   editingSearchAttendanceId = "";
   editingSearchGradeId = "";
   schoolDayInlineGradeKey = "";
+  const referenceDate = defaultReferenceDateForActiveYear();
+  const calendarDateInput = document.getElementById("calendar-date");
+  const schoolDayDateInput = document.getElementById("school-day-date");
+  const attendanceDateInput = document.getElementById("attendance-date");
+  const attendanceFilterDateInput = document.getElementById("attendance-filter-date");
+  if (calendarDateInput) calendarDateInput.value = referenceDate;
+  if (schoolDayDateInput) schoolDayDateInput.value = referenceDate;
+  if (attendanceDateInput) attendanceDateInput.value = referenceDate;
+  if (attendanceFilterDateInput) attendanceFilterDateInput.value = "";
   if (!hostedModeEnabled) saveState();
   renderAll();
 }
@@ -4571,13 +4606,15 @@ function updateEnrollmentScheduleOrder(enrollmentId, rawValue, itemType = "cours
   renderAll();
 }
 function studentOverallAverage(studentId) {
-  const tests = state.tests.filter((t) => t.studentId === studentId);
+  const { startDate, endDate } = activeSchoolYearRange();
+  const tests = state.tests.filter((t) => t.studentId === studentId && inRange(t.date, startDate, endDate));
   return weightedAverageForTests(tests);
 }
 function averageOfStudentOverallAverages(studentIds) {
+  const { startDate, endDate } = activeSchoolYearRange();
   const averages = studentIds
     .map((studentId) => {
-      const tests = state.tests.filter((t) => t.studentId === studentId);
+      const tests = state.tests.filter((t) => t.studentId === studentId && inRange(t.date, startDate, endDate));
       if (!tests.length) return null;
       return weightedAverageForTests(tests);
     })
@@ -4618,11 +4655,11 @@ function studentGradeSummary(studentId, options = {}) {
   };
 }
 function instructionalDatesByRange(startDate, endDate) {
-  const today = todayISO();
+  const referenceDate = defaultReferenceDateForActiveYear();
   return instructionalDates().filter((date) =>
     date >= startDate
     && date <= endDate
-    && date <= today);
+    && date <= referenceDate);
 }
 function studentAbsenceCount(studentId) {
   const startDate = state.settings.schoolYear.startDate;
@@ -4696,7 +4733,7 @@ function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
   const attendanceByStudentDate = new Map();
   const yearStart = toDate(state.settings.schoolYear.startDate);
   const yearEnd = toDate(state.settings.schoolYear.endDate);
-  const todayKey = todayISO();
+  const referenceDate = options.referenceDate || defaultReferenceDateForActiveYear();
   if (Number.isNaN(yearStart.getTime()) || Number.isNaN(yearEnd.getTime()) || yearEnd < yearStart) {
     return { buckets, summaryByStudent };
   }
@@ -4753,7 +4790,7 @@ function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
       const studentSummary = ensureStudentSummary(block.studentId);
       const subjectSummary = ensureSubjectSummary(studentSummary, course.subjectId || "__unknown_subject__");
       const earnedHours = (
-        dateKey <= todayKey
+        dateKey <= referenceDate
         && attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) === true
         && instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)
       ) ? hours : 0;
@@ -5175,10 +5212,10 @@ function renderSelects() {
   const schoolYearSelect = document.getElementById("grades-filter-school-year");
   if (schoolYearSelect) {
     const current = schoolYearSelect.value;
-    schoolYearSelect.innerHTML = "<option value='all'>All School Years</option>";
+    schoolYearSelect.innerHTML = "<option value='all'>Active Academic Year</option>";
     const option = document.createElement("option");
     option.value = "current";
-    option.textContent = `Current (${state.settings.schoolYear.label})`;
+    option.textContent = `Active (${state.settings.schoolYear.label})`;
     schoolYearSelect.appendChild(option);
     const yearSet = new Set(state.tests.map((t) => String(t.date).slice(0, 4)));
     Array.from(yearSet).sort().forEach((year) => {
@@ -7879,6 +7916,7 @@ function renderAttendance() {
   const filtered = state.attendance.filter((a) => {
     if (studentFilter !== "all" && a.studentId !== studentFilter) return false;
     if (dateFilter && a.date !== dateFilter) return false;
+    if (!dateFilter && !recordDateInActiveYear(a)) return false;
     if (quarterFilter !== "all" && quarterRange && !inRange(a.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if (statusFilter === "present" && !a.present) return false;
     if (statusFilter === "absent" && a.present) return false;
@@ -8362,7 +8400,7 @@ function resetAttendanceEditMode() {
   if (submitBtn) submitBtn.textContent = "Save";
   if (form) form.classList.remove("hidden");
   const dateInput = document.getElementById("attendance-date");
-  if (dateInput) dateInput.value = todayISO();
+  if (dateInput) dateInput.value = defaultReferenceDateForActiveYear();
   const statusInput = document.getElementById("attendance-status");
   if (statusInput) statusInput.value = "present";
   renderAttendanceStudentChecklist([]);
@@ -8377,7 +8415,7 @@ function openNewAttendanceEntry() {
   const statusInput = document.getElementById("attendance-status");
   if (form) form.classList.remove("hidden");
   if (submitBtn) submitBtn.textContent = "Save";
-  if (dateInput) dateInput.value = todayISO();
+  if (dateInput) dateInput.value = defaultReferenceDateForActiveYear();
   if (statusInput) statusInput.value = "present";
   renderAttendanceStudentChecklist([]);
 }
@@ -8417,7 +8455,7 @@ function renderTests() {
     const thisGradeType = gradeTypeName(t);
     if (gradeTypeFilter !== "all" && thisGradeType !== gradeTypeFilter) return false;
     if (quarterFilter !== "all" && quarterRange && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
-    if (schoolYearFilter === "current" && !inRange(t.date, schoolYearStart, schoolYearEnd)) return false;
+    if ((schoolYearFilter === "all" || schoolYearFilter === "current") && !inRange(t.date, schoolYearStart, schoolYearEnd)) return false;
     if (schoolYearFilter !== "all" && schoolYearFilter !== "current" && String(t.date).slice(0, 4) !== schoolYearFilter) return false;
     return true;
   });
@@ -8968,7 +9006,7 @@ function buildGradeEntryRow(existingGrade, preset = {}) {
   tr.setAttribute("data-grade-entry-row-id", existingGrade?.id || uid());
   const useSchoolDayInlineActions = !!preset.schoolDayInline;
 
-  const dateValue = existingGrade ? existingGrade.date : (preset.date || todayISO());
+  const dateValue = existingGrade ? existingGrade.date : (preset.date || defaultReferenceDateForActiveYear());
   const gradeValue = existingGrade ? Number(existingGrade.score || 0) : "";
   const selectedGradeStudentId = existingGrade ? existingGrade.studentId : (preset.studentId || (state.students[0] ? state.students[0].id : ""));
   const selectedSubjectId = existingGrade ? existingGrade.subjectId : (preset.subjectId || (state.subjects[0] ? state.subjects[0].id : ""));
@@ -9185,8 +9223,10 @@ function updateGradeEntryVisibility() {
 
 function gradeAnalytics(options = {}) {
   const instructorId = options.instructorId || "all";
+  const { startDate, endDate } = activeSchoolYearRange();
   const tests = state.tests
     .filter((test) => testMatchesInstructorFilter(test, instructorId))
+    .filter((test) => inRange(test.date, startDate, endDate))
     .map((t) => ({ ...t, grade: pct(t.score, t.maxScore) }));
   const byStudent = new Map(); const bySubject = new Map();
   tests.forEach((t) => {
@@ -9214,11 +9254,14 @@ function gradeAnalytics(options = {}) {
     const quarterTests = tests.filter((t) => inRange(t.date, q.startDate, q.endDate));
     return { label: q.name, avg: weightedAverageForTests(quarterTests, { quarterScoped: true }), count: quarterTests.length };
   });
-  const running = averageOfStudentOverallAverages(Array.from(byStudent.keys()));
+  const runningAverages = Array.from(byStudent.values())
+    .map((testsForStudent) => weightedAverageForTests(testsForStudent))
+    .filter((value) => Number.isFinite(value));
+  const running = runningAverages.length ? avg(runningAverages) : 0;
 
   const sy = state.settings.schoolYear;
   const annualTests = tests.filter((t) => inRange(t.date, sy.startDate, sy.endDate));
-  const cq = currentQuarter(new Date());
+  const cq = currentQuarter(toDate(defaultReferenceDateForActiveYear()));
   const cqTests = cq ? tests.filter((t) => inRange(t.date, cq.startDate, cq.endDate)) : [];
 
   return {
@@ -10837,10 +10880,10 @@ function buildDashboardMissingGradesSnapshot(referenceISO, dashboardStudents) {
 
 function buildDashboardGradeRiskSnapshot(dashboardStudents) {
   const allowedStudentIds = new Set((dashboardStudents || []).map((student) => student.id));
-  const quarter = currentQuarter(new Date());
+  const quarter = currentQuarter(toDate(defaultReferenceDateForActiveYear()));
   const quarterTests = state.tests.filter((test) => {
     if (!allowedStudentIds.has(test.studentId)) return false;
-    if (!quarter) return true;
+    if (!quarter) return recordDateInActiveYear(test);
     return inRange(test.date, quarter.startDate, quarter.endDate);
   });
   const byStudentCourse = new Map();
@@ -10894,7 +10937,7 @@ function renderDashboardExecutionSummary(snapshot) {
 
   if (completionValue) completionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
   if (completionNote) completionNote.textContent = snapshot.scheduledCount
-    ? `${snapshot.completedCount} of ${snapshot.scheduledCount} classes completed today.`
+    ? `${snapshot.completedCount} of ${snapshot.scheduledCount} classes completed on ${formatDisplayDate(snapshot.date)}.`
     : `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`;
   if (attentionValue) attentionValue.textContent = String(snapshot.attentionTotal);
   if (attentionNote) attentionNote.textContent = snapshot.attentionTotal
@@ -10905,10 +10948,10 @@ function renderDashboardExecutionSummary(snapshot) {
     ? `${snapshot.completedCount} of ${snapshot.scheduledCount} scheduled classes are completed on ${formatDisplayDate(snapshot.date)}.`
     : `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`;
   if (completionFill) completionFill.style.width = `${snapshot.completionPercent.toFixed(1)}%`;
-  rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, "No scheduled classes for today.", 5);
+  rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`, 5);
   if (detailAttentionValue) detailAttentionValue.textContent = String(snapshot.attentionTotal);
   if (detailAttentionNote) detailAttentionNote.textContent = snapshot.attentionTotal
-    ? `Open today: ${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
+    ? `Open on ${formatDisplayDate(snapshot.date)}: ${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
     : `No open items for ${formatDisplayDate(snapshot.date)}.`;
   const chipsHost = document.getElementById("dashboard-needs-attention-chips");
   if (chipsHost) {
@@ -11025,10 +11068,11 @@ function renderDashboard() {
   renderDashboardSectionVisibility();
   const allowedStudentIds = visibleStudentIds();
   const dashboardStudents = visibleStudents();
+  const referenceDate = defaultReferenceDateForActiveYear();
   const dates = instructionalDates();
   const dateSet = new Set(dates);
   const presentSet = new Set(state.attendance
-    .filter((a) => allowedStudentIds.has(a.studentId) && a.present && a.date <= todayISO())
+    .filter((a) => allowedStudentIds.has(a.studentId) && a.present && a.date <= referenceDate && recordDateInActiveYear(a))
     .map((a) => a.date));
   const completeDays = Array.from(presentSet).filter((d) => dateSet.has(d)).length;
   const totalDays = dates.length;
@@ -11037,7 +11081,7 @@ function renderDashboard() {
   document.getElementById("kpi-days-total").textContent = String(totalDays);
 
   const g = gradeAnalytics();
-  const dashboardInstructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id));
+  const dashboardInstructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { referenceDate });
   const instructionalTotals = Array.from(dashboardInstructionalHours.summaryByStudent.values()).reduce((totals, studentSummary) => {
     totals.earned += Number(studentSummary.buckets.total?.earned || 0);
     totals.projected += Number(studentSummary.buckets.total?.projected || 0);
@@ -11049,7 +11093,7 @@ function renderDashboard() {
     : g.running;
   document.getElementById("kpi-running-avg").textContent = `${runningAverage.toFixed(1)}%`;
 
-  const attendanceDatesThroughToday = dates.filter((d) => d <= todayISO());
+  const attendanceDatesThroughToday = dates.filter((d) => d <= referenceDate);
   const totalAttendanceDays = attendanceDatesThroughToday.length;
   const attendanceTotals = dashboardStudents.reduce((totals, student) => {
     const summary = studentAttendanceSummary(student.id);
@@ -11062,17 +11106,17 @@ function renderDashboard() {
     : 0;
   document.getElementById("kpi-attendance-overall").textContent = `${overallAttendanceAverage.toFixed(1)}%`;
 
-  const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate);
-  const q = currentQuarter(new Date());
-  const qP = q ? progress(q.startDate, q.endDate) : 0;
+  const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate));
+  const q = currentQuarter(toDate(referenceDate));
+  const qP = q ? progress(q.startDate, q.endDate, toDate(referenceDate)) : 0;
 
   document.getElementById("year-progress-fill").style.width = `${yP.toFixed(1)}%`;
   document.getElementById("year-progress-text").textContent = `${state.settings.schoolYear.label}: ${yP.toFixed(1)}%`;
   document.getElementById("quarter-progress-fill").style.width = `${qP.toFixed(1)}%`;
   document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
-  renderDashboardExecutionSummary(buildDashboardExecutionSnapshot(todayISO(), dashboardStudents));
+  renderDashboardExecutionSummary(buildDashboardExecutionSnapshot(referenceDate, dashboardStudents));
   renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP));
-  renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(todayISO(), dashboardStudents));
+  renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
   renderDashboardGradeRiskSummary(buildDashboardGradeRiskSnapshot(dashboardStudents));
 
   const validStudentIds = new Set(dashboardStudents.map((student) => student.id));
@@ -12237,7 +12281,9 @@ function renderCalendar() {
   const requestedView = viewInput ? viewInput.value : "month";
   const view = ["day", "week", "month"].includes(requestedView) ? requestedView : "month";
   if (viewInput && viewInput.value !== view) viewInput.value = view;
-  const ref = document.getElementById("calendar-date").value || todayISO();
+  const calendarDateInput = document.getElementById("calendar-date");
+  const ref = activeYearDateOrDefault(calendarDateInput?.value || "");
+  if (calendarDateInput && calendarDateInput.value !== ref) calendarDateInput.value = ref;
   const studentFilterIds = getCalendarSelectedStudentIds();
   const subjectFilterIds = getCalendarSelectedSubjectIds();
   const courseFilterIds = getCalendarSelectedCourseIds();
@@ -12319,8 +12365,8 @@ function renderCalendar() {
 
 function renderSchoolDay() {
   const dateInput = document.getElementById("school-day-date");
-  if (dateInput && !dateInput.value) dateInput.value = todayISO();
-  const ref = dateInput?.value || todayISO();
+  const ref = activeYearDateOrDefault(dateInput?.value || "");
+  if (dateInput && dateInput.value !== ref) dateInput.value = ref;
   syncSchoolDayFilterSubjectCourseOptions();
   renderSchoolDayDashboardReturn();
   renderSchoolDayQuickFilterState();
@@ -12389,8 +12435,8 @@ function fillSettingsForms() {
   document.getElementById("q3-end").value = q[2] ? q[2].endDate : "";
   document.getElementById("q4-start").value = q[3] ? q[3].startDate : "";
   document.getElementById("q4-end").value = q[3] ? q[3].endDate : "";
-  if (!document.getElementById("calendar-date").value) document.getElementById("calendar-date").value = todayISO();
-  if (!document.getElementById("attendance-date").value) document.getElementById("attendance-date").value = todayISO();
+  if (!document.getElementById("calendar-date").value) document.getElementById("calendar-date").value = defaultReferenceDateForActiveYear();
+  if (!document.getElementById("attendance-date").value) document.getElementById("attendance-date").value = defaultReferenceDateForActiveYear();
   const dailyBreakStartInput = document.getElementById("daily-break-start-time");
   const dailyBreakDurationInput = document.getElementById("daily-break-duration");
   if (dailyBreakStartInput && !dailyBreakStartInput.value) dailyBreakStartInput.value = "12:00";

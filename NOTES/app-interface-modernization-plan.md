@@ -210,6 +210,11 @@ Do not add these unless a later slice intentionally wires them into the app.
     - Persist the selected view context locally so review sessions can stay on the intended year.
     - The selector should not silently change the tenant-wide official current year; Schedule > School Years remains the admin path for that.
     - All year-aware pages should read the active school-year context through the existing school-year state helpers.
+    - Completed first scoping pass:
+      - Dashboard summary/execution cards use the selected year reference date.
+      - Grades and Attendance default records filter to the active academic year.
+      - Calendar and School Day default/clamp their reference dates inside the active academic year.
+      - Past years default to the school year end, future years default to the school year start, and the current year defaults to today.
   - Search:
     - Build as a global search/command surface for Students, Subjects, Courses, Classes, Instructors, and admin-only Users.
     - Results should navigate directly to the relevant workflow state, such as Student detail, School Day filtered view, Grades filtered view, Attendance filtered view, Curriculum course/class records, or linked user accounts.
