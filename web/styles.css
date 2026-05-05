@@ -5812,6 +5812,33 @@ tbody tr:hover {
   font-weight: 600;
 }
 
+#app-shell #course-form .course-weekdays-field,
+#app-shell .course-section-form .course-section-weekdays-field {
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#app-shell #course-form .course-weekdays-field label,
+#app-shell .course-section-form .course-section-weekdays-field label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  color: #31435d;
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+#app-shell #course-form .course-weekdays-field input[type="checkbox"],
+#app-shell .course-section-form .course-section-weekdays-field input[type="checkbox"] {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: 0 0 16px;
+}
+
 #app-shell .course-materials-panel,
 #app-shell .grading-criteria-card {
   border: 1px solid #e2eaf4;
