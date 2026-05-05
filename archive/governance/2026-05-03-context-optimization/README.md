@@ -1,4 +1,4 @@
-# Home School Management
+﻿# Home School Management
 
 Home School Management is a web application for managing students, courses, plans, attendance, grades, reports, and system users.
 
