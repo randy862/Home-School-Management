@@ -228,6 +228,7 @@ Do not add these unless a later slice intentionally wires them into the app.
   - Calendar filters, month/week/day surfaces, calendar day cards, navigation, and table views were aligned to the modern white-card style
   - Administration workspace configuration tabs, cards, checklist rows, selects, preview cards, and actions were aligned to the same style
   - Reports criteria/content cards, filters, checklist rows, and generate action were aligned to the same style
+- Grades and Attendance entry tabs now show creation fields by default, with the `Enter New Grade` and `Enter New Attendance` buttons below the fields.
 - Validate the current white-canvas Dashboard, School Day, Grades, Attendance, Students, Curriculum, Schedule, Calendar, Administration, and Reports preview in-browser before starting another visual slice.
 - If the current School Day dropdown density still feels off, adjust only the scoped `#school-day-form .multi-select-dropdown[open]` rules before broader modernization continues.
 - Continue page-by-page modernization after Reports:

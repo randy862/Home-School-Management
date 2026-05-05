@@ -6424,12 +6424,14 @@ tbody tr:hover {
 
 #app-shell .attendance-section-tracker {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: 1fr;
+  align-items: start;
   gap: 0.55rem;
 }
 
 #app-shell #add-attendance-record-btn {
+  order: 3;
+  justify-self: start;
   min-height: 34px;
   padding: 0.42rem 0.68rem;
   border-radius: 10px;
@@ -6439,6 +6441,7 @@ tbody tr:hover {
 }
 
 #app-shell #attendance-form {
+  order: 2;
   grid-column: 1 / -1;
   grid-template-columns: minmax(240px, 1.3fr) minmax(160px, 0.8fr) minmax(150px, 0.7fr) auto;
   gap: 0.55rem;
@@ -6627,12 +6630,14 @@ tbody tr:hover {
 
 #app-shell .grades-section-entry {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: 1fr;
+  align-items: start;
   gap: 0.55rem;
 }
 
 #app-shell #add-grade-row-btn {
+  order: 3;
+  justify-self: start;
   min-height: 34px;
   padding: 0.42rem 0.68rem;
   border-radius: 10px;
@@ -6642,6 +6647,7 @@ tbody tr:hover {
 }
 
 #app-shell #grade-entry-wrap {
+  order: 2;
   grid-column: 1 / -1;
 }
 

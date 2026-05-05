@@ -8289,13 +8289,15 @@ function renderSchoolDayGrades() {
 
 function resetAttendanceEditMode() {
   editingAttendanceId = "";
-  attendanceEntryOpen = false;
+  attendanceEntryOpen = true;
   const submitBtn = document.getElementById("attendance-submit-btn");
   const form = document.getElementById("attendance-form");
   if (submitBtn) submitBtn.textContent = "Save";
-  if (form) form.classList.add("hidden");
+  if (form) form.classList.remove("hidden");
   const dateInput = document.getElementById("attendance-date");
   if (dateInput) dateInput.value = todayISO();
+  const statusInput = document.getElementById("attendance-status");
+  if (statusInput) statusInput.value = "present";
   renderAttendanceStudentChecklist([]);
 }
 
@@ -9102,6 +9104,15 @@ function updateGradeEntryVisibility() {
   const wrap = document.getElementById("grade-entry-wrap");
   const body = document.getElementById("grade-entry-body");
   if (!wrap || !body) return;
+  const shouldShowDefaultRow = currentTab === "grades"
+    && currentGradesTab !== "search"
+    && !isStudentUser()
+    && state.students.length
+    && state.subjects.length
+    && state.courses.length;
+  if (shouldShowDefaultRow && !body.querySelector("tr")) {
+    body.appendChild(buildGradeEntryRow());
+  }
   wrap.classList.toggle("hidden", !body.querySelector("tr"));
 }
 
@@ -17046,10 +17057,13 @@ function renderAll() {
   const calendarForm = document.getElementById("calendar-form");
   if (planForm) planForm.classList.toggle("hidden", studentMode);
   if (planFilterForm) planFilterForm.classList.toggle("hidden", studentMode);
-  if (attendanceForm) attendanceForm.classList.toggle("hidden", studentMode || !attendanceEntryOpen);
+  if (attendanceForm) attendanceForm.classList.toggle("hidden", studentMode);
   if (addAttendanceRecordBtn) addAttendanceRecordBtn.classList.toggle("hidden", studentMode);
   if (addGradeBtn) addGradeBtn.classList.toggle("hidden", studentMode);
-  if (gradeEntryWrap && studentMode) gradeEntryWrap.classList.add("hidden");
+  if (gradeEntryWrap) {
+    if (studentMode) gradeEntryWrap.classList.add("hidden");
+    else updateGradeEntryVisibility();
+  }
   if (calendarForm) calendarForm.classList.remove("hidden");
 }
 
