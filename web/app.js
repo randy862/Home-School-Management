@@ -8938,6 +8938,20 @@ function buildGlobalSearchResults(query) {
       meta: "Student | Daily Schedule",
       actionLabel: "Open School Day"
     });
+    results.push({
+      type: "attendance",
+      id: student.id,
+      title: label || "Unnamed Student",
+      meta: "Student | Attendance Search",
+      actionLabel: "Open attendance"
+    });
+    results.push({
+      type: "grades",
+      id: student.id,
+      title: label || "Unnamed Student",
+      meta: "Student | Grade Search",
+      actionLabel: "Open grades"
+    });
     if (linkedUser) {
       results.push({
         type: "user",
@@ -8957,7 +8971,15 @@ function buildGlobalSearchResults(query) {
         type: "subject",
         id: subject.id,
         title: subject.name,
-        meta: "Subject | Curriculum and School Day filter",
+        meta: "Subject | Curriculum",
+        actionLabel: "Open subject"
+      });
+      results.push({
+        type: "school day",
+        scope: "subject",
+        id: subject.id,
+        title: subject.name,
+        meta: "Subject | School Day filter",
         actionLabel: "Filter School Day"
       });
     });
@@ -8969,6 +8991,14 @@ function buildGlobalSearchResults(query) {
       id: course.id,
       title: course.name,
       meta: `Course | ${getSubjectName(course.subjectId)}`,
+      actionLabel: "Open course"
+    });
+    results.push({
+      type: "school day",
+      scope: "course",
+      id: course.id,
+      title: course.name,
+      meta: `Course | School Day filter | ${getSubjectName(course.subjectId)}`,
       actionLabel: "Filter School Day"
     });
   });
@@ -8986,9 +9016,17 @@ function buildGlobalSearchResults(query) {
         meta: `Class | ${formatClockTime(section.startTime)} | ${getSubjectName(course?.subjectId)}`,
         actionLabel: "Open class"
       });
+      results.push({
+        type: "school day",
+        scope: "class",
+        id: section.id,
+        title,
+        meta: `Class | School Day filter | ${formatClockTime(section.startTime)}`,
+        actionLabel: "Filter School Day"
+      });
     });
 
-  return results.slice(0, 10);
+  return results.slice(0, 14);
 }
 
 function renderGlobalSearchResults() {
@@ -9031,6 +9069,55 @@ function closeGlobalSearchResults({ clear = false } = {}) {
   renderGlobalSearchResults();
 }
 
+function openSchoolDaySearchDestination({ studentId = "", subjectId = "", courseId = "", sectionId = "" } = {}) {
+  const section = sectionId ? getCourseSection(sectionId) : null;
+  const resolvedCourseId = courseId || section?.courseId || "";
+  const course = resolvedCourseId ? getCourse(resolvedCourseId) : null;
+  schoolDaySelectedStudentIds = studentId ? new Set([studentId]) : new Set();
+  schoolDaySelectedSubjectIds = subjectId ? new Set([subjectId]) : (course?.subjectId ? new Set([course.subjectId]) : new Set());
+  schoolDaySelectedCourseIds = resolvedCourseId ? new Set([resolvedCourseId]) : new Set();
+  currentSchoolDayTab = "daily-schedule";
+  activateTab("school-day");
+  syncSchoolDayFilterSubjectCourseOptions();
+  renderSchoolDay();
+}
+
+function openStudentAttendanceSearch(studentId) {
+  currentAttendanceTab = "search";
+  activateTab("attendance");
+  renderAttendanceSectionVisibility();
+  const studentFilter = document.getElementById("attendance-filter-student");
+  const dateFilter = document.getElementById("attendance-filter-date");
+  const quarterFilter = document.getElementById("attendance-filter-quarter");
+  const statusFilter = document.getElementById("attendance-filter-status");
+  if (studentFilter) studentFilter.value = studentId;
+  if (dateFilter) dateFilter.value = "";
+  if (quarterFilter) quarterFilter.value = "all";
+  if (statusFilter) statusFilter.value = "all";
+  renderAttendance();
+}
+
+function openStudentGradeSearch(studentId) {
+  currentGradesTab = "search";
+  activateTab("grades");
+  renderGradesSectionVisibility();
+  const filterValues = {
+    "grades-filter-student": studentId,
+    "grades-filter-quarter": "all",
+    "grades-filter-school-year": "all",
+    "grades-filter-subject": "all",
+    "grades-filter-instructor": "all",
+    "grades-filter-course": "all",
+    "grades-filter-grade-type": "all"
+  };
+  Object.entries(filterValues).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.value = value;
+  });
+  syncGradesFilterSubjectCourseOptions();
+  renderTests();
+}
+
 function openSearchResult(result) {
   if (!result) return;
   closeGlobalSearchResults({ clear: true });
@@ -9042,13 +9129,20 @@ function openSearchResult(result) {
     return;
   }
   if (result.type === "school day") {
-    schoolDaySelectedStudentIds = new Set([result.id]);
-    schoolDaySelectedSubjectIds = new Set();
-    schoolDaySelectedCourseIds = new Set();
-    currentSchoolDayTab = "daily-schedule";
-    activateTab("school-day");
-    syncSchoolDayFilterSubjectCourseOptions();
-    renderSchoolDay();
+    openSchoolDaySearchDestination({
+      studentId: result.scope ? "" : result.id,
+      subjectId: result.scope === "subject" ? result.id : "",
+      courseId: result.scope === "course" ? result.id : "",
+      sectionId: result.scope === "class" ? result.id : ""
+    });
+    return;
+  }
+  if (result.type === "attendance") {
+    openStudentAttendanceSearch(result.id);
+    return;
+  }
+  if (result.type === "grades") {
+    openStudentGradeSearch(result.id);
     return;
   }
   if (result.type === "user") {
@@ -9060,22 +9154,17 @@ function openSearchResult(result) {
     return;
   }
   if (result.type === "subject") {
-    schoolDaySelectedStudentIds = new Set();
-    schoolDaySelectedSubjectIds = new Set([result.id]);
-    schoolDaySelectedCourseIds = new Set();
-    activateTab("school-day");
-    syncSchoolDayFilterSubjectCourseOptions();
-    renderSchoolDay();
+    currentManagementTab = "subjects";
+    activateTab("management");
+    renderManagementSectionVisibility();
     return;
   }
   if (result.type === "course") {
-    const course = getCourse(result.id);
-    schoolDaySelectedStudentIds = new Set();
-    schoolDaySelectedSubjectIds = course?.subjectId ? new Set([course.subjectId]) : new Set();
-    schoolDaySelectedCourseIds = new Set([result.id]);
-    activateTab("school-day");
-    syncSchoolDayFilterSubjectCourseOptions();
-    renderSchoolDay();
+    currentManagementTab = "courses";
+    currentManagementCoursesTab = "course-form";
+    activateTab("management");
+    renderManagementSectionVisibility();
+    beginCourseEdit(result.id);
     return;
   }
   if (result.type === "class") {
