@@ -740,7 +740,7 @@ button.secondary-btn {
 }
 
 #student-instructional-hours-filter-form {
-  grid-template-columns: auto;
+  grid-template-columns: minmax(180px, 240px) auto;
   align-items: center;
   margin-bottom: 0.75rem;
 }

@@ -1453,6 +1453,7 @@ const workSelectedStudentIds = new Set();
 const workDistributionSelectedGradeTypes = new Set();
 const studentPerformanceSelectedInstructorIds = new Set();
 const studentInstructionalHoursSelectedInstructorIds = new Set();
+let studentInstructionalHoursSelectedStudentId = "all";
 let workDistributionGradeTypesInitialized = false;
 let editingCourseId = "";
 let courseFormOpen = false;
@@ -3596,6 +3597,7 @@ function openAlertAction(alert) {
   if (action.view === "dashboard") {
     currentDashboardTab = action.dashboardTab || "overview";
     if (action.studentInstructionalHoursStudentId) {
+      studentInstructionalHoursSelectedStudentId = action.studentInstructionalHoursStudentId;
       expandedStudentInstructionalHourRows.add(action.studentInstructionalHoursStudentId);
     }
     activateTab("dashboard");
@@ -5995,6 +5997,27 @@ function updateStudentInstructionalHoursInstructorSummary() {
 
 function getSelectedStudentInstructionalHoursInstructorIds() {
   return Array.from(document.querySelectorAll(".student-instructional-hours-instructor-checkbox:checked")).map((el) => el.value);
+}
+
+function renderStudentInstructionalHoursStudentFilter(dashboardStudents) {
+  const select = document.getElementById("student-instructional-hours-student-filter");
+  if (!select) return;
+  const students = Array.isArray(dashboardStudents) ? dashboardStudents : visibleStudents();
+  const validIds = new Set(students.map((student) => student.id));
+  if (studentInstructionalHoursSelectedStudentId !== "all" && !validIds.has(studentInstructionalHoursSelectedStudentId)) {
+    studentInstructionalHoursSelectedStudentId = "all";
+  }
+  select.innerHTML = "<option value=\"all\">All Students</option>";
+  students
+    .slice()
+    .sort((a, b) => `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`))
+    .forEach((student) => {
+      const option = document.createElement("option");
+      option.value = student.id;
+      option.textContent = `${student.firstName} ${student.lastName}`;
+      select.appendChild(option);
+    });
+  select.value = validIds.has(studentInstructionalHoursSelectedStudentId) ? studentInstructionalHoursSelectedStudentId : "all";
 }
 
 function populateInstructorFilterSelect(selectId, allLabel = "All Instructors") {
@@ -11583,14 +11606,23 @@ function renderDashboardExpandableTablesFast() {
   });
   rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
 
-  const instructionalHourRows = instructionalHourMetrics.flatMap((entry) => {
+  const selectedInstructionalHoursStudentId = studentInstructionalHoursSelectedStudentId || "all";
+  const visibleInstructionalHourMetrics = selectedInstructionalHoursStudentId === "all"
+    ? instructionalHourMetrics
+    : instructionalHourMetrics.filter((entry) => entry.studentId === selectedInstructionalHoursStudentId);
+  const instructionalHourRows = visibleInstructionalHourMetrics.flatMap((entry) => {
     const expanded = expandedStudentInstructionalHourRows.has(entry.studentId);
     const detailRows = entry.subjects.map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${subjectSummary.subjectName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}<td></td></tr>`).join("");
     const row = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${entry.studentName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(entry.buckets[bucket.key])}</td>`).join("")}</tr>`;
     const detailRow = expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='7' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : "";
     return detailRow ? [row, detailRow] : [row];
   });
-  rowOrEmpty(document.getElementById("dashboard-student-instructional-hours-table"), instructionalHourRows, "No students added yet.", 6);
+  rowOrEmpty(
+    document.getElementById("dashboard-student-instructional-hours-table"),
+    instructionalHourRows,
+    selectedInstructionalHoursStudentId === "all" ? "No students added yet." : "No instructional hours found for the selected student.",
+    6
+  );
 }
 
 function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
@@ -12040,6 +12072,7 @@ function renderDashboard() {
     if (!validInstructorIds.has(instructorId)) studentInstructionalHoursSelectedInstructorIds.delete(instructorId);
   });
   renderStudentPerformanceInstructorChecklist(Array.from(studentPerformanceSelectedInstructorIds));
+  renderStudentInstructionalHoursStudentFilter(dashboardStudents);
   renderStudentInstructionalHoursInstructorChecklist(Array.from(studentInstructionalHoursSelectedInstructorIds));
 
   const quarterByName = new Map(state.settings.quarters.map((entry) => [entry.name, entry]));
@@ -16588,6 +16621,11 @@ function bindEvents() {
       getSelectedStudentInstructionalHoursInstructorIds().forEach((id) => studentInstructionalHoursSelectedInstructorIds.add(id));
       updateStudentInstructionalHoursInstructorSummary();
       renderDashboard();
+      return;
+    }
+    if (t.id === "student-instructional-hours-student-filter" && t instanceof HTMLSelectElement) {
+      studentInstructionalHoursSelectedStudentId = t.value || "all";
+      renderDashboardExpandableTablesFast();
       return;
     }
     if (t.classList.contains("work-dist-grade-type-checkbox")) {

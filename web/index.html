@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605061300">
+  <link rel="stylesheet" href="styles.css?v=202605061345">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -327,6 +327,11 @@
         <h3>Student Instructional Hours</h3>
         <p class="muted instructional-hours-notation">Notation: <strong>Actual / Projected</strong> instructional hours.</p>
         <form id="student-instructional-hours-filter-form" class="grid-form">
+          <label class="trend-student-field">Student
+            <select id="student-instructional-hours-student-filter">
+              <option value="all">All Students</option>
+            </select>
+          </label>
           <label class="trend-student-field">Instructor
             <details id="student-instructional-hours-instructor-dropdown" class="multi-select-dropdown">
               <summary id="student-instructional-hours-instructor-summary">Instructors (0 selected)</summary>
@@ -1777,6 +1782,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605061330"></script>
+  <script src="app.js?v=202605061345"></script>
   </body>
   </html>
