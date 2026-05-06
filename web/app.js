@@ -7486,6 +7486,7 @@ function renderDashboardSectionVisibility() {
     ],
     compliance: [
       ["dashboard-section-instruction-hour-pace", config.dashboard.showInstructionHourPace],
+      ["dashboard-section-instruction-day-compliance", config.dashboard.showInstructionHourPace],
       ["dashboard-section-compliance-hours-monthly", config.dashboard.showComplianceHoursMonthly],
       ["dashboard-section-compliance-days-monthly", config.dashboard.showComplianceDaysMonthly],
       ["dashboard-section-student-attendance", config.dashboard.showStudentAttendance],
@@ -7502,6 +7503,7 @@ function renderDashboardSectionVisibility() {
     "dashboard-section-grade-risk-watchlist",
     "dashboard-performance-placeholder",
     "dashboard-section-instruction-hour-pace",
+    "dashboard-section-instruction-day-compliance",
     "dashboard-section-compliance-hours-monthly",
     "dashboard-section-compliance-days-monthly",
     "dashboard-compliance-placeholder",
@@ -11251,6 +11253,23 @@ function renderDashboardToggleGlyph(expanded) {
   return `<span class="student-avg-toggle-glyph" aria-hidden="true">${expanded ? "-" : "+"}</span>`;
 }
 
+function renderStudentInitialsBadge(name) {
+  const initials = String(name || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "?";
+  return `<span class="student-analytics-avatar">${escapeHtml(initials)}</span>`;
+}
+
+function renderInstructionalHoursAnalyticCell(bucketMetrics) {
+  const earned = Number(bucketMetrics?.earned || 0);
+  const projected = Number(bucketMetrics?.projected || 0);
+  const percent = projected > 0 ? clamp((earned / projected) * 100, 0, 100) : 0;
+  return `<div class="hours-analytics-cell"><span>${earned.toFixed(1)} / ${projected.toFixed(1)} hrs</span><i><b style="width: ${percent.toFixed(1)}%"></b></i></div>`;
+}
+
 function renderDashboardExpandableTables() {
   const context = dashboardExpandableRenderCache;
   if (!context) return;
@@ -11618,7 +11637,12 @@ function renderDashboardExpandableTablesFast() {
   const instructionalHourRows = visibleInstructionalHourMetrics.flatMap((entry) => {
     const expanded = expandedStudentInstructionalHourRows.has(entry.studentId);
     const detailRows = entry.subjects.map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${subjectSummary.subjectName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}<td></td></tr>`).join("");
-    const row = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${entry.studentName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(entry.buckets[bucket.key])}</td>`).join("")}</tr>`;
+    const projectedTotal = Number(entry.buckets.total?.projected || 0);
+    const earnedTotal = Number(entry.buckets.total?.earned || 0);
+    const projectedDiff = projectedTotal - Number(state.settings.schoolYear.requiredInstructionalHours || 0);
+    const statusClass = projectedDiff < -1 ? "behind" : earnedTotal >= projectedTotal && projectedTotal > 0 ? "ahead" : "on-pace";
+    const statusLabel = projectedDiff < -1 ? "Projected Short" : earnedTotal >= projectedTotal && projectedTotal > 0 ? "Ahead" : "On Track";
+    const row = `<tr class="student-analytics-row"><td><div class="student-analytics-name"><button type="button" class="student-avg-toggle" data-toggle-student-instructional-hours="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button>${renderStudentInitialsBadge(entry.studentName)}<span>${entry.studentName}<small>${statusLabel}</small></span></div></td>${instructionalHours.buckets.map((bucket) => `<td>${renderInstructionalHoursAnalyticCell(entry.buckets[bucket.key])}</td>`).join("")}</tr>`;
     const detailRow = expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='7' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : "";
     return detailRow ? [row, detailRow] : [row];
   });
@@ -12007,6 +12031,95 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
   rowOrEmpty(document.getElementById("dashboard-hour-pace-student-table"), studentRows, "No student pacing data available.", 8);
 }
 
+function buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, instructionalDatesList, yearProgressPercent, referenceDate = defaultReferenceDateForActiveYear()) {
+  const selectedStudentId = studentInstructionalHoursSelectedStudentId || "all";
+  const targetStudents = selectedStudentId === "all"
+    ? (dashboardStudents || [])
+    : (dashboardStudents || []).filter((student) => student.id === selectedStudentId);
+  const studentCount = targetStudents.length;
+  const studentIds = new Set(targetStudents.map((student) => student.id));
+  const requiredPerStudent = Number(state.settings.schoolYear.requiredInstructionalDays || instructionalDatesList.length || 0);
+  const requiredTotal = requiredPerStudent * studentCount;
+  const progressPct = clamp(yearProgressPercent, 0, 100) / 100;
+  const expectedToDate = requiredTotal * progressPct;
+  const dateSet = new Set(instructionalDatesList || []);
+  const datesThroughReference = (instructionalDatesList || []).filter((date) => date <= referenceDate);
+  const futureDates = (instructionalDatesList || []).filter((date) => date > referenceDate);
+  const presentKeys = new Set(state.attendance
+    .filter((record) => studentIds.has(record.studentId) && record.present && record.date <= referenceDate && dateSet.has(record.date) && recordDateInActiveYear(record))
+    .map((record) => `${record.studentId}||${record.date}`));
+  const completed = presentKeys.size;
+  const projected = completed + (futureDates.length * studentCount);
+  const currentDiff = completed - expectedToDate;
+  const projectedDiff = projected - requiredTotal;
+  const completionPercent = requiredTotal > 0 ? clamp((completed / requiredTotal) * 100, 0, 100) : 0;
+  const tolerance = Math.max(1, expectedToDate * 0.02);
+  const projectedTolerance = Math.max(1, requiredTotal * 0.01);
+  let status = "On Pace";
+  let statusClass = "on-pace";
+  if (projectedDiff < -projectedTolerance) {
+    status = "Projected Short";
+    statusClass = "behind";
+  } else if (currentDiff < -tolerance) {
+    status = "Behind Today";
+    statusClass = "behind";
+  } else if (currentDiff > tolerance) {
+    status = "Ahead of Pace";
+    statusClass = "ahead";
+  }
+  return {
+    studentCount,
+    requiredTotal,
+    completed,
+    expectedToDate,
+    projected,
+    currentDiff,
+    projectedDiff,
+    completionPercent,
+    status,
+    statusClass,
+    datesThroughReference: datesThroughReference.length
+  };
+}
+
+function renderDashboardInstructionDayComplianceSummary(snapshot) {
+  const statusNode = document.getElementById("dashboard-day-compliance-status");
+  const noteNode = document.getElementById("dashboard-day-compliance-note");
+  const ringNode = document.getElementById("dashboard-day-compliance-ring");
+  const percentNode = document.getElementById("dashboard-day-compliance-percent");
+  const forecastNode = document.getElementById("dashboard-day-compliance-forecast");
+  const detailNode = document.getElementById("dashboard-day-compliance-detail");
+  const requiredNode = document.getElementById("dashboard-day-required");
+  const completedNode = document.getElementById("dashboard-day-completed");
+  const expectedNode = document.getElementById("dashboard-day-expected");
+  const projectedDiffNode = document.getElementById("dashboard-day-projected-diff");
+  const metricClass = (value) => value < -0.01 ? "negative" : value > 0.01 ? "positive" : "";
+  const projectedDiffText = `${snapshot.projectedDiff >= 0 ? "+" : ""}${snapshot.projectedDiff.toFixed(1)}`;
+  const ringColor = snapshot.statusClass === "behind" ? "#a1462c" : snapshot.statusClass === "ahead" ? "#1f7a4f" : "#1761ae";
+
+  if (statusNode) {
+    statusNode.textContent = snapshot.status;
+    statusNode.className = `dashboard-pill-metric ${snapshot.statusClass}`;
+  }
+  if (noteNode) noteNode.textContent = `${snapshot.completed.toFixed(0)} completed vs ${snapshot.expectedToDate.toFixed(1)} expected today across ${snapshot.studentCount} student${snapshot.studentCount === 1 ? "" : "s"}.`;
+  if (ringNode) {
+    ringNode.style.setProperty("--ring-progress", snapshot.completionPercent.toFixed(1));
+    ringNode.style.setProperty("--ring-color", ringColor);
+  }
+  if (percentNode) percentNode.textContent = `${snapshot.completionPercent.toFixed(0)}%`;
+  if (forecastNode) forecastNode.textContent = snapshot.projectedDiff < -0.01
+    ? `${Math.abs(snapshot.projectedDiff).toFixed(1)} days projected short`
+    : `${snapshot.projectedDiff.toFixed(1)} days projected over requirement`;
+  if (detailNode) detailNode.textContent = `${snapshot.projected.toFixed(0)} projected days against ${snapshot.requiredTotal.toFixed(0)} required.`;
+  if (requiredNode) requiredNode.textContent = snapshot.requiredTotal.toFixed(0);
+  if (completedNode) completedNode.textContent = snapshot.completed.toFixed(0);
+  if (expectedNode) expectedNode.textContent = snapshot.expectedToDate.toFixed(1);
+  if (projectedDiffNode) {
+    projectedDiffNode.textContent = projectedDiffText;
+    projectedDiffNode.className = `dashboard-summary-value ${metricClass(snapshot.projectedDiff)}`;
+  }
+}
+
 function renderDashboardMissingGradesSummary(snapshot) {
   const context = activeYearReferenceContext(snapshot.date);
   const overviewLabel = document.getElementById("dashboard-overview-missing-grades-label");
@@ -12106,6 +12219,7 @@ function renderDashboard() {
   document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
   renderDashboardExecutionSummary(buildDashboardExecutionSnapshot(referenceDate, dashboardStudents));
   renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate));
+  renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
   renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
   renderDashboardGradeRiskSummary(buildDashboardGradeRiskSnapshot(dashboardStudents));
 

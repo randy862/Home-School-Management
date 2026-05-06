@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605061430">
+  <link rel="stylesheet" href="styles.css?v=202605061500">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -319,6 +319,49 @@
               <thead><tr><th>Student</th><th>Required</th><th>Logged</th><th>Expected Today</th><th>Current Diff</th><th>Projected</th><th>Projected Diff</th><th>Status</th></tr></thead>
               <tbody id="dashboard-hour-pace-student-table"></tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="dashboard-section-instruction-day-compliance" class="dashboard-section dashboard-section-compliance-detail hidden">
+        <div class="dashboard-section-header">
+          <div>
+            <h3>Required Instructional Days</h3>
+            <p id="dashboard-day-compliance-note" class="muted">0 completed vs 0 expected today.</p>
+          </div>
+          <span id="dashboard-day-compliance-status" class="dashboard-pill-metric">On pace</span>
+        </div>
+        <div class="compliance-visual-grid">
+          <article class="compliance-ring-card">
+            <div id="dashboard-day-compliance-ring" class="compliance-ring" style="--ring-progress: 0; --ring-color: #1761ae;">
+              <div class="compliance-ring-center">
+                <span id="dashboard-day-compliance-percent">0%</span>
+                <small>completed</small>
+              </div>
+            </div>
+            <div>
+              <p class="dashboard-summary-label">Instructional Days Progress</p>
+              <p id="dashboard-day-compliance-forecast" class="compliance-gauge-forecast">Projected on track</p>
+              <p id="dashboard-day-compliance-detail" class="dashboard-summary-note muted">Projected days assume remaining planned instructional days are completed.</p>
+            </div>
+          </article>
+          <div class="dashboard-pace-grid compliance-day-metric-grid">
+            <article class="dashboard-summary-card dashboard-summary-card-tight">
+              <p class="dashboard-summary-label">Required Days</p>
+              <p id="dashboard-day-required" class="dashboard-summary-value">0</p>
+            </article>
+            <article class="dashboard-summary-card dashboard-summary-card-tight">
+              <p class="dashboard-summary-label">Completed Days</p>
+              <p id="dashboard-day-completed" class="dashboard-summary-value">0</p>
+            </article>
+            <article class="dashboard-summary-card dashboard-summary-card-tight">
+              <p class="dashboard-summary-label">Expected Today</p>
+              <p id="dashboard-day-expected" class="dashboard-summary-value">0</p>
+            </article>
+            <article class="dashboard-summary-card dashboard-summary-card-tight">
+              <p class="dashboard-summary-label">Projected Diff</p>
+              <p id="dashboard-day-projected-diff" class="dashboard-summary-value">0</p>
+            </article>
           </div>
         </div>
       </div>
@@ -1819,6 +1862,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605061430"></script>
+  <script src="app.js?v=202605061500"></script>
   </body>
   </html>
