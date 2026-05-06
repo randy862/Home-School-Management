@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605052030">
+  <link rel="stylesheet" href="styles.css?v=202605060735">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -63,9 +63,19 @@
         <div id="global-search-results" class="global-search-results hidden" role="listbox" aria-label="Search results"></div>
       </div>
       <div class="session-bar">
-        <button class="app-icon-button" type="button" aria-label="Notifications">
+        <div id="alerts-menu-shell" class="alerts-menu-shell hidden">
+        <button id="alerts-menu-trigger" class="app-icon-button" type="button" aria-label="Alerts" aria-expanded="false" aria-haspopup="dialog">
           <img src="assets/icons/bell.svg" alt="" aria-hidden="true">
+          <span id="alerts-count-badge" class="alerts-count-badge hidden" aria-hidden="true">0</span>
         </button>
+          <div id="alerts-menu" class="alerts-menu hidden" role="dialog" aria-label="Alerts">
+            <div class="alerts-menu-header">
+              <strong>Alerts</strong>
+              <span id="alerts-menu-count" class="muted">0 active</span>
+            </div>
+            <div id="alerts-menu-list" class="alerts-menu-list"></div>
+          </div>
+        </div>
         <button class="app-icon-button" type="button" aria-label="Help">
           <img src="assets/icons/help-circle.svg" alt="" aria-hidden="true">
         </button>
@@ -1717,6 +1727,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605052030"></script>
+  <script src="app.js?v=202605060735"></script>
   </body>
   </html>

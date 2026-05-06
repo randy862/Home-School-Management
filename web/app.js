@@ -1518,6 +1518,7 @@ let loginMessageKind = "";
 let setupMessageKind = "";
 let userFormMessageKind = "";
 let accountMenuOpen = false;
+let alertsMenuOpen = false;
 let accountViewOpen = false;
 let accountPasswordModalOpen = false;
 let accountOptionsModalOpen = false;
@@ -1531,6 +1532,10 @@ let globalSearchResults = [];
 let globalSearchActiveIndex = -1;
 let hostedSetupChecked = false;
 let hostedSetupInitialized = true;
+const ALERT_THRESHOLDS = {
+  gradePercent: 70,
+  attendancePercent: 90
+};
 function cloneGradeTypes(items) {
   return (items || []).map((gt) => ({ id: gt.id || uid(), name: String(gt.name || "").trim(), weight: gt.weight == null ? null : Number(gt.weight) }));
 }
@@ -3274,6 +3279,200 @@ function renderCurrentTabPanel() {
   }
 }
 
+function buildAlertsSnapshot() {
+  const dashboardStudents = visibleStudents();
+  const referenceDate = defaultReferenceDateForActiveYear();
+  const yearProgressPercent = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate));
+  const instructionalHoursSnapshot = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { referenceDate });
+  const executionSnapshot = buildDashboardExecutionSnapshot(referenceDate, dashboardStudents);
+  const paceSnapshot = buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructionalHoursSnapshot, yearProgressPercent, referenceDate);
+  const gradeRiskSnapshot = buildDashboardGradeRiskSnapshot(dashboardStudents);
+  const alerts = [];
+  const pushAlert = (alert) => alerts.push({
+    id: alert.id || uid(),
+    severity: alert.severity || "info",
+    type: alert.type || "general",
+    label: alert.label || "Alert",
+    title: alert.title || "",
+    detail: alert.detail || "",
+    actionLabel: alert.actionLabel || "Open",
+    action: alert.action || null
+  });
+
+  executionSnapshot.students.forEach((entry) => {
+    if (entry.attendanceState === "open") {
+      pushAlert({
+        id: `attendance-open-${entry.student.id}-${referenceDate}`,
+        severity: "warning",
+        type: "Attendance",
+        label: "Attendance",
+        title: `${entry.student.firstName} ${entry.student.lastName}`,
+        detail: `Attendance is open for ${formatDisplayDate(referenceDate)}.`,
+        actionLabel: "Open School Day",
+        action: { view: "school-day", date: referenceDate, tab: "attendance", studentId: entry.student.id, quickFilter: "needs-attendance" }
+      });
+    }
+    if (entry.openCount > 0) {
+      pushAlert({
+        id: `completion-open-${entry.student.id}-${referenceDate}`,
+        severity: "warning",
+        type: "Completion",
+        label: "Completion",
+        title: `${entry.student.firstName} ${entry.student.lastName}`,
+        detail: `${entry.openCount} class${entry.openCount === 1 ? "" : "es"} need completion on ${formatDisplayDate(referenceDate)}.`,
+        actionLabel: "Open School Day",
+        action: { view: "school-day", date: referenceDate, tab: "daily-schedule", studentId: entry.student.id, quickFilter: "needs-completion" }
+      });
+    }
+    if (entry.needsGradeCount > 0) {
+      pushAlert({
+        id: `grade-open-${entry.student.id}-${referenceDate}`,
+        severity: "warning",
+        type: "Grade",
+        label: "Grade",
+        title: `${entry.student.firstName} ${entry.student.lastName}`,
+        detail: `${entry.needsGradeCount} completed class${entry.needsGradeCount === 1 ? "" : "es"} need grades on ${formatDisplayDate(referenceDate)}.`,
+        actionLabel: "Open Grades",
+        action: { view: "school-day", date: referenceDate, tab: "grades", studentId: entry.student.id, quickFilter: "needs-grade" }
+      });
+    }
+  });
+
+  paceSnapshot.studentRows
+    .filter((row) => row.statusClass === "behind")
+    .forEach((row) => {
+      pushAlert({
+        id: `pace-behind-${row.studentId}`,
+        severity: "critical",
+        type: "Pace",
+        label: "Pace",
+        title: row.studentName,
+        detail: `${Math.abs(row.varianceHours).toFixed(1)} instruction hours behind expected pace.`,
+        actionLabel: "Open Dashboard",
+        action: { view: "dashboard", dashboardTab: "compliance" }
+      });
+    });
+
+  gradeRiskSnapshot.rows
+    .filter((row) => row.averageScore < ALERT_THRESHOLDS.gradePercent)
+    .forEach((row) => {
+      pushAlert({
+        id: `grade-risk-${row.studentId}-${row.courseId}`,
+        severity: "critical",
+        type: "Grade Risk",
+        label: "Grade Risk",
+        title: row.studentName,
+        detail: `${row.courseName} average is ${row.averageScore.toFixed(1)}%.`,
+        actionLabel: "Open Grades",
+        action: { view: "grades-search", studentId: row.studentId, courseId: row.courseId }
+      });
+    });
+
+  dashboardStudents.forEach((student) => {
+    const records = state.attendance.filter((record) => record.studentId === student.id && recordDateInActiveYear(record));
+    if (!records.length) return;
+    const presentCount = records.filter((record) => record.present).length;
+    const attendancePercent = (presentCount / records.length) * 100;
+    if (attendancePercent >= ALERT_THRESHOLDS.attendancePercent) return;
+    pushAlert({
+      id: `attendance-risk-${student.id}`,
+      severity: "critical",
+      type: "Attendance Risk",
+      label: "Attendance",
+      title: `${student.firstName} ${student.lastName}`,
+      detail: `Attendance is ${attendancePercent.toFixed(1)}% for ${state.settings.schoolYear.label}.`,
+      actionLabel: "Open Attendance",
+      action: { view: "attendance-search", studentId: student.id }
+    });
+  });
+
+  const severityRank = { critical: 0, warning: 1, info: 2 };
+  alerts.sort((a, b) => (severityRank[a.severity] ?? 9) - (severityRank[b.severity] ?? 9) || a.label.localeCompare(b.label) || a.title.localeCompare(b.title));
+  return {
+    referenceDate,
+    alerts
+  };
+}
+
+function renderAlertsMenu() {
+  const shell = document.getElementById("alerts-menu-shell");
+  const trigger = document.getElementById("alerts-menu-trigger");
+  const menu = document.getElementById("alerts-menu");
+  const badge = document.getElementById("alerts-count-badge");
+  const count = document.getElementById("alerts-menu-count");
+  const list = document.getElementById("alerts-menu-list");
+  const signedIn = !!currentUser();
+  if (shell) shell.classList.toggle("hidden", !signedIn);
+  if (!signedIn) return;
+  const snapshot = buildAlertsSnapshot();
+  const alerts = snapshot.alerts;
+  if (trigger) trigger.setAttribute("aria-expanded", alertsMenuOpen ? "true" : "false");
+  if (menu) menu.classList.toggle("hidden", !alertsMenuOpen);
+  if (badge) {
+    badge.textContent = alerts.length > 9 ? "9+" : String(alerts.length);
+    badge.classList.toggle("hidden", alerts.length === 0);
+  }
+  if (count) count.textContent = `${alerts.length} active`;
+  if (list) {
+    list.innerHTML = alerts.length
+      ? alerts.slice(0, 12).map((alert, index) => `
+        <button class="alert-result alert-severity-${escapeHtml(alert.severity)}" type="button" data-alert-index="${index}">
+          <span class="alert-result-label">${escapeHtml(alert.label)}</span>
+          <span class="alert-result-title">${escapeHtml(alert.title)}</span>
+          <span class="alert-result-detail">${escapeHtml(alert.detail)}</span>
+          <span class="alert-result-action">${escapeHtml(alert.actionLabel)}</span>
+        </button>
+      `).join("")
+      : `<div class="alerts-empty">
+          <strong>No active alerts</strong>
+          <span class="muted">Everything looks clear for ${escapeHtml(state.settings.schoolYear.label)}.</span>
+        </div>`;
+  }
+}
+
+function openAlertAction(alert) {
+  if (!alert?.action) return;
+  alertsMenuOpen = false;
+  const action = alert.action;
+  if (action.view === "school-day") {
+    openSchoolDayFromDashboard({
+      date: action.date || defaultReferenceDateForActiveYear(),
+      tab: action.tab || "daily-schedule",
+      studentIds: action.studentId ? [action.studentId] : [],
+      quickFilter: action.quickFilter || "",
+      contextLabel: alert.label
+    });
+    return;
+  }
+  if (action.view === "grades-search") {
+    currentGradesTab = "search";
+    activateTab("grades");
+    const studentFilter = document.getElementById("grades-filter-student");
+    const courseFilter = document.getElementById("grades-filter-course");
+    if (studentFilter && action.studentId) studentFilter.value = action.studentId;
+    if (courseFilter && action.courseId) courseFilter.value = action.courseId;
+    renderGradesSectionVisibility();
+    renderTests();
+    renderSessionChrome();
+    return;
+  }
+  if (action.view === "attendance-search") {
+    currentAttendanceTab = "search";
+    activateTab("attendance");
+    const studentFilter = document.getElementById("attendance-filter-student");
+    if (studentFilter && action.studentId) studentFilter.value = action.studentId;
+    renderAttendanceSectionVisibility();
+    renderAttendance();
+    renderSessionChrome();
+    return;
+  }
+  if (action.view === "dashboard") {
+    currentDashboardTab = action.dashboardTab || "overview";
+    activateTab("dashboard");
+    renderSessionChrome();
+  }
+}
+
 function renderSessionChrome() {
   const loginShell = document.getElementById("login-shell");
   const appShell = document.getElementById("app-shell");
@@ -3328,6 +3527,7 @@ function renderSessionChrome() {
   if (accountMenuShell) accountMenuShell.classList.toggle("hidden", !signedIn);
   if (accountMenuTrigger) accountMenuTrigger.setAttribute("aria-expanded", accountMenuOpen ? "true" : "false");
   if (accountMenu) accountMenu.classList.toggle("hidden", !signedIn || !accountMenuOpen);
+  renderAlertsMenu();
   renderAcademicYearSelector();
   const accountOptionsMenuButton = document.getElementById("account-menu-options-btn");
   const canOpenAccountOptions = !!(
@@ -13938,7 +14138,21 @@ function bindEvents() {
   document.getElementById("account-menu-trigger")?.addEventListener("click", (event) => {
     event.stopPropagation();
     accountMenuOpen = !accountMenuOpen;
+    alertsMenuOpen = false;
     renderSessionChrome();
+  });
+  document.getElementById("alerts-menu-trigger")?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    alertsMenuOpen = !alertsMenuOpen;
+    accountMenuOpen = false;
+    renderSessionChrome();
+  });
+  document.getElementById("alerts-menu-list")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-alert-index]");
+    if (!button) return;
+    const index = Number(button.getAttribute("data-alert-index"));
+    const alert = buildAlertsSnapshot().alerts[index];
+    openAlertAction(alert);
   });
   document.getElementById("global-search-input")?.addEventListener("input", () => updateGlobalSearchResults());
   document.getElementById("global-search-input")?.addEventListener("focus", () => updateGlobalSearchResults());
