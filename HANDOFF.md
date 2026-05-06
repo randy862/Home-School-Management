@@ -1,49 +1,54 @@
 # Session Handoff
 
-Date: 2026-05-03
+Date: 2026-05-05
 
-## Context
+## Current Work
 
-The project governance files were optimized to reduce Codex token usage.
+Main app modern preview refinement on branch:
+
+app-modern-interface-shell
 
 ## Current State
 
-Historical versions of AGENTS.md, DECISIONS.md, README.md, STATUS.md, TODO.md, and WORKPLAN.md should be archived under:
+The modern preview exists at:
 
-archive/governance/2026-05-03-context-optimization/
+https://mitchell.navigrader.com/modern-preview/
 
-Root operating files should now be shorter and focused on current work.
+The live tenant app has not been replaced.
 
 ## Next Action
 
-Verify files and review changes:
+Before coding, inspect only the files needed for the specific requested change.
 
-git status
-git diff --stat
+Default files for UI preview work:
 
-Then commit in two logical commits if possible:
+- web/index.html
+- web/styles.css
+- web/app.js
 
-1. Archive original governance docs.
-2. Add token-efficient Codex operating files.
+Do NOT read:
 
-## Files To Touch
+- JOURNAL/
+- archive/
+- NOTES/
+- long planning docs
 
-AGENTS.md
-CODEX_CONTEXT.md
-STATUS.md
-HANDOFF.md
-WORKPLAN.md
-DECISIONS.md
-DECISIONS_ARCHIVE.md
-TODO.md
-VALIDATION.md
-JOURNAL/2026-05-03.md
-archive/governance/2026-05-03-context-optimization/
+Unless I explicitly request historical context.
 
-## Risks
+## Current Risks
 
-Do not delete archived historical content.
+- Do not change live app entry point unless explicitly approved.
+- Do not change backend, billing, provisioning, auth, tenant lifecycle, or database behavior during visual-only work.
+- Avoid broad rewrites.
 
-## If Blocked
+## Validation
 
-Stop and report the exact error.
+For visual-only work:
+
+- run git diff --check
+- run node --check web/app.js only if app.js changed
+- verify preview cache key was bumped if CSS/JS changed
+
+## If More Context Is Needed
+
+Use NOTES/app-interface-modernization-plan.md as reference only, not default startup context.

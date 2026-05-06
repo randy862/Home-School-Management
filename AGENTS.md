@@ -49,3 +49,12 @@ Do not summarize completed history unless directly relevant.
 
 Keep STATUS.md under 100 lines.
 Keep HANDOFF.md under 75 lines.
+
+For every new task:
+
+- Read only CODEX_CONTEXT.md, HANDOFF.md, and STATUS.md first.
+- Do not open additional files until task scope is known.
+- Before opening any additional file, explain why it is needed.
+- Prefer touching 1-3 files maximum per task.
+- Never load JOURNAL/, archive/, or NOTES/ unless explicitly requested.
+- Never scan the repo broadly for UI-only changes.
