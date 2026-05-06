@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605060815">
+  <link rel="stylesheet" href="styles.css?v=202605060910">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -569,6 +569,7 @@
       <h2>Administration</h2>
       <div class="subtabs administration-subtabs" aria-label="Administration sections">
         <button class="subtab-btn active" data-administration-tab="workspace-configuration" type="button">Workspace Configuration</button>
+        <button class="subtab-btn" data-administration-tab="alerts" type="button">Alerts</button>
         <button class="subtab-btn" data-administration-tab="instructors" type="button">Instructors</button>
         <button class="subtab-btn" data-administration-tab="users" type="button">Users</button>
       </div>
@@ -664,6 +665,45 @@
             <button id="administration-workspace-config-reset-btn" type="button">Reset To Defaults</button>
           </div>
           <p id="administration-workspace-config-message" class="status-text hidden"></p>
+        </form>
+      </div>
+
+      <div id="administration-alerts-wrap" class="administration-tab-panel hidden">
+        <div class="administration-intro-card">
+          <h3>Alerts</h3>
+          <p class="muted">Configure which alert types appear in the top navigation bell and set the thresholds used for risk alerts.</p>
+        </div>
+
+        <form id="administration-alerts-config-form" class="administration-config-form">
+          <section class="administration-config-card">
+            <h4>Alert Types</h4>
+            <div class="administration-config-grid">
+              <label class="checklist-row"><input type="checkbox" id="admin-alert-show-open-attendance"> <span>Open School Day attendance</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-alert-show-open-completion"> <span>Open class completion</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-alert-show-missing-grades"> <span>Missing grades</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-alert-show-instruction-pace"> <span>Behind instruction pace</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-alert-show-grade-risk"> <span>Grade risk</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-alert-show-attendance-risk"> <span>Attendance risk</span></label>
+            </div>
+          </section>
+
+          <section class="administration-config-card">
+            <h4>Risk Thresholds</h4>
+            <div class="administration-config-select-grid">
+              <label>Grade risk below
+                <input id="admin-alert-grade-risk-threshold" type="number" min="0" max="100" step="1">
+              </label>
+              <label>Attendance risk below
+                <input id="admin-alert-attendance-risk-threshold" type="number" min="0" max="100" step="1">
+              </label>
+            </div>
+          </section>
+
+          <div class="table-action-row administration-config-actions">
+            <button id="administration-alerts-config-save-btn" type="submit">Save Alert Settings</button>
+            <button id="administration-alerts-config-reset-btn" type="button">Reset Alerts To Defaults</button>
+          </div>
+          <p id="administration-alerts-config-message" class="status-text hidden"></p>
         </form>
       </div>
 
@@ -1727,6 +1767,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605060735"></script>
+  <script src="app.js?v=202605060910"></script>
   </body>
   </html>

@@ -134,6 +134,16 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showInstructionalHoursTrending: false,
     showGradeTypeVolume: false,
     showWorkDistribution: false
+  },
+  alerts: {
+    showOpenAttendance: true,
+    showOpenCompletion: true,
+    showMissingGrades: true,
+    showInstructionPace: true,
+    showGradeRisk: true,
+    showAttendanceRisk: true,
+    gradeRiskThresholdPercent: 70,
+    attendanceRiskThresholdPercent: 90
   }
 };
 
@@ -1499,6 +1509,7 @@ let schoolDayOverviewCollapsed = false;
 let schoolDayOverviewManual = false;
 let schoolDayDashboardReturnContext = null;
 let administrationWorkspaceConfigMessageState = { kind: "", text: "" };
+let administrationAlertsConfigMessageState = { kind: "", text: "" };
 let reportType = "student";
 let reportSelectedStudentIds = new Set();
 const STUDENT_REPORT_CONTENT_OPTIONS = [
@@ -1532,10 +1543,6 @@ let globalSearchResults = [];
 let globalSearchActiveIndex = -1;
 let hostedSetupChecked = false;
 let hostedSetupInitialized = true;
-const ALERT_THRESHOLDS = {
-  gradePercent: 70,
-  attendancePercent: 90
-};
 function cloneGradeTypes(items) {
   return (items || []).map((gt) => ({ id: gt.id || uid(), name: String(gt.name || "").trim(), weight: gt.weight == null ? null : Number(gt.weight) }));
 }
@@ -1643,6 +1650,7 @@ function normalizeWorkspaceConfig(raw) {
   const next = cloneWorkspaceConfig(DEFAULT_WORKSPACE_CONFIG);
   const schoolDay = raw?.schoolDay || {};
   const dashboard = raw?.dashboard || {};
+  const alerts = raw?.alerts || {};
   Object.keys(next.schoolDay).forEach((key) => {
     if (typeof next.schoolDay[key] === "boolean") {
       if (typeof schoolDay[key] === "boolean") next.schoolDay[key] = schoolDay[key];
@@ -1652,6 +1660,16 @@ function normalizeWorkspaceConfig(raw) {
   });
   Object.keys(next.dashboard).forEach((key) => {
     if (typeof dashboard[key] === "boolean") next.dashboard[key] = dashboard[key];
+  });
+  Object.keys(next.alerts).forEach((key) => {
+    if (typeof next.alerts[key] === "boolean") {
+      if (typeof alerts[key] === "boolean") next.alerts[key] = alerts[key];
+      return;
+    }
+    if (typeof next.alerts[key] === "number") {
+      const value = Number(alerts[key]);
+      if (Number.isFinite(value)) next.alerts[key] = clamp(value, 0, 100);
+    }
   });
   if (!["daily-schedule", "attendance", "grades"].includes(next.schoolDay.defaultTab)) {
     next.schoolDay.defaultTab = DEFAULT_WORKSPACE_CONFIG.schoolDay.defaultTab;
@@ -3280,6 +3298,7 @@ function renderCurrentTabPanel() {
 }
 
 function buildAlertsSnapshot() {
+  const alertConfig = workspaceConfig?.alerts || DEFAULT_WORKSPACE_CONFIG.alerts;
   const dashboardStudents = visibleStudents();
   const referenceDate = defaultReferenceDateForActiveYear();
   const yearProgressPercent = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate));
@@ -3300,7 +3319,7 @@ function buildAlertsSnapshot() {
   });
 
   executionSnapshot.students.forEach((entry) => {
-    if (entry.attendanceState === "open") {
+    if (alertConfig.showOpenAttendance && entry.attendanceState === "open") {
       pushAlert({
         id: `attendance-open-${entry.student.id}-${referenceDate}`,
         severity: "warning",
@@ -3312,7 +3331,7 @@ function buildAlertsSnapshot() {
         action: { view: "school-day", date: referenceDate, tab: "attendance", studentId: entry.student.id, quickFilter: "needs-attendance" }
       });
     }
-    if (entry.openCount > 0) {
+    if (alertConfig.showOpenCompletion && entry.openCount > 0) {
       pushAlert({
         id: `completion-open-${entry.student.id}-${referenceDate}`,
         severity: "warning",
@@ -3324,7 +3343,7 @@ function buildAlertsSnapshot() {
         action: { view: "school-day", date: referenceDate, tab: "daily-schedule", studentId: entry.student.id, quickFilter: "needs-completion" }
       });
     }
-    if (entry.needsGradeCount > 0) {
+    if (alertConfig.showMissingGrades && entry.needsGradeCount > 0) {
       pushAlert({
         id: `grade-open-${entry.student.id}-${referenceDate}`,
         severity: "warning",
@@ -3339,7 +3358,7 @@ function buildAlertsSnapshot() {
   });
 
   paceSnapshot.studentRows
-    .filter((row) => row.statusClass === "behind")
+    .filter((row) => alertConfig.showInstructionPace && row.statusClass === "behind")
     .forEach((row) => {
       pushAlert({
         id: `pace-behind-${row.studentId}`,
@@ -3354,7 +3373,7 @@ function buildAlertsSnapshot() {
     });
 
   gradeRiskSnapshot.rows
-    .filter((row) => row.averageScore < ALERT_THRESHOLDS.gradePercent)
+    .filter((row) => alertConfig.showGradeRisk && row.averageScore < alertConfig.gradeRiskThresholdPercent)
     .forEach((row) => {
       pushAlert({
         id: `grade-risk-${row.studentId}-${row.courseId}`,
@@ -3373,7 +3392,7 @@ function buildAlertsSnapshot() {
     if (!records.length) return;
     const presentCount = records.filter((record) => record.present).length;
     const attendancePercent = (presentCount / records.length) * 100;
-    if (attendancePercent >= ALERT_THRESHOLDS.attendancePercent) return;
+    if (!alertConfig.showAttendanceRisk || attendancePercent >= alertConfig.attendanceRiskThresholdPercent) return;
     pushAlert({
       id: `attendance-risk-${student.id}`,
       severity: "critical",
@@ -7274,6 +7293,15 @@ function setAdministrationWorkspaceConfigMessage(kind, text) {
   if (text) node.scrollIntoView({ block: "nearest" });
 }
 
+function setAdministrationAlertsConfigMessage(kind, text) {
+  administrationAlertsConfigMessageState = { kind, text };
+  const node = document.getElementById("administration-alerts-config-message");
+  if (!node) return;
+  node.textContent = text || "";
+  node.className = `status-text${text ? "" : " hidden"}${kind ? ` ${kind}` : ""}`;
+  if (text) node.scrollIntoView({ block: "nearest" });
+}
+
 function renderAdministrationSectionVisibility() {
   const visibleTab = currentAdministrationTab || "workspace-configuration";
   document.querySelectorAll("[data-administration-tab]").forEach((btn) => {
@@ -7281,6 +7309,7 @@ function renderAdministrationSectionVisibility() {
   });
   const panels = {
     "workspace-configuration": document.getElementById("administration-workspace-configuration-wrap"),
+    alerts: document.getElementById("administration-alerts-wrap"),
     instructors: document.getElementById("administration-instructors-wrap"),
     users: document.getElementById("administration-users-wrap")
   };
@@ -7418,6 +7447,22 @@ function renderAdministration() {
   if (studentSummariesDefaultSelect) studentSummariesDefaultSelect.value = config.schoolDay.studentSummariesDefault;
   const overviewDefaultSelect = document.getElementById("admin-config-school-day-overview-default");
   if (overviewDefaultSelect) overviewDefaultSelect.value = config.schoolDay.overviewDefault;
+  const alertConfig = config.alerts || DEFAULT_WORKSPACE_CONFIG.alerts;
+  [
+    ["admin-alert-show-open-attendance", alertConfig.showOpenAttendance],
+    ["admin-alert-show-open-completion", alertConfig.showOpenCompletion],
+    ["admin-alert-show-missing-grades", alertConfig.showMissingGrades],
+    ["admin-alert-show-instruction-pace", alertConfig.showInstructionPace],
+    ["admin-alert-show-grade-risk", alertConfig.showGradeRisk],
+    ["admin-alert-show-attendance-risk", alertConfig.showAttendanceRisk]
+  ].forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.checked = !!value;
+  });
+  const gradeRiskThreshold = document.getElementById("admin-alert-grade-risk-threshold");
+  if (gradeRiskThreshold) gradeRiskThreshold.value = String(alertConfig.gradeRiskThresholdPercent);
+  const attendanceRiskThreshold = document.getElementById("admin-alert-attendance-risk-threshold");
+  if (attendanceRiskThreshold) attendanceRiskThreshold.value = String(alertConfig.attendanceRiskThresholdPercent);
   const intro = document.querySelector("#administration-workspace-configuration-wrap .administration-intro-card .muted");
   if (intro) {
     intro.textContent = hostedTenantConfig
@@ -7430,6 +7475,63 @@ function renderAdministration() {
   if (resetBtn) resetBtn.textContent = hostedTenantConfig ? "Reset To Tenant Defaults" : "Reset To Defaults";
 
   setAdministrationWorkspaceConfigMessage(administrationWorkspaceConfigMessageState.kind, administrationWorkspaceConfigMessageState.text);
+  setAdministrationAlertsConfigMessage(administrationAlertsConfigMessageState.kind, administrationAlertsConfigMessageState.text);
+}
+
+function buildWorkspaceConfigFromAdminForms(overrides = {}) {
+  return normalizeWorkspaceConfig({
+    schoolDay: {
+      showReferenceDateFilter: !!document.getElementById("admin-config-school-day-show-reference-date")?.checked,
+      showStudentFilter: !!document.getElementById("admin-config-school-day-show-student-filter")?.checked,
+      showSubjectFilter: !!document.getElementById("admin-config-school-day-show-subject-filter")?.checked,
+      showCourseFilter: !!document.getElementById("admin-config-school-day-show-course-filter")?.checked,
+      showStudentSummaries: !!document.getElementById("admin-config-school-day-show-student-summaries")?.checked,
+      showSideBySideOverview: !!document.getElementById("admin-config-school-day-show-side-by-side-overview")?.checked,
+      showResetStudentDayButton: !!document.getElementById("admin-config-school-day-show-reset-student-day")?.checked,
+      showResetFilteredDayButton: !!document.getElementById("admin-config-school-day-show-reset-filtered-day")?.checked,
+      showNeedsAttendanceFilter: !!document.getElementById("admin-config-school-day-show-needs-attendance")?.checked,
+      showNeedsCompletionFilter: !!document.getElementById("admin-config-school-day-show-needs-completion")?.checked,
+      showNeedsGradeFilter: !!document.getElementById("admin-config-school-day-show-needs-grade")?.checked,
+      showOverriddenFilter: !!document.getElementById("admin-config-school-day-show-overridden")?.checked,
+      defaultTab: document.getElementById("admin-config-school-day-default-tab")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.defaultTab,
+      studentSummariesDefault: document.getElementById("admin-config-school-day-student-summaries-default")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.studentSummariesDefault,
+      overviewDefault: document.getElementById("admin-config-school-day-overview-default")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.overviewDefault
+    },
+    dashboard: {
+      showCompletionToday: !!document.getElementById("admin-config-dashboard-show-completion-today")?.checked,
+      showNeedsAttentionToday: !!document.getElementById("admin-config-dashboard-show-needs-attention-today")?.checked,
+      showMissingGrades: !!document.getElementById("admin-config-dashboard-show-missing-grades")?.checked,
+      showGradeRiskWatchlist: !!document.getElementById("admin-config-dashboard-show-grade-risk-watchlist")?.checked,
+      showInstructionHourPace: !!document.getElementById("admin-config-dashboard-show-instruction-hour-pace")?.checked,
+      showComplianceHoursMonthly: !!document.getElementById("admin-config-dashboard-show-compliance-hours-monthly")?.checked,
+      showComplianceDaysMonthly: !!document.getElementById("admin-config-dashboard-show-compliance-days-monthly")?.checked,
+      showStudentPerformance: !!document.getElementById("admin-config-dashboard-show-student-performance")?.checked,
+      showStudentAttendance: !!document.getElementById("admin-config-dashboard-show-student-attendance")?.checked,
+      showStudentInstructionalHours: !!document.getElementById("admin-config-dashboard-show-student-instructional-hours")?.checked,
+      showGradeTrending: !!document.getElementById("admin-config-dashboard-show-grade-trending")?.checked,
+      showGpaTrending: !!document.getElementById("admin-config-dashboard-show-gpa-trending")?.checked,
+      showInstructionalHoursTrending: !!document.getElementById("admin-config-dashboard-show-instructional-hours-trending")?.checked,
+      showGradeTypeVolume: !!document.getElementById("admin-config-dashboard-show-grade-type-volume")?.checked,
+      showWorkDistribution: !!document.getElementById("admin-config-dashboard-show-work-distribution")?.checked
+    },
+    alerts: {
+      ...(workspaceConfig?.alerts || DEFAULT_WORKSPACE_CONFIG.alerts),
+      ...overrides.alerts
+    }
+  });
+}
+
+function buildAlertsConfigFromAdminForm() {
+  return {
+    showOpenAttendance: !!document.getElementById("admin-alert-show-open-attendance")?.checked,
+    showOpenCompletion: !!document.getElementById("admin-alert-show-open-completion")?.checked,
+    showMissingGrades: !!document.getElementById("admin-alert-show-missing-grades")?.checked,
+    showInstructionPace: !!document.getElementById("admin-alert-show-instruction-pace")?.checked,
+    showGradeRisk: !!document.getElementById("admin-alert-show-grade-risk")?.checked,
+    showAttendanceRisk: !!document.getElementById("admin-alert-show-attendance-risk")?.checked,
+    gradeRiskThresholdPercent: Number(document.getElementById("admin-alert-grade-risk-threshold")?.value || DEFAULT_WORKSPACE_CONFIG.alerts.gradeRiskThresholdPercent),
+    attendanceRiskThresholdPercent: Number(document.getElementById("admin-alert-attendance-risk-threshold")?.value || DEFAULT_WORKSPACE_CONFIG.alerts.attendanceRiskThresholdPercent)
+  };
 }
 
 function renderStudents() {
@@ -13992,42 +14094,7 @@ function bindEvents() {
 
   document.getElementById("administration-workspace-config-form")?.addEventListener("submit", (e) => {
     e.preventDefault();
-    const nextConfig = normalizeWorkspaceConfig({
-      schoolDay: {
-        showReferenceDateFilter: !!document.getElementById("admin-config-school-day-show-reference-date")?.checked,
-        showStudentFilter: !!document.getElementById("admin-config-school-day-show-student-filter")?.checked,
-        showSubjectFilter: !!document.getElementById("admin-config-school-day-show-subject-filter")?.checked,
-        showCourseFilter: !!document.getElementById("admin-config-school-day-show-course-filter")?.checked,
-        showStudentSummaries: !!document.getElementById("admin-config-school-day-show-student-summaries")?.checked,
-        showSideBySideOverview: !!document.getElementById("admin-config-school-day-show-side-by-side-overview")?.checked,
-        showResetStudentDayButton: !!document.getElementById("admin-config-school-day-show-reset-student-day")?.checked,
-        showResetFilteredDayButton: !!document.getElementById("admin-config-school-day-show-reset-filtered-day")?.checked,
-        showNeedsAttendanceFilter: !!document.getElementById("admin-config-school-day-show-needs-attendance")?.checked,
-        showNeedsCompletionFilter: !!document.getElementById("admin-config-school-day-show-needs-completion")?.checked,
-        showNeedsGradeFilter: !!document.getElementById("admin-config-school-day-show-needs-grade")?.checked,
-        showOverriddenFilter: !!document.getElementById("admin-config-school-day-show-overridden")?.checked,
-        defaultTab: document.getElementById("admin-config-school-day-default-tab")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.defaultTab,
-        studentSummariesDefault: document.getElementById("admin-config-school-day-student-summaries-default")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.studentSummariesDefault,
-        overviewDefault: document.getElementById("admin-config-school-day-overview-default")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.overviewDefault
-      },
-      dashboard: {
-        showCompletionToday: !!document.getElementById("admin-config-dashboard-show-completion-today")?.checked,
-        showNeedsAttentionToday: !!document.getElementById("admin-config-dashboard-show-needs-attention-today")?.checked,
-        showMissingGrades: !!document.getElementById("admin-config-dashboard-show-missing-grades")?.checked,
-        showGradeRiskWatchlist: !!document.getElementById("admin-config-dashboard-show-grade-risk-watchlist")?.checked,
-        showInstructionHourPace: !!document.getElementById("admin-config-dashboard-show-instruction-hour-pace")?.checked,
-        showComplianceHoursMonthly: !!document.getElementById("admin-config-dashboard-show-compliance-hours-monthly")?.checked,
-        showComplianceDaysMonthly: !!document.getElementById("admin-config-dashboard-show-compliance-days-monthly")?.checked,
-        showStudentPerformance: !!document.getElementById("admin-config-dashboard-show-student-performance")?.checked,
-        showStudentAttendance: !!document.getElementById("admin-config-dashboard-show-student-attendance")?.checked,
-        showStudentInstructionalHours: !!document.getElementById("admin-config-dashboard-show-student-instructional-hours")?.checked,
-        showGradeTrending: !!document.getElementById("admin-config-dashboard-show-grade-trending")?.checked,
-        showGpaTrending: !!document.getElementById("admin-config-dashboard-show-gpa-trending")?.checked,
-        showInstructionalHoursTrending: !!document.getElementById("admin-config-dashboard-show-instructional-hours-trending")?.checked,
-        showGradeTypeVolume: !!document.getElementById("admin-config-dashboard-show-grade-type-volume")?.checked,
-        showWorkDistribution: !!document.getElementById("admin-config-dashboard-show-work-distribution")?.checked
-      }
-    });
+    const nextConfig = buildWorkspaceConfigFromAdminForms();
     schoolDayStudentSummariesManual = false;
     schoolDayOverviewManual = false;
     const applySavedConfig = (savedConfig, successText) => {
@@ -14077,6 +14144,65 @@ function bindEvents() {
       return;
     }
     applyResetConfig(nextConfig, "Prototype configuration reset to the default preview settings.");
+  });
+
+  document.getElementById("administration-alerts-config-form")?.addEventListener("input", () => {
+    if (administrationAlertsConfigMessageState.text) {
+      setAdministrationAlertsConfigMessage("", "");
+    }
+  });
+
+  document.getElementById("administration-alerts-config-form")?.addEventListener("change", () => {
+    if (administrationAlertsConfigMessageState.text) {
+      setAdministrationAlertsConfigMessage("", "");
+    }
+  });
+
+  document.getElementById("administration-alerts-config-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const nextConfig = buildWorkspaceConfigFromAdminForms({ alerts: buildAlertsConfigFromAdminForm() });
+    const applySavedConfig = (savedConfig, successText) => {
+      workspaceConfig = normalizeWorkspaceConfig(savedConfig || nextConfig);
+      saveWorkspaceConfigPreferences();
+      setAdministrationAlertsConfigMessage("success", successText);
+      renderAll();
+    };
+    if (hostedModeEnabled && isAdminUser()) {
+      (async () => {
+        try {
+          const saved = await saveHostedWorkspaceConfig(nextConfig);
+          applySavedConfig(saved, "Tenant alert settings saved. The alert bell is now using the updated thresholds.");
+        } catch (error) {
+          setAdministrationAlertsConfigMessage("error", error.message || "Unable to save tenant alert settings.");
+          renderAdministration();
+        }
+      })();
+      return;
+    }
+    applySavedConfig(nextConfig, "Prototype alert settings saved for this browser session.");
+  });
+
+  document.getElementById("administration-alerts-config-reset-btn")?.addEventListener("click", () => {
+    const nextConfig = buildWorkspaceConfigFromAdminForms({ alerts: cloneWorkspaceConfig(DEFAULT_WORKSPACE_CONFIG).alerts });
+    const applyResetConfig = (savedConfig, successText) => {
+      workspaceConfig = normalizeWorkspaceConfig(savedConfig || nextConfig);
+      saveWorkspaceConfigPreferences();
+      setAdministrationAlertsConfigMessage("success", successText);
+      renderAll();
+    };
+    if (hostedModeEnabled && isAdminUser()) {
+      (async () => {
+        try {
+          const saved = await saveHostedWorkspaceConfig(nextConfig);
+          applyResetConfig(saved, "Tenant alert settings reset to defaults.");
+        } catch (error) {
+          setAdministrationAlertsConfigMessage("error", error.message || "Unable to reset tenant alert settings.");
+          renderAdministration();
+        }
+      })();
+      return;
+    }
+    applyResetConfig(nextConfig, "Prototype alert settings reset to defaults.");
   });
 
   document.getElementById("login-form").addEventListener("submit", async (e) => {
@@ -16707,7 +16833,7 @@ function bindEvents() {
     }
     const administrationTab = t.getAttribute("data-administration-tab");
     if (administrationTab) {
-      currentAdministrationTab = ["workspace-configuration", "instructors", "users"].includes(administrationTab) ? administrationTab : "workspace-configuration";
+      currentAdministrationTab = ["workspace-configuration", "alerts", "instructors", "users"].includes(administrationTab) ? administrationTab : "workspace-configuration";
       renderAdministrationSectionVisibility();
       return;
     }
