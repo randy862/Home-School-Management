@@ -4587,6 +4587,7 @@ tbody tr:hover {
 }
 
 #app-shell .app-global-search {
+  position: relative;
   grid-area: search;
   display: flex;
   align-items: center;
@@ -4630,6 +4631,72 @@ tbody tr:hover {
   background: #fbfdff;
   font-family: inherit;
   font-size: 0.82rem;
+}
+
+#app-shell .global-search-results {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 0;
+  right: 0;
+  z-index: 140;
+  display: grid;
+  gap: 0.35rem;
+  max-height: min(420px, calc(100vh - 7rem));
+  overflow: auto;
+  padding: 0.45rem;
+  border: 1px solid #c9d7e8;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 22px 44px rgba(31, 47, 69, 0.16);
+}
+
+#app-shell .global-search-result {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.65rem 0.7rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #17243d;
+  text-align: left;
+  box-shadow: none;
+}
+
+#app-shell .global-search-result:hover,
+#app-shell .global-search-result.active {
+  background: #eef5ff;
+  transform: none;
+}
+
+#app-shell .global-search-result-kind {
+  color: #2457a6;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#app-shell .global-search-result-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+#app-shell .global-search-result-copy strong,
+#app-shell .global-search-result-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app-shell .global-search-result-copy span,
+#app-shell .global-search-result-action {
+  color: #65758f;
+  font-size: 0.82rem;
+  font-weight: 500;
 }
 
 #app-shell .sidebar-year-reference {

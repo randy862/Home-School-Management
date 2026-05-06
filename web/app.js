@@ -1524,6 +1524,8 @@ let accountViewMessageState = { kind: "", text: "" };
 let accountPasswordMessageState = { kind: "", text: "" };
 let accountOptionsMessageState = { kind: "", text: "" };
 let accountUpgradeMessageState = { kind: "", text: "" };
+let globalSearchResults = [];
+let globalSearchActiveIndex = -1;
 let hostedSetupChecked = false;
 let hostedSetupInitialized = true;
 function cloneGradeTypes(items) {
@@ -8891,6 +8893,171 @@ function applySchoolDayFilterSelection({ studentIds = null, subjectIds = null, c
   updateSchoolDayCourseSummary();
 }
 
+function courseMatchesActiveAcademicYear(course) {
+  if (!course) return false;
+  const quarterNames = Array.isArray(course.quarterNames) ? course.quarterNames : [];
+  if (!quarterNames.length) return true;
+  const activeQuarterNames = new Set((state.settings.quarters || []).map((quarter) => quarter.name));
+  return quarterNames.some((name) => activeQuarterNames.has(name));
+}
+
+function courseSectionMatchesActiveAcademicYear(section) {
+  if (!section) return false;
+  const quarterNames = Array.isArray(section.quarterNames) ? section.quarterNames : [];
+  if (quarterNames.length) {
+    const activeQuarterNames = new Set((state.settings.quarters || []).map((quarter) => quarter.name));
+    return quarterNames.some((name) => activeQuarterNames.has(name));
+  }
+  return courseMatchesActiveAcademicYear(getCourse(section.courseId));
+}
+
+function buildGlobalSearchResults(query) {
+  const term = String(query || "").trim().toLowerCase();
+  if (term.length < 2) return [];
+  const matches = (text) => String(text || "").toLowerCase().includes(term);
+  const activeCourses = state.courses.filter(courseMatchesActiveAcademicYear);
+  const activeCourseIds = new Set(activeCourses.map((course) => course.id));
+  const activeSubjectIds = new Set(activeCourses.map((course) => course.subjectId));
+  const results = [];
+
+  visibleStudents().forEach((student) => {
+    const label = `${student.firstName || ""} ${student.lastName || ""}`.trim();
+    if (!matches(label) && !matches(student.grade)) return;
+    results.push({
+      type: "student",
+      id: student.id,
+      title: label || "Unnamed Student",
+      meta: `Student${student.grade ? ` | ${student.grade}` : ""}`,
+      actionLabel: "Open student profile"
+    });
+  });
+
+  state.subjects
+    .filter((subject) => activeSubjectIds.has(subject.id))
+    .forEach((subject) => {
+      if (!matches(subject.name)) return;
+      results.push({
+        type: "subject",
+        id: subject.id,
+        title: subject.name,
+        meta: "Subject | Curriculum and School Day filter",
+        actionLabel: "Filter School Day"
+      });
+    });
+
+  activeCourses.forEach((course) => {
+    if (!matches(course.name) && !matches(getSubjectName(course.subjectId))) return;
+    results.push({
+      type: "course",
+      id: course.id,
+      title: course.name,
+      meta: `Course | ${getSubjectName(course.subjectId)}`,
+      actionLabel: "Filter School Day"
+    });
+  });
+
+  state.courseSections
+    .filter(courseSectionMatchesActiveAcademicYear)
+    .forEach((section) => {
+      const course = getCourse(section.courseId);
+      const title = sectionDisplayName(section.id);
+      if (!activeCourseIds.has(section.courseId) || (!matches(title) && !matches(course?.name) && !matches(section.label))) return;
+      results.push({
+        type: "class",
+        id: section.id,
+        title,
+        meta: `Class | ${formatClockTime(section.startTime)} | ${getSubjectName(course?.subjectId)}`,
+        actionLabel: "Open class"
+      });
+    });
+
+  return results.slice(0, 10);
+}
+
+function renderGlobalSearchResults() {
+  const input = document.getElementById("global-search-input");
+  const host = document.getElementById("global-search-results");
+  if (!input || !host) return;
+  const open = globalSearchResults.length > 0;
+  host.classList.toggle("hidden", !open);
+  input.setAttribute("aria-expanded", open ? "true" : "false");
+  if (!open) {
+    host.innerHTML = "";
+    globalSearchActiveIndex = -1;
+    return;
+  }
+  if (globalSearchActiveIndex >= globalSearchResults.length) globalSearchActiveIndex = globalSearchResults.length - 1;
+  host.innerHTML = globalSearchResults.map((result, index) => `
+    <button class="global-search-result${index === globalSearchActiveIndex ? " active" : ""}" type="button" role="option" data-global-search-result-index="${index}" aria-selected="${index === globalSearchActiveIndex ? "true" : "false"}">
+      <span class="global-search-result-kind">${escapeHtml(result.type)}</span>
+      <span class="global-search-result-copy">
+        <strong>${escapeHtml(result.title)}</strong>
+        <span>${escapeHtml(result.meta)}</span>
+      </span>
+      <span class="global-search-result-action">${escapeHtml(result.actionLabel)}</span>
+    </button>
+  `).join("");
+}
+
+function updateGlobalSearchResults() {
+  const input = document.getElementById("global-search-input");
+  globalSearchResults = buildGlobalSearchResults(input?.value || "");
+  globalSearchActiveIndex = globalSearchResults.length ? 0 : -1;
+  renderGlobalSearchResults();
+}
+
+function closeGlobalSearchResults({ clear = false } = {}) {
+  const input = document.getElementById("global-search-input");
+  globalSearchResults = [];
+  globalSearchActiveIndex = -1;
+  if (clear && input) input.value = "";
+  renderGlobalSearchResults();
+}
+
+function openSearchResult(result) {
+  if (!result) return;
+  closeGlobalSearchResults({ clear: true });
+  if (result.type === "student") {
+    schoolDaySelectedStudentIds = new Set([result.id]);
+    activateTab("students");
+    beginStudentDetail(result.id);
+    renderStudents();
+    return;
+  }
+  if (result.type === "subject") {
+    schoolDaySelectedStudentIds = new Set();
+    schoolDaySelectedSubjectIds = new Set([result.id]);
+    schoolDaySelectedCourseIds = new Set();
+    activateTab("school-day");
+    syncSchoolDayFilterSubjectCourseOptions();
+    renderSchoolDay();
+    return;
+  }
+  if (result.type === "course") {
+    const course = getCourse(result.id);
+    schoolDaySelectedStudentIds = new Set();
+    schoolDaySelectedSubjectIds = course?.subjectId ? new Set([course.subjectId]) : new Set();
+    schoolDaySelectedCourseIds = new Set([result.id]);
+    activateTab("school-day");
+    syncSchoolDayFilterSubjectCourseOptions();
+    renderSchoolDay();
+    return;
+  }
+  if (result.type === "class") {
+    const section = getCourseSection(result.id);
+    currentManagementTab = "courses";
+    currentManagementCoursesTab = "course-sections";
+    activateTab("management");
+    renderManagementSectionVisibility();
+    if (section) beginCourseSectionEdit(section.id);
+    if (section?.courseId) {
+      const course = getCourse(section.courseId);
+      schoolDaySelectedSubjectIds = course?.subjectId ? new Set([course.subjectId]) : new Set();
+      schoolDaySelectedCourseIds = new Set([section.courseId]);
+    }
+  }
+}
+
 function renderSchoolDayStudentChecklist(preselectedStudentIds = []) {
   const optionsWrap = document.getElementById("school-day-student-options");
   if (!optionsWrap) return;
@@ -13614,6 +13781,37 @@ function bindEvents() {
     accountMenuOpen = !accountMenuOpen;
     renderSessionChrome();
   });
+  document.getElementById("global-search-input")?.addEventListener("input", () => updateGlobalSearchResults());
+  document.getElementById("global-search-input")?.addEventListener("focus", () => updateGlobalSearchResults());
+  document.getElementById("global-search-input")?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeGlobalSearchResults();
+      return;
+    }
+    if (!globalSearchResults.length) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      globalSearchActiveIndex = (globalSearchActiveIndex + 1) % globalSearchResults.length;
+      renderGlobalSearchResults();
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      globalSearchActiveIndex = (globalSearchActiveIndex - 1 + globalSearchResults.length) % globalSearchResults.length;
+      renderGlobalSearchResults();
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      openSearchResult(globalSearchResults[globalSearchActiveIndex >= 0 ? globalSearchActiveIndex : 0]);
+    }
+  });
+  document.getElementById("global-search-results")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-global-search-result-index]");
+    if (!button) return;
+    const index = Number(button.getAttribute("data-global-search-result-index"));
+    openSearchResult(globalSearchResults[index]);
+  });
   document.getElementById("account-menu-view-btn")?.addEventListener("click", () => openAccountView());
   document.getElementById("account-menu-photo-btn")?.addEventListener("click", () => {
     document.getElementById("account-photo-input")?.click();
@@ -13692,7 +13890,18 @@ function bindEvents() {
     accountMenuOpen = false;
     renderSessionChrome();
   });
+  document.addEventListener("click", (event) => {
+    const shell = document.querySelector(".app-global-search");
+    if (!shell || shell.contains(event.target)) return;
+    closeGlobalSearchResults();
+  });
   document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      document.getElementById("global-search-input")?.focus();
+      updateGlobalSearchResults();
+      return;
+    }
     if (event.key === "Escape" && accountUpgradeModalOpen) {
       closeAccountUpgradeView();
       return;
