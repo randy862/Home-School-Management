@@ -8831,17 +8831,20 @@ function setSchoolDayGradesMessage(kind, message) {
 function rerenderAfterInstructionChange() {
   invalidateDashboardCache();
   renderCurrentTabPanel();
+  renderAlertsMenu();
 }
 
 function rerenderAfterAttendanceChange() {
   invalidateDashboardCache();
   renderCurrentTabPanel();
+  renderAlertsMenu();
 }
 
 function rerenderAfterGradeChange() {
   invalidateDashboardCache();
   renderCurrentTabPanel();
   updateSchoolDayGradeEntryVisibility();
+  renderAlertsMenu();
 }
 
 function rerenderAfterEnrollmentChange() {
