@@ -61,6 +61,8 @@ const HOSTED_MODE_STORAGE_KEY = "hsm_hosted_mode_v1";
 const SCHOOL_DAY_PREFS_STORAGE_KEY = "hsm_school_day_prefs_v1";
 const WORKSPACE_CONFIG_PREFS_STORAGE_KEY = "hsm_workspace_config_prefs_v1";
 const ACTIVE_ACADEMIC_YEAR_STORAGE_KEY = "hsm_active_academic_year_v1";
+const ALERT_ACKNOWLEDGEMENTS_STORAGE_KEY = "hsm_alert_acknowledgements_v1";
+const ALERT_TEMPORARY_ACK_DAYS = 7;
 const INSTRUCTOR_CATEGORY_OPTIONS = ["parent", "volunteer", "compensated", "other"];
 const INSTRUCTOR_CATEGORY_LABELS = {
   parent: "Parent",
@@ -1557,6 +1559,59 @@ function saveSession() {
     return;
   }
   sessionStorage.setItem(SESSION_KEY, JSON.stringify({ currentUserId }));
+}
+
+function alertAcknowledgementScopeKey() {
+  const user = currentUser();
+  const userKey = user?.id || user?.username || "anonymous";
+  return `${window.location.host || "local"}::${userKey}`;
+}
+
+function loadAlertAcknowledgementStore() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ALERT_ACKNOWLEDGEMENTS_STORAGE_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveAlertAcknowledgementStore(store) {
+  try {
+    localStorage.setItem(ALERT_ACKNOWLEDGEMENTS_STORAGE_KEY, JSON.stringify(store || {}));
+  } catch {
+    // Keep acknowledgement behavior best-effort if browser storage is unavailable.
+  }
+}
+
+function alertAcknowledgementRecords() {
+  const store = loadAlertAcknowledgementStore();
+  const scopeKey = alertAcknowledgementScopeKey();
+  return store[scopeKey] && typeof store[scopeKey] === "object" ? store[scopeKey] : {};
+}
+
+function acknowledgeAlert(alert) {
+  if (!alert?.id) return;
+  const store = loadAlertAcknowledgementStore();
+  const scopeKey = alertAcknowledgementScopeKey();
+  const records = store[scopeKey] && typeof store[scopeKey] === "object" ? store[scopeKey] : {};
+  records[alert.id] = {
+    acknowledgedAt: new Date().toISOString(),
+    mode: alert.ackMode || "permanent"
+  };
+  store[scopeKey] = records;
+  saveAlertAcknowledgementStore(store);
+}
+
+function alertAcknowledgementActive(alert, records = alertAcknowledgementRecords()) {
+  const record = alert?.id ? records[alert.id] : null;
+  if (!record) return false;
+  if ((alert.ackMode || record.mode) !== "temporary") return true;
+  const acknowledgedAt = new Date(record.acknowledgedAt || 0);
+  if (Number.isNaN(acknowledgedAt.getTime())) return false;
+  const expiresAt = new Date(acknowledgedAt);
+  expiresAt.setDate(expiresAt.getDate() + ALERT_TEMPORARY_ACK_DAYS);
+  return expiresAt > new Date();
 }
 
 function currentProfilePhotoDataUrl() {
@@ -3315,6 +3370,7 @@ function buildAlertsSnapshot() {
     title: alert.title || "",
     detail: alert.detail || "",
     actionLabel: alert.actionLabel || "Open",
+    ackMode: alert.ackMode || "permanent",
     action: alert.action || null
   });
   const today = todayISO();
@@ -3345,6 +3401,7 @@ function buildAlertsSnapshot() {
       title: "Behind Instructional Days",
       detail: `${Math.abs(instructionalDayVariance).toFixed(1)} instructional days behind expected pace.`,
       actionLabel: "Dashboard link planned",
+      ackMode: "temporary",
       action: null
     });
   }
@@ -3352,14 +3409,6 @@ function buildAlertsSnapshot() {
   executionSnapshot.students.forEach((entry) => {
     const passedInstructionBlocks = (blocksByStudent.get(entry.student.id) || [])
       .filter((block) => block.type === "instruction" && classEndHasPassed(block));
-    const openCompletionCount = passedInstructionBlocks
-      .filter((block) => !effectiveInstructionCompleted(entry.student.id, block.courseId, referenceDate))
-      .length;
-    const missingGradeCount = passedInstructionBlocks
-      .filter((block) =>
-        effectiveInstructionCompleted(entry.student.id, block.courseId, referenceDate)
-        && gradeRecordsForStudentCourseDate(entry.student.id, block.courseId, referenceDate).length === 0)
-      .length;
     if (alertConfig.showOpenAttendance && entry.attendanceState === "open") {
       pushAlert({
         id: `attendance-open-${entry.student.id}-${referenceDate}`,
@@ -3372,30 +3421,36 @@ function buildAlertsSnapshot() {
         action: { view: "school-day", date: referenceDate, tab: "attendance", studentId: entry.student.id, quickFilter: "needs-attendance" }
       });
     }
-    if (alertConfig.showOpenCompletion && openCompletionCount > 0) {
-      pushAlert({
-        id: `completion-open-${entry.student.id}-${referenceDate}`,
-        severity: "warning",
-        type: "Completion",
-        label: "Completion",
-        title: `${entry.student.firstName} ${entry.student.lastName}`,
-        detail: `${openCompletionCount} class${openCompletionCount === 1 ? "" : "es"} need completion on ${formatDisplayDate(referenceDate)}.`,
-        actionLabel: "Open School Day",
-        action: { view: "school-day", date: referenceDate, tab: "daily-schedule", studentId: entry.student.id, quickFilter: "needs-completion" }
-      });
-    }
-    if (alertConfig.showMissingGrades && missingGradeCount > 0) {
-      pushAlert({
-        id: `grade-open-${entry.student.id}-${referenceDate}`,
-        severity: "warning",
-        type: "Grade",
-        label: "Grade",
-        title: `${entry.student.firstName} ${entry.student.lastName}`,
-        detail: `${missingGradeCount} completed class${missingGradeCount === 1 ? "" : "es"} need grades on ${formatDisplayDate(referenceDate)}.`,
-        actionLabel: "Open School Day",
-        action: { view: "school-day", date: referenceDate, tab: "grades", studentId: entry.student.id, quickFilter: "needs-grade" }
-      });
-    }
+    passedInstructionBlocks.forEach((block) => {
+      if (alertConfig.showOpenCompletion && !effectiveInstructionCompleted(entry.student.id, block.courseId, referenceDate)) {
+        pushAlert({
+          id: `completion-open-${entry.student.id}-${block.courseId}-${referenceDate}`,
+          severity: "warning",
+          type: "Completion",
+          label: "Completion",
+          title: `${entry.student.firstName} ${entry.student.lastName}`,
+          detail: `${block.label || getCourseName(block.courseId)} needs completion for ${formatDisplayDate(referenceDate)}.`,
+          actionLabel: "Open School Day",
+          action: { view: "school-day", date: referenceDate, tab: "daily-schedule", studentId: entry.student.id, quickFilter: "needs-completion" }
+        });
+      }
+      if (
+        alertConfig.showMissingGrades
+        && effectiveInstructionCompleted(entry.student.id, block.courseId, referenceDate)
+        && gradeRecordsForStudentCourseDate(entry.student.id, block.courseId, referenceDate).length === 0
+      ) {
+        pushAlert({
+          id: `grade-open-${entry.student.id}-${block.courseId}-${referenceDate}`,
+          severity: "warning",
+          type: "Grade",
+          label: "Grade",
+          title: `${entry.student.firstName} ${entry.student.lastName}`,
+          detail: `${block.label || getCourseName(block.courseId)} is completed and needs grade review.`,
+          actionLabel: "Open School Day",
+          action: { view: "school-day", date: referenceDate, tab: "grades", studentId: entry.student.id, quickFilter: "needs-grade" }
+        });
+      }
+    });
   });
 
   paceSnapshot.studentRows
@@ -3409,6 +3464,7 @@ function buildAlertsSnapshot() {
         title: row.studentName,
         detail: `${Math.abs(row.varianceHours).toFixed(1)} instruction hours behind expected pace.`,
         actionLabel: "Open Dashboard",
+        ackMode: "temporary",
         action: { view: "dashboard", dashboardTab: "compliance", studentInstructionalHoursStudentId: row.studentId }
       });
     });
@@ -3417,13 +3473,14 @@ function buildAlertsSnapshot() {
     .filter((row) => alertConfig.showGradeRisk && row.averageScore < alertConfig.gradeRiskThresholdPercent)
     .forEach((row) => {
       pushAlert({
-        id: `grade-risk-${row.studentId}-${row.courseId}`,
+        id: `grade-risk-${row.studentId}-${row.courseId}-${state.settings.currentSchoolYearId}-${gradeRiskSnapshot.quarterName}-${alertConfig.gradeRiskThresholdPercent}`,
         severity: "critical",
         type: "Grade Risk",
         label: "Grade Risk",
         title: row.studentName,
         detail: `${row.courseName} average is ${row.averageScore.toFixed(1)}%.`,
         actionLabel: "Open Grades",
+        ackMode: "temporary",
         action: { view: "grades-search", studentId: row.studentId, courseId: row.courseId }
       });
     });
@@ -3435,22 +3492,24 @@ function buildAlertsSnapshot() {
     const attendancePercent = (presentCount / records.length) * 100;
     if (!alertConfig.showAttendanceRisk || attendancePercent >= alertConfig.attendanceRiskThresholdPercent) return;
     pushAlert({
-      id: `attendance-risk-${student.id}`,
+      id: `attendance-risk-${student.id}-${state.settings.currentSchoolYearId}-${alertConfig.attendanceRiskThresholdPercent}`,
       severity: "critical",
       type: "Attendance Risk",
       label: "Attendance",
       title: `${student.firstName} ${student.lastName}`,
       detail: `Attendance is ${attendancePercent.toFixed(1)}% for ${state.settings.schoolYear.label}.`,
       actionLabel: "Open Attendance",
+      ackMode: "temporary",
       action: { view: "attendance-search", studentId: student.id }
     });
   });
 
   const severityRank = { critical: 0, warning: 1, info: 2 };
   alerts.sort((a, b) => (severityRank[a.severity] ?? 9) - (severityRank[b.severity] ?? 9) || a.label.localeCompare(b.label) || a.title.localeCompare(b.title));
+  const acknowledgementRecords = alertAcknowledgementRecords();
   return {
     referenceDate,
-    alerts
+    alerts: alerts.filter((alert) => !alertAcknowledgementActive(alert, acknowledgementRecords))
   };
 }
 
@@ -3476,12 +3535,15 @@ function renderAlertsMenu() {
   if (list) {
     list.innerHTML = alerts.length
       ? alerts.slice(0, 12).map((alert, index) => `
-        <button class="alert-result alert-severity-${escapeHtml(alert.severity)}" type="button" data-alert-index="${index}">
+        <article class="alert-result alert-severity-${escapeHtml(alert.severity)}">
           <span class="alert-result-label">${escapeHtml(alert.label)}</span>
           <span class="alert-result-title">${escapeHtml(alert.title)}</span>
           <span class="alert-result-detail">${escapeHtml(alert.detail)}</span>
-          <span class="alert-result-action">${escapeHtml(alert.actionLabel)}</span>
-        </button>
+          <span class="alert-result-actions">
+            <button class="alert-result-open" type="button" data-alert-open-index="${index}"${alert.action ? "" : " disabled"}>${escapeHtml(alert.actionLabel)}</button>
+            <button class="alert-result-ack" type="button" data-alert-ack-index="${index}">Acknowledge</button>
+          </span>
+        </article>
       `).join("")
       : `<div class="alerts-empty">
           <strong>No active alerts</strong>
@@ -14323,11 +14385,20 @@ function bindEvents() {
     renderSessionChrome();
   });
   document.getElementById("alerts-menu-list")?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-alert-index]");
-    if (!button) return;
-    const index = Number(button.getAttribute("data-alert-index"));
-    const alert = buildAlertsSnapshot().alerts[index];
-    openAlertAction(alert);
+    const openButton = event.target.closest("[data-alert-open-index]");
+    if (openButton) {
+      const index = Number(openButton.getAttribute("data-alert-open-index"));
+      const alert = buildAlertsSnapshot().alerts[index];
+      openAlertAction(alert);
+      return;
+    }
+    const acknowledgeButton = event.target.closest("[data-alert-ack-index]");
+    if (acknowledgeButton) {
+      const index = Number(acknowledgeButton.getAttribute("data-alert-ack-index"));
+      const alert = buildAlertsSnapshot().alerts[index];
+      acknowledgeAlert(alert);
+      renderSessionChrome();
+    }
   });
   document.getElementById("global-search-input")?.addEventListener("input", () => updateGlobalSearchResults());
   document.getElementById("global-search-input")?.addEventListener("focus", () => updateGlobalSearchResults());

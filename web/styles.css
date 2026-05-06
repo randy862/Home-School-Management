@@ -4403,12 +4403,38 @@ tbody tr:hover {
   overflow-wrap: anywhere;
 }
 
-.alert-result-action {
-  color: #175db3;
+.alert-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.alert-result-actions button {
+  min-height: 30px;
+  padding: 0.36rem 0.62rem;
+  border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 700;
-  line-height: 1.2;
-  white-space: normal;
+  box-shadow: none;
+}
+
+.alert-result-open {
+  border-color: #b8cee8;
+  background: #e8f2ff;
+  color: #175db3;
+}
+
+.alert-result-ack {
+  border-color: #d2dce9;
+  background: #fff;
+  color: #4f6079;
+}
+
+.alert-result-open:hover,
+.alert-result-ack:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .alerts-empty {
