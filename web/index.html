@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605061345">
+  <link rel="stylesheet" href="styles.css?v=202605061405">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -251,26 +251,56 @@
       <div id="dashboard-section-instruction-hour-pace" class="dashboard-section dashboard-section-compliance-detail hidden">
         <div class="dashboard-section-header">
           <div>
-            <h3>Instruction Hour Pace</h3>
+            <h3>Required Instructional Hours</h3>
             <p id="dashboard-hour-pace-note" class="muted">0.00 earned vs 0.00 expected to date.</p>
           </div>
           <span id="dashboard-hour-pace-value" class="dashboard-pill-metric">On pace</span>
         </div>
-        <div class="dashboard-pace-grid">
-          <article class="dashboard-summary-card dashboard-summary-card-tight">
-            <p class="dashboard-summary-label">Expected To Date</p>
-            <p id="dashboard-hour-pace-expected" class="dashboard-summary-value">0.00</p>
-            <p class="dashboard-summary-note muted">Hours based on school year progress.</p>
-          </article>
-          <article class="dashboard-summary-card dashboard-summary-card-tight">
-            <p class="dashboard-summary-label">Earned To Date</p>
-            <p id="dashboard-hour-pace-actual" class="dashboard-summary-value">0.00</p>
-            <p class="dashboard-summary-note muted">Completed class hours through today.</p>
-          </article>
-          <article class="dashboard-summary-card dashboard-summary-card-tight">
-            <p class="dashboard-summary-label">Variance</p>
-            <p id="dashboard-hour-pace-variance" class="dashboard-summary-value">0.00</p>
+        <div class="compliance-gauge-card">
+          <div class="compliance-gauge-header">
+            <div>
+              <p class="dashboard-summary-label">Final Compliance Forecast</p>
+              <p id="dashboard-hour-pace-forecast" class="compliance-gauge-forecast">Projected on track</p>
+            </div>
             <p id="dashboard-hour-pace-variance-note" class="dashboard-summary-note muted">Currently on pace.</p>
+          </div>
+          <div class="compliance-gauge-track" aria-label="Instructional hours progress">
+            <div id="dashboard-hour-pace-actual-fill" class="compliance-gauge-fill actual"></div>
+            <div id="dashboard-hour-pace-projected-fill" class="compliance-gauge-fill projected"></div>
+            <span id="dashboard-hour-pace-expected-marker" class="compliance-gauge-marker expected"><span>Expected Today</span></span>
+            <span id="dashboard-hour-pace-required-marker" class="compliance-gauge-marker required"><span>Required</span></span>
+          </div>
+          <div class="compliance-gauge-legend">
+            <span><i class="legend-dot actual"></i>Logged</span>
+            <span><i class="legend-dot projected"></i>Projected</span>
+            <span><i class="legend-line expected"></i>Expected today</span>
+            <span><i class="legend-line required"></i>Required</span>
+          </div>
+        </div>
+        <div class="dashboard-pace-grid compliance-metric-grid">
+          <article class="dashboard-summary-card dashboard-summary-card-tight">
+            <p class="dashboard-summary-label">Required Hours</p>
+            <p id="dashboard-hour-pace-required" class="dashboard-summary-value">0.00</p>
+          </article>
+          <article class="dashboard-summary-card dashboard-summary-card-tight">
+            <p class="dashboard-summary-label">Logged Hours</p>
+            <p id="dashboard-hour-pace-actual" class="dashboard-summary-value">0.00</p>
+          </article>
+          <article class="dashboard-summary-card dashboard-summary-card-tight">
+            <p class="dashboard-summary-label">Expected Today</p>
+            <p id="dashboard-hour-pace-expected" class="dashboard-summary-value">0.00</p>
+          </article>
+          <article class="dashboard-summary-card dashboard-summary-card-tight">
+            <p class="dashboard-summary-label">Current Diff</p>
+            <p id="dashboard-hour-pace-variance" class="dashboard-summary-value">0.00</p>
+          </article>
+          <article class="dashboard-summary-card dashboard-summary-card-tight">
+            <p class="dashboard-summary-label">Projected Hours</p>
+            <p id="dashboard-hour-pace-projected" class="dashboard-summary-value">0.00</p>
+          </article>
+          <article class="dashboard-summary-card dashboard-summary-card-tight">
+            <p class="dashboard-summary-label">Projected Diff</p>
+            <p id="dashboard-hour-pace-projected-variance" class="dashboard-summary-value">0.00</p>
           </article>
         </div>
         <div class="dashboard-detail-toggle-row">
@@ -1782,6 +1812,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605061345"></script>
+  <script src="app.js?v=202605061405"></script>
   </body>
   </html>

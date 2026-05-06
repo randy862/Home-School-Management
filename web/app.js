@@ -11694,36 +11694,50 @@ function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructio
   const actualToDate = Array.from(instructionalHoursSnapshot.summaryByStudent.values()).reduce((sum, studentSummary) => {
     return sum + Number(studentSummary.buckets.total?.earned || 0);
   }, 0);
+  const projectedTotal = Array.from(instructionalHoursSnapshot.summaryByStudent.values()).reduce((sum, studentSummary) => {
+    return sum + Number(studentSummary.buckets.total?.projected || 0);
+  }, 0);
   const varianceHours = actualToDate - expectedToDate;
+  const projectedVarianceHours = projectedTotal - requiredTotal;
   const toleranceHours = Math.max(1, expectedToDate * 0.02);
+  const projectedToleranceHours = Math.max(1, requiredTotal * 0.01);
   let status = "On Pace";
   let statusClass = "on-pace";
-  if (expectedToDate <= 0.01 && actualToDate <= 0.01) {
+  if (projectedVarianceHours < -projectedToleranceHours) {
+    status = "Projected Short";
+    statusClass = "behind";
+  } else if (expectedToDate <= 0.01 && actualToDate <= 0.01) {
     status = "Year Opening";
     statusClass = "starting";
+  } else if (varianceHours < -toleranceHours) {
+    status = "Behind Today";
+    statusClass = "behind";
   } else if (varianceHours > toleranceHours) {
     status = "Ahead of Pace";
     statusClass = "ahead";
-  } else if (varianceHours < -toleranceHours) {
-    status = "Behind Pace";
-    statusClass = "behind";
   }
   const studentRows = (dashboardStudents || []).map((student) => {
     const studentExpectedToDate = requiredPerStudent * progressPct;
     const studentActualToDate = Number(instructionalHoursSnapshot.summaryByStudent.get(student.id)?.buckets?.total?.earned || 0);
+    const studentProjectedTotal = Number(instructionalHoursSnapshot.summaryByStudent.get(student.id)?.buckets?.total?.projected || 0);
     const studentVarianceHours = studentActualToDate - studentExpectedToDate;
+    const studentProjectedVarianceHours = studentProjectedTotal - requiredPerStudent;
     const studentToleranceHours = Math.max(1, studentExpectedToDate * 0.02);
+    const studentProjectedToleranceHours = Math.max(1, requiredPerStudent * 0.01);
     let studentStatus = "On Pace";
     let studentStatusClass = "on-pace";
-    if (studentExpectedToDate <= 0.01 && studentActualToDate <= 0.01) {
+    if (studentProjectedVarianceHours < -studentProjectedToleranceHours) {
+      studentStatus = "Projected Short";
+      studentStatusClass = "behind";
+    } else if (studentExpectedToDate <= 0.01 && studentActualToDate <= 0.01) {
       studentStatus = "Year Opening";
       studentStatusClass = "starting";
+    } else if (studentVarianceHours < -studentToleranceHours) {
+      studentStatus = "Behind Today";
+      studentStatusClass = "behind";
     } else if (studentVarianceHours > studentToleranceHours) {
       studentStatus = "Ahead of Pace";
       studentStatusClass = "ahead";
-    } else if (studentVarianceHours < -studentToleranceHours) {
-      studentStatus = "Behind Pace";
-      studentStatusClass = "behind";
     }
     return {
       studentId: student.id,
@@ -11731,6 +11745,8 @@ function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructio
       expectedToDate: studentExpectedToDate,
       actualToDate: studentActualToDate,
       varianceHours: studentVarianceHours,
+      projectedTotal: studentProjectedTotal,
+      projectedVarianceHours: studentProjectedVarianceHours,
       status: studentStatus,
       statusClass: studentStatusClass
     };
@@ -11742,6 +11758,8 @@ function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructio
     expectedToDate,
     actualToDate,
     varianceHours,
+    projectedTotal,
+    projectedVarianceHours,
     status,
     statusClass,
     studentRows
@@ -11879,10 +11897,18 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
   const overviewNote = document.getElementById("dashboard-overview-pace-note");
   const detailValue = document.getElementById("dashboard-hour-pace-value");
   const detailNote = document.getElementById("dashboard-hour-pace-note");
+  const requiredNode = document.getElementById("dashboard-hour-pace-required");
   const expectedNode = document.getElementById("dashboard-hour-pace-expected");
   const actualNode = document.getElementById("dashboard-hour-pace-actual");
   const varianceNode = document.getElementById("dashboard-hour-pace-variance");
   const varianceNote = document.getElementById("dashboard-hour-pace-variance-note");
+  const projectedNode = document.getElementById("dashboard-hour-pace-projected");
+  const projectedVarianceNode = document.getElementById("dashboard-hour-pace-projected-variance");
+  const forecastNode = document.getElementById("dashboard-hour-pace-forecast");
+  const actualFill = document.getElementById("dashboard-hour-pace-actual-fill");
+  const projectedFill = document.getElementById("dashboard-hour-pace-projected-fill");
+  const expectedMarker = document.getElementById("dashboard-hour-pace-expected-marker");
+  const requiredMarker = document.getElementById("dashboard-hour-pace-required-marker");
   const toggleButton = document.getElementById("dashboard-hour-pace-toggle");
   const studentBreakdown = document.getElementById("dashboard-hour-pace-student-breakdown");
   const studentRows = (snapshot.studentRows || []).map((row) => `
@@ -11894,23 +11920,48 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
       <td><span class="dashboard-pill-metric ${row.statusClass}">${escapeHtml(row.status)}</span></td>
     </tr>`);
   const varianceText = `${snapshot.varianceHours >= 0 ? "+" : ""}${snapshot.varianceHours.toFixed(2)} hrs`;
+  const projectedVarianceText = `${snapshot.projectedVarianceHours >= 0 ? "+" : ""}${snapshot.projectedVarianceHours.toFixed(2)} hrs`;
+  const scaleMax = Math.max(snapshot.requiredTotal, snapshot.projectedTotal, snapshot.actualToDate, snapshot.expectedToDate, 1) * 1.08;
+  const percentOfScale = (value) => clamp((Number(value || 0) / scaleMax) * 100, 0, 100);
+  const metricClass = (value) => value < -0.01 ? "negative" : value > 0.01 ? "positive" : "";
 
   if (overviewValue) overviewValue.textContent = snapshot.status;
-  if (overviewNote) overviewNote.textContent = `${snapshot.actualToDate.toFixed(2)} earned vs ${snapshot.expectedToDate.toFixed(2)} expected through ${formatDisplayDate(context.referenceDate)}.`;
+  if (overviewNote) overviewNote.textContent = `${snapshot.actualToDate.toFixed(2)} logged, ${snapshot.projectedTotal.toFixed(2)} projected, ${snapshot.requiredTotal.toFixed(2)} required.`;
   if (detailValue) {
     detailValue.textContent = snapshot.status;
     detailValue.className = `dashboard-pill-metric ${snapshot.statusClass}`;
   }
-  if (detailNote) detailNote.textContent = `${snapshot.actualToDate.toFixed(2)} earned vs ${snapshot.expectedToDate.toFixed(2)} expected through ${formatDisplayDate(context.referenceDate)} across ${snapshot.studentCount} student${snapshot.studentCount === 1 ? "" : "s"}.`;
+  if (detailNote) detailNote.textContent = `${snapshot.actualToDate.toFixed(2)} logged vs ${snapshot.expectedToDate.toFixed(2)} expected through ${formatDisplayDate(context.referenceDate)}; ${snapshot.projectedTotal.toFixed(2)} projected against ${snapshot.requiredTotal.toFixed(2)} required.`;
+  if (forecastNode) forecastNode.textContent = snapshot.projectedVarianceHours < -0.01
+    ? `${Math.abs(snapshot.projectedVarianceHours).toFixed(2)} hours projected short`
+    : `${snapshot.projectedVarianceHours.toFixed(2)} hours projected over requirement`;
+  if (requiredNode) requiredNode.textContent = snapshot.requiredTotal.toFixed(2);
   if (expectedNode) expectedNode.textContent = snapshot.expectedToDate.toFixed(2);
   if (actualNode) actualNode.textContent = snapshot.actualToDate.toFixed(2);
-  if (varianceNode) varianceNode.textContent = varianceText;
-  if (varianceNote) varianceNote.textContent = snapshot.status === "On Pace"
-    ? "Currently on pace."
+  if (varianceNode) {
+    varianceNode.textContent = varianceText;
+    varianceNode.className = `dashboard-summary-value ${metricClass(snapshot.varianceHours)}`;
+  }
+  if (projectedNode) projectedNode.textContent = snapshot.projectedTotal.toFixed(2);
+  if (projectedVarianceNode) {
+    projectedVarianceNode.textContent = projectedVarianceText;
+    projectedVarianceNode.className = `dashboard-summary-value ${metricClass(snapshot.projectedVarianceHours)}`;
+  }
+  if (actualFill) actualFill.style.width = `${percentOfScale(snapshot.actualToDate).toFixed(2)}%`;
+  if (projectedFill) {
+    projectedFill.style.width = `${percentOfScale(snapshot.projectedTotal).toFixed(2)}%`;
+    projectedFill.classList.toggle("short", snapshot.projectedVarianceHours < -0.01);
+  }
+  if (expectedMarker) expectedMarker.style.left = `${percentOfScale(snapshot.expectedToDate).toFixed(2)}%`;
+  if (requiredMarker) requiredMarker.style.left = `${percentOfScale(snapshot.requiredTotal).toFixed(2)}%`;
+  if (varianceNote) varianceNote.textContent = snapshot.projectedVarianceHours < -0.01
+    ? "Projected final compliance is below requirement if the current plan holds."
+    : snapshot.status === "On Pace"
+      ? "Current pace and final projection are compliant."
     : snapshot.status === "Ahead of Pace"
       ? "Ahead of the expected year-to-date pace."
-      : snapshot.status === "Behind Pace"
-        ? "Behind the expected year-to-date pace."
+      : snapshot.status === "Behind Today"
+        ? "Behind the expected year-to-date pace, but final projection remains compliant."
         : "School year pacing has not started yet.";
   if (toggleButton) {
     toggleButton.textContent = dashboardInstructionHourPaceExpanded ? "Hide Student Breakdown" : "Show Student Breakdown";

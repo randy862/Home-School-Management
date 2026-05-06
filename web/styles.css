@@ -5322,6 +5322,165 @@ tbody tr:hover {
   letter-spacing: 0;
 }
 
+#app-shell .dashboard-summary-value.positive {
+  color: #1f7a4f;
+}
+
+#app-shell .dashboard-summary-value.negative {
+  color: #a1462c;
+}
+
+#app-shell .compliance-gauge-card {
+  margin-top: 0.95rem;
+  padding: 1rem;
+  border: 1px solid #dbe6f2;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 251, 255, 0.96)),
+    radial-gradient(circle at 18% 10%, rgba(23, 97, 174, 0.08), transparent 34%);
+}
+
+#app-shell .compliance-gauge-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.45rem;
+}
+
+#app-shell .compliance-gauge-forecast {
+  margin: 0.2rem 0 0;
+  color: #14233b;
+  font-size: 1.35rem;
+  font-weight: 750;
+  line-height: 1.1;
+}
+
+#app-shell .compliance-gauge-track {
+  position: relative;
+  height: 18px;
+  border: 1px solid #d8e2ef;
+  border-radius: 999px;
+  background: #e9eff7;
+  overflow: visible;
+}
+
+#app-shell .compliance-gauge-track::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0));
+  z-index: 3;
+  pointer-events: none;
+}
+
+#app-shell .compliance-gauge-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
+
+#app-shell .compliance-gauge-fill.projected {
+  z-index: 1;
+  background: linear-gradient(90deg, rgba(50, 126, 91, 0.22), rgba(31, 122, 79, 0.34));
+}
+
+#app-shell .compliance-gauge-fill.projected.short {
+  background: linear-gradient(90deg, rgba(161, 70, 44, 0.18), rgba(161, 70, 44, 0.3));
+}
+
+#app-shell .compliance-gauge-fill.actual {
+  z-index: 2;
+  background: linear-gradient(90deg, #1761ae 0%, #2f8f68 100%);
+  box-shadow: 0 8px 18px rgba(23, 97, 174, 0.18);
+}
+
+#app-shell .compliance-gauge-marker {
+  position: absolute;
+  top: 50%;
+  z-index: 5;
+  width: 2px;
+  height: 30px;
+  border-radius: 999px;
+  transform: translate(-1px, -50%);
+}
+
+#app-shell .compliance-gauge-marker.expected {
+  background: #6b778c;
+}
+
+#app-shell .compliance-gauge-marker.required {
+  background: #17243d;
+}
+
+#app-shell .compliance-gauge-marker span {
+  position: absolute;
+  top: -1.7rem;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: #56657a;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+#app-shell .compliance-gauge-marker.required span {
+  color: #17243d;
+}
+
+#app-shell .compliance-gauge-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  margin-top: 0.85rem;
+  color: #56657a;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+#app-shell .compliance-gauge-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+#app-shell .legend-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+}
+
+#app-shell .legend-dot.actual {
+  background: #1761ae;
+}
+
+#app-shell .legend-dot.projected {
+  background: #86b99a;
+}
+
+#app-shell .legend-line {
+  width: 0.75rem;
+  height: 2px;
+  border-radius: 999px;
+}
+
+#app-shell .legend-line.expected {
+  background: #6b778c;
+}
+
+#app-shell .legend-line.required {
+  background: #17243d;
+}
+
+#app-shell .compliance-metric-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+#app-shell .compliance-metric-grid .dashboard-summary-card {
+  min-height: 94px;
+}
+
 #app-shell .dashboard-summary-note {
   color: #6b778c;
   font-size: 0.88rem;
@@ -7107,6 +7266,10 @@ tbody tr:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  #app-shell .compliance-metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   #app-shell .school-day-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -7185,6 +7348,14 @@ tbody tr:hover {
 
   #app-shell .progress-wrap {
     grid-template-columns: 1fr;
+  }
+
+  #app-shell .compliance-gauge-header {
+    display: grid;
+  }
+
+  #app-shell .compliance-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   #app-shell .school-day-nav-row,
