@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605051520">
+  <link rel="stylesheet" href="styles.css?v=202605051610">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -107,6 +107,7 @@
         <div class="sidebar-support-card sidebar-year-card">
           <label for="active-academic-year-select">Academic Year</label>
           <select id="active-academic-year-select" aria-label="Academic Year"></select>
+          <p id="active-academic-year-reference" class="sidebar-year-reference muted">Live today</p>
         </div>
         <div class="sidebar-support-card">
           <strong>Need Help?</strong>
@@ -147,12 +148,12 @@
 
         <div class="dashboard-summary-grid">
           <article class="dashboard-summary-card">
-            <p class="dashboard-summary-label">Completion Today</p>
+            <p id="dashboard-overview-completion-label" class="dashboard-summary-label">Completion Today</p>
             <p id="dashboard-overview-completion-value" class="dashboard-summary-value">0%</p>
             <p id="dashboard-overview-completion-note" class="dashboard-summary-note muted">0 of 0 classes completed today.</p>
           </article>
           <article class="dashboard-summary-card">
-            <p class="dashboard-summary-label">Open Items Today</p>
+            <p id="dashboard-overview-attention-label" class="dashboard-summary-label">Open Items Today</p>
             <p id="dashboard-overview-attention-value" class="dashboard-summary-value">0</p>
             <p id="dashboard-overview-attention-note" class="dashboard-summary-note muted">No open items for today.</p>
           </article>
@@ -162,7 +163,7 @@
             <p id="dashboard-overview-pace-note" class="dashboard-summary-note muted">0.00 earned vs 0.00 expected.</p>
           </article>
           <article class="dashboard-summary-card">
-            <p class="dashboard-summary-label">Awaiting Grades Today</p>
+            <p id="dashboard-overview-missing-grades-label" class="dashboard-summary-label">Awaiting Grades Today</p>
             <p id="dashboard-overview-missing-grades-value" class="dashboard-summary-value">0</p>
             <p id="dashboard-overview-missing-grades-note" class="dashboard-summary-note muted">No completed classes are waiting on grades today.</p>
           </article>
@@ -1718,6 +1719,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605051520"></script>
+  <script src="app.js?v=202605051610"></script>
   </body>
   </html>

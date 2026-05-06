@@ -4632,6 +4632,17 @@ tbody tr:hover {
   font-size: 0.82rem;
 }
 
+#app-shell .sidebar-year-reference {
+  margin: 0.45rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+#app-shell .sidebar-year-reference.is-live {
+  color: #25633d;
+  font-weight: 700;
+}
+
 #app-shell .app-topbar .session-bar {
   grid-area: session;
   justify-content: flex-end;

@@ -335,6 +335,41 @@ function activeYearDateOrDefault(dateKey) {
 function recordDateInActiveYear(record, dateField = "date") {
   return dateWithinActiveSchoolYear(record?.[dateField]);
 }
+function activeYearReferenceContext(dateKey = defaultReferenceDateForActiveYear()) {
+  const { startDate, endDate } = activeSchoolYearRange();
+  const today = todayISO();
+  const referenceDate = dateKey || defaultReferenceDateForActiveYear();
+  if (referenceDate === today) {
+    return {
+      referenceDate,
+      isLiveToday: true,
+      label: "Today",
+      note: `Live today: ${formatDisplayDate(referenceDate)}`
+    };
+  }
+  if (today < startDate) {
+    return {
+      referenceDate,
+      isLiveToday: false,
+      label: "Year Start",
+      note: `Future year view: starts ${formatDisplayDate(referenceDate)}`
+    };
+  }
+  if (today > endDate) {
+    return {
+      referenceDate,
+      isLiveToday: false,
+      label: "Year End",
+      note: `Past year view: ended ${formatDisplayDate(referenceDate)}`
+    };
+  }
+  return {
+    referenceDate,
+    isLiveToday: false,
+    label: "Reference Date",
+    note: `Viewing ${formatDisplayDate(referenceDate)}`
+  };
+}
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 
 function niceTickStep(maxValue, targetTickCount = 6) {
@@ -4206,6 +4241,7 @@ function applyPreferredAcademicYearContext() {
 function renderAcademicYearSelector() {
   const select = document.getElementById("active-academic-year-select");
   if (!(select instanceof HTMLSelectElement)) return;
+  const referenceNode = document.getElementById("active-academic-year-reference");
   const schoolYears = Array.isArray(state.settings.schoolYears) ? state.settings.schoolYears : [];
   const currentValue = state.settings.currentSchoolYearId || currentSchoolYear()?.id || "";
   select.innerHTML = "";
@@ -4221,6 +4257,11 @@ function renderAcademicYearSelector() {
   select.disabled = schoolYears.length <= 1;
   if (currentValue && Array.from(select.options).some((option) => option.value === currentValue)) {
     select.value = currentValue;
+  }
+  if (referenceNode) {
+    const context = activeYearReferenceContext();
+    referenceNode.textContent = context.note;
+    referenceNode.classList.toggle("is-live", context.isLiveToday);
   }
 }
 
@@ -10862,7 +10903,7 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
   };
 }
 
-function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructionalHoursSnapshot, yearProgressPercent) {
+function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructionalHoursSnapshot, yearProgressPercent, referenceDate = defaultReferenceDateForActiveYear()) {
   const studentCount = Array.isArray(dashboardStudents) ? dashboardStudents.length : 0;
   const requiredPerStudent = Number(state.settings.schoolYear.requiredInstructionalHours || 0);
   const progressPct = clamp(yearProgressPercent, 0, 100) / 100;
@@ -10913,6 +10954,7 @@ function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructio
     };
   }).sort((a, b) => a.studentName.localeCompare(b.studentName));
   return {
+    referenceDate,
     studentCount,
     requiredTotal,
     expectedToDate,
@@ -10993,6 +11035,9 @@ function buildDashboardGradeRiskSnapshot(dashboardStudents) {
 }
 
 function renderDashboardExecutionSummary(snapshot) {
+  const context = activeYearReferenceContext(snapshot.date);
+  const completionLabel = document.getElementById("dashboard-overview-completion-label");
+  const attentionLabel = document.getElementById("dashboard-overview-attention-label");
   const completionValue = document.getElementById("dashboard-overview-completion-value");
   const completionNote = document.getElementById("dashboard-overview-completion-note");
   const attentionValue = document.getElementById("dashboard-overview-attention-value");
@@ -11011,6 +11056,8 @@ function renderDashboardExecutionSummary(snapshot) {
       <td>${(entry.completedMinutes / 60).toFixed(2)}</td>
     </tr>`);
 
+  if (completionLabel) completionLabel.textContent = context.isLiveToday ? "Completion Today" : `Completion ${context.label}`;
+  if (attentionLabel) attentionLabel.textContent = context.isLiveToday ? "Open Items Today" : `Open Items ${context.label}`;
   if (completionValue) completionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
   if (completionNote) completionNote.textContent = snapshot.scheduledCount
     ? `${snapshot.completedCount} of ${snapshot.scheduledCount} classes completed on ${formatDisplayDate(snapshot.date)}.`
@@ -11045,6 +11092,7 @@ function renderDashboardExecutionSummary(snapshot) {
 }
 
 function renderDashboardInstructionHourPaceSummary(snapshot) {
+  const context = activeYearReferenceContext(snapshot.referenceDate);
   const overviewValue = document.getElementById("dashboard-overview-pace-value");
   const overviewNote = document.getElementById("dashboard-overview-pace-note");
   const detailValue = document.getElementById("dashboard-hour-pace-value");
@@ -11066,12 +11114,12 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
   const varianceText = `${snapshot.varianceHours >= 0 ? "+" : ""}${snapshot.varianceHours.toFixed(2)} hrs`;
 
   if (overviewValue) overviewValue.textContent = snapshot.status;
-  if (overviewNote) overviewNote.textContent = `${snapshot.actualToDate.toFixed(2)} earned vs ${snapshot.expectedToDate.toFixed(2)} expected to date.`;
+  if (overviewNote) overviewNote.textContent = `${snapshot.actualToDate.toFixed(2)} earned vs ${snapshot.expectedToDate.toFixed(2)} expected through ${formatDisplayDate(context.referenceDate)}.`;
   if (detailValue) {
     detailValue.textContent = snapshot.status;
     detailValue.className = `dashboard-pill-metric ${snapshot.statusClass}`;
   }
-  if (detailNote) detailNote.textContent = `${snapshot.actualToDate.toFixed(2)} earned vs ${snapshot.expectedToDate.toFixed(2)} expected to date across ${snapshot.studentCount} student${snapshot.studentCount === 1 ? "" : "s"}.`;
+  if (detailNote) detailNote.textContent = `${snapshot.actualToDate.toFixed(2)} earned vs ${snapshot.expectedToDate.toFixed(2)} expected through ${formatDisplayDate(context.referenceDate)} across ${snapshot.studentCount} student${snapshot.studentCount === 1 ? "" : "s"}.`;
   if (expectedNode) expectedNode.textContent = snapshot.expectedToDate.toFixed(2);
   if (actualNode) actualNode.textContent = snapshot.actualToDate.toFixed(2);
   if (varianceNode) varianceNode.textContent = varianceText;
@@ -11097,6 +11145,8 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
 }
 
 function renderDashboardMissingGradesSummary(snapshot) {
+  const context = activeYearReferenceContext(snapshot.date);
+  const overviewLabel = document.getElementById("dashboard-overview-missing-grades-label");
   const overviewValue = document.getElementById("dashboard-overview-missing-grades-value");
   const overviewNote = document.getElementById("dashboard-overview-missing-grades-note");
   const detailValue = document.getElementById("dashboard-missing-grades-value");
@@ -11109,15 +11159,16 @@ function renderDashboardMissingGradesSummary(snapshot) {
       <td>${escapeHtml(row.timeLabel)}</td>
       <td>${escapeHtml(row.statusLabel)}</td>
     </tr>`);
+  if (overviewLabel) overviewLabel.textContent = context.isLiveToday ? "Awaiting Grades Today" : `Awaiting Grades ${context.label}`;
   if (overviewValue) overviewValue.textContent = String(snapshot.count);
   if (overviewNote) overviewNote.textContent = snapshot.count
-    ? `${snapshot.count} completed class${snapshot.count === 1 ? "" : "es"} are still awaiting grades today.`
-    : `No completed classes are waiting on grades today.`;
+    ? `${snapshot.count} completed class${snapshot.count === 1 ? "" : "es"} are still awaiting grades for ${formatDisplayDate(snapshot.date)}.`
+    : `No completed classes are waiting on grades for ${formatDisplayDate(snapshot.date)}.`;
   if (detailValue) detailValue.textContent = String(snapshot.count);
   if (detailNote) detailNote.textContent = snapshot.count
     ? `${snapshot.count} completed class${snapshot.count === 1 ? "" : "es"} are still awaiting grades for ${formatDisplayDate(snapshot.date)}.`
     : `No completed classes are waiting on grades for ${formatDisplayDate(snapshot.date)}.`;
-  rowOrEmpty(document.getElementById("dashboard-missing-grades-table"), rows, "No completed classes are waiting on grades today.", 5);
+  rowOrEmpty(document.getElementById("dashboard-missing-grades-table"), rows, `No completed classes are waiting on grades for ${formatDisplayDate(snapshot.date)}.`, 5);
 }
 
 function renderDashboardGradeRiskSummary(snapshot) {
@@ -11191,7 +11242,7 @@ function renderDashboard() {
   document.getElementById("quarter-progress-fill").style.width = `${qP.toFixed(1)}%`;
   document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
   renderDashboardExecutionSummary(buildDashboardExecutionSnapshot(referenceDate, dashboardStudents));
-  renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP));
+  renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate));
   renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
   renderDashboardGradeRiskSummary(buildDashboardGradeRiskSnapshot(dashboardStudents));
 
