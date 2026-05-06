@@ -4623,8 +4623,9 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
+  min-width: 52px;
   height: 28px;
+  padding: 0 0.45rem;
   border: 1px solid #d7e0ea;
   border-radius: 8px;
   color: #53647b;
@@ -4652,9 +4653,9 @@ tbody tr:hover {
 
 #app-shell .global-search-result {
   display: grid;
-  grid-template-columns: 74px minmax(0, 1fr) max-content;
+  grid-template-columns: 88px minmax(0, 1fr) max-content;
   align-items: center;
-  gap: 0.75rem;
+  column-gap: 0.9rem;
   width: 100%;
   padding: 0.65rem 0.7rem;
   border: 0;
@@ -4677,6 +4678,7 @@ tbody tr:hover {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 #app-shell .global-search-result-copy {
