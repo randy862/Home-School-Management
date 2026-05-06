@@ -6,6 +6,7 @@ const API_AUTH_LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login`;
 const API_AUTH_LOGOUT_ENDPOINT = `${API_BASE_URL}/api/auth/logout`;
 const API_ME_ENDPOINT = `${API_BASE_URL}/api/me`;
 const API_ACCOUNT_ENDPOINT = `${API_BASE_URL}/api/account`;
+const API_ACCOUNT_PROFILE_PHOTO_ENDPOINT = `${API_BASE_URL}/api/account/profile-photo`;
 const API_ACCOUNT_PASSWORD_ENDPOINT = `${API_BASE_URL}/api/account/password`;
 const API_ACCOUNT_SUBSCRIPTION_UPGRADE_ENDPOINT = `${API_BASE_URL}/api/account/subscription/upgrade`;
 const API_ACCOUNT_DORMANT_ENDPOINT = `${API_BASE_URL}/api/account/options/dormant`;
@@ -60,7 +61,6 @@ const HOSTED_MODE_STORAGE_KEY = "hsm_hosted_mode_v1";
 const SCHOOL_DAY_PREFS_STORAGE_KEY = "hsm_school_day_prefs_v1";
 const WORKSPACE_CONFIG_PREFS_STORAGE_KEY = "hsm_workspace_config_prefs_v1";
 const ACTIVE_ACADEMIC_YEAR_STORAGE_KEY = "hsm_active_academic_year_v1";
-const PROFILE_PHOTOS_STORAGE_KEY = "hsm_profile_photos_v1";
 const INSTRUCTOR_CATEGORY_OPTIONS = ["parent", "volunteer", "compensated", "other"];
 const INSTRUCTOR_CATEGORY_LABELS = {
   parent: "Parent",
@@ -195,7 +195,7 @@ async function verifyPasswordForUser(user, password) {
   return user.passwordHash === await sha256Hex(`${user.passwordSalt}::${password}`);
 }
 
-async function createUserRecord({ username, role, password, firstName = "", lastName = "", email = "", phone = "", studentId = "", mustChangePassword = false, id = uid(), createdAt = todayISO() }) {
+async function createUserRecord({ username, role, password, firstName = "", lastName = "", email = "", phone = "", profilePhotoDataUrl = "", studentId = "", mustChangePassword = false, id = uid(), createdAt = todayISO() }) {
   const credentials = await buildPasswordCredentials(password);
   return {
     id,
@@ -205,6 +205,7 @@ async function createUserRecord({ username, role, password, firstName = "", last
     lastName: String(lastName || "").trim(),
     email: String(email || "").trim(),
     phone: String(phone || "").trim(),
+    profilePhotoDataUrl: String(profilePhotoDataUrl || "").trim(),
     studentId: studentId || "",
     mustChangePassword: !!mustChangePassword,
     createdAt,
@@ -222,6 +223,7 @@ function createLegacyBootstrapAdmin() {
     lastName: "",
     email: "",
     phone: "",
+    profilePhotoDataUrl: "",
     studentId: "",
     mustChangePassword: true,
     createdAt: todayISO(),
@@ -250,6 +252,7 @@ function normalizeUsersShape(inputState) {
           lastName: String(user.lastName || "").trim(),
           email: String(user.email || "").trim(),
           phone: String(user.phone || "").trim(),
+          profilePhotoDataUrl: String(user.profilePhotoDataUrl || "").trim(),
           studentId: user.role === "student" && studentIds.has(user.studentId) ? user.studentId : "",
           mustChangePassword: !!user.mustChangePassword,
           createdAt: user.createdAt || todayISO(),
@@ -1544,41 +1547,15 @@ function saveSession() {
   sessionStorage.setItem(SESSION_KEY, JSON.stringify({ currentUserId }));
 }
 
-function loadProfilePhotoMap() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(PROFILE_PHOTOS_STORAGE_KEY) || "{}");
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function saveProfilePhotoMap(photoMap) {
-  try {
-    localStorage.setItem(PROFILE_PHOTOS_STORAGE_KEY, JSON.stringify(photoMap || {}));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function currentProfilePhotoKey() {
-  const user = currentUser();
-  return user?.id || user?.username || "";
-}
-
 function currentProfilePhotoDataUrl() {
-  const key = currentProfilePhotoKey();
-  return key ? loadProfilePhotoMap()[key] || "" : "";
+  return accountSummary?.user?.profilePhotoDataUrl || currentUser()?.profilePhotoDataUrl || "";
 }
 
 function setCurrentProfilePhotoDataUrl(dataUrl) {
-  const key = currentProfilePhotoKey();
-  if (!key) return false;
-  const photoMap = loadProfilePhotoMap();
-  if (dataUrl) photoMap[key] = dataUrl;
-  else delete photoMap[key];
-  return saveProfilePhotoMap(photoMap);
+  const user = currentUser();
+  if (!user) return;
+  user.profilePhotoDataUrl = dataUrl || "";
+  if (accountSummary?.user) accountSummary.user.profilePhotoDataUrl = dataUrl || "";
 }
 
 function profilePhotoFileToDataUrl(file) {
@@ -1805,6 +1782,7 @@ function updateCurrentUserFromSummary(userSummary) {
     lastName: userSummary.lastName || existing.lastName || "",
     email: userSummary.email || existing.email || "",
     phone: userSummary.phone || existing.phone || "",
+    profilePhotoDataUrl: userSummary.profilePhotoDataUrl || existing.profilePhotoDataUrl || "",
     studentId: userSummary.studentId || "",
     mustChangePassword: !!userSummary.mustChangePassword
   };
@@ -1824,6 +1802,7 @@ function updateCurrentUserFromSummary(userSummary) {
       studentId: merged.studentId || "",
       email: userSummary.email || existing.email || accountSummary?.user?.email || "",
       phone: userSummary.phone || existing.phone || accountSummary?.user?.phone || "",
+      profilePhotoDataUrl: userSummary.profilePhotoDataUrl || existing.profilePhotoDataUrl || accountSummary?.user?.profilePhotoDataUrl || "",
       mustChangePassword: !!merged.mustChangePassword
     },
     permissions: {
@@ -1859,6 +1838,7 @@ async function refreshHostedUsers() {
     lastName: user.lastName || "",
     email: user.email || "",
     phone: user.phone || "",
+    profilePhotoDataUrl: user.profilePhotoDataUrl || "",
     studentId: user.studentId || "",
     mustChangePassword: !!user.mustChangePassword,
     passwordHash: "",
@@ -3356,9 +3336,6 @@ function renderSessionChrome() {
     || accountSubscriptionSummary().permissions?.canRequestExport
   );
   if (accountOptionsMenuButton) accountOptionsMenuButton.classList.toggle("hidden", !signedIn || !canOpenAccountOptions);
-  const accountPhotoRemoveButton = document.getElementById("account-menu-photo-remove-btn");
-  if (accountPhotoRemoveButton) accountPhotoRemoveButton.classList.toggle("hidden", !signedIn || !currentProfilePhotoDataUrl());
-
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     const tabName = btn.dataset.tab || "";
     const hiddenStandaloneAdminTab = isAdminUser(user) && (tabName === "instructors" || tabName === "users");
@@ -3647,6 +3624,32 @@ async function changeHostedPassword(currentPassword, newPassword) {
   return parseApiResponse(response, `Password change failed (${response.status})`);
 }
 
+async function saveHostedAccountProfilePhoto(profilePhotoDataUrl) {
+  const response = await authFetch(API_ACCOUNT_PROFILE_PHOTO_ENDPOINT, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ profilePhotoDataUrl })
+  });
+  return parseApiResponse(response, `Profile photo save failed (${response.status})`);
+}
+
+async function saveCurrentAccountProfilePhoto(profilePhotoDataUrl) {
+  if (hostedModeEnabled) {
+    const result = await saveHostedAccountProfilePhoto(profilePhotoDataUrl);
+    setCurrentProfilePhotoDataUrl(result?.user?.profilePhotoDataUrl || profilePhotoDataUrl || "");
+    await refreshHostedAccountSummary();
+    setCurrentProfilePhotoDataUrl(accountSummary?.user?.profilePhotoDataUrl || profilePhotoDataUrl || "");
+    if (isAdminUser()) {
+      await refreshHostedUsers();
+    }
+  } else {
+    setCurrentProfilePhotoDataUrl(profilePhotoDataUrl || "");
+    if (!hostedModeEnabled) saveState();
+  }
+  setAccountViewMessage("success", profilePhotoDataUrl ? "Profile photo updated." : "Profile photo removed.");
+  renderSessionChrome();
+}
+
 async function upgradeHostedSubscription(targetPlanCode) {
   const response = await authFetch(API_ACCOUNT_SUBSCRIPTION_UPGRADE_ENDPOINT, {
     method: "POST",
@@ -3757,6 +3760,18 @@ function renderAccountSurface() {
           <h3>Profile</h3>
           <p class="muted">Identity details for the currently signed-in user.</p>
         </div>
+        <div class="account-profile-photo-row">
+          <span class="account-profile-photo-preview${user.profilePhotoDataUrl ? " has-profile-photo" : ""}" style="${user.profilePhotoDataUrl ? `background-image: url('${escapeHtml(user.profilePhotoDataUrl)}')` : ""}" aria-hidden="true">${user.profilePhotoDataUrl ? "" : escapeHtml((user.username || "U").charAt(0).toUpperCase())}</span>
+          <div class="account-profile-photo-actions">
+            <strong>Profile Photo</strong>
+            <span class="muted">PNG, JPG, or WebP. Stored with this account.</span>
+            <div class="account-inline-actions">
+              <button id="account-profile-photo-upload-btn" type="button">Upload Photo</button>
+              <button id="account-profile-photo-remove-btn" type="button"${user.profilePhotoDataUrl ? "" : " disabled"}>Remove Photo</button>
+            </div>
+            <input id="account-profile-photo-input" class="hidden" type="file" accept="image/png,image/jpeg,image/webp">
+          </div>
+        </div>
         <dl class="account-detail-list">
           <div><dt>First Name</dt><dd>${escapeHtml(user.firstName || subscription?.account?.ownerFirstName || "Not available yet")}</dd></div>
           <div><dt>Last Name</dt><dd>${escapeHtml(user.lastName || subscription?.account?.ownerLastName || "Not available yet")}</dd></div>
@@ -3810,6 +3825,26 @@ function renderAccountSurface() {
 
   document.getElementById("account-change-password-btn")?.addEventListener("click", () => {
     openAccountPasswordView();
+  });
+  document.getElementById("account-profile-photo-upload-btn")?.addEventListener("click", () => {
+    document.getElementById("account-profile-photo-input")?.click();
+  });
+  document.getElementById("account-profile-photo-remove-btn")?.addEventListener("click", async () => {
+    await saveCurrentAccountProfilePhoto("");
+  });
+  document.getElementById("account-profile-photo-input")?.addEventListener("change", async (event) => {
+    const input = event.currentTarget;
+    const file = input?.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await profilePhotoFileToDataUrl(file);
+      await saveCurrentAccountProfilePhoto(dataUrl);
+    } catch (error) {
+      setAccountViewMessage("error", error.message || "Unable to use that profile photo.");
+      renderAccountSurface();
+    } finally {
+      if (input) input.value = "";
+    }
   });
   document.getElementById("account-upgrade-btn")?.addEventListener("click", () => {
     openAccountUpgradeView();
@@ -13937,34 +13972,9 @@ function bindEvents() {
     openSearchResult(globalSearchResults[index]);
   });
   document.getElementById("account-menu-view-btn")?.addEventListener("click", () => openAccountView());
-  document.getElementById("account-menu-photo-btn")?.addEventListener("click", () => {
-    document.getElementById("account-photo-input")?.click();
-  });
-  document.getElementById("account-menu-photo-remove-btn")?.addEventListener("click", () => {
-    setCurrentProfilePhotoDataUrl("");
-    accountMenuOpen = false;
-    renderSessionChrome();
-  });
   document.getElementById("account-menu-options-btn")?.addEventListener("click", () => openAccountOptionsView());
   document.getElementById("account-menu-password-btn")?.addEventListener("click", () => openAccountPasswordView());
   document.getElementById("account-menu-logout-btn")?.addEventListener("click", async () => logout());
-  document.getElementById("account-photo-input")?.addEventListener("change", async (event) => {
-    const input = event.currentTarget;
-    const file = input?.files?.[0];
-    if (!file) return;
-    try {
-      const dataUrl = await profilePhotoFileToDataUrl(file);
-      if (!setCurrentProfilePhotoDataUrl(dataUrl)) {
-        window.alert("The profile photo could not be saved in this browser.");
-      }
-      accountMenuOpen = false;
-      renderSessionChrome();
-    } catch (error) {
-      window.alert(error.message || "Unable to use that profile photo.");
-    } finally {
-      if (input) input.value = "";
-    }
-  });
   document.getElementById("account-modal-close-btn")?.addEventListener("click", () => closeAccountView());
   document.getElementById("account-modal-backdrop")?.addEventListener("click", () => closeAccountView());
   document.getElementById("account-password-modal-close-btn")?.addEventListener("click", () => closeAccountPasswordView());

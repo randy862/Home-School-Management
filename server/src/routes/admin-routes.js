@@ -56,6 +56,7 @@ function registerAdminRoutes(app, deps) {
         phone: payload.phone,
         studentId: payload.studentId,
         mustChangePassword: payload.mustChangePassword,
+        ...(Object.prototype.hasOwnProperty.call(payload, "profilePhotoDataUrl") ? { profilePhotoDataUrl: payload.profilePhotoDataUrl } : {}),
         ...credentials
       }));
     } catch (error) {
@@ -88,6 +89,7 @@ function registerAdminRoutes(app, deps) {
         phone: payload.phone,
         studentId: payload.studentId,
         mustChangePassword: payload.password ? false : payload.mustChangePassword,
+        ...(Object.prototype.hasOwnProperty.call(payload, "profilePhotoDataUrl") ? { profilePhotoDataUrl: payload.profilePhotoDataUrl } : {}),
         ...(credentials || {})
       }));
     } catch (error) {
@@ -392,6 +394,8 @@ function normalizeUserPayload(input, options = {}) {
   const lastName = String(input?.lastName || "").trim();
   const email = String(input?.email || "").trim().toLowerCase();
   const phone = String(input?.phone || "").trim();
+  const hasProfilePhotoDataUrl = Object.prototype.hasOwnProperty.call(input || {}, "profilePhotoDataUrl");
+  const profilePhotoDataUrl = hasProfilePhotoDataUrl ? normalizeProfilePhotoDataUrl(input?.profilePhotoDataUrl) : undefined;
   const studentId = role === "student" ? String(input?.studentId || "").trim() : "";
   const password = String(input?.password || "");
   const mustChangePassword = Boolean(input?.mustChangePassword);
@@ -420,11 +424,39 @@ function normalizeUserPayload(input, options = {}) {
     error.statusCode = 400;
     throw error;
   }
-  return { id, username, role, firstName, lastName, email, phone, studentId, password, mustChangePassword };
+  return {
+    id,
+    username,
+    role,
+    firstName,
+    lastName,
+    email,
+    phone,
+    ...(hasProfilePhotoDataUrl ? { profilePhotoDataUrl } : {}),
+    studentId,
+    password,
+    mustChangePassword
+  };
 }
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function normalizeProfilePhotoDataUrl(value) {
+  const dataUrl = String(value || "").trim();
+  if (!dataUrl) return "";
+  if (dataUrl.length > 240000) {
+    const error = new Error("Profile photo is too large. Choose a smaller image.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(dataUrl)) {
+    const error = new Error("Profile photo must be a PNG, JPG, or WebP image.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return dataUrl;
 }
 
 async function requireExistingUser(getUserById, id) {

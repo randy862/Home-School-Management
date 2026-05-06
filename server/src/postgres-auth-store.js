@@ -10,6 +10,7 @@ function mapUserRow(row) {
     lastName: row.last_name || row.lastName || "",
     email: row.email || "",
     phone: row.phone || "",
+    profilePhotoDataUrl: row.profile_photo_data_url || row.profilePhotoDataUrl || "",
     studentId: row.student_id || "",
     mustChangePassword: row.must_change_password,
     passwordHash: row.password_hash,
@@ -30,6 +31,7 @@ async function getUserByUsername(username) {
       last_name,
       email,
       phone,
+      profile_photo_data_url,
       student_id,
       must_change_password,
       password_hash,
@@ -54,6 +56,7 @@ async function getUserById(id) {
       last_name,
       email,
       phone,
+      profile_photo_data_url,
       student_id,
       must_change_password,
       password_hash,
@@ -78,6 +81,7 @@ async function listUsers() {
       last_name AS "lastName",
       email,
       phone,
+      profile_photo_data_url AS "profilePhotoDataUrl",
       student_id AS "studentId",
       must_change_password AS "mustChangePassword",
       created_at AS "createdAt",
@@ -110,6 +114,7 @@ async function createUser(user) {
       last_name,
       email,
       phone,
+      profile_photo_data_url,
       student_id,
       password_hash,
       password_salt,
@@ -119,7 +124,7 @@ async function createUser(user) {
       created_at,
       updated_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_DATE, CURRENT_DATE)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_DATE, CURRENT_DATE)
     RETURNING
       id,
       username,
@@ -128,6 +133,7 @@ async function createUser(user) {
       last_name AS "lastName",
       email,
       phone,
+      profile_photo_data_url AS "profilePhotoDataUrl",
       student_id AS "studentId",
       must_change_password AS "mustChangePassword",
       created_at AS "createdAt",
@@ -141,6 +147,7 @@ async function createUser(user) {
     user.lastName || null,
     user.email || null,
     user.phone || null,
+    user.profilePhotoDataUrl || null,
     user.studentId || null,
     user.passwordHash,
     user.passwordSalt,
@@ -176,6 +183,10 @@ async function updateUser(id, user) {
     !!user.mustChangePassword
   ];
   let nextIndex = 10;
+  if (Object.prototype.hasOwnProperty.call(user, "profilePhotoDataUrl")) {
+    assignments.push(`profile_photo_data_url = $${nextIndex++}`);
+    values.push(user.profilePhotoDataUrl || null);
+  }
   if (user.passwordHash) {
     assignments.push(`password_hash = $${nextIndex++}`);
     assignments.push(`password_salt = $${nextIndex++}`);
@@ -195,6 +206,7 @@ async function updateUser(id, user) {
       last_name AS "lastName",
       email,
       phone,
+      profile_photo_data_url AS "profilePhotoDataUrl",
       student_id AS "studentId",
       must_change_password AS "mustChangePassword",
       created_at AS "createdAt",
@@ -235,6 +247,7 @@ async function getSessionByTokenHash(tokenHash, options = {}) {
       u.last_name,
       u.email,
       u.phone,
+      u.profile_photo_data_url,
       u.student_id,
       u.must_change_password,
       u.password_hash,

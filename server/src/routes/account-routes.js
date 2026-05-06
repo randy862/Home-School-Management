@@ -37,6 +37,7 @@ function registerAccountRoutes(app, deps) {
           lastName: user.lastName || commercialSummary?.ownerLastName || "",
           email: user.email || commercialSummary?.ownerEmail || "",
           phone: user.phone || commercialSummary?.ownerPhone || "",
+          profilePhotoDataUrl: user.profilePhotoDataUrl || "",
           mustChangePassword: !!user.mustChangePassword
         },
         tenant: {
@@ -58,6 +59,41 @@ function registerAccountRoutes(app, deps) {
         activity: {
           billingEvents: recentBillingEvents.map(mapBillingEvent),
           exportRequests: recentExportRequests.map(mapExportRequest)
+        }
+      });
+    } catch (error) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/account/profile-photo", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode)) return;
+    if (!ensureAuthenticated(req, res)) return;
+
+    try {
+      const profilePhotoDataUrl = normalizeProfilePhotoDataUrl(req.body?.profilePhotoDataUrl);
+      const existingUser = await getUserById(req.auth.user.id);
+      if (!existingUser) {
+        const error = new Error("User account not found.");
+        error.statusCode = 404;
+        throw error;
+      }
+      const updated = await updateUser(existingUser.id, {
+        username: existingUser.username,
+        role: existingUser.role,
+        firstName: existingUser.firstName || "",
+        lastName: existingUser.lastName || "",
+        email: existingUser.email || "",
+        phone: existingUser.phone || "",
+        studentId: existingUser.studentId || "",
+        mustChangePassword: !!existingUser.mustChangePassword,
+        profilePhotoDataUrl
+      });
+      res.json({
+        ok: true,
+        user: {
+          id: updated.id,
+          profilePhotoDataUrl: updated.profilePhotoDataUrl || ""
         }
       });
     } catch (error) {
@@ -376,6 +412,22 @@ function ensureAdminUser(req, res, message) {
   if (req.auth?.user?.role === "admin") return true;
   res.status(403).json({ error: message || "Administrator access required." });
   return false;
+}
+
+function normalizeProfilePhotoDataUrl(value) {
+  const dataUrl = String(value || "").trim();
+  if (!dataUrl) return "";
+  if (dataUrl.length > 240000) {
+    const error = new Error("Profile photo is too large. Choose a smaller image.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(dataUrl)) {
+    const error = new Error("Profile photo must be a PNG, JPG, or WebP image.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return dataUrl;
 }
 
 module.exports = {

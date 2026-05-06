@@ -4386,6 +4386,39 @@ tbody tr:hover {
   margin: 0.2rem 0 0;
 }
 
+.account-profile-photo-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 0.9rem;
+  align-items: center;
+  margin: 0.2rem 0 0.9rem;
+}
+
+.account-profile-photo-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(145deg, #2457a6, #6faf3a);
+  background-position: center;
+  background-size: cover;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(36, 87, 166, 0.2);
+}
+
+.account-profile-photo-preview.has-profile-photo {
+  border: 2px solid #fff;
+  background-color: #e7eef8;
+}
+
+.account-profile-photo-actions {
+  display: grid;
+  gap: 0.35rem;
+}
+
 .account-detail-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
