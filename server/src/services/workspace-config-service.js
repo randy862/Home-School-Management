@@ -30,6 +30,16 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showInstructionalHoursTrending: false,
     showGradeTypeVolume: false,
     showWorkDistribution: false
+  },
+  alerts: {
+    showOpenAttendance: true,
+    showOpenCompletion: true,
+    showMissingGrades: true,
+    showInstructionPace: true,
+    showGradeRisk: true,
+    showAttendanceRisk: true,
+    gradeRiskThresholdPercent: 70,
+    attendanceRiskThresholdPercent: 90
   }
 };
 
@@ -52,6 +62,7 @@ function createWorkspaceConfigService(deps) {
 function normalizeWorkspaceConfigPayload(input) {
   const schoolDay = input?.schoolDay || {};
   const dashboard = input?.dashboard || {};
+  const alerts = input?.alerts || {};
 
   return {
     schoolDay: {
@@ -97,6 +108,16 @@ function normalizeWorkspaceConfigPayload(input) {
       showInstructionalHoursTrending: normalizeBoolean(dashboard.showInstructionalHoursTrending, DEFAULT_WORKSPACE_CONFIG.dashboard.showInstructionalHoursTrending),
       showGradeTypeVolume: normalizeBoolean(dashboard.showGradeTypeVolume, DEFAULT_WORKSPACE_CONFIG.dashboard.showGradeTypeVolume),
       showWorkDistribution: normalizeBoolean(dashboard.showWorkDistribution, DEFAULT_WORKSPACE_CONFIG.dashboard.showWorkDistribution)
+    },
+    alerts: {
+      showOpenAttendance: normalizeBoolean(alerts.showOpenAttendance, DEFAULT_WORKSPACE_CONFIG.alerts.showOpenAttendance),
+      showOpenCompletion: normalizeBoolean(alerts.showOpenCompletion, DEFAULT_WORKSPACE_CONFIG.alerts.showOpenCompletion),
+      showMissingGrades: normalizeBoolean(alerts.showMissingGrades, DEFAULT_WORKSPACE_CONFIG.alerts.showMissingGrades),
+      showInstructionPace: normalizeBoolean(alerts.showInstructionPace, DEFAULT_WORKSPACE_CONFIG.alerts.showInstructionPace),
+      showGradeRisk: normalizeBoolean(alerts.showGradeRisk, DEFAULT_WORKSPACE_CONFIG.alerts.showGradeRisk),
+      showAttendanceRisk: normalizeBoolean(alerts.showAttendanceRisk, DEFAULT_WORKSPACE_CONFIG.alerts.showAttendanceRisk),
+      gradeRiskThresholdPercent: normalizePercent(alerts.gradeRiskThresholdPercent, DEFAULT_WORKSPACE_CONFIG.alerts.gradeRiskThresholdPercent),
+      attendanceRiskThresholdPercent: normalizePercent(alerts.attendanceRiskThresholdPercent, DEFAULT_WORKSPACE_CONFIG.alerts.attendanceRiskThresholdPercent)
     }
   };
 }
@@ -107,6 +128,12 @@ function normalizeBoolean(value, fallback) {
 
 function normalizeEnum(value, allowed, fallback) {
   return allowed.includes(value) ? value : fallback;
+}
+
+function normalizePercent(value, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(0, Math.min(100, number));
 }
 
 module.exports = {
