@@ -3317,8 +3317,49 @@ function buildAlertsSnapshot() {
     actionLabel: alert.actionLabel || "Open",
     action: alert.action || null
   });
+  const today = todayISO();
+  const currentMinutes = (() => {
+    const now = new Date();
+    return (now.getHours() * 60) + now.getMinutes();
+  })();
+  const classEndHasPassed = (block) => {
+    if (referenceDate < today) return true;
+    if (referenceDate > today) return false;
+    return Number(block?.end || 0) <= currentMinutes;
+  };
+  const blocksByStudent = dailyScheduledBlocks(referenceDate, dashboardStudents.map((student) => student.id));
+  const instructionalDatesToReference = instructionalDates().filter((date) => date <= referenceDate);
+  const completedInstructionDates = new Set(state.attendance
+    .filter((record) => record.present && recordDateInActiveYear(record) && record.date <= referenceDate)
+    .map((record) => record.date));
+  const completedInstructionDays = instructionalDatesToReference.filter((date) => completedInstructionDates.has(date)).length;
+  const expectedInstructionDays = Number(state.settings.schoolYear.requiredInstructionalDays || 0) * (clamp(yearProgressPercent, 0, 100) / 100);
+  const instructionalDayVariance = completedInstructionDays - expectedInstructionDays;
+  const instructionalDayTolerance = Math.max(1, expectedInstructionDays * 0.02);
+  if (alertConfig.showInstructionPace && expectedInstructionDays > 0 && instructionalDayVariance < -instructionalDayTolerance) {
+    pushAlert({
+      id: `instruction-days-behind-${state.settings.currentSchoolYearId}`,
+      severity: "critical",
+      type: "Pace",
+      label: "Pace",
+      title: "Behind Instructional Days",
+      detail: `${Math.abs(instructionalDayVariance).toFixed(1)} instructional days behind expected pace.`,
+      actionLabel: "Dashboard link planned",
+      action: null
+    });
+  }
 
   executionSnapshot.students.forEach((entry) => {
+    const passedInstructionBlocks = (blocksByStudent.get(entry.student.id) || [])
+      .filter((block) => block.type === "instruction" && classEndHasPassed(block));
+    const openCompletionCount = passedInstructionBlocks
+      .filter((block) => !effectiveInstructionCompleted(entry.student.id, block.courseId, referenceDate))
+      .length;
+    const missingGradeCount = passedInstructionBlocks
+      .filter((block) =>
+        effectiveInstructionCompleted(entry.student.id, block.courseId, referenceDate)
+        && gradeRecordsForStudentCourseDate(entry.student.id, block.courseId, referenceDate).length === 0)
+      .length;
     if (alertConfig.showOpenAttendance && entry.attendanceState === "open") {
       pushAlert({
         id: `attendance-open-${entry.student.id}-${referenceDate}`,
@@ -3331,27 +3372,27 @@ function buildAlertsSnapshot() {
         action: { view: "school-day", date: referenceDate, tab: "attendance", studentId: entry.student.id, quickFilter: "needs-attendance" }
       });
     }
-    if (alertConfig.showOpenCompletion && entry.openCount > 0) {
+    if (alertConfig.showOpenCompletion && openCompletionCount > 0) {
       pushAlert({
         id: `completion-open-${entry.student.id}-${referenceDate}`,
         severity: "warning",
         type: "Completion",
         label: "Completion",
         title: `${entry.student.firstName} ${entry.student.lastName}`,
-        detail: `${entry.openCount} class${entry.openCount === 1 ? "" : "es"} need completion on ${formatDisplayDate(referenceDate)}.`,
+        detail: `${openCompletionCount} class${openCompletionCount === 1 ? "" : "es"} need completion on ${formatDisplayDate(referenceDate)}.`,
         actionLabel: "Open School Day",
         action: { view: "school-day", date: referenceDate, tab: "daily-schedule", studentId: entry.student.id, quickFilter: "needs-completion" }
       });
     }
-    if (alertConfig.showMissingGrades && entry.needsGradeCount > 0) {
+    if (alertConfig.showMissingGrades && missingGradeCount > 0) {
       pushAlert({
         id: `grade-open-${entry.student.id}-${referenceDate}`,
         severity: "warning",
         type: "Grade",
         label: "Grade",
         title: `${entry.student.firstName} ${entry.student.lastName}`,
-        detail: `${entry.needsGradeCount} completed class${entry.needsGradeCount === 1 ? "" : "es"} need grades on ${formatDisplayDate(referenceDate)}.`,
-        actionLabel: "Open Grades",
+        detail: `${missingGradeCount} completed class${missingGradeCount === 1 ? "" : "es"} need grades on ${formatDisplayDate(referenceDate)}.`,
+        actionLabel: "Open School Day",
         action: { view: "school-day", date: referenceDate, tab: "grades", studentId: entry.student.id, quickFilter: "needs-grade" }
       });
     }
@@ -3368,7 +3409,7 @@ function buildAlertsSnapshot() {
         title: row.studentName,
         detail: `${Math.abs(row.varianceHours).toFixed(1)} instruction hours behind expected pace.`,
         actionLabel: "Open Dashboard",
-        action: { view: "dashboard", dashboardTab: "compliance" }
+        action: { view: "dashboard", dashboardTab: "compliance", studentInstructionalHoursStudentId: row.studentId }
       });
     });
 
@@ -3487,8 +3528,16 @@ function openAlertAction(alert) {
   }
   if (action.view === "dashboard") {
     currentDashboardTab = action.dashboardTab || "overview";
+    if (action.studentInstructionalHoursStudentId) {
+      expandedStudentInstructionalHourRows.add(action.studentInstructionalHoursStudentId);
+    }
     activateTab("dashboard");
     renderSessionChrome();
+    if (action.studentInstructionalHoursStudentId) {
+      setTimeout(() => {
+        document.getElementById("dashboard-section-instruction-hour-pace")?.scrollIntoView({ block: "start", behavior: "smooth" });
+      }, 0);
+    }
   }
 }
 
