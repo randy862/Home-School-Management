@@ -8923,6 +8923,7 @@ function buildGlobalSearchResults(query) {
   visibleStudents().forEach((student) => {
     const label = `${student.firstName || ""} ${student.lastName || ""}`.trim();
     if (!matches(label) && !matches(student.grade)) return;
+    const linkedUser = state.users.find((user) => user.role === "student" && user.studentId === student.id);
     results.push({
       type: "student",
       id: student.id,
@@ -8930,6 +8931,22 @@ function buildGlobalSearchResults(query) {
       meta: `Student${student.grade ? ` | ${student.grade}` : ""}`,
       actionLabel: "Open student profile"
     });
+    results.push({
+      type: "school day",
+      id: student.id,
+      title: label || "Unnamed Student",
+      meta: "Student | Daily Schedule",
+      actionLabel: "Open School Day"
+    });
+    if (linkedUser) {
+      results.push({
+        type: "user",
+        id: linkedUser.id,
+        title: label || linkedUser.username || "Student User",
+        meta: `Student User Account | ${linkedUser.username}`,
+        actionLabel: "Open user account"
+      });
+    }
   });
 
   state.subjects
@@ -9022,6 +9039,24 @@ function openSearchResult(result) {
     activateTab("students");
     beginStudentDetail(result.id);
     renderStudents();
+    return;
+  }
+  if (result.type === "school day") {
+    schoolDaySelectedStudentIds = new Set([result.id]);
+    schoolDaySelectedSubjectIds = new Set();
+    schoolDaySelectedCourseIds = new Set();
+    currentSchoolDayTab = "daily-schedule";
+    activateTab("school-day");
+    syncSchoolDayFilterSubjectCourseOptions();
+    renderSchoolDay();
+    return;
+  }
+  if (result.type === "user") {
+    currentAdministrationTab = "users";
+    activateTab("administration");
+    renderAdministrationSectionVisibility();
+    renderUsers();
+    beginUserEdit(result.id);
     return;
   }
   if (result.type === "subject") {
