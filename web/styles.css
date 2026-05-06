@@ -386,6 +386,20 @@ h3 {
   gap: 0.7rem 1rem;
 }
 
+.administration-config-select-grid.alert-number-field-grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, max-content));
+  justify-content: flex-start;
+}
+
+.administration-config-select-grid.alert-number-field-grid label {
+  width: max-content;
+  max-width: 240px;
+}
+
+.administration-config-select-grid.alert-number-field-grid input {
+  width: 92px;
+}
+
 .administration-config-grid .checklist-row {
   border: 1px solid #dbe6f2;
   border-radius: 999px;

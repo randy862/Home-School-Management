@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605061130">
+  <link rel="stylesheet" href="styles.css?v=202605061300">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -689,7 +689,7 @@
 
           <section class="administration-config-card">
             <h4>Risk Thresholds</h4>
-            <div class="administration-config-select-grid">
+            <div class="administration-config-select-grid alert-number-field-grid">
               <label>Grade risk below
                 <input id="admin-alert-grade-risk-threshold" type="number" min="0" max="100" step="1">
               </label>
@@ -700,10 +700,10 @@
           </section>
 
           <section class="administration-config-card">
-            <h4>Ongoing Risk/Pace Re-alerting</h4>
-            <p class="muted">Applies only to Behind Instructional Days, Behind Instructional Hours, Grade Risk, and Attendance Risk. Open attendance, completion, and missing-grade alerts stay acknowledged for the exact instance.</p>
-            <div class="administration-config-select-grid">
-              <label>Re-alert ongoing risk/pace alerts after
+            <h4>Alert Persistence</h4>
+            <p class="muted">Applies only to Behind Instructional Days, Behind Instructional Hours, Grade Risk, and Attendance Risk alerts. For Open Attendance, Completion, and Missing Grade alerts, once acknowledged, they remain acknowledged for the rest of the current instructional day.</p>
+            <div class="administration-config-select-grid alert-number-field-grid">
+              <label>Re-alert after number of days:
                 <input id="admin-alert-risk-cadence-days" type="number" min="1" max="365" step="1">
               </label>
             </div>
