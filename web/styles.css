@@ -4321,9 +4321,11 @@ tbody tr:hover {
   position: absolute;
   top: calc(100% + 0.5rem);
   right: 0;
-  width: min(420px, calc(100vw - 2rem));
-  max-height: min(580px, calc(100vh - 7rem));
-  overflow: auto;
+  width: min(390px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  max-height: min(560px, calc(100vh - 7rem));
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0.65rem;
   border: 1px solid #c2d1e2;
   border-radius: 18px;
@@ -4348,10 +4350,10 @@ tbody tr:hover {
 .alert-result {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(72px, max-content) minmax(0, 1fr) max-content;
-  gap: 0.15rem 0.7rem;
-  align-items: center;
-  padding: 0.65rem 0.7rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.25rem;
+  align-items: start;
+  padding: 0.7rem 0.75rem;
   border: 1px solid #d7e3f1;
   border-left-width: 4px;
   border-radius: 12px;
@@ -4379,7 +4381,6 @@ tbody tr:hover {
 }
 
 .alert-result-label {
-  grid-row: 1 / span 2;
   color: #175db3;
   font-size: 0.68rem;
   font-weight: 800;
@@ -4389,21 +4390,25 @@ tbody tr:hover {
 
 .alert-result-title {
   min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .alert-result-detail {
   min-width: 0;
   color: #4f6079;
   font-size: 0.78rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .alert-result-action {
-  grid-row: 1 / span 2;
   color: #175db3;
   font-size: 0.75rem;
   font-weight: 700;
-  white-space: nowrap;
+  line-height: 1.2;
+  white-space: normal;
 }
 
 .alerts-empty {
