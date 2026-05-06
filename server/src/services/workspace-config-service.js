@@ -39,7 +39,8 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showGradeRisk: true,
     showAttendanceRisk: true,
     gradeRiskThresholdPercent: 70,
-    attendanceRiskThresholdPercent: 90
+    attendanceRiskThresholdPercent: 90,
+    riskAlertCadenceDays: 7
   }
 };
 
@@ -117,7 +118,8 @@ function normalizeWorkspaceConfigPayload(input) {
       showGradeRisk: normalizeBoolean(alerts.showGradeRisk, DEFAULT_WORKSPACE_CONFIG.alerts.showGradeRisk),
       showAttendanceRisk: normalizeBoolean(alerts.showAttendanceRisk, DEFAULT_WORKSPACE_CONFIG.alerts.showAttendanceRisk),
       gradeRiskThresholdPercent: normalizePercent(alerts.gradeRiskThresholdPercent, DEFAULT_WORKSPACE_CONFIG.alerts.gradeRiskThresholdPercent),
-      attendanceRiskThresholdPercent: normalizePercent(alerts.attendanceRiskThresholdPercent, DEFAULT_WORKSPACE_CONFIG.alerts.attendanceRiskThresholdPercent)
+      attendanceRiskThresholdPercent: normalizePercent(alerts.attendanceRiskThresholdPercent, DEFAULT_WORKSPACE_CONFIG.alerts.attendanceRiskThresholdPercent),
+      riskAlertCadenceDays: normalizePositiveInteger(alerts.riskAlertCadenceDays, DEFAULT_WORKSPACE_CONFIG.alerts.riskAlertCadenceDays, 365)
     }
   };
 }
@@ -134,6 +136,12 @@ function normalizePercent(value, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.max(0, Math.min(100, number));
+}
+
+function normalizePositiveInteger(value, fallback, max = Number.MAX_SAFE_INTEGER) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(1, Math.min(max, Math.round(number)));
 }
 
 module.exports = {

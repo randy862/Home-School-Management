@@ -62,7 +62,6 @@ const SCHOOL_DAY_PREFS_STORAGE_KEY = "hsm_school_day_prefs_v1";
 const WORKSPACE_CONFIG_PREFS_STORAGE_KEY = "hsm_workspace_config_prefs_v1";
 const ACTIVE_ACADEMIC_YEAR_STORAGE_KEY = "hsm_active_academic_year_v1";
 const ALERT_ACKNOWLEDGEMENTS_STORAGE_KEY = "hsm_alert_acknowledgements_v1";
-const ALERT_TEMPORARY_ACK_DAYS = 7;
 const INSTRUCTOR_CATEGORY_OPTIONS = ["parent", "volunteer", "compensated", "other"];
 const INSTRUCTOR_CATEGORY_LABELS = {
   parent: "Parent",
@@ -145,7 +144,8 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showGradeRisk: true,
     showAttendanceRisk: true,
     gradeRiskThresholdPercent: 70,
-    attendanceRiskThresholdPercent: 90
+    attendanceRiskThresholdPercent: 90,
+    riskAlertCadenceDays: 7
   }
 };
 
@@ -1609,8 +1609,9 @@ function alertAcknowledgementActive(alert, records = alertAcknowledgementRecords
   if ((alert.ackMode || record.mode) !== "temporary") return true;
   const acknowledgedAt = new Date(record.acknowledgedAt || 0);
   if (Number.isNaN(acknowledgedAt.getTime())) return false;
+  const cadenceDays = Math.max(1, Number(workspaceConfig?.alerts?.riskAlertCadenceDays || DEFAULT_WORKSPACE_CONFIG.alerts.riskAlertCadenceDays));
   const expiresAt = new Date(acknowledgedAt);
-  expiresAt.setDate(expiresAt.getDate() + ALERT_TEMPORARY_ACK_DAYS);
+  expiresAt.setDate(expiresAt.getDate() + cadenceDays);
   return expiresAt > new Date();
 }
 
@@ -1723,7 +1724,11 @@ function normalizeWorkspaceConfig(raw) {
     }
     if (typeof next.alerts[key] === "number") {
       const value = Number(alerts[key]);
-      if (Number.isFinite(value)) next.alerts[key] = clamp(value, 0, 100);
+      if (Number.isFinite(value)) {
+        next.alerts[key] = key === "riskAlertCadenceDays"
+          ? Math.max(1, Math.min(365, Math.round(value)))
+          : clamp(value, 0, 100);
+      }
     }
   });
   if (!["daily-schedule", "attendance", "grades"].includes(next.schoolDay.defaultTab)) {
@@ -7574,6 +7579,8 @@ function renderAdministration() {
   if (gradeRiskThreshold) gradeRiskThreshold.value = String(alertConfig.gradeRiskThresholdPercent);
   const attendanceRiskThreshold = document.getElementById("admin-alert-attendance-risk-threshold");
   if (attendanceRiskThreshold) attendanceRiskThreshold.value = String(alertConfig.attendanceRiskThresholdPercent);
+  const riskCadenceDays = document.getElementById("admin-alert-risk-cadence-days");
+  if (riskCadenceDays) riskCadenceDays.value = String(alertConfig.riskAlertCadenceDays);
   const intro = document.querySelector("#administration-workspace-configuration-wrap .administration-intro-card .muted");
   if (intro) {
     intro.textContent = hostedTenantConfig
@@ -7641,7 +7648,8 @@ function buildAlertsConfigFromAdminForm() {
     showGradeRisk: !!document.getElementById("admin-alert-show-grade-risk")?.checked,
     showAttendanceRisk: !!document.getElementById("admin-alert-show-attendance-risk")?.checked,
     gradeRiskThresholdPercent: Number(document.getElementById("admin-alert-grade-risk-threshold")?.value || DEFAULT_WORKSPACE_CONFIG.alerts.gradeRiskThresholdPercent),
-    attendanceRiskThresholdPercent: Number(document.getElementById("admin-alert-attendance-risk-threshold")?.value || DEFAULT_WORKSPACE_CONFIG.alerts.attendanceRiskThresholdPercent)
+    attendanceRiskThresholdPercent: Number(document.getElementById("admin-alert-attendance-risk-threshold")?.value || DEFAULT_WORKSPACE_CONFIG.alerts.attendanceRiskThresholdPercent),
+    riskAlertCadenceDays: Number(document.getElementById("admin-alert-risk-cadence-days")?.value || DEFAULT_WORKSPACE_CONFIG.alerts.riskAlertCadenceDays)
   };
 }
 
