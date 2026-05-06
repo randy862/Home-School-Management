@@ -4687,8 +4687,17 @@ tbody tr:hover {
   border-radius: 50%;
   color: #fff;
   background: linear-gradient(145deg, #2457a6, #6faf3a);
+  background-position: center;
+  background-size: cover;
   font-weight: 800;
   box-shadow: 0 10px 24px rgba(36, 87, 166, 0.22);
+  overflow: hidden;
+}
+
+#app-shell .account-avatar.has-profile-photo {
+  border: 2px solid #ffffff;
+  background-color: #e7eef8;
+  box-shadow: 0 10px 24px rgba(36, 87, 166, 0.24);
 }
 
 #app-shell .account-menu-copy {

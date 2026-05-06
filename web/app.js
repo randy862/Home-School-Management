@@ -60,6 +60,7 @@ const HOSTED_MODE_STORAGE_KEY = "hsm_hosted_mode_v1";
 const SCHOOL_DAY_PREFS_STORAGE_KEY = "hsm_school_day_prefs_v1";
 const WORKSPACE_CONFIG_PREFS_STORAGE_KEY = "hsm_workspace_config_prefs_v1";
 const ACTIVE_ACADEMIC_YEAR_STORAGE_KEY = "hsm_active_academic_year_v1";
+const PROFILE_PHOTOS_STORAGE_KEY = "hsm_profile_photos_v1";
 const INSTRUCTOR_CATEGORY_OPTIONS = ["parent", "volunteer", "compensated", "other"];
 const INSTRUCTOR_CATEGORY_LABELS = {
   parent: "Parent",
@@ -1504,6 +1505,72 @@ function saveSession() {
     return;
   }
   sessionStorage.setItem(SESSION_KEY, JSON.stringify({ currentUserId }));
+}
+
+function loadProfilePhotoMap() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PROFILE_PHOTOS_STORAGE_KEY) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveProfilePhotoMap(photoMap) {
+  try {
+    localStorage.setItem(PROFILE_PHOTOS_STORAGE_KEY, JSON.stringify(photoMap || {}));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function currentProfilePhotoKey() {
+  const user = currentUser();
+  return user?.id || user?.username || "";
+}
+
+function currentProfilePhotoDataUrl() {
+  const key = currentProfilePhotoKey();
+  return key ? loadProfilePhotoMap()[key] || "" : "";
+}
+
+function setCurrentProfilePhotoDataUrl(dataUrl) {
+  const key = currentProfilePhotoKey();
+  if (!key) return false;
+  const photoMap = loadProfilePhotoMap();
+  if (dataUrl) photoMap[key] = dataUrl;
+  else delete photoMap[key];
+  return saveProfilePhotoMap(photoMap);
+}
+
+function profilePhotoFileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\/(png|jpeg|webp)$/.test(file.type)) {
+      reject(new Error("Choose a PNG, JPG, or WebP image."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Unable to read that image."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Unable to load that image."));
+      img.onload = () => {
+        const maxSize = 320;
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.86));
+      };
+      img.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function createEmptyAccountSummary() {
@@ -3198,6 +3265,7 @@ function renderSessionChrome() {
   const setupCard = document.getElementById("setup-card");
   const loginForm = document.getElementById("login-form");
   const sessionSummary = document.getElementById("session-summary");
+  const accountAvatar = document.querySelector("#account-menu-trigger .account-avatar");
   const accountMenuRole = document.getElementById("account-menu-role");
   const accountMenuShell = document.getElementById("account-menu-shell");
   const accountMenuTrigger = document.getElementById("account-menu-trigger");
@@ -3230,6 +3298,12 @@ function renderSessionChrome() {
     if (!user) sessionSummary.textContent = "Not signed in";
     else sessionSummary.textContent = user.username || "User";
   }
+  if (accountAvatar) {
+    const photoUrl = signedIn ? currentProfilePhotoDataUrl() : "";
+    accountAvatar.classList.toggle("has-profile-photo", !!photoUrl);
+    accountAvatar.style.backgroundImage = photoUrl ? `url("${photoUrl}")` : "";
+    accountAvatar.textContent = photoUrl ? "" : (user?.username || "U").trim().charAt(0).toUpperCase();
+  }
   if (accountMenuRole) {
     if (!user) accountMenuRole.textContent = "";
     else accountMenuRole.textContent = roleDisplayLabel(user.role);
@@ -3245,6 +3319,8 @@ function renderSessionChrome() {
     || accountSubscriptionSummary().permissions?.canRequestExport
   );
   if (accountOptionsMenuButton) accountOptionsMenuButton.classList.toggle("hidden", !signedIn || !canOpenAccountOptions);
+  const accountPhotoRemoveButton = document.getElementById("account-menu-photo-remove-btn");
+  if (accountPhotoRemoveButton) accountPhotoRemoveButton.classList.toggle("hidden", !signedIn || !currentProfilePhotoDataUrl());
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     const tabName = btn.dataset.tab || "";
@@ -13488,9 +13564,34 @@ function bindEvents() {
     renderSessionChrome();
   });
   document.getElementById("account-menu-view-btn")?.addEventListener("click", () => openAccountView());
+  document.getElementById("account-menu-photo-btn")?.addEventListener("click", () => {
+    document.getElementById("account-photo-input")?.click();
+  });
+  document.getElementById("account-menu-photo-remove-btn")?.addEventListener("click", () => {
+    setCurrentProfilePhotoDataUrl("");
+    accountMenuOpen = false;
+    renderSessionChrome();
+  });
   document.getElementById("account-menu-options-btn")?.addEventListener("click", () => openAccountOptionsView());
   document.getElementById("account-menu-password-btn")?.addEventListener("click", () => openAccountPasswordView());
   document.getElementById("account-menu-logout-btn")?.addEventListener("click", async () => logout());
+  document.getElementById("account-photo-input")?.addEventListener("change", async (event) => {
+    const input = event.currentTarget;
+    const file = input?.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await profilePhotoFileToDataUrl(file);
+      if (!setCurrentProfilePhotoDataUrl(dataUrl)) {
+        window.alert("The profile photo could not be saved in this browser.");
+      }
+      accountMenuOpen = false;
+      renderSessionChrome();
+    } catch (error) {
+      window.alert(error.message || "Unable to use that profile photo.");
+    } finally {
+      if (input) input.value = "";
+    }
+  });
   document.getElementById("account-modal-close-btn")?.addEventListener("click", () => closeAccountView());
   document.getElementById("account-modal-backdrop")?.addEventListener("click", () => closeAccountView());
   document.getElementById("account-password-modal-close-btn")?.addEventListener("click", () => closeAccountPasswordView());
