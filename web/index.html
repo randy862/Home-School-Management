@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605061405">
+  <link rel="stylesheet" href="styles.css?v=202605061430">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -254,7 +254,14 @@
             <h3>Required Instructional Hours</h3>
             <p id="dashboard-hour-pace-note" class="muted">0.00 earned vs 0.00 expected to date.</p>
           </div>
-          <span id="dashboard-hour-pace-value" class="dashboard-pill-metric">On pace</span>
+          <div class="compliance-gauge-controls">
+            <label>Student
+              <select id="dashboard-hour-pace-student-filter">
+                <option value="all">All Students</option>
+              </select>
+            </label>
+            <span id="dashboard-hour-pace-value" class="dashboard-pill-metric">On pace</span>
+          </div>
         </div>
         <div class="compliance-gauge-card">
           <div class="compliance-gauge-header">
@@ -262,12 +269,12 @@
               <p class="dashboard-summary-label">Final Compliance Forecast</p>
               <p id="dashboard-hour-pace-forecast" class="compliance-gauge-forecast">Projected on track</p>
             </div>
-            <p id="dashboard-hour-pace-variance-note" class="dashboard-summary-note muted">Currently on pace.</p>
+            <p id="dashboard-hour-pace-variance-note" class="dashboard-summary-note muted compliance-gauge-note">Currently on pace.</p>
           </div>
           <div class="compliance-gauge-track" aria-label="Instructional hours progress">
             <div id="dashboard-hour-pace-actual-fill" class="compliance-gauge-fill actual"></div>
             <div id="dashboard-hour-pace-projected-fill" class="compliance-gauge-fill projected"></div>
-            <span id="dashboard-hour-pace-expected-marker" class="compliance-gauge-marker expected"><span>Expected Today</span></span>
+            <span id="dashboard-hour-pace-expected-marker" class="compliance-gauge-marker expected"><span>Expected</span></span>
             <span id="dashboard-hour-pace-required-marker" class="compliance-gauge-marker required"><span>Required</span></span>
           </div>
           <div class="compliance-gauge-legend">
@@ -309,7 +316,7 @@
         <div id="dashboard-hour-pace-student-breakdown" class="dashboard-student-breakdown hidden">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Student</th><th>Expected To Date</th><th>Earned To Date</th><th>Variance</th><th>Status</th></tr></thead>
+              <thead><tr><th>Student</th><th>Required</th><th>Logged</th><th>Expected Today</th><th>Current Diff</th><th>Projected</th><th>Projected Diff</th><th>Status</th></tr></thead>
               <tbody id="dashboard-hour-pace-student-table"></tbody>
             </table>
           </div>
@@ -1812,6 +1819,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605061405"></script>
+  <script src="app.js?v=202605061430"></script>
   </body>
   </html>

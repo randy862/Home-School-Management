@@ -5345,7 +5345,31 @@ tbody tr:hover {
   align-items: start;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.45rem;
+  margin-bottom: 1rem;
+}
+
+#app-shell .compliance-gauge-controls {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+#app-shell .compliance-gauge-controls label {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 180px;
+  color: #5e6d84;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+#app-shell .compliance-gauge-controls select {
+  min-height: 38px;
+  border-color: #d1dceb;
+  border-radius: 10px;
+  background: #ffffff;
 }
 
 #app-shell .compliance-gauge-forecast {
@@ -5359,6 +5383,7 @@ tbody tr:hover {
 #app-shell .compliance-gauge-track {
   position: relative;
   height: 18px;
+  margin-top: 1.75rem;
   border: 1px solid #d8e2ef;
   border-radius: 999px;
   background: #e9eff7;
@@ -5418,15 +5443,20 @@ tbody tr:hover {
   position: absolute;
   top: -1.7rem;
   left: 50%;
-  transform: translateX(-50%);
   white-space: nowrap;
   color: #56657a;
   font-size: 0.68rem;
   font-weight: 700;
 }
 
+#app-shell .compliance-gauge-marker.expected span {
+  transform: translateX(calc(-100% - 0.35rem));
+}
+
 #app-shell .compliance-gauge-marker.required span {
   color: #17243d;
+  top: 1.9rem;
+  transform: translateX(calc(-100% - 0.35rem));
 }
 
 #app-shell .compliance-gauge-legend {
@@ -5479,6 +5509,11 @@ tbody tr:hover {
 
 #app-shell .compliance-metric-grid .dashboard-summary-card {
   min-height: 94px;
+}
+
+#app-shell .compliance-gauge-note {
+  max-width: 470px;
+  text-align: right;
 }
 
 #app-shell .dashboard-summary-note {
