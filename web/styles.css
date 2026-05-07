@@ -6040,6 +6040,53 @@ tbody tr:hover {
   --open-gauge-soft: #fff1e7;
 }
 
+#app-shell .completion-detail-gauge {
+  margin-bottom: 0.9rem;
+}
+
+#app-shell .completion-detail-gauge .progress-bullet-header {
+  margin-bottom: 1.05rem;
+}
+
+#app-shell .completion-detail-gauge .progress-title {
+  color: #17243d;
+}
+
+#app-shell .completion-detail-gauge .progress-bullet-note {
+  max-width: 760px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.94rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+#app-shell .completion-detail-gauge .progress-bullet-badge {
+  width: 4.35rem;
+  height: 4.35rem;
+  font-size: 1.05rem;
+}
+
+#app-shell .completion-detail-bar {
+  height: 12px;
+}
+
+#app-shell .completion-detail-table-wrap {
+  margin-top: 0;
+  border-color: #dfe7f3;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+#app-shell .completion-detail-table {
+  min-width: 760px;
+}
+
+#app-shell .completion-detail-table th,
+#app-shell .completion-detail-table td {
+  height: 46px;
+}
+
 #app-shell button.dashboard-chip-card:hover {
   border-color: #c8d8ec;
   background: #f8fbff;

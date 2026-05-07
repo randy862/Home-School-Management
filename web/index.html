@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605071630">
+  <link rel="stylesheet" href="styles.css?v=202605071655">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -289,16 +289,20 @@
       </div>
 
       <div id="dashboard-section-completion-today" class="dashboard-section dashboard-section-execution-detail hidden">
-        <div class="dashboard-section-header">
-          <div>
-            <h3>Completion Today</h3>
-            <p id="dashboard-completion-today-note" class="muted">No scheduled classes for today.</p>
+        <div class="completion-detail-gauge progress-bullet-card">
+          <div class="progress-bullet-header">
+            <div>
+              <p class="progress-title">Completion Today</p>
+              <p id="dashboard-completion-today-note" class="muted progress-bullet-note">No scheduled classes for today.</p>
+            </div>
+            <span id="dashboard-completion-today-value" class="progress-bullet-badge">0%</span>
           </div>
-          <span id="dashboard-completion-today-value" class="dashboard-pill-metric">0%</span>
+          <div class="progress-bullet-ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+          <div class="progress-bar progress-bullet-bar completion-detail-bar"><div id="dashboard-completion-today-fill" class="progress-fill"></div></div>
+          <div class="progress-bullet-status"><span class="progress-status-icon">✓</span><strong>Daily completion progress</strong></div>
         </div>
-        <div class="progress-bar dashboard-metric-progress"><div id="dashboard-completion-today-fill" class="progress-fill"></div></div>
-        <div class="table-wrap">
-          <table>
+        <div class="table-wrap student-performance-table-wrap completion-detail-table-wrap">
+          <table class="student-performance-table completion-detail-table">
             <thead><tr><th>Student</th><th>Scheduled Classes</th><th>Completed</th><th>Open</th><th>Completed Hours</th></tr></thead>
             <tbody id="dashboard-completion-today-table"></tbody>
           </table>
@@ -2034,6 +2038,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605071630"></script>
+  <script src="app.js?v=202605071655"></script>
   </body>
   </html>
