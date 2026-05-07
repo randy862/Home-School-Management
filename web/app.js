@@ -12169,6 +12169,21 @@ function renderDashboardGradeRiskSummary(snapshot) {
 
 function renderDashboard() {
   renderDashboardSectionVisibility();
+  const setOverviewDial = (arcId, value, mode = "risk") => {
+    const arc = document.getElementById(arcId);
+    const pct = clamp(Number(value || 0), 0, 100);
+    if (!arc) return;
+    arc.style.strokeDashoffset = `${(258 - ((pct / 100) * 258)).toFixed(1)}`;
+    arc.dataset.status = mode === "static"
+      ? "static"
+      : pct < 70
+        ? "danger"
+        : pct < 80
+          ? "orange"
+          : pct < 90
+            ? "warning"
+            : "good";
+  };
   const allowedStudentIds = visibleStudentIds();
   const dashboardStudents = visibleStudents();
   const referenceDate = defaultReferenceDateForActiveYear();
@@ -12185,8 +12200,7 @@ function renderDashboard() {
   const daysDialArc = document.getElementById("kpi-days-dial-arc");
   const daysDialValue = document.getElementById("kpi-days-dial-value");
   const daysProgressPct = totalDays > 0 ? clamp((completeDays / totalDays) * 100, 0, 100) : 0;
-  if (daysDialArc) daysDialArc.style.strokeDashoffset = `${(258 - ((daysProgressPct / 100) * 258)).toFixed(1)}`;
-  if (daysDialArc) daysDialArc.dataset.status = daysProgressPct < 90 ? "danger" : daysProgressPct < 96 ? "warning" : "good";
+  setOverviewDial("kpi-days-dial-arc", daysProgressPct, "static");
   if (daysDialValue) daysDialValue.textContent = `${daysProgressPct.toFixed(0)}%`;
 
   const g = gradeAnalytics();
@@ -12202,13 +12216,15 @@ function renderDashboard() {
   const hoursProgressPct = instructionalTotals.projected > 0
     ? clamp((instructionalTotals.earned / instructionalTotals.projected) * 100, 0, 100)
     : 0;
-  if (hoursDialArc) hoursDialArc.style.strokeDashoffset = `${(258 - ((hoursProgressPct / 100) * 258)).toFixed(1)}`;
-  if (hoursDialArc) hoursDialArc.dataset.status = hoursProgressPct < 90 ? "danger" : hoursProgressPct < 96 ? "warning" : "good";
+  setOverviewDial("kpi-hours-dial-arc", hoursProgressPct, "static");
   if (hoursDialValue) hoursDialValue.textContent = `${hoursProgressPct.toFixed(0)}%`;
   const runningAverage = isStudentUser() && dashboardStudents.length === 1
     ? studentOverallAverage(dashboardStudents[0].id)
     : g.running;
   document.getElementById("kpi-running-avg").textContent = `${runningAverage.toFixed(1)}%`;
+  setOverviewDial("kpi-grade-dial-arc", runningAverage);
+  const gradeDialNote = document.getElementById("kpi-grade-dial-note");
+  if (gradeDialNote) gradeDialNote.textContent = `${runningAverage.toFixed(1)}% average`;
 
   const attendanceDatesThroughToday = dates.filter((d) => d <= referenceDate);
   const totalAttendanceDays = attendanceDatesThroughToday.length;
@@ -12222,6 +12238,9 @@ function renderDashboard() {
     ? (attendanceTotals.present / totalPossibleAttendance) * 100
     : 0;
   document.getElementById("kpi-attendance-overall").textContent = `${overallAttendanceAverage.toFixed(1)}%`;
+  setOverviewDial("kpi-attendance-dial-arc", overallAttendanceAverage);
+  const attendanceDialNote = document.getElementById("kpi-attendance-dial-note");
+  if (attendanceDialNote) attendanceDialNote.textContent = `${overallAttendanceAverage.toFixed(1)}% attendance`;
 
   const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate));
   const q = currentQuarter(toDate(referenceDate));

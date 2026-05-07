@@ -5304,14 +5304,22 @@ tbody tr:hover {
 }
 
 #app-shell .dial-arc-progress {
-  stroke: #ffd54f;
+  stroke: #1761ae;
   stroke-dasharray: 258;
   stroke-dashoffset: 258;
   transition: stroke-dashoffset 220ms ease;
 }
 
+#app-shell .dial-arc-progress[data-status="static"] {
+  stroke: #1761ae;
+}
+
 #app-shell .dial-arc-progress[data-status="danger"] {
   stroke: #e86f6f;
+}
+
+#app-shell .dial-arc-progress[data-status="orange"] {
+  stroke: #f29f4b;
 }
 
 #app-shell .dial-arc-progress[data-status="warning"] {

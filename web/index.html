@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605062025">
+  <link rel="stylesheet" href="styles.css?v=202605070900">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -163,8 +163,34 @@
             </div>
             <p id="kpi-instruction-hours" class="kpi-dial-note">0.0 / 0.0</p>
           </article>
-          <article class="kpi"><p class="kpi-label">Attendance</p><p class="kpi-value"><span id="kpi-attendance-overall">0%</span></p></article>
-          <article class="kpi"><p class="kpi-label">Running Grade Average</p><p class="kpi-value"><span id="kpi-running-avg">0%</span></p></article>
+          <article class="kpi kpi-dial-card">
+            <p class="kpi-label">Attendance Percentage</p>
+            <div class="kpi-dial-gauge" aria-label="Attendance percentage gauge">
+              <svg viewBox="0 0 240 126" role="img" aria-hidden="true">
+                <path class="dial-arc dial-arc-base" d="M 38 106 A 82 82 0 0 1 202 106"></path>
+                <path id="kpi-attendance-dial-arc" class="dial-arc dial-arc-progress" d="M 38 106 A 82 82 0 0 1 202 106"></path>
+              </svg>
+              <div class="kpi-dial-scale"><span>0</span><span>100</span></div>
+              <div class="kpi-dial-center">
+                <strong id="kpi-attendance-overall">0%</strong>
+              </div>
+            </div>
+            <p id="kpi-attendance-dial-note" class="kpi-dial-note">Attendance</p>
+          </article>
+          <article class="kpi kpi-dial-card">
+            <p class="kpi-label">Running Grade Average</p>
+            <div class="kpi-dial-gauge" aria-label="Running grade average gauge">
+              <svg viewBox="0 0 240 126" role="img" aria-hidden="true">
+                <path class="dial-arc dial-arc-base" d="M 38 106 A 82 82 0 0 1 202 106"></path>
+                <path id="kpi-grade-dial-arc" class="dial-arc dial-arc-progress" d="M 38 106 A 82 82 0 0 1 202 106"></path>
+              </svg>
+              <div class="kpi-dial-scale"><span>0</span><span>100</span></div>
+              <div class="kpi-dial-center">
+                <strong id="kpi-running-avg">0%</strong>
+              </div>
+            </div>
+            <p id="kpi-grade-dial-note" class="kpi-dial-note">Average</p>
+          </article>
         </div>
 
         <div class="progress-wrap">
@@ -1888,6 +1914,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605062025"></script>
+  <script src="app.js?v=202605070900"></script>
   </body>
   </html>
