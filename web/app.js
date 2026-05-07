@@ -17334,6 +17334,24 @@ function bindEvents() {
       activateTab("users");
       return;
     }
+    const dashboardSchoolDayTarget = t.closest("[data-dashboard-open-school-day]");
+    if (dashboardSchoolDayTarget instanceof HTMLElement) {
+      const date = dashboardSchoolDayTarget.getAttribute("data-date") || todayISO();
+      const schoolDayTab = dashboardSchoolDayTarget.getAttribute("data-dashboard-school-day-tab") || "daily-schedule";
+      const studentId = dashboardSchoolDayTarget.getAttribute("data-student-id") || "";
+      const courseId = dashboardSchoolDayTarget.getAttribute("data-course-id") || "";
+      const quickFilter = dashboardSchoolDayTarget.getAttribute("data-school-day-quick-filter") || "";
+      const contextLabel = dashboardSchoolDayTarget.getAttribute("data-dashboard-context-label") || "";
+      openSchoolDayFromDashboard({
+        date,
+        tab: schoolDayTab,
+        studentIds: studentId ? [studentId] : [],
+        courseIds: courseId ? [courseId] : [],
+        quickFilter,
+        contextLabel
+      });
+      return;
+    }
     const schoolDayQuickFilter = t.getAttribute("data-school-day-quick-filter");
     if (schoolDayQuickFilter) {
       if (schoolDayQuickFilter === "needs-attendance") schoolDayQuickFilters.needsAttendance = !schoolDayQuickFilters.needsAttendance;
@@ -17390,24 +17408,6 @@ function bindEvents() {
         renderTests();
       }
       activateTab(schoolDayOpenTab);
-      return;
-    }
-    const dashboardSchoolDayTarget = t.closest("[data-dashboard-open-school-day]");
-    if (dashboardSchoolDayTarget instanceof HTMLElement) {
-      const date = dashboardSchoolDayTarget.getAttribute("data-date") || todayISO();
-      const schoolDayTab = dashboardSchoolDayTarget.getAttribute("data-dashboard-school-day-tab") || "daily-schedule";
-      const studentId = dashboardSchoolDayTarget.getAttribute("data-student-id") || "";
-      const courseId = dashboardSchoolDayTarget.getAttribute("data-course-id") || "";
-      const quickFilter = dashboardSchoolDayTarget.getAttribute("data-school-day-quick-filter") || "";
-      const contextLabel = dashboardSchoolDayTarget.getAttribute("data-dashboard-context-label") || "";
-      openSchoolDayFromDashboard({
-        date,
-        tab: schoolDayTab,
-        studentIds: studentId ? [studentId] : [],
-        courseIds: courseId ? [courseId] : [],
-        quickFilter,
-        contextLabel
-      });
       return;
     }
     if (t.id === "school-day-return-dashboard-btn") {
