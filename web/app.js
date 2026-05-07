@@ -10343,7 +10343,7 @@ function renderGradeTrending() {
     : (isStudentUser()
       ? visibleStudents().map((student) => ({ id: student.id, label: getStudentName(student.id), tests: filteredTests.filter((t) => t.studentId === student.id) }))
       : [{ id: "all", label: "All Students", tests: filteredTests }]);
-  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
+  const palette = ["#f97316", "#20a65a", "#2563eb", "#8b5cf6", "#ef4444", "#0f766e", "#a16207", "#db2777"];
 
   const series = seriesBase.map((entry, idx) => {
     const monthly = months.map((monthEntry) => {
@@ -10380,9 +10380,9 @@ function renderGradeTrending() {
   for (let tick = yMin; tick <= yMax; tick += yTickStep) yTicks.push(tick);
   if (yTicks[yTicks.length - 1] !== yMax) yTicks.push(yMax);
 
-  const width = 960;
-  const height = 260;
-  const margin = { top: 62, right: 20, bottom: 48, left: 68 };
+  const width = 1120;
+  const height = 330;
+  const margin = { top: 40, right: 34, bottom: 58, left: 74 };
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
   const xPad = 16;
@@ -10408,15 +10408,17 @@ function renderGradeTrending() {
   const lineSvg = series.map((lineSeries) => {
     let path = "";
     lineSeries.monthly.forEach((row, idx) => {
+      if (row.count <= 0) return;
       const x = xFor(idx);
       const y = yFor(row.avg || 0);
       if (!path) path += `M ${x.toFixed(2)} ${y.toFixed(2)} `;
       else path += `L ${x.toFixed(2)} ${y.toFixed(2)} `;
     });
-    return `<path d="${path.trim()}" class="trend-line" style="stroke:${lineSeries.color}" fill="none"></path>`;
+    return path ? `<path d="${path.trim()}" class="trend-line" style="stroke:${lineSeries.color}" fill="none"></path>` : "";
   }).join("");
 
   const pointSvg = series.flatMap((lineSeries) => lineSeries.monthly.map((row, idx) => {
+    if (row.count <= 0) return "";
     const x = xFor(idx);
     const y = yFor(row.avg || 0);
     return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${lineSeries.color};stroke:${lineSeries.color}"><title>${lineSeries.label} ${row.label}: ${row.avg.toFixed(1)}%</title></circle>`;
@@ -10429,6 +10431,7 @@ function renderGradeTrending() {
   months.forEach((_, monthIdx) => {
     const monthLabels = series.map((lineSeries, lineIdx) => {
       const row = lineSeries.monthly[monthIdx];
+      if (row.count <= 0) return null;
       const x = xFor(monthIdx);
       const y = yFor(row.avg || 0);
       const nearTop = y <= margin.top + 16;
@@ -10442,7 +10445,7 @@ function renderGradeTrending() {
         x,
         preferredY
       };
-    }).sort((a, b) => a.preferredY - b.preferredY);
+    }).filter(Boolean).sort((a, b) => a.preferredY - b.preferredY);
 
     // Push labels down to enforce a minimum vertical gap.
     for (let i = 1; i < monthLabels.length; i += 1) {
@@ -10463,10 +10466,47 @@ function renderGradeTrending() {
     // Final clamp safety.
     monthLabels.forEach((label) => {
       label.preferredY = clamp(label.preferredY, labelTop, labelBottom);
-      valueLabelParts.push(`<text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text>`);
+      const labelWidth = 37;
+      valueLabelParts.push(`<g class="trend-value-pill"><rect x="${(label.x - labelWidth / 2).toFixed(2)}" y="${(label.preferredY - 12).toFixed(2)}" width="${labelWidth}" height="18" rx="6" style="fill:${label.color};stroke:${label.color}"></rect><text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text></g>`);
     });
   });
   const valueLabelSvg = valueLabelParts.join("");
+
+  const firstSeries = series[0];
+  const firstDataRows = firstSeries ? firstSeries.monthly.filter((row) => row.count > 0) : [];
+  const lastRow = firstDataRows[firstDataRows.length - 1];
+  const previousRow = firstDataRows[firstDataRows.length - 2];
+  const trendDelta = lastRow && previousRow ? lastRow.avg - previousRow.avg : null;
+  const highestPoint = series.flatMap((lineSeries) => lineSeries.monthly
+    .filter((row) => row.count > 0)
+    .map((row) => ({ label: lineSeries.label, month: row.label, value: row.avg })))
+    .sort((a, b) => b.value - a.value)[0];
+  const lowestPoint = series.flatMap((lineSeries) => lineSeries.monthly
+    .filter((row) => row.count > 0)
+    .map((row) => ({ label: lineSeries.label, month: row.label, value: row.avg })))
+    .sort((a, b) => a.value - b.value)[0];
+  const averageValue = plottedValues.length ? avg(plottedValues) : null;
+  const deltaLabel = trendDelta === null ? "No prior month" : `${trendDelta >= 0 ? "+" : ""}${trendDelta.toFixed(1)}%`;
+  const deltaClass = trendDelta === null ? "neutral" : (trendDelta >= 0 ? "positive" : "negative");
+  const summaryHtml = `
+    <div class="trend-summary-strip">
+      <div class="trend-summary-card ${deltaClass}">
+        <span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M16 8h4v4"/></svg></span>
+        <div><span>Overall Trend ${lastRow ? `(${escapeHtml(lastRow.label)})` : ""}</span><strong>${deltaLabel}</strong><small>${previousRow ? `vs. ${escapeHtml(previousRow.label)}` : "Need another month"}</small></div>
+      </div>
+      <div class="trend-summary-card positive">
+        <span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M5 5H3v2a4 4 0 0 0 4 4"/><path d="M19 5h2v2a4 4 0 0 1-4 4"/></svg></span>
+        <div><span>Highest Average</span><strong>${highestPoint ? `${highestPoint.value.toFixed(1)}%` : "-"}</strong><small>${highestPoint ? `${escapeHtml(highestPoint.label)} (${escapeHtml(highestPoint.month)})` : "No grades"}</small></div>
+      </div>
+      <div class="trend-summary-card negative">
+        <span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg></span>
+        <div><span>Lowest Average</span><strong>${lowestPoint ? `${lowestPoint.value.toFixed(1)}%` : "-"}</strong><small>${lowestPoint ? `${escapeHtml(lowestPoint.label)} (${escapeHtml(lowestPoint.month)})` : "No grades"}</small></div>
+      </div>
+      <div class="trend-summary-card neutral">
+        <span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span>
+        <div><span>${months.length}-Month Average</span><strong>${averageValue === null ? "-" : `${averageValue.toFixed(1)}%`}</strong><small>${selectedStudentIds.length ? `${selectedStudentIds.length} selected students` : "All Students"}</small></div>
+      </div>
+    </div>`;
 
   const legendHtml = `
     <div class="trend-legend">
@@ -10481,7 +10521,15 @@ function renderGradeTrending() {
   const noData = hasData ? "" : `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No grade data for selected filters</text>`;
 
   chartHost.innerHTML = `
+    <div class="trend-chart-panel">
+    <div class="trend-chart-toolbar">
+      <div class="trend-view-toggle" aria-hidden="true"><span class="active">Line View</span><span>Area View</span></div>
+      <label class="trend-data-toggle"><span>Show Data Points</span><input type="checkbox" checked disabled><span aria-hidden="true"></span></label>
+    </div>
     <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly grade trend line chart">
+      <defs>
+        <filter id="gradeTrendGlow" x="-15%" y="-40%" width="130%" height="180%"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
       <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
       <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
       ${yTickSvg}
@@ -10493,7 +10541,9 @@ function renderGradeTrending() {
       <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
       <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Average Grade (%)</text>
     </svg>
-    ${legendHtml}`;
+    ${legendHtml}
+    </div>
+    ${summaryHtml}`;
 }
 
 function renderGpaTrending() {

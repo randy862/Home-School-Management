@@ -6668,6 +6668,336 @@ tbody tr:hover {
   background: #f19012;
 }
 
+#app-shell .dashboard-section-trending {
+  padding: 1.35rem;
+  border-color: #dfe7f3;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(23, 36, 61, 0.06);
+}
+
+#app-shell .trend-section-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.95rem;
+  margin-bottom: 1.2rem;
+}
+
+#app-shell .trend-section-heading h3 {
+  margin: 0;
+  color: #17243d;
+  font-size: 1.45rem;
+  line-height: 1.1;
+}
+
+#app-shell .trend-section-heading .muted {
+  margin: 0.45rem 0 0;
+  color: #596986;
+  font-size: 0.95rem;
+}
+
+#app-shell .trend-section-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #eef5ff, #dceaff);
+  color: #2563eb;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.16);
+}
+
+#app-shell .trend-section-icon svg,
+#app-shell .trend-summary-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#app-shell #trend-filter-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.45fr) minmax(132px, 0.75fr) minmax(150px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  gap: 0.85rem;
+  align-items: end;
+  margin-bottom: 1.25rem;
+}
+
+#app-shell #trend-filter-form label {
+  display: grid;
+  gap: 0.38rem;
+  color: #5f6f89;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#app-shell #trend-filter-form select,
+#app-shell #trend-filter-form .multi-select-dropdown {
+  min-height: 42px;
+  border-color: #dce6f4;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #233451;
+  box-shadow: 0 8px 20px rgba(23, 36, 61, 0.04);
+}
+
+#app-shell #trend-filter-form .multi-select-dropdown summary {
+  min-height: 42px;
+  padding: 0.62rem 0.75rem;
+  color: #233451;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#app-shell #trend-clear-filters-btn.secondary-button {
+  min-height: 42px;
+  border: 1px solid #2f6df6;
+  background: #ffffff;
+  color: #2563eb;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.08);
+}
+
+#app-shell .trend-chart-panel {
+  padding: 1.05rem 1.1rem 0.85rem;
+  border: 1px solid #dfe7f3;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+#app-shell .trend-chart-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.45rem;
+}
+
+#app-shell .trend-view-toggle {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+#app-shell .trend-view-toggle span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #dce6f4;
+  border-radius: 8px;
+  color: #41506b;
+  font-size: 0.82rem;
+  font-weight: 750;
+  background: #ffffff;
+}
+
+#app-shell .trend-view-toggle .active {
+  border-color: #d8e5ff;
+  background: #eef5ff;
+  color: #2563eb;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.1);
+}
+
+#app-shell .trend-data-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #2c3d5f;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+#app-shell .trend-data-toggle input {
+  position: absolute;
+  opacity: 0;
+}
+
+#app-shell .trend-data-toggle span:last-child {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: #2563eb;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.24);
+}
+
+#app-shell .trend-data-toggle span:last-child::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+#app-shell .trend-chart {
+  overflow: visible;
+}
+
+#app-shell .trend-axis {
+  stroke: #d6e0ee;
+  stroke-width: 1;
+}
+
+#app-shell .trend-grid {
+  stroke: #dce5f2;
+  stroke-dasharray: 3 4;
+  stroke-width: 1;
+}
+
+#app-shell .trend-line {
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: url(#gradeTrendGlow);
+}
+
+#app-shell .trend-point {
+  stroke: #ffffff !important;
+  stroke-width: 2;
+}
+
+#app-shell .trend-axis-label {
+  fill: #253b63;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+#app-shell .trend-axis-title {
+  fill: #17243d;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+#app-shell .trend-value-pill rect {
+  fill-opacity: 0.1;
+  stroke-opacity: 0.24;
+}
+
+#app-shell .trend-value-label {
+  fill: currentColor;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+#app-shell .trend-legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin: 0.1rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e4ebf5;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(23, 36, 61, 0.04);
+}
+
+#app-shell .trend-legend-item {
+  color: #53627d;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+#app-shell .trend-legend-line {
+  width: 24px;
+  height: 3px;
+}
+
+#app-shell .trend-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 1.2rem;
+  border: 1px solid #dfe7f3;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(23, 36, 61, 0.05);
+  overflow: hidden;
+}
+
+#app-shell .trend-summary-card {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  min-height: 78px;
+  padding: 0.9rem 1rem;
+  border-right: 1px solid #e8eef7;
+}
+
+#app-shell .trend-summary-card:last-child {
+  border-right: 0;
+}
+
+#app-shell .trend-summary-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #2563eb;
+}
+
+#app-shell .trend-summary-card span:not(.trend-summary-icon) {
+  display: block;
+  color: #53627d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+#app-shell .trend-summary-card strong {
+  display: block;
+  margin-top: 0.1rem;
+  color: #17243d;
+  font-size: 1.25rem;
+  line-height: 1.05;
+}
+
+#app-shell .trend-summary-card small {
+  display: block;
+  margin-top: 0.2rem;
+  color: #6b7891;
+  font-size: 0.78rem;
+}
+
+#app-shell .trend-summary-card.positive .trend-summary-icon,
+#app-shell .trend-summary-card.positive strong {
+  color: #16a34a;
+}
+
+#app-shell .trend-summary-card.positive .trend-summary-icon {
+  background: #eaf8ee;
+}
+
+#app-shell .trend-summary-card.negative .trend-summary-icon,
+#app-shell .trend-summary-card.negative strong {
+  color: #f97316;
+}
+
+#app-shell .trend-summary-card.negative .trend-summary-icon {
+  background: #fff1e8;
+}
+
+#app-shell .trend-summary-card.neutral .trend-summary-icon,
+#app-shell .trend-summary-card.neutral strong {
+  color: #8b5cf6;
+}
+
+#app-shell .trend-summary-card.neutral .trend-summary-icon {
+  background: #f4efff;
+}
+
 @media (max-width: 1100px) {
   #app-shell .student-performance-toolbar {
     grid-template-columns: 1fr;
@@ -6676,11 +7006,31 @@ tbody tr:hover {
   #app-shell #student-performance-filter-form {
     grid-template-columns: 1fr;
   }
+
+  #app-shell #trend-filter-form,
+  #app-shell .trend-summary-strip {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 720px) {
   #app-shell .student-performance-grade-method-options {
     grid-template-columns: 1fr;
+  }
+
+  #app-shell #trend-filter-form,
+  #app-shell .trend-summary-strip {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .trend-chart-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #app-shell .trend-summary-card {
+    border-right: 0;
+    border-bottom: 1px solid #e8eef7;
   }
 }
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605072220">
+  <link rel="stylesheet" href="styles.css?v=202605071335">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -596,7 +596,13 @@
       </div>
 
       <div id="dashboard-section-grade-trending" class="dashboard-section dashboard-section-trending">
-        <h3>Grade Trending</h3>
+        <div class="trend-section-heading">
+          <span class="trend-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M5 15l4-4 4 3 6-7"/><path d="M15 7h4v4"/></svg></span>
+          <div>
+            <h3>Grade Trending</h3>
+            <p class="muted">Track average grades over time.</p>
+          </div>
+        </div>
         <form id="trend-filter-form" class="grid-form">
           <label class="trend-student-field">Student
             <details id="trend-student-dropdown" class="multi-select-dropdown">
@@ -629,7 +635,7 @@
               <option value="Final">Final</option>
             </select>
           </label>
-          <button id="trend-clear-filters-btn" type="button">Clear Filters</button>
+          <button id="trend-clear-filters-btn" type="button" class="secondary-button">Clear Filters</button>
         </form>
         <div id="grade-trending-chart" class="chart-wrap"></div>
       </div>
@@ -1987,6 +1993,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605072130"></script>
+  <script src="app.js?v=202605071335"></script>
   </body>
   </html>
