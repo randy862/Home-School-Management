@@ -4127,8 +4127,8 @@ h4 {
 .dashboard-pace-arc {
   position: relative;
   width: min(214px, 100%);
-  height: 104px;
-  margin: 0.52rem auto -0.35rem;
+  height: 118px;
+  margin: 0.65rem auto -0.25rem;
 }
 
 .dashboard-pace-arc svg {
@@ -4141,7 +4141,7 @@ h4 {
 .dashboard-pace-track,
 .dashboard-pace-arc-fill {
   fill: none;
-  stroke-width: 13;
+  stroke-width: 17;
   stroke-linecap: round;
 }
 
