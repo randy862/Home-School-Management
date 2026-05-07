@@ -4047,9 +4047,17 @@ h4 {
 }
 
 .dashboard-visual-card-pace .dashboard-summary-value {
-  font-size: clamp(1.8rem, 2.7vw, 2.25rem);
+  margin-top: 0.62rem;
+  color: #43206f;
+  font-size: clamp(1.95rem, 3vw, 2.42rem);
   line-height: 1;
   letter-spacing: -0.035em;
+}
+
+.dashboard-visual-card-pace .dashboard-summary-note {
+  margin-top: 0.7rem;
+  font-size: 0.88rem;
+  line-height: 1.35;
 }
 
 .dashboard-visual-card .dashboard-summary-note {
@@ -4112,41 +4120,72 @@ h4 {
 
 .dashboard-pace-arc {
   position: relative;
-  height: 38px;
-  margin: 0.72rem auto 0;
-  overflow: hidden;
+  width: min(214px, 100%);
+  height: 118px;
+  margin: 0.65rem auto -0.25rem;
 }
 
-.dashboard-pace-arc::before,
-.dashboard-pace-arc span {
-  content: "";
-  position: absolute;
-  left: 50%;
-  bottom: -47px;
-  width: 102px;
-  height: 102px;
-  transform: translateX(-50%);
-  border-radius: 999px;
+.dashboard-pace-arc svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
 
-.dashboard-pace-arc::before {
-  border: 9px solid #eef2f8;
+.dashboard-pace-track,
+.dashboard-pace-arc-fill {
+  fill: none;
+  stroke-width: 17;
+  stroke-linecap: round;
 }
 
-.dashboard-pace-arc span {
+.dashboard-pace-track {
+  stroke: #f0edf7;
+}
+
+.dashboard-pace-arc-fill {
   --pace-progress: 0%;
-  border: 9px solid transparent;
-  background:
-    linear-gradient(#ffffff, #ffffff) padding-box,
-    conic-gradient(from 270deg, var(--card-accent) 0 var(--pace-progress), transparent var(--pace-progress) 100%) border-box;
-  filter: drop-shadow(0 8px 14px var(--card-accent-soft));
+  stroke: var(--card-accent);
+  stroke-dasharray: var(--pace-progress) 100;
+  filter: drop-shadow(0 8px 12px rgba(139, 75, 229, 0.2));
+}
+
+.dashboard-pace-ticks path {
+  fill: none;
+  stroke: #d6d2e2;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.dashboard-pace-needle {
+  stroke: #43206f;
+  stroke-width: 4;
+  stroke-linecap: round;
+  transform-box: view-box;
+  transform-origin: 110px 98px;
+  transform: rotate(-42deg);
+  filter: drop-shadow(0 5px 8px rgba(67, 32, 111, 0.18));
+}
+
+.dashboard-visual-card-pace.pace-on .dashboard-pace-needle {
+  transform: rotate(18deg);
+}
+
+.dashboard-visual-card-pace.pace-ahead .dashboard-pace-needle {
+  transform: rotate(48deg);
+}
+
+.dashboard-pace-hub {
+  fill: #43206f;
+  stroke: #ffffff;
+  stroke-width: 2;
 }
 
 .dashboard-pace-mini {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.25rem;
-  margin-top: 0;
+  gap: 0.45rem;
+  margin-top: -0.1rem;
   text-align: center;
 }
 

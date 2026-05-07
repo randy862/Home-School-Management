@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605071145">
+  <link rel="stylesheet" href="styles.css?v=202605071205">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -250,7 +250,23 @@
             </div>
             <p class="dashboard-summary-label">Instruction Pace</p>
             <p id="dashboard-overview-pace-value" class="dashboard-summary-value">On Pace</p>
-            <div class="dashboard-pace-arc" aria-hidden="true"><span id="dashboard-overview-pace-arc-fill"></span></div>
+            <div class="dashboard-pace-arc" aria-hidden="true">
+              <svg viewBox="0 0 220 122" role="img">
+                <path class="dashboard-pace-track" pathLength="100" d="M24 98 A86 86 0 0 1 196 98"></path>
+                <path id="dashboard-overview-pace-arc-fill" class="dashboard-pace-arc-fill" pathLength="100" d="M24 98 A86 86 0 0 1 196 98"></path>
+                <g class="dashboard-pace-ticks">
+                  <path d="M38 91l7-3"></path>
+                  <path d="M56 62l6 5"></path>
+                  <path d="M84 45l3 8"></path>
+                  <path d="M110 39v9"></path>
+                  <path d="M136 45l-3 8"></path>
+                  <path d="M164 62l-6 5"></path>
+                  <path d="M182 91l-7-3"></path>
+                </g>
+                <line class="dashboard-pace-needle" x1="110" y1="98" x2="110" y2="49"></line>
+                <circle class="dashboard-pace-hub" cx="110" cy="98" r="4"></circle>
+              </svg>
+            </div>
             <div class="dashboard-pace-mini">
               <span><b id="dashboard-overview-pace-logged">0.00</b><small>Logged</small></span>
               <span><b id="dashboard-overview-pace-projected">0.00</b><small>Projected</small></span>
