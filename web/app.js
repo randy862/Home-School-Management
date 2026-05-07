@@ -10486,10 +10486,25 @@ function renderGradeTrending() {
   });
   const valueLabelSvg = gradeTrendShowDataPoints ? valueLabelParts.join("") : "";
 
-  const firstSeries = series[0];
-  const firstDataRows = firstSeries ? firstSeries.monthly.filter((row) => row.count > 0) : [];
-  const lastRow = firstDataRows[firstDataRows.length - 1];
-  const previousRow = firstDataRows[firstDataRows.length - 2];
+  const selectedStudentIdSet = new Set(selectedStudentIds);
+  const summaryMonthly = months.map((monthEntry) => {
+    const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
+    const monthEnd = new Date(monthEntry.year, monthEntry.month + 1, 0, 12, 0, 0);
+    const monthStartIso = toISO(monthStart);
+    const monthEndIso = toISO(monthEnd);
+    const monthTests = filteredTests.filter((t) => {
+      if (selectedStudentIdSet.size && !selectedStudentIdSet.has(t.studentId)) return false;
+      return inRange(t.date, monthStartIso, monthEndIso);
+    });
+    return {
+      label: monthStart.toLocaleDateString(undefined, { month: "short" }),
+      avg: weightedAverageForTests(monthTests),
+      count: monthTests.length
+    };
+  });
+  const summaryDataRows = summaryMonthly.filter((row) => row.count > 0);
+  const lastRow = summaryDataRows[summaryDataRows.length - 1];
+  const previousRow = summaryDataRows[summaryDataRows.length - 2];
   const trendDelta = lastRow && previousRow ? lastRow.avg - previousRow.avg : null;
   const highestPoint = series.flatMap((lineSeries) => lineSeries.monthly
     .filter((row) => row.count > 0)
@@ -10499,7 +10514,7 @@ function renderGradeTrending() {
     .filter((row) => row.count > 0)
     .map((row) => ({ label: lineSeries.label, month: row.label, value: row.avg })))
     .sort((a, b) => a.value - b.value)[0];
-  const averageValue = plottedValues.length ? avg(plottedValues) : null;
+  const averageValue = summaryDataRows.length ? avg(summaryDataRows.map((row) => row.avg)) : null;
   const deltaLabel = trendDelta === null ? "No prior month" : `${trendDelta >= 0 ? "+" : ""}${trendDelta.toFixed(1)}%`;
   const deltaClass = trendDelta === null ? "neutral" : (trendDelta >= 0 ? "positive" : "negative");
   const trendIconSvg = trendDelta === null
