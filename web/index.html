@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605071635">
+  <link rel="stylesheet" href="styles.css?v=202605072015">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -482,22 +482,32 @@
       </div>
 
       <div id="dashboard-section-student-performance" class="dashboard-section dashboard-section-student-performance">
-        <h3>Student Performance</h3>
-        <form id="student-performance-filter-form" class="grid-form">
-          <fieldset class="student-performance-grade-method-field">
-            <legend>Grade Method</legend>
-            <div id="student-performance-grade-method-options" class="student-performance-grade-method-options"></div>
-          </fieldset>
-          <label class="trend-student-field">Instructor
-            <details id="student-performance-instructor-dropdown" class="multi-select-dropdown">
-              <summary id="student-performance-instructor-summary">Instructors (0 selected)</summary>
-              <div id="student-performance-instructor-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-        </form>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Student</th><th>Total Average</th><th>Q1 Average</th><th>Q2 Average</th><th>Q3 Average</th><th>Q4 Average</th></tr></thead>
+        <div class="student-performance-toolbar">
+          <div class="student-performance-heading">
+            <span class="student-performance-heading-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M6 15l4-4 3 3 5-7"/><path d="M15 7h3v3"/></svg>
+            </span>
+            <div>
+              <h3>Student Performance</h3>
+              <p class="muted">Track student achievement across subjects and grading periods.</p>
+            </div>
+          </div>
+          <form id="student-performance-filter-form" class="grid-form">
+            <fieldset class="student-performance-grade-method-field">
+              <legend>Grade Method</legend>
+              <div id="student-performance-grade-method-options" class="student-performance-grade-method-options"></div>
+            </fieldset>
+            <label class="trend-student-field">Instructor
+              <details id="student-performance-instructor-dropdown" class="multi-select-dropdown">
+                <summary id="student-performance-instructor-summary">Instructors (0 selected)</summary>
+                <div id="student-performance-instructor-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+          </form>
+        </div>
+        <div class="table-wrap student-performance-table-wrap">
+          <table class="student-performance-table">
+            <thead><tr><th>Student / Category</th><th><span class="quarter-dot total"></span>Total Average</th><th><span class="quarter-dot q1"></span>Q1 Average</th><th><span class="quarter-dot q2"></span>Q2 Average</th><th><span class="quarter-dot q3"></span>Q3 Average</th><th><span class="quarter-dot q4"></span>Q4 Average</th></tr></thead>
             <tbody id="student-avg-table"></tbody>
           </table>
         </div>
@@ -1974,6 +1984,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605071930"></script>
+  <script src="app.js?v=202605072015"></script>
   </body>
   </html>

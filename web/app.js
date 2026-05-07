@@ -6968,7 +6968,8 @@ function renderStudentPerformanceGradeMethodChecklist(preselectedMethods = []) {
   optionsWrap.innerHTML = STUDENT_PERFORMANCE_GRADE_METHODS.map((method, idx) => {
     const checked = selected.has(method) ? " checked" : "";
     const inputId = `student-performance-grade-method-${idx}`;
-    return `<label class="student-performance-grade-method-chip" for="${inputId}"><input id="${inputId}" type="checkbox" class="student-performance-grade-method-checkbox" value="${method}"${checked}><span>${method}</span></label>`;
+    const icon = method === "Percentage" ? "%" : method === "Letter" ? "A+" : "*";
+    return `<label class="student-performance-grade-method-chip" for="${inputId}"><input id="${inputId}" type="checkbox" class="student-performance-grade-method-checkbox" value="${method}"${checked}><span class="student-performance-method-icon">${icon}</span><span>${method}</span><span class="student-performance-chip-check" aria-hidden="true"></span></label>`;
   }).join("");
 }
 
@@ -11257,13 +11258,34 @@ function renderWorkDistributionChart() {
 }
 
 function formatDashboardAverageCell(avgValue, count, selectedGradeMethods) {
-  if (count <= 0) return "No grades";
-  return selectedGradeMethods.map((method) => {
-    if (method === "Percentage") return `${avgValue.toFixed(1)}%`;
-    if (method === "Letter") return scoreToLetterGrade(avgValue) || "-";
-    if (method === "GPA") return averageToGpa(avgValue).toFixed(2);
+  if (count <= 0) return `<span class="student-performance-no-grades"><span aria-hidden="true">-</span><span>No grades</span></span>`;
+  const parts = selectedGradeMethods.map((method) => {
+    if (method === "Percentage") {
+      return `<span class="student-performance-score-pill ${dashboardAverageScoreClass(avgValue)}">${avgValue.toFixed(1)}%</span>`;
+    }
+    if (method === "Letter") return `<span>${scoreToLetterGrade(avgValue) || "-"}</span>`;
+    if (method === "GPA") return `<span>${averageToGpa(avgValue).toFixed(2)}</span>`;
     return "";
-  }).filter(Boolean).join("/");
+  }).filter(Boolean);
+  return `<span class="student-performance-average-cell">${parts.join("<span class=\"student-performance-average-separator\">/</span>")}<span class="student-performance-trend ${dashboardAverageScoreClass(avgValue)}" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2 11l4-4 3 3 5-6"/><path d="M10 4h4v4"/></svg></span></span>`;
+}
+
+function dashboardAverageScoreClass(value) {
+  const score = Number(value || 0);
+  if (score >= 90) return "excellent";
+  if (score >= 80) return "strong";
+  if (score >= 70) return "watch";
+  if (score >= 60) return "risk";
+  return "critical";
+}
+
+function dashboardGradeTypeIcon(gradeType = "") {
+  const label = String(gradeType).toLowerCase();
+  if (label.includes("assignment")) return "D";
+  if (label.includes("quiz")) return "?";
+  if (label.includes("test")) return "#";
+  if (label.includes("final")) return "F";
+  return "G";
 }
 
 function formatDashboardInstructionalHoursCell(bucketMetrics) {
@@ -11620,12 +11642,12 @@ function renderDashboardExpandableTablesFast() {
     const subjectRows = entry.subjects.flatMap((subject) => {
       const subjectKey = `${entry.studentId}::${subject.subjectId}`;
       const expandedSubject = expandedSubjectAverageRows.has(subjectKey);
-      const subjectRow = `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell"><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${renderDashboardToggleGlyph(expandedSubject)}</button>${subject.subjectName}</td><td>${formatDashboardAverageCell(subject.totalAvg, subject.count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q1Avg, subject.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q2Avg, subject.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q3Avg, subject.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q4Avg, subject.q4Count, selectedGradeMethods)}</td></tr>`;
+      const subjectRow = `<tr class="student-performance-row student-performance-subject-row"><td class="student-avg-subject-cell"><span class="student-performance-branch" aria-hidden="true"></span><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${renderDashboardToggleGlyph(expandedSubject)}</button><span class="student-performance-row-title">${escapeHtml(subject.subjectName)}</span></td><td>${formatDashboardAverageCell(subject.totalAvg, subject.count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q1Avg, subject.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q2Avg, subject.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q3Avg, subject.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q4Avg, subject.q4Count, selectedGradeMethods)}</td></tr>`;
       if (!expandedSubject) return [subjectRow];
-      const typeRows = subject.types.map((type) => `<tr class="student-avg-type-row"><td class="student-avg-type-cell">${type.gradeType}</td><td>${formatDashboardAverageCell(type.totalAvg, type.count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q1Avg, type.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q2Avg, type.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q3Avg, type.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q4Avg, type.q4Count, selectedGradeMethods)}</td></tr>`);
+      const typeRows = subject.types.map((type) => `<tr class="student-performance-row student-performance-type-row"><td class="student-avg-type-cell"><span class="student-performance-branch" aria-hidden="true"></span><span class="student-performance-type-icon">${dashboardGradeTypeIcon(type.gradeType)}</span><span class="student-performance-row-title">${escapeHtml(type.gradeType)}</span></td><td>${formatDashboardAverageCell(type.totalAvg, type.count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q1Avg, type.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q2Avg, type.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q3Avg, type.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q4Avg, type.q4Count, selectedGradeMethods)}</td></tr>`);
       return [subjectRow, ...typeRows];
     }).join("");
-    const row = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${entry.studentName}</td><td>${formatDashboardAverageCell(entry.totalAvg, entry.totalCount, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q1Avg, entry.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q2Avg, entry.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q3Avg, entry.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q4Avg, entry.q4Count, selectedGradeMethods)}</td></tr>`;
+    const row = `<tr class="student-performance-row student-performance-student-row"><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button><span class="student-performance-row-title">${escapeHtml(entry.studentName)}</span></td><td>${formatDashboardAverageCell(entry.totalAvg, entry.totalCount, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q1Avg, entry.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q2Avg, entry.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q3Avg, entry.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q4Avg, entry.q4Count, selectedGradeMethods)}</td></tr>`;
     const detailRow = expanded ? (subjectRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No subject grades yet.</td></tr>") : "";
     return detailRow ? [row, detailRow] : [row];
   });
@@ -11637,7 +11659,7 @@ function renderDashboardExpandableTablesFast() {
       q3: performanceMetrics.filter((entry) => entry.q3Count > 0).map((entry) => entry.q3Avg),
       q4: performanceMetrics.filter((entry) => entry.q4Count > 0).map((entry) => entry.q4Avg)
     };
-    studentRows.push(`<tr><td><strong>Average</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.total), totals.total.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q1), totals.q1.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q2), totals.q2.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q3), totals.q3.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q4), totals.q4.length, selectedGradeMethods)}</strong></td></tr>`);
+    studentRows.push(`<tr class="student-performance-row student-performance-average-row"><td><strong>Average</strong></td><td>${formatDashboardAverageCell(avg(totals.total), totals.total.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q1), totals.q1.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q2), totals.q2.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q3), totals.q3.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q4), totals.q4.length, selectedGradeMethods)}</td></tr>`);
   }
   rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
 
