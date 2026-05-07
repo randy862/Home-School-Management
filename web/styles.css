@@ -4046,6 +4046,12 @@ h4 {
   letter-spacing: -0.04em;
 }
 
+.dashboard-visual-card-completion .dashboard-summary-value,
+.dashboard-visual-card-open .dashboard-summary-value,
+.dashboard-visual-card-grades .dashboard-summary-value {
+  font-size: clamp(3.65rem, 6.9vw, 5.65rem);
+}
+
 .dashboard-visual-card-pace .dashboard-summary-value {
   margin-top: 0.62rem;
   color: #43206f;
