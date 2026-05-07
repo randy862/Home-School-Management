@@ -274,11 +274,11 @@
             </div>
             <p id="dashboard-overview-pace-note" class="dashboard-summary-note muted">0.00 earned vs 0.00 expected.</p>
           </article>
-          <article class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-grades">
+          <article class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-grades" role="button" tabindex="0" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-school-day-quick-filter="needs-grade,completed" data-open-items-date="1">
             <div class="dashboard-visual-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>
             </div>
-            <p id="dashboard-overview-missing-grades-label" class="dashboard-summary-label">Awaiting Grades Today</p>
+            <p id="dashboard-overview-missing-grades-label" class="dashboard-summary-label">Completed - Awaiting Grades Today</p>
             <p id="dashboard-overview-missing-grades-value" class="dashboard-summary-value">0</p>
             <div class="dashboard-grade-check" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></svg>
@@ -790,6 +790,7 @@
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-attendance"> <span>Show Needs Attendance filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-completion"> <span>Show Needs Completion filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-grade"> <span>Show Needs Grade filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-completed"> <span>Show Completed filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-overridden"> <span>Show Overridden filter</span></label>
             </div>
           </section>
@@ -967,6 +968,7 @@
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="needs-attendance">Needs Attendance</button>
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="needs-completion">Needs Completion</button>
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="needs-grade">Needs Grade</button>
+          <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="completed">Completed</button>
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="overridden">Overridden</button>
         </div>
         <div class="subtabs school-day-subtabs" aria-label="School Day sections">
@@ -1972,6 +1974,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605071815"></script>
+  <script src="app.js?v=202605071930"></script>
   </body>
   </html>

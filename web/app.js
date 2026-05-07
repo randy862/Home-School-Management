@@ -114,6 +114,7 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showNeedsAttendanceFilter: true,
     showNeedsCompletionFilter: true,
     showNeedsGradeFilter: true,
+    showCompletedFilter: true,
     showOverriddenFilter: true,
     defaultTab: "daily-schedule",
     studentSummariesDefault: "adaptive",
@@ -1496,6 +1497,7 @@ let schoolDayQuickFilters = {
   needsAttendance: false,
   needsCompletion: false,
   needsGrade: false,
+  completed: false,
   overridden: false
 };
 let calendarBackToWeekContext = null;
@@ -7566,6 +7568,7 @@ function renderAdministration() {
     ["admin-config-school-day-show-needs-attendance", config.schoolDay.showNeedsAttendanceFilter],
     ["admin-config-school-day-show-needs-completion", config.schoolDay.showNeedsCompletionFilter],
     ["admin-config-school-day-show-needs-grade", config.schoolDay.showNeedsGradeFilter],
+    ["admin-config-school-day-show-completed", config.schoolDay.showCompletedFilter],
     ["admin-config-school-day-show-overridden", config.schoolDay.showOverriddenFilter],
     ["admin-config-dashboard-show-completion-today", config.dashboard.showCompletionToday],
     ["admin-config-dashboard-show-needs-attention-today", config.dashboard.showNeedsAttentionToday],
@@ -7640,6 +7643,7 @@ function buildWorkspaceConfigFromAdminForms(overrides = {}) {
       showNeedsAttendanceFilter: !!document.getElementById("admin-config-school-day-show-needs-attendance")?.checked,
       showNeedsCompletionFilter: !!document.getElementById("admin-config-school-day-show-needs-completion")?.checked,
       showNeedsGradeFilter: !!document.getElementById("admin-config-school-day-show-needs-grade")?.checked,
+      showCompletedFilter: !!document.getElementById("admin-config-school-day-show-completed")?.checked,
       showOverriddenFilter: !!document.getElementById("admin-config-school-day-show-overridden")?.checked,
       defaultTab: document.getElementById("admin-config-school-day-default-tab")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.defaultTab,
       studentSummariesDefault: document.getElementById("admin-config-school-day-student-summaries-default")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.studentSummariesDefault,
@@ -8770,12 +8774,13 @@ function applyWorkspaceConfiguration() {
     if (node) node.classList.toggle("hidden", !visible);
   });
 
-  document.querySelectorAll("[data-school-day-quick-filter]").forEach((btn) => {
+  document.querySelectorAll(".school-day-quick-filter-btn[data-school-day-quick-filter]").forEach((btn) => {
     const filterName = btn.getAttribute("data-school-day-quick-filter");
     const visible =
       (filterName === "needs-attendance" && config.schoolDay.showNeedsAttendanceFilter) ||
       (filterName === "needs-completion" && config.schoolDay.showNeedsCompletionFilter) ||
       (filterName === "needs-grade" && config.schoolDay.showNeedsGradeFilter) ||
+      (filterName === "completed" && config.schoolDay.showCompletedFilter) ||
       (filterName === "overridden" && config.schoolDay.showOverriddenFilter);
     btn.classList.toggle("hidden", !visible);
   });
@@ -9311,16 +9316,25 @@ function schoolDayActiveQuickFilterCount() {
   return Object.values(schoolDayQuickFilters).filter(Boolean).length;
 }
 
-function rowMatchesSchoolDayQuickFilters({ needsAttendance = false, needsCompletion = false, needsGrade = false, overridden = false } = {}) {
+function rowMatchesSchoolDayQuickFilters({ needsAttendance = false, needsCompletion = false, needsGrade = false, completed = false, overridden = false } = {}) {
   if (schoolDayQuickFilters.needsAttendance && !needsAttendance) return false;
   if (schoolDayQuickFilters.needsCompletion && !needsCompletion) return false;
   if (schoolDayQuickFilters.needsGrade && !needsGrade) return false;
+  if (schoolDayQuickFilters.completed && !completed) return false;
   if (schoolDayQuickFilters.overridden && !overridden) return false;
   return true;
 }
 
+function setSchoolDayQuickFilterState(key, active) {
+  if (key === "needs-attendance") schoolDayQuickFilters.needsAttendance = active;
+  if (key === "needs-completion") schoolDayQuickFilters.needsCompletion = active;
+  if (key === "needs-grade") schoolDayQuickFilters.needsGrade = active;
+  if (key === "completed") schoolDayQuickFilters.completed = active;
+  if (key === "overridden") schoolDayQuickFilters.overridden = active;
+}
+
 function renderSchoolDayQuickFilterState() {
-  document.querySelectorAll("[data-school-day-quick-filter]").forEach((btn) => {
+  document.querySelectorAll(".school-day-quick-filter-btn[data-school-day-quick-filter]").forEach((btn) => {
     const key = btn.getAttribute("data-school-day-quick-filter") || "";
     const isActive = key === "needs-attendance"
       ? schoolDayQuickFilters.needsAttendance
@@ -9328,6 +9342,8 @@ function renderSchoolDayQuickFilterState() {
         ? schoolDayQuickFilters.needsCompletion
       : key === "needs-grade"
         ? schoolDayQuickFilters.needsGrade
+      : key === "completed"
+        ? schoolDayQuickFilters.completed
         : key === "overridden"
           ? schoolDayQuickFilters.overridden
           : false;
@@ -9795,6 +9811,7 @@ function resetSchoolDayQuickFilters() {
   schoolDayQuickFilters.needsAttendance = false;
   schoolDayQuickFilters.needsCompletion = false;
   schoolDayQuickFilters.needsGrade = false;
+  schoolDayQuickFilters.completed = false;
   schoolDayQuickFilters.overridden = false;
 }
 
@@ -9810,10 +9827,9 @@ function openSchoolDayFromDashboard({
   const dateInput = document.getElementById("school-day-date");
   if (dateInput) dateInput.value = date || todayISO();
   resetSchoolDayQuickFilters();
-  if (quickFilter === "needs-attendance") schoolDayQuickFilters.needsAttendance = true;
-  if (quickFilter === "needs-completion") schoolDayQuickFilters.needsCompletion = true;
-  if (quickFilter === "needs-grade") schoolDayQuickFilters.needsGrade = true;
-  if (quickFilter === "overridden") schoolDayQuickFilters.overridden = true;
+  String(quickFilter || "").split(",").map((key) => key.trim()).filter(Boolean).forEach((key) => {
+    setSchoolDayQuickFilterState(key, true);
+  });
   applySchoolDayFilterSelection({
     studentIds: Array.isArray(studentIds) ? studentIds : [],
     subjectIds: Array.isArray(subjectIds) ? subjectIds : [],
@@ -12189,7 +12205,7 @@ function renderDashboardMissingGradesSummary(snapshot) {
       <td>${escapeHtml(row.timeLabel)}</td>
       <td>${escapeHtml(row.statusLabel)}</td>
     </tr>`);
-  if (overviewLabel) overviewLabel.textContent = context.isLiveToday ? "Awaiting Grades Today" : `Awaiting Grades ${context.label}`;
+  if (overviewLabel) overviewLabel.textContent = context.isLiveToday ? "Completed - Awaiting Grades Today" : `Completed - Awaiting Grades ${context.label}`;
   if (overviewValue) overviewValue.textContent = String(snapshot.count);
   if (overviewNote) overviewNote.textContent = snapshot.count
     ? `${snapshot.count} completed class${snapshot.count === 1 ? "" : "es"} are still awaiting grades for ${formatDisplayDate(snapshot.date)}.`
@@ -13407,7 +13423,7 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
       const isOverridden = hasOverride;
       const isCompleted = effectiveInstructionCompleted(block.studentId, block.courseId, dateKey);
       const needsCompletion = !isCompleted;
-      if (useQuickFilters && !rowMatchesSchoolDayQuickFilters({ needsAttendance, needsCompletion, needsGrade, overridden: isOverridden })) {
+      if (useQuickFilters && !rowMatchesSchoolDayQuickFilters({ needsAttendance, needsCompletion, needsGrade, completed: isCompleted, overridden: isOverridden })) {
         return [];
       }
       const completedBadge = isCompleted
@@ -17167,6 +17183,16 @@ function bindEvents() {
     }
   });
 
+  document.addEventListener("keydown", (event) => {
+    if (!["Enter", " "].includes(event.key)) return;
+    const target = event.target instanceof HTMLElement
+      ? event.target.closest('[role="button"][data-dashboard-open-school-day]')
+      : null;
+    if (!(target instanceof HTMLElement)) return;
+    event.preventDefault();
+    target.click();
+  });
+
   document.addEventListener("click", (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
@@ -17370,10 +17396,20 @@ function bindEvents() {
     }
     const schoolDayQuickFilter = t.getAttribute("data-school-day-quick-filter");
     if (schoolDayQuickFilter) {
-      if (schoolDayQuickFilter === "needs-attendance") schoolDayQuickFilters.needsAttendance = !schoolDayQuickFilters.needsAttendance;
-      if (schoolDayQuickFilter === "needs-completion") schoolDayQuickFilters.needsCompletion = !schoolDayQuickFilters.needsCompletion;
-      if (schoolDayQuickFilter === "needs-grade") schoolDayQuickFilters.needsGrade = !schoolDayQuickFilters.needsGrade;
-      if (schoolDayQuickFilter === "overridden") schoolDayQuickFilters.overridden = !schoolDayQuickFilters.overridden;
+      String(schoolDayQuickFilter).split(",").map((key) => key.trim()).filter(Boolean).forEach((key) => {
+        const currentValue = key === "needs-attendance"
+          ? schoolDayQuickFilters.needsAttendance
+          : key === "needs-completion"
+            ? schoolDayQuickFilters.needsCompletion
+            : key === "needs-grade"
+              ? schoolDayQuickFilters.needsGrade
+              : key === "completed"
+                ? schoolDayQuickFilters.completed
+                : key === "overridden"
+                  ? schoolDayQuickFilters.overridden
+                  : false;
+        setSchoolDayQuickFilterState(key, !currentValue);
+      });
       clearSchoolDayDailyMessage();
       renderSchoolDay();
       return;
