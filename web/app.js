@@ -12214,6 +12214,16 @@ function renderDashboard() {
     if (pct >= 60) return { status: "performance-risk", label: "At Risk", text: "Falling below expectations" };
     return { status: "performance-critical", label: "Critical Academic Risk", text: "Immediate intervention recommended" };
   };
+  const calendarProgressStatus = (value) => {
+    const pct = clamp(Number(value || 0), 0, 100);
+    if (pct >= 100) return "Complete";
+    if (pct >= 90) return "Near Completion";
+    if (pct >= 75) return "Final Stretch";
+    if (pct >= 50) return "Second Half";
+    if (pct >= 25) return "First Half";
+    if (pct >= 10) return "Early Term";
+    return "Just Started";
+  };
   const setOverviewDial = (arcId, value, mode = "risk") => {
     const arc = document.getElementById(arcId);
     const pct = clamp(Number(value || 0), 0, 100);
@@ -12305,13 +12315,13 @@ function renderDashboard() {
   const yearProgressBadge = document.getElementById("year-progress-badge");
   if (yearProgressBadge) yearProgressBadge.textContent = `${yP.toFixed(1)}%`;
   const yearProgressStatus = document.getElementById("year-progress-status");
-  if (yearProgressStatus) yearProgressStatus.textContent = yP >= 99 ? "Excellent progress" : yP >= 75 ? "Strong progress" : "In progress";
+  if (yearProgressStatus) yearProgressStatus.textContent = calendarProgressStatus(yP);
   document.getElementById("quarter-progress-fill").style.width = `${qP.toFixed(1)}%`;
   document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
   const quarterProgressBadge = document.getElementById("quarter-progress-badge");
   if (quarterProgressBadge) quarterProgressBadge.textContent = q ? `${qP.toFixed(1)}%` : "-";
   const quarterProgressStatus = document.getElementById("quarter-progress-status");
-  if (quarterProgressStatus) quarterProgressStatus.textContent = q ? (qP >= 99 ? "Excellent progress" : qP >= 75 ? "Strong progress" : "In progress") : "No quarter set";
+  if (quarterProgressStatus) quarterProgressStatus.textContent = q ? calendarProgressStatus(qP) : "No quarter set";
   renderDashboardExecutionSummary(buildDashboardExecutionSnapshot(referenceDate, dashboardStudents));
   renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate));
   renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
