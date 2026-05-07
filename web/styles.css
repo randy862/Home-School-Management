@@ -6255,6 +6255,29 @@ tbody tr:hover {
   line-height: 1.35;
 }
 
+#app-shell .dashboard-final-projection-line {
+  display: inline-block;
+  margin-top: 0.18rem;
+}
+
+#app-shell .dashboard-inline-link {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #155bc3;
+  font: inherit;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+#app-shell .dashboard-inline-link:hover,
+#app-shell .dashboard-inline-link:focus-visible {
+  color: #0f438f;
+}
+
 #app-shell .dashboard-pill-metric {
   min-width: 82px;
   border: 1px solid #cfe0f3;

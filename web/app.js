@@ -12057,10 +12057,20 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
       : view.varianceHours > currentToleranceHours
         ? `${currentDeltaText} hours ahead of expected progress to date.`
         : "Logged instructional hours are on pace with expected progress to date.";
+  const finalProjectionTolerance = Math.max(1, Number(view.requiredTotal || 0) * 0.01);
+  const finalProjectedStatus = view.requiredTotal <= 0.01 && view.projectedTotal <= 0.01
+    ? "Not Started"
+    : view.projectedVarianceHours < -finalProjectionTolerance
+      ? "Behind Pace"
+      : view.projectedVarianceHours > finalProjectionTolerance
+        ? "Ahead of Pace"
+        : "On Pace";
   if (studentFilter) studentFilter.value = selectedStudentId;
 
   if (overviewValue) overviewValue.textContent = currentPaceStatus.label;
-  if (overviewNote) overviewNote.textContent = currentPaceNote;
+  if (overviewNote) {
+    overviewNote.innerHTML = `${escapeHtml(currentPaceNote)}<br><span class="dashboard-final-projection-line">Final projected compliance: <button type="button" class="dashboard-inline-link" data-dashboard-tab="compliance">${escapeHtml(finalProjectedStatus)}</button></span>`;
+  }
   if (overviewLogged) overviewLogged.textContent = view.actualToDate.toFixed(2);
   if (overviewProjected) overviewProjected.textContent = view.expectedToDate.toFixed(2);
   if (overviewRequired) overviewRequired.textContent = varianceText;
