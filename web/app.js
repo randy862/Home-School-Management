@@ -12486,7 +12486,7 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
     </tr>`;
   });
 
-  if (completionLabel) completionLabel.textContent = context.isLiveToday ? "Completion Today" : `Completion ${context.label}`;
+  if (completionLabel) completionLabel.textContent = context.isLiveToday ? "Completed Today" : `Completed ${context.label}`;
   if (attentionLabel) attentionLabel.textContent = context.isLiveToday ? "Open Items Today" : `Open Items ${context.label}`;
   if (completionValue) completionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
   if (completionNote) completionNote.textContent = snapshot.scheduledCount
