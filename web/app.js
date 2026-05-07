@@ -11870,8 +11870,13 @@ function renderDashboardExecutionSummary(snapshot) {
   const attentionLabel = document.getElementById("dashboard-overview-attention-label");
   const completionValue = document.getElementById("dashboard-overview-completion-value");
   const completionNote = document.getElementById("dashboard-overview-completion-note");
+  const completionOverviewFill = document.getElementById("dashboard-overview-completion-fill");
   const attentionValue = document.getElementById("dashboard-overview-attention-value");
   const attentionNote = document.getElementById("dashboard-overview-attention-note");
+  const attendanceOpenCount = document.getElementById("dashboard-overview-attendance-open-count");
+  const classesOpenCount = document.getElementById("dashboard-overview-classes-open-count");
+  const gradesOpenCount = document.getElementById("dashboard-overview-grades-open-count");
+  const overridesOpenCount = document.getElementById("dashboard-overview-overrides-open-count");
   const detailCompletionValue = document.getElementById("dashboard-completion-today-value");
   const detailCompletionNote = document.getElementById("dashboard-completion-today-note");
   const completionFill = document.getElementById("dashboard-completion-today-fill");
@@ -11892,10 +11897,15 @@ function renderDashboardExecutionSummary(snapshot) {
   if (completionNote) completionNote.textContent = snapshot.scheduledCount
     ? `${snapshot.completedCount} of ${snapshot.scheduledCount} classes completed on ${formatDisplayDate(snapshot.date)}.`
     : `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`;
+  if (completionOverviewFill) completionOverviewFill.style.width = `${snapshot.completionPercent.toFixed(1)}%`;
   if (attentionValue) attentionValue.textContent = String(snapshot.attentionTotal);
   if (attentionNote) attentionNote.textContent = snapshot.attentionTotal
     ? `${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
     : `No open items for ${formatDisplayDate(snapshot.date)}.`;
+  if (attendanceOpenCount) attendanceOpenCount.textContent = String(snapshot.needsAttendanceCount);
+  if (classesOpenCount) classesOpenCount.textContent = String(snapshot.needsCompletionCount);
+  if (gradesOpenCount) gradesOpenCount.textContent = String(snapshot.needsGradeCount);
+  if (overridesOpenCount) overridesOpenCount.textContent = String(snapshot.overrideCount);
   if (detailCompletionValue) detailCompletionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
   if (detailCompletionNote) detailCompletionNote.textContent = snapshot.scheduledCount
     ? `${snapshot.completedCount} of ${snapshot.scheduledCount} scheduled classes are completed on ${formatDisplayDate(snapshot.date)}.`
@@ -11943,6 +11953,11 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
     : snapshot;
   const overviewValue = document.getElementById("dashboard-overview-pace-value");
   const overviewNote = document.getElementById("dashboard-overview-pace-note");
+  const overviewCard = document.getElementById("dashboard-overview-pace-card");
+  const overviewArcFill = document.getElementById("dashboard-overview-pace-arc-fill");
+  const overviewLogged = document.getElementById("dashboard-overview-pace-logged");
+  const overviewProjected = document.getElementById("dashboard-overview-pace-projected");
+  const overviewRequired = document.getElementById("dashboard-overview-pace-required");
   const detailValue = document.getElementById("dashboard-hour-pace-value");
   const detailNote = document.getElementById("dashboard-hour-pace-note");
   const requiredNode = document.getElementById("dashboard-hour-pace-required");
@@ -11981,6 +11996,18 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
 
   if (overviewValue) overviewValue.textContent = view.status;
   if (overviewNote) overviewNote.textContent = `${view.actualToDate.toFixed(2)} logged, ${view.projectedTotal.toFixed(2)} projected, ${view.requiredTotal.toFixed(2)} required.`;
+  if (overviewLogged) overviewLogged.textContent = view.actualToDate.toFixed(2);
+  if (overviewProjected) overviewProjected.textContent = view.projectedTotal.toFixed(2);
+  if (overviewRequired) overviewRequired.textContent = view.requiredTotal.toFixed(2);
+  if (overviewArcFill) {
+    const pacePercent = view.requiredTotal > 0 ? clamp((view.projectedTotal / view.requiredTotal) * 100, 0, 100) : 0;
+    overviewArcFill.style.setProperty("--pace-progress", `${pacePercent.toFixed(2)}%`);
+  }
+  if (overviewCard) {
+    overviewCard.classList.toggle("pace-behind", view.statusClass === "behind");
+    overviewCard.classList.toggle("pace-ahead", view.statusClass === "ahead");
+    overviewCard.classList.toggle("pace-on", view.statusClass !== "behind" && view.statusClass !== "ahead");
+  }
   if (detailValue) {
     detailValue.textContent = view.status;
     detailValue.className = `dashboard-pill-metric ${view.statusClass}`;

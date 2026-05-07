@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605071045">
+  <link rel="stylesheet" href="styles.css?v=202605071115">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -220,25 +220,53 @@
           </div>
         </div>
 
-        <div class="dashboard-summary-grid">
-          <article class="dashboard-summary-card">
+        <div class="dashboard-summary-grid dashboard-visual-summary-grid">
+          <article class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-completion">
+            <div class="dashboard-visual-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M3 8.5 12 4l9 4.5-9 4.5-9-4.5Z"/><path d="M6.5 11.2v4.1c1.9 1.7 3.7 2.5 5.5 2.5s3.6-.8 5.5-2.5v-4.1"/><path d="M20 9v5"/></svg>
+            </div>
             <p id="dashboard-overview-completion-label" class="dashboard-summary-label">Completion Today</p>
             <p id="dashboard-overview-completion-value" class="dashboard-summary-value">0%</p>
+            <div class="dashboard-visual-progress"><span id="dashboard-overview-completion-fill"></span></div>
             <p id="dashboard-overview-completion-note" class="dashboard-summary-note muted">0 of 0 classes completed today.</p>
           </article>
-          <article class="dashboard-summary-card">
+          <article class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-open">
+            <div class="dashboard-visual-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/></svg>
+            </div>
             <p id="dashboard-overview-attention-label" class="dashboard-summary-label">Open Items Today</p>
             <p id="dashboard-overview-attention-value" class="dashboard-summary-value">0</p>
+            <div class="dashboard-open-mini" aria-label="Open item breakdown">
+              <span><b id="dashboard-overview-attendance-open-count">0</b><small>Attendance</small></span>
+              <span><b id="dashboard-overview-classes-open-count">0</b><small>Classes</small></span>
+              <span><b id="dashboard-overview-grades-open-count">0</b><small>Grades</small></span>
+              <span><b id="dashboard-overview-overrides-open-count">0</b><small>Overrides</small></span>
+            </div>
             <p id="dashboard-overview-attention-note" class="dashboard-summary-note muted">No open items for today.</p>
           </article>
-          <article class="dashboard-summary-card">
+          <article id="dashboard-overview-pace-card" class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-pace">
+            <div class="dashboard-visual-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-6"/><path d="M16 8h3v3"/></svg>
+            </div>
             <p class="dashboard-summary-label">Instruction Pace</p>
             <p id="dashboard-overview-pace-value" class="dashboard-summary-value">On Pace</p>
+            <div class="dashboard-pace-arc" aria-hidden="true"><span id="dashboard-overview-pace-arc-fill"></span></div>
+            <div class="dashboard-pace-mini">
+              <span><b id="dashboard-overview-pace-logged">0.00</b><small>Logged</small></span>
+              <span><b id="dashboard-overview-pace-projected">0.00</b><small>Projected</small></span>
+              <span><b id="dashboard-overview-pace-required">0.00</b><small>Required</small></span>
+            </div>
             <p id="dashboard-overview-pace-note" class="dashboard-summary-note muted">0.00 earned vs 0.00 expected.</p>
           </article>
-          <article class="dashboard-summary-card">
+          <article class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-grades">
+            <div class="dashboard-visual-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>
+            </div>
             <p id="dashboard-overview-missing-grades-label" class="dashboard-summary-label">Awaiting Grades Today</p>
             <p id="dashboard-overview-missing-grades-value" class="dashboard-summary-value">0</p>
+            <div class="dashboard-grade-check" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></svg>
+            </div>
             <p id="dashboard-overview-missing-grades-note" class="dashboard-summary-note muted">No completed classes are waiting on grades today.</p>
           </article>
         </div>
@@ -1928,6 +1956,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605071000"></script>
+  <script src="app.js?v=202605071115"></script>
   </body>
   </html>
