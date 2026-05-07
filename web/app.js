@@ -11746,7 +11746,7 @@ function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructio
     status = "Year Opening";
     statusClass = "starting";
   } else if (varianceHours < -toleranceHours) {
-    status = "Behind Today";
+    status = "Behind Pace";
     statusClass = "behind";
   } else if (varianceHours > toleranceHours) {
     status = "Ahead of Pace";
@@ -11769,7 +11769,7 @@ function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructio
       studentStatus = "Year Opening";
       studentStatusClass = "starting";
     } else if (studentVarianceHours < -studentToleranceHours) {
-      studentStatus = "Behind Today";
+      studentStatus = "Behind Pace";
       studentStatusClass = "behind";
     } else if (studentVarianceHours > studentToleranceHours) {
       studentStatus = "Ahead of Pace";
@@ -12003,21 +12003,37 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
   const scaleMax = Math.max(view.requiredTotal, view.projectedTotal, view.actualToDate, view.expectedToDate, 1) * 1.08;
   const percentOfScale = (value) => clamp((Number(value || 0) / scaleMax) * 100, 0, 100);
   const metricClass = (value) => value < -0.01 ? "negative" : value > 0.01 ? "positive" : "";
+  const currentToleranceHours = Math.max(1, Number(view.expectedToDate || 0) * 0.02);
+  const currentPaceStatus = view.expectedToDate <= 0.01 && view.actualToDate <= 0.01
+    ? { label: "Not Started", className: "on-pace" }
+    : view.varianceHours < -currentToleranceHours
+      ? { label: "Behind Pace", className: "behind" }
+      : view.varianceHours > currentToleranceHours
+        ? { label: "Ahead of Pace", className: "ahead" }
+        : { label: "On Pace", className: "on-pace" };
+  const currentDeltaText = Math.abs(view.varianceHours).toFixed(2);
+  const currentPaceNote = view.expectedToDate <= 0.01 && view.actualToDate <= 0.01
+    ? "No instructional hours are expected yet for the selected reference date."
+    : view.varianceHours < -currentToleranceHours
+      ? `${currentDeltaText} hours behind expected progress to date.`
+      : view.varianceHours > currentToleranceHours
+        ? `${currentDeltaText} hours ahead of expected progress to date.`
+        : "Logged instructional hours are on pace with expected progress to date.";
   if (studentFilter) studentFilter.value = selectedStudentId;
 
-  if (overviewValue) overviewValue.textContent = view.status;
-  if (overviewNote) overviewNote.textContent = `${view.actualToDate.toFixed(2)} logged, ${view.projectedTotal.toFixed(2)} projected, ${view.requiredTotal.toFixed(2)} required.`;
+  if (overviewValue) overviewValue.textContent = currentPaceStatus.label;
+  if (overviewNote) overviewNote.textContent = currentPaceNote;
   if (overviewLogged) overviewLogged.textContent = view.actualToDate.toFixed(2);
-  if (overviewProjected) overviewProjected.textContent = view.projectedTotal.toFixed(2);
-  if (overviewRequired) overviewRequired.textContent = view.requiredTotal.toFixed(2);
+  if (overviewProjected) overviewProjected.textContent = view.expectedToDate.toFixed(2);
+  if (overviewRequired) overviewRequired.textContent = varianceText;
   if (overviewArcFill) {
-    const pacePercent = view.requiredTotal > 0 ? clamp((view.projectedTotal / view.requiredTotal) * 100, 0, 100) : 0;
+    const pacePercent = view.expectedToDate > 0 ? clamp((view.actualToDate / view.expectedToDate) * 100, 0, 100) : 0;
     overviewArcFill.style.setProperty("--pace-progress", `${pacePercent.toFixed(2)}%`);
   }
   if (overviewCard) {
-    overviewCard.classList.toggle("pace-behind", view.statusClass === "behind");
-    overviewCard.classList.toggle("pace-ahead", view.statusClass === "ahead");
-    overviewCard.classList.toggle("pace-on", view.statusClass !== "behind" && view.statusClass !== "ahead");
+    overviewCard.classList.toggle("pace-behind", currentPaceStatus.className === "behind");
+    overviewCard.classList.toggle("pace-ahead", currentPaceStatus.className === "ahead");
+    overviewCard.classList.toggle("pace-on", currentPaceStatus.className === "on-pace");
   }
   if (detailValue) {
     detailValue.textContent = view.status;
@@ -12052,7 +12068,7 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
       ? "Current pace and final projection are compliant."
     : view.status === "Ahead of Pace"
       ? "Ahead of the expected year-to-date pace."
-      : view.status === "Behind Today"
+      : view.status === "Behind Pace"
         ? "Behind the expected year-to-date pace, but final projection remains compliant."
         : "School year pacing has not started yet.";
   if (toggleButton) {
@@ -12099,7 +12115,7 @@ function buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, instr
     status = "Projected Short";
     statusClass = "behind";
   } else if (currentDiff < -tolerance) {
-    status = "Behind Today";
+    status = "Behind Pace";
     statusClass = "behind";
   } else if (currentDiff > tolerance) {
     status = "Ahead of Pace";
@@ -12139,7 +12155,7 @@ function renderDashboardInstructionDayComplianceSummary(snapshot) {
     statusNode.textContent = snapshot.status;
     statusNode.className = `dashboard-pill-metric ${snapshot.statusClass}`;
   }
-  if (noteNode) noteNode.textContent = `${snapshot.completed.toFixed(0)} completed vs ${snapshot.expectedToDate.toFixed(1)} expected today across ${snapshot.studentCount} student${snapshot.studentCount === 1 ? "" : "s"}.`;
+  if (noteNode) noteNode.textContent = `${snapshot.completed.toFixed(0)} completed vs ${snapshot.expectedToDate.toFixed(1)} expected to date across ${snapshot.studentCount} student${snapshot.studentCount === 1 ? "" : "s"}.`;
   if (ringNode) {
     ringNode.style.setProperty("--ring-progress", snapshot.completionPercent.toFixed(1));
     ringNode.style.setProperty("--ring-color", ringColor);
