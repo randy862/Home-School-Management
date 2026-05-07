@@ -5719,31 +5719,22 @@ tbody tr:hover {
 
 #app-shell .progress-bullet-bar {
   position: relative;
-  height: 24px;
+  height: 13px;
   overflow: hidden;
-  border: 1px solid #dce5f0;
+  border: 1px solid #d7e2ee;
   border-radius: 999px;
-  background: #edf2f7;
-  box-shadow:
-    inset 0 1px 2px rgba(31, 47, 69, 0.08),
-    0 8px 18px rgba(31, 47, 69, 0.045);
+  background: #eef3f8;
+  box-shadow: inset 0 1px 1px rgba(31, 47, 69, 0.06);
 }
 
 #app-shell .progress-bullet-bar::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  z-index: 3;
-  border-radius: inherit;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
-  pointer-events: none;
+  content: none;
 }
 
 #app-shell .progress-fill {
   border-radius: inherit;
-  background: linear-gradient(90deg, #4c8fe2 0%, #1f6dcc 68%, #0f5fb8 100%);
-  box-shadow: 0 8px 16px rgba(23, 97, 174, 0.12);
+  background: linear-gradient(90deg, #6da2e7 0%, #2f73cf 58%, #155ab3 100%);
+  box-shadow: none;
 }
 
 #app-shell .progress-bullet-note {
