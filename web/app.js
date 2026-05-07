@@ -12460,15 +12460,34 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
   const detailAttentionValue = document.getElementById("dashboard-needs-attention-value");
   const detailAttentionNote = document.getElementById("dashboard-needs-attention-note");
   const detailSnapshot = completionDetailSnapshot || snapshot;
-  const completionRows = detailSnapshot.students.map((entry) => `
-    <tr>
-      <td>${escapeHtml(entry.student.firstName)} ${escapeHtml(entry.student.lastName)}</td>
-      <td>${entry.scheduledCount}</td>
-      <td>${entry.completedCount}</td>
-      <td>${entry.gradedCount}</td>
-      <td>${entry.openCount}</td>
-      <td>${(entry.completedMinutes / 60).toFixed(2)} / ${(entry.scheduledMinutes / 60).toFixed(2)}</td>
-    </tr>`);
+  const metricPill = (value, total, tone = "strong") => {
+    const percent = total > 0 ? clamp((Number(value || 0) / total) * 100, 0, 100) : 0;
+    return `<span class="completion-metric-cell"><span class="student-performance-score-pill ${tone}">${value}</span><small>${percent.toFixed(0)}%</small></span>`;
+  };
+  const completionRows = detailSnapshot.students.map((entry) => {
+    const studentName = `${entry.student.firstName} ${entry.student.lastName}`;
+    const openTone = entry.openCount > 0 ? "watch" : "excellent";
+    const hoursPercent = entry.scheduledMinutes > 0 ? clamp((entry.completedMinutes / entry.scheduledMinutes) * 100, 0, 100) : 0;
+    return `
+    <tr class="student-performance-row completion-detail-row">
+      <td>
+        <div class="student-analytics-name completion-student-cell">
+          ${renderStudentInitialsBadge(studentName)}
+          <span>${escapeHtml(studentName)}<small>${entry.completedCount} completed, ${entry.openCount} open</small></span>
+        </div>
+      </td>
+      <td><span class="completion-count-pill">${entry.scheduledCount}</span></td>
+      <td>${metricPill(entry.completedCount, entry.scheduledCount, entry.completedCount === entry.scheduledCount ? "excellent" : "strong")}</td>
+      <td>${metricPill(entry.gradedCount, entry.scheduledCount, entry.gradedCount === entry.scheduledCount ? "excellent" : "strong")}</td>
+      <td>${metricPill(entry.openCount, entry.scheduledCount, openTone)}</td>
+      <td>
+        <div class="hours-analytics-cell completion-hours-cell">
+          <span>${(entry.completedMinutes / 60).toFixed(2)} / ${(entry.scheduledMinutes / 60).toFixed(2)} hrs</span>
+          <i><b style="width: ${hoursPercent.toFixed(1)}%"></b></i>
+        </div>
+      </td>
+    </tr>`;
+  });
 
   if (completionLabel) completionLabel.textContent = context.isLiveToday ? "Completion Today" : `Completion ${context.label}`;
   if (attentionLabel) attentionLabel.textContent = context.isLiveToday ? "Open Items Today" : `Open Items ${context.label}`;
