@@ -12183,10 +12183,12 @@ function renderDashboard() {
   document.getElementById("kpi-days-complete").textContent = String(completeDays);
   document.getElementById("kpi-days-total").textContent = String(totalDays);
   const daysDialNeedle = document.getElementById("kpi-days-dial-needle");
+  const daysDialArc = document.getElementById("kpi-days-dial-arc");
   const daysDialValue = document.getElementById("kpi-days-dial-value");
   const daysDialNote = document.getElementById("kpi-days-dial-note");
   const daysProgressPct = totalDays > 0 ? clamp((completeDays / totalDays) * 100, 0, 100) : 0;
   if (daysDialNeedle) daysDialNeedle.style.transform = `rotate(${(-180 + (daysProgressPct * 1.8)).toFixed(1)}deg)`;
+  if (daysDialArc) daysDialArc.style.strokeDashoffset = `${(258 - ((daysProgressPct / 100) * 258)).toFixed(1)}`;
   if (daysDialValue) daysDialValue.textContent = `${daysProgressPct.toFixed(0)}%`;
   if (daysDialNote) daysDialNote.textContent = `${daysProgressPct.toFixed(0)}% completed`;
 
@@ -12199,12 +12201,14 @@ function renderDashboard() {
   }, { earned: 0, projected: 0 });
   document.getElementById("kpi-instruction-hours").textContent = `${instructionalTotals.earned.toFixed(1)} / ${instructionalTotals.projected.toFixed(1)}`;
   const hoursDialNeedle = document.getElementById("kpi-hours-dial-needle");
+  const hoursDialArc = document.getElementById("kpi-hours-dial-arc");
   const hoursDialValue = document.getElementById("kpi-hours-dial-value");
   const hoursDialNote = document.getElementById("kpi-hours-dial-note");
   const hoursProgressPct = instructionalTotals.projected > 0
     ? clamp((instructionalTotals.earned / instructionalTotals.projected) * 100, 0, 100)
     : 0;
   if (hoursDialNeedle) hoursDialNeedle.style.transform = `rotate(${(-180 + (hoursProgressPct * 1.8)).toFixed(1)}deg)`;
+  if (hoursDialArc) hoursDialArc.style.strokeDashoffset = `${(258 - ((hoursProgressPct / 100) * 258)).toFixed(1)}`;
   if (hoursDialValue) hoursDialValue.textContent = `${hoursProgressPct.toFixed(0)}%`;
   if (hoursDialNote) hoursDialNote.textContent = `${hoursProgressPct.toFixed(0)}% logged`;
   const runningAverage = isStudentUser() && dashboardStudents.length === 1

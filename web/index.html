@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605061610">
+  <link rel="stylesheet" href="styles.css?v=202605062005">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -139,14 +139,14 @@
             <p class="kpi-label">Instruction Days</p>
             <div class="kpi-dial-gauge" aria-label="Instruction days gauge">
               <svg viewBox="0 0 240 126" role="img" aria-hidden="true">
-                <path class="dial-band dial-band-danger" d="M 36 106 A 84 84 0 0 1 78 33.3"></path>
-                <path class="dial-band dial-band-watch" d="M 78 33.3 A 84 84 0 0 1 162 33.3"></path>
-                <path class="dial-band dial-band-good" d="M 162 33.3 A 84 84 0 0 1 204 106"></path>
+                <path class="dial-arc dial-arc-base" d="M 38 106 A 82 82 0 0 1 202 106"></path>
+                <path id="kpi-days-dial-arc" class="dial-arc dial-arc-progress" d="M 38 106 A 82 82 0 0 1 202 106"></path>
                 <g id="kpi-days-dial-needle" class="dial-needle">
                   <line x1="120" y1="106" x2="190" y2="106"></line>
                   <circle cx="120" cy="106" r="6"></circle>
                 </g>
               </svg>
+              <div class="kpi-dial-scale"><span>0</span><span>100</span></div>
               <div class="kpi-dial-center">
                 <strong id="kpi-days-dial-value">0%</strong>
                 <span><span id="kpi-days-complete">0</span> / <span id="kpi-days-total">0</span></span>
@@ -158,14 +158,14 @@
             <p class="kpi-label">Instruction Hours</p>
             <div class="kpi-dial-gauge" aria-label="Instruction hours gauge">
               <svg viewBox="0 0 240 126" role="img" aria-hidden="true">
-                <path class="dial-band dial-band-danger" d="M 36 106 A 84 84 0 0 1 78 33.3"></path>
-                <path class="dial-band dial-band-watch" d="M 78 33.3 A 84 84 0 0 1 162 33.3"></path>
-                <path class="dial-band dial-band-good" d="M 162 33.3 A 84 84 0 0 1 204 106"></path>
+                <path class="dial-arc dial-arc-base" d="M 38 106 A 82 82 0 0 1 202 106"></path>
+                <path id="kpi-hours-dial-arc" class="dial-arc dial-arc-progress" d="M 38 106 A 82 82 0 0 1 202 106"></path>
                 <g id="kpi-hours-dial-needle" class="dial-needle">
                   <line x1="120" y1="106" x2="190" y2="106"></line>
                   <circle cx="120" cy="106" r="6"></circle>
                 </g>
               </svg>
+              <div class="kpi-dial-scale"><span>0</span><span>100</span></div>
               <div class="kpi-dial-center">
                 <strong id="kpi-hours-dial-value">0%</strong>
                 <span id="kpi-instruction-hours">0.0 / 0.0</span>
@@ -1898,6 +1898,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605061610"></script>
+  <script src="app.js?v=202605062005"></script>
   </body>
   </html>

@@ -5293,22 +5293,21 @@ tbody tr:hover {
   filter: drop-shadow(0 10px 18px rgba(31, 47, 69, 0.08));
 }
 
-#app-shell .dial-band {
+#app-shell .dial-arc {
   fill: none;
-  stroke-width: 24;
+  stroke-width: 18;
   stroke-linecap: butt;
 }
 
-#app-shell .dial-band-danger {
-  stroke: #e48b8b;
+#app-shell .dial-arc-base {
+  stroke: #e3e8f1;
 }
 
-#app-shell .dial-band-watch {
-  stroke: #f2df9b;
-}
-
-#app-shell .dial-band-good {
-  stroke: #79b14b;
+#app-shell .dial-arc-progress {
+  stroke: #ffd54f;
+  stroke-dasharray: 258;
+  stroke-dashoffset: 258;
+  transition: stroke-dashoffset 220ms ease;
 }
 
 #app-shell .dial-needle {
@@ -5318,21 +5317,33 @@ tbody tr:hover {
 }
 
 #app-shell .dial-needle line {
-  stroke: #566074;
-  stroke-width: 5;
+  stroke: #8892a5;
+  stroke-width: 3;
   stroke-linecap: round;
 }
 
 #app-shell .dial-needle circle {
   fill: #ffffff;
-  stroke: #566074;
-  stroke-width: 3;
+  stroke: #8892a5;
+  stroke-width: 2;
+}
+
+#app-shell .kpi-dial-scale {
+  position: absolute;
+  left: 17%;
+  right: 17%;
+  bottom: 0.1rem;
+  display: flex;
+  justify-content: space-between;
+  color: #6b778c;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 
 #app-shell .kpi-dial-center {
   position: absolute;
   left: 50%;
-  top: 58%;
+  top: 56%;
   display: grid;
   justify-items: center;
   gap: 0.02rem;
