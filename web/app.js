@@ -12182,6 +12182,11 @@ function renderDashboard() {
 
   document.getElementById("kpi-days-complete").textContent = String(completeDays);
   document.getElementById("kpi-days-total").textContent = String(totalDays);
+  const daysBulletFill = document.getElementById("kpi-days-bullet-fill");
+  const daysBulletNote = document.getElementById("kpi-days-bullet-note");
+  const daysProgressPct = totalDays > 0 ? clamp((completeDays / totalDays) * 100, 0, 100) : 0;
+  if (daysBulletFill) daysBulletFill.style.width = `${daysProgressPct.toFixed(1)}%`;
+  if (daysBulletNote) daysBulletNote.textContent = `${daysProgressPct.toFixed(0)}% completed`;
 
   const g = gradeAnalytics();
   const dashboardInstructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { referenceDate });
@@ -12191,6 +12196,13 @@ function renderDashboard() {
     return totals;
   }, { earned: 0, projected: 0 });
   document.getElementById("kpi-instruction-hours").textContent = `${instructionalTotals.earned.toFixed(1)} / ${instructionalTotals.projected.toFixed(1)}`;
+  const hoursBulletFill = document.getElementById("kpi-hours-bullet-fill");
+  const hoursBulletNote = document.getElementById("kpi-hours-bullet-note");
+  const hoursProgressPct = instructionalTotals.projected > 0
+    ? clamp((instructionalTotals.earned / instructionalTotals.projected) * 100, 0, 100)
+    : 0;
+  if (hoursBulletFill) hoursBulletFill.style.width = `${hoursProgressPct.toFixed(1)}%`;
+  if (hoursBulletNote) hoursBulletNote.textContent = `${hoursProgressPct.toFixed(0)}% logged`;
   const runningAverage = isStudentUser() && dashboardStudents.length === 1
     ? studentOverallAverage(dashboardStudents[0].id)
     : g.running;

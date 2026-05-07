@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605061500">
+  <link rel="stylesheet" href="styles.css?v=202605061520">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -135,8 +135,18 @@
 
       <div id="dashboard-section-overview" class="dashboard-section dashboard-section-overview">
         <div class="kpi-grid">
-          <article class="kpi"><p class="kpi-label">Instruction Days</p><p class="kpi-value"><span id="kpi-days-complete">0</span> / <span id="kpi-days-total">0</span></p></article>
-          <article class="kpi"><p class="kpi-label">Instruction Hours</p><p class="kpi-value"><span id="kpi-instruction-hours">0.0 / 0.0</span></p></article>
+          <article class="kpi kpi-bullet-card">
+            <p class="kpi-label">Instruction Days</p>
+            <p class="kpi-value"><span id="kpi-days-complete">0</span> / <span id="kpi-days-total">0</span></p>
+            <div class="kpi-bullet-track" aria-label="Instruction days progress"><span id="kpi-days-bullet-fill" class="kpi-bullet-fill"></span><i></i></div>
+            <p id="kpi-days-bullet-note" class="kpi-bullet-note">0% completed</p>
+          </article>
+          <article class="kpi kpi-bullet-card">
+            <p class="kpi-label">Instruction Hours</p>
+            <p class="kpi-value"><span id="kpi-instruction-hours">0.0 / 0.0</span></p>
+            <div class="kpi-bullet-track" aria-label="Instruction hours progress"><span id="kpi-hours-bullet-fill" class="kpi-bullet-fill"></span><i></i></div>
+            <p id="kpi-hours-bullet-note" class="kpi-bullet-note">0% logged</p>
+          </article>
           <article class="kpi"><p class="kpi-label">Attendance</p><p class="kpi-value"><span id="kpi-attendance-overall">0%</span></p></article>
           <article class="kpi"><p class="kpi-label">Running Grade Average</p><p class="kpi-value"><span id="kpi-running-avg">0%</span></p></article>
         </div>
@@ -1862,6 +1872,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605061500"></script>
+  <script src="app.js?v=202605061520"></script>
   </body>
   </html>
