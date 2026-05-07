@@ -7640,9 +7640,8 @@ function renderDashboardSectionVisibility() {
       ["dashboard-section-overview", true]
     ],
     execution: [
-      ["dashboard-section-completion-today", config.dashboard.showCompletionToday],
       ["dashboard-section-needs-attention-today", config.dashboard.showNeedsAttentionToday],
-      ["dashboard-section-missing-grades", config.dashboard.showMissingGrades]
+      ["dashboard-section-completion-today", config.dashboard.showCompletionToday]
     ],
     performance: [
       ["dashboard-section-grade-risk-watchlist", config.dashboard.showGradeRiskWatchlist],
@@ -7667,7 +7666,6 @@ function renderDashboardSectionVisibility() {
     "dashboard-section-overview",
     "dashboard-section-completion-today",
     "dashboard-section-needs-attention-today",
-    "dashboard-section-missing-grades",
     "dashboard-execution-placeholder",
     "dashboard-section-grade-risk-watchlist",
     "dashboard-performance-placeholder",
@@ -7740,7 +7738,6 @@ function renderAdministration() {
     ["admin-config-school-day-show-overridden", config.schoolDay.showOverriddenFilter],
     ["admin-config-dashboard-show-completion-today", config.dashboard.showCompletionToday],
     ["admin-config-dashboard-show-needs-attention-today", config.dashboard.showNeedsAttentionToday],
-    ["admin-config-dashboard-show-missing-grades", config.dashboard.showMissingGrades],
     ["admin-config-dashboard-show-grade-risk-watchlist", config.dashboard.showGradeRiskWatchlist],
     ["admin-config-dashboard-show-instruction-hour-pace", config.dashboard.showInstructionHourPace],
     ["admin-config-dashboard-show-compliance-hours-monthly", config.dashboard.showComplianceHoursMonthly],
@@ -7820,7 +7817,7 @@ function buildWorkspaceConfigFromAdminForms(overrides = {}) {
     dashboard: {
       showCompletionToday: !!document.getElementById("admin-config-dashboard-show-completion-today")?.checked,
       showNeedsAttentionToday: !!document.getElementById("admin-config-dashboard-show-needs-attention-today")?.checked,
-      showMissingGrades: !!document.getElementById("admin-config-dashboard-show-missing-grades")?.checked,
+      showMissingGrades: false,
       showGradeRiskWatchlist: !!document.getElementById("admin-config-dashboard-show-grade-risk-watchlist")?.checked,
       showInstructionHourPace: !!document.getElementById("admin-config-dashboard-show-instruction-hour-pace")?.checked,
       showComplianceHoursMonthly: !!document.getElementById("admin-config-dashboard-show-compliance-hours-monthly")?.checked,

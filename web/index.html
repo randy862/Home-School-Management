@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605071810">
+  <link rel="stylesheet" href="styles.css?v=202605071835">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -288,6 +288,22 @@
         </div>
       </div>
 
+      <div id="dashboard-section-needs-attention-today" class="dashboard-section dashboard-section-execution-detail hidden">
+        <div class="open-items-detail-toolbar student-performance-toolbar">
+          <div class="student-performance-heading">
+            <span class="student-performance-heading-icon open-items-heading-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </span>
+            <div>
+              <h3>Open Items Today</h3>
+              <p id="dashboard-needs-attention-note" class="muted">No open items for today.</p>
+            </div>
+          </div>
+          <span id="dashboard-needs-attention-value" class="dashboard-pill-metric">0</span>
+        </div>
+        <div id="dashboard-needs-attention-chips" class="dashboard-chip-grid"></div>
+      </div>
+
       <div id="dashboard-section-completion-today" class="dashboard-section dashboard-section-execution-detail hidden">
         <div class="completion-detail-toolbar student-performance-toolbar">
           <div class="student-performance-heading">
@@ -360,33 +376,6 @@
           <table class="student-performance-table completion-detail-table">
             <thead><tr><th>Student</th><th>Scheduled Classes</th><th>Completed</th><th>Grades Applied</th><th>Open</th><th>Logged / Scheduled Hours</th></tr></thead>
             <tbody id="dashboard-completion-today-table"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div id="dashboard-section-needs-attention-today" class="dashboard-section dashboard-section-execution-detail hidden">
-        <div class="dashboard-section-header">
-          <div>
-            <h3>Open Items Today</h3>
-            <p id="dashboard-needs-attention-note" class="muted">No open items for today.</p>
-          </div>
-          <span id="dashboard-needs-attention-value" class="dashboard-pill-metric">0</span>
-        </div>
-        <div id="dashboard-needs-attention-chips" class="dashboard-chip-grid"></div>
-      </div>
-
-      <div id="dashboard-section-missing-grades" class="dashboard-section dashboard-section-execution-detail hidden">
-        <div class="dashboard-section-header">
-          <div>
-            <h3>Classes Awaiting Grades</h3>
-            <p id="dashboard-missing-grades-note" class="muted">No completed classes are waiting on grades today.</p>
-          </div>
-          <span id="dashboard-missing-grades-value" class="dashboard-pill-metric">0</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Time</th><th>Status</th></tr></thead>
-            <tbody id="dashboard-missing-grades-table"></tbody>
           </table>
         </div>
       </div>
@@ -945,7 +934,6 @@
               <div class="administration-config-grid">
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-completion-today"> <span>Show Completion Today</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-needs-attention-today"> <span>Show Open Items Today</span></label>
-                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-missing-grades"> <span>Show Missing Grades</span></label>
               </div>
             </div>
             <div class="dashboard-visibility-group">
@@ -2093,6 +2081,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605071810"></script>
+  <script src="app.js?v=202605071835"></script>
   </body>
   </html>
