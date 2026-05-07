@@ -6719,7 +6719,8 @@ tbody tr:hover {
   stroke-linejoin: round;
 }
 
-#app-shell #trend-filter-form {
+#app-shell #trend-filter-form,
+#app-shell #instructor-grade-trend-filter-form {
   display: grid;
   grid-template-columns: minmax(220px, 1.45fr) minmax(132px, 0.75fr) minmax(150px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
   gap: 0.85rem;
@@ -6727,7 +6728,8 @@ tbody tr:hover {
   margin-bottom: 1.25rem;
 }
 
-#app-shell #trend-filter-form label {
+#app-shell #trend-filter-form label,
+#app-shell #instructor-grade-trend-filter-form label {
   display: grid;
   gap: 0.38rem;
   color: #5f6f89;
@@ -6738,7 +6740,9 @@ tbody tr:hover {
 }
 
 #app-shell #trend-filter-form select,
-#app-shell #trend-filter-form .multi-select-dropdown {
+#app-shell #trend-filter-form .multi-select-dropdown,
+#app-shell #instructor-grade-trend-filter-form select,
+#app-shell #instructor-grade-trend-filter-form .multi-select-dropdown {
   min-height: 42px;
   border-color: #dce6f4;
   border-radius: 9px;
@@ -6747,7 +6751,8 @@ tbody tr:hover {
   box-shadow: 0 8px 20px rgba(23, 36, 61, 0.04);
 }
 
-#app-shell #trend-filter-form .multi-select-dropdown summary {
+#app-shell #trend-filter-form .multi-select-dropdown summary,
+#app-shell #instructor-grade-trend-filter-form .multi-select-dropdown summary {
   min-height: 42px;
   padding: 0.62rem 0.75rem;
   color: #233451;
@@ -6757,7 +6762,8 @@ tbody tr:hover {
   text-transform: none;
 }
 
-#app-shell #trend-clear-filters-btn.secondary-button {
+#app-shell #trend-clear-filters-btn.secondary-button,
+#app-shell #instructor-grade-trend-clear-filters-btn.secondary-button {
   min-height: 42px;
   border: 1px solid #2f6df6;
   background: #ffffff;
@@ -7013,6 +7019,7 @@ tbody tr:hover {
   }
 
   #app-shell #trend-filter-form,
+  #app-shell #instructor-grade-trend-filter-form,
   #app-shell .trend-summary-strip {
     grid-template-columns: 1fr 1fr;
   }
@@ -7024,6 +7031,7 @@ tbody tr:hover {
   }
 
   #app-shell #trend-filter-form,
+  #app-shell #instructor-grade-trend-filter-form,
   #app-shell .trend-summary-strip {
     grid-template-columns: 1fr;
   }

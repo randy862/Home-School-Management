@@ -1467,6 +1467,10 @@ const studentPerformanceSelectedGradeMethods = new Set(STUDENT_PERFORMANCE_GRADE
 const trendSelectedStudentIds = new Set();
 let gradeTrendViewMode = "line";
 let gradeTrendShowDataPoints = true;
+const instructorGradeTrendSelectedInstructorIds = new Set();
+const instructorGradeTrendSelectedStudentIds = new Set();
+let instructorGradeTrendViewMode = "line";
+let instructorGradeTrendShowDataPoints = true;
 const gpaTrendSelectedStudentIds = new Set();
 const instructionHoursTrendSelectedStudentIds = new Set();
 const complianceHoursSelectedStudentIds = new Set();
@@ -5642,6 +5646,8 @@ function renderSelects() {
   renderReportContentChecklist(Array.from(reportSelectedContentIds));
   renderStudentPerformanceGradeMethodChecklist(Array.from(studentPerformanceSelectedGradeMethods));
   renderTrendStudentChecklist(Array.from(trendSelectedStudentIds));
+  renderInstructorGradeTrendInstructorChecklist(Array.from(instructorGradeTrendSelectedInstructorIds));
+  renderInstructorGradeTrendStudentChecklist(Array.from(instructorGradeTrendSelectedStudentIds));
   renderGpaTrendStudentChecklist(Array.from(gpaTrendSelectedStudentIds));
   renderInstructionHoursTrendStudentChecklist(Array.from(instructionHoursTrendSelectedStudentIds));
   renderComplianceHoursStudentChecklist(Array.from(complianceHoursSelectedStudentIds));
@@ -6079,6 +6085,45 @@ function renderStudentInstructionalHoursStudentFilter(dashboardStudents) {
   const validIds = new Set(students.map((student) => student.id));
   if (studentInstructionalHoursSelectedStudentId !== "all" && !validIds.has(studentInstructionalHoursSelectedStudentId)) {
     studentInstructionalHoursSelectedStudentId = "all";
+  }
+
+  const instructorGradeTrendQuarterSelect = document.getElementById("instructor-grade-trend-filter-quarter");
+  if (instructorGradeTrendQuarterSelect) {
+    const current = instructorGradeTrendQuarterSelect.value || "all";
+    instructorGradeTrendQuarterSelect.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      instructorGradeTrendQuarterSelect.appendChild(option);
+    });
+    if (Array.from(instructorGradeTrendQuarterSelect.options).some((o) => o.value === current)) instructorGradeTrendQuarterSelect.value = current;
+  }
+
+  const instructorGradeTrendSubjectSelect = document.getElementById("instructor-grade-trend-filter-subject");
+  if (instructorGradeTrendSubjectSelect) {
+    const current = instructorGradeTrendSubjectSelect.value || "all";
+    instructorGradeTrendSubjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+    state.subjects.forEach((subject) => {
+      const option = document.createElement("option");
+      option.value = subject.id;
+      option.textContent = subject.name;
+      instructorGradeTrendSubjectSelect.appendChild(option);
+    });
+    if (Array.from(instructorGradeTrendSubjectSelect.options).some((o) => o.value === current)) instructorGradeTrendSubjectSelect.value = current;
+  }
+
+  const instructorGradeTrendGradeTypeSelect = document.getElementById("instructor-grade-trend-filter-grade-type");
+  if (instructorGradeTrendGradeTypeSelect) {
+    const current = instructorGradeTrendGradeTypeSelect.value || "all";
+    instructorGradeTrendGradeTypeSelect.innerHTML = "<option value='all'>All Grade Types</option>";
+    availableGradeTypes().forEach((type) => {
+      const option = document.createElement("option");
+      option.value = type;
+      option.textContent = type;
+      instructorGradeTrendGradeTypeSelect.appendChild(option);
+    });
+    if (Array.from(instructorGradeTrendGradeTypeSelect.options).some((o) => o.value === current)) instructorGradeTrendGradeTypeSelect.value = current;
   }
   const sortedStudents = students
     .slice()
@@ -7004,6 +7049,55 @@ function getTrendSelectedStudentIds() {
   return Array.from(document.querySelectorAll(".trend-student-checkbox:checked")).map((el) => el.value);
 }
 
+function renderInstructorGradeTrendInstructorChecklist(preselectedInstructorIds = []) {
+  const optionsWrap = document.getElementById("instructor-grade-trend-instructor-options");
+  if (!optionsWrap) return;
+  const selected = new Set(preselectedInstructorIds);
+  optionsWrap.innerHTML = state.instructors
+    .slice()
+    .sort((a, b) => `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`))
+    .map((instructor, idx) => {
+      const checked = selected.has(instructor.id) ? " checked" : "";
+      const inputId = `instructor-grade-trend-instructor-${idx}-${instructor.id}`;
+      return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="instructor-grade-trend-instructor-checkbox" value="${instructor.id}"${checked}><label for="${inputId}">${instructor.firstName} ${instructor.lastName}</label></div>`;
+    }).join("") || "<span>No instructors available.</span>";
+  updateInstructorGradeTrendInstructorSummary();
+}
+
+function updateInstructorGradeTrendInstructorSummary() {
+  const summary = document.getElementById("instructor-grade-trend-instructor-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".instructor-grade-trend-instructor-checkbox:checked").length;
+  summary.textContent = `Instructors (${selectedCount} selected)`;
+}
+
+function getInstructorGradeTrendSelectedInstructorIds() {
+  return Array.from(document.querySelectorAll(".instructor-grade-trend-instructor-checkbox:checked")).map((el) => el.value);
+}
+
+function renderInstructorGradeTrendStudentChecklist(preselectedStudentIds = []) {
+  const optionsWrap = document.getElementById("instructor-grade-trend-student-options");
+  if (!optionsWrap) return;
+  const selected = new Set(preselectedStudentIds);
+  optionsWrap.innerHTML = visibleStudents().map((student, idx) => {
+    const checked = selected.has(student.id) ? " checked" : "";
+    const inputId = `instructor-grade-trend-student-${idx}-${student.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="instructor-grade-trend-student-checkbox" value="${student.id}"${checked}><label for="${inputId}">${student.firstName} ${student.lastName}</label></div>`;
+  }).join("") || "<span>No students available.</span>";
+  updateInstructorGradeTrendStudentSummary();
+}
+
+function updateInstructorGradeTrendStudentSummary() {
+  const summary = document.getElementById("instructor-grade-trend-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".instructor-grade-trend-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getInstructorGradeTrendSelectedStudentIds() {
+  return Array.from(document.querySelectorAll(".instructor-grade-trend-student-checkbox:checked")).map((el) => el.value);
+}
+
 function renderGpaTrendStudentChecklist(preselectedStudentIds = []) {
   const container = document.getElementById("gpa-trend-student-dropdown");
   const optionsWrap = document.getElementById("gpa-trend-student-options");
@@ -7551,6 +7645,7 @@ function renderDashboardSectionVisibility() {
       ["dashboard-section-grade-risk-watchlist", config.dashboard.showGradeRiskWatchlist],
       ["dashboard-section-student-performance", config.dashboard.showStudentPerformance],
       ["dashboard-section-grade-trending", config.dashboard.showGradeTrending],
+      ["dashboard-section-instructor-grade-trending", config.dashboard.showGradeTrending],
       ["dashboard-section-gpa-trending", config.dashboard.showGpaTrending],
       ["dashboard-section-grade-type-volume", config.dashboard.showGradeTypeVolume],
       ["dashboard-section-work-distribution", config.dashboard.showWorkDistribution]
@@ -7582,6 +7677,7 @@ function renderDashboardSectionVisibility() {
     "dashboard-section-student-attendance",
     "dashboard-section-student-instructional-hours",
     "dashboard-section-grade-trending",
+    "dashboard-section-instructor-grade-trending",
     "dashboard-section-gpa-trending",
     "dashboard-section-instructional-hours-trending",
     "dashboard-section-grade-type-volume",
@@ -10584,6 +10680,190 @@ function renderGradeTrending() {
     ${summaryHtml}`;
 }
 
+function renderInstructorGradeTrending() {
+  const chartHost = document.getElementById("instructor-grade-trending-chart");
+  if (!chartHost) return;
+  const allowedStudentIds = visibleStudentIds();
+  const sy = state.settings.schoolYear;
+  const syStart = toDate(sy.startDate);
+  const syEnd = toDate(sy.endDate);
+  const today = toDate(todayISO());
+  const effectiveEnd = syEnd < today ? syEnd : today;
+  const quarterFilter = document.getElementById("instructor-grade-trend-filter-quarter")?.value || "all";
+  const subjectFilter = document.getElementById("instructor-grade-trend-filter-subject")?.value || "all";
+  const gradeTypeFilter = document.getElementById("instructor-grade-trend-filter-grade-type")?.value || "all";
+  const selectedInstructorIds = getInstructorGradeTrendSelectedInstructorIds();
+  const selectedStudentIds = getInstructorGradeTrendSelectedStudentIds();
+  const selectedStudentIdSet = new Set(selectedStudentIds);
+  const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
+  const effectiveEndIso = toISO(effectiveEnd);
+  let monthStartIso = sy.startDate;
+  let monthEndIso = effectiveEndIso;
+  if (quarterRange && quarterFilter !== "all") {
+    if (toDate(quarterRange.startDate) > toDate(monthStartIso)) monthStartIso = quarterRange.startDate;
+    if (toDate(quarterRange.endDate) < toDate(monthEndIso)) monthEndIso = quarterRange.endDate;
+  }
+  const months = schoolYearMonths(monthStartIso, monthEndIso);
+  if (!months.length) {
+    chartHost.innerHTML = syStart > today
+      ? "<p class='muted'>School year has not started yet.</p>"
+      : (quarterFilter !== "all" ? "<p class='muted'>No elapsed months in the selected quarter yet.</p>" : "<p class='muted'>No school year range set.</p>");
+    return;
+  }
+
+  const filteredTests = state.tests.filter((test) => {
+    if (!allowedStudentIds.has(test.studentId)) return false;
+    if (selectedStudentIdSet.size && !selectedStudentIdSet.has(test.studentId)) return false;
+    if (!inRange(test.date, sy.startDate, sy.endDate)) return false;
+    if (quarterRange && quarterFilter !== "all" && !inRange(test.date, quarterRange.startDate, quarterRange.endDate)) return false;
+    if (subjectFilter !== "all" && test.subjectId !== subjectFilter) return false;
+    const gradeType = gradeTypeName(test);
+    if (gradeTypeFilter !== "all" && gradeType !== gradeTypeFilter) return false;
+    return !!testInstructorId(test);
+  });
+  const testsByInstructor = new Map();
+  filteredTests.forEach((test) => {
+    const instructorId = testInstructorId(test);
+    if (!instructorId) return;
+    if (selectedInstructorIds.length && !selectedInstructorIds.includes(instructorId)) return;
+    if (!testsByInstructor.has(instructorId)) testsByInstructor.set(instructorId, []);
+    testsByInstructor.get(instructorId).push(test);
+  });
+  const instructorIds = selectedInstructorIds.length
+    ? selectedInstructorIds
+    : Array.from(testsByInstructor.keys()).sort((a, b) => getInstructorName(a).localeCompare(getInstructorName(b)));
+  const palette = ["#f97316", "#20a65a", "#2563eb", "#8b5cf6", "#ef4444", "#0f766e", "#a16207", "#db2777"];
+  const series = instructorIds.map((instructorId, idx) => {
+    const tests = testsByInstructor.get(instructorId) || [];
+    const monthly = months.map((monthEntry) => {
+      const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
+      const monthEnd = new Date(monthEntry.year, monthEntry.month + 1, 0, 12, 0, 0);
+      const monthTests = tests.filter((test) => inRange(test.date, toISO(monthStart), toISO(monthEnd)));
+      return {
+        label: monthStart.toLocaleDateString(undefined, { month: "short" }),
+        avg: weightedAverageForTests(monthTests),
+        count: monthTests.length
+      };
+    });
+    return { id: instructorId, label: getInstructorName(instructorId), color: palette[idx % palette.length], monthly };
+  });
+
+  const plottedValues = series.flatMap((lineSeries) => lineSeries.monthly.filter((row) => row.count > 0).map((row) => row.avg));
+  let yMin = 50;
+  let yMax = 100;
+  if (plottedValues.length) {
+    const rawMin = Math.min(...plottedValues);
+    const rawMax = Math.max(...plottedValues);
+    yMin = Math.max(50, Math.floor((rawMin - 2) / 5) * 5);
+    yMax = Math.min(100, Math.ceil((rawMax + 2) / 5) * 5);
+    if (yMax - yMin < 10) {
+      yMax = Math.min(100, yMin + 10);
+      yMin = Math.max(50, yMax - 10);
+    }
+  }
+  const yTickStep = (yMax - yMin) <= 30 ? 5 : 10;
+  const yTicks = [];
+  for (let tick = yMin; tick <= yMax; tick += yTickStep) yTicks.push(tick);
+  if (yTicks[yTicks.length - 1] !== yMax) yTicks.push(yMax);
+  const width = 1120;
+  const height = 330;
+  const margin = { top: 40, right: 34, bottom: 58, left: 74 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const xPad = 16;
+  const xSpan = Math.max(1, plotW - (xPad * 2));
+  const xStep = months.length > 1 ? xSpan / (months.length - 1) : 0;
+  const xFor = (idx) => margin.left + xPad + (xStep * idx);
+  const yFor = (value) => {
+    const clamped = clamp(value, yMin, yMax);
+    return margin.top + ((yMax - clamped) / (yMax - yMin)) * plotH;
+  };
+  const baselineY = yFor(yMin);
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${tick}</text></g>`;
+  }).join("");
+  const xTickSvg = months.map((row, idx) => {
+    const monthStart = new Date(row.year, row.month, 1, 12, 0, 0);
+    const x = xFor(idx);
+    return `<text x="${x.toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${monthStart.toLocaleDateString(undefined, { month: "short" })}</text>`;
+  }).join("");
+  const lineSvg = series.map((lineSeries) => {
+    let path = "";
+    lineSeries.monthly.forEach((row, idx) => {
+      if (row.count <= 0) return;
+      const x = xFor(idx);
+      const y = yFor(row.avg || 0);
+      path += `${path ? "L" : "M"} ${x.toFixed(2)} ${y.toFixed(2)} `;
+    });
+    return path ? `<path d="${path.trim()}" class="trend-line" style="stroke:${lineSeries.color}" fill="none"></path>` : "";
+  }).join("");
+  const areaSvg = instructorGradeTrendViewMode === "area" ? series.map((lineSeries) => {
+    const points = lineSeries.monthly.map((row, idx) => row.count > 0 ? { x: xFor(idx), y: yFor(row.avg || 0) } : null).filter(Boolean);
+    if (points.length < 2) return "";
+    const linePath = points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+    const first = points[0];
+    const last = points[points.length - 1];
+    return `<path d="${linePath} L ${last.x.toFixed(2)} ${baselineY.toFixed(2)} L ${first.x.toFixed(2)} ${baselineY.toFixed(2)} Z" class="trend-area" style="fill:${lineSeries.color}"></path>`;
+  }).join("") : "";
+  const pointSvg = instructorGradeTrendShowDataPoints ? series.flatMap((lineSeries) => lineSeries.monthly.map((row, idx) => {
+    if (row.count <= 0) return "";
+    const x = xFor(idx);
+    const y = yFor(row.avg || 0);
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${lineSeries.color};stroke:${lineSeries.color}"><title>${lineSeries.label} ${row.label}: ${row.avg.toFixed(1)}%</title></circle>`;
+  })).join("") : "";
+  const valueLabelSvg = instructorGradeTrendShowDataPoints ? series.flatMap((lineSeries) => lineSeries.monthly.map((row, idx) => {
+    if (row.count <= 0) return "";
+    const x = xFor(idx);
+    const y = clamp(yFor(row.avg || 0) - 10, margin.top + 10, height - margin.bottom - 6);
+    const labelWidth = 37;
+    return `<g class="trend-value-pill"><rect x="${(x - labelWidth / 2).toFixed(2)}" y="${(y - 12).toFixed(2)}" width="${labelWidth}" height="18" rx="6" style="fill:${lineSeries.color};stroke:${lineSeries.color}"></rect><text x="${x.toFixed(2)}" y="${y.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${lineSeries.color}">${(row.avg || 0).toFixed(1)}%</text></g>`;
+  })).join("") : "";
+  const summaryRows = months.map((monthEntry) => {
+    const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
+    const monthEnd = new Date(monthEntry.year, monthEntry.month + 1, 0, 12, 0, 0);
+    const monthTests = Array.from(testsByInstructor.values()).flat().filter((test) => inRange(test.date, toISO(monthStart), toISO(monthEnd)));
+    return { label: monthStart.toLocaleDateString(undefined, { month: "short" }), avg: weightedAverageForTests(monthTests), count: monthTests.length };
+  }).filter((row) => row.count > 0);
+  const lastRow = summaryRows[summaryRows.length - 1];
+  const previousRow = summaryRows[summaryRows.length - 2];
+  const trendDelta = lastRow && previousRow ? lastRow.avg - previousRow.avg : null;
+  const deltaLabel = trendDelta === null ? "No prior month" : `${trendDelta >= 0 ? "+" : ""}${trendDelta.toFixed(1)}%`;
+  const deltaClass = trendDelta === null ? "neutral" : (trendDelta >= 0 ? "positive" : "negative");
+  const trendIconSvg = trendDelta === null ? `<svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/></svg>` : (trendDelta >= 0 ? `<svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M16 8h4v4"/></svg>` : `<svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg>`);
+  const allPoints = series.flatMap((lineSeries) => lineSeries.monthly.filter((row) => row.count > 0).map((row) => ({ label: lineSeries.label, month: row.label, value: row.avg })));
+  const highestPoint = allPoints.slice().sort((a, b) => b.value - a.value)[0];
+  const lowestPoint = allPoints.slice().sort((a, b) => a.value - b.value)[0];
+  const averageValue = summaryRows.length ? avg(summaryRows.map((row) => row.avg)) : null;
+  const legendHtml = `<div class="trend-legend">${series.map((lineSeries) => `<span class="trend-legend-item"><span class="trend-legend-line" style="background:${lineSeries.color}"></span><span>${escapeHtml(lineSeries.label)}</span></span>`).join("")}</div>`;
+  const noData = plottedValues.length ? "" : `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No grade data for selected filters</text>`;
+  chartHost.innerHTML = `
+    <div class="trend-chart-panel">
+      <div class="trend-chart-toolbar">
+        <div class="trend-view-toggle" aria-label="Instructor grade trend chart view">
+          <button type="button" data-instructor-grade-trend-view="line" class="${instructorGradeTrendViewMode === "line" ? "active" : ""}">Line View</button>
+          <button type="button" data-instructor-grade-trend-view="area" class="${instructorGradeTrendViewMode === "area" ? "active" : ""}">Area View</button>
+        </div>
+        <label class="trend-data-toggle"><span>Show Data Points</span><input id="instructor-grade-trend-data-points-toggle" type="checkbox"${instructorGradeTrendShowDataPoints ? " checked" : ""}><span aria-hidden="true"></span></label>
+      </div>
+      <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly instructor grade trend line chart">
+        <defs><filter id="instructorGradeTrendGlow" x="-15%" y="-40%" width="130%" height="180%"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+        <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+        ${yTickSvg}${xTickSvg}${areaSvg}${lineSvg}${pointSvg}${valueLabelSvg}${noData}
+        <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
+        <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Average Grade (%)</text>
+      </svg>
+      ${legendHtml}
+    </div>
+    <div class="trend-summary-strip">
+      <div class="trend-summary-card ${deltaClass}"><span class="trend-summary-icon" aria-hidden="true">${trendIconSvg}</span><div><span>Overall Trend ${lastRow ? `(${escapeHtml(lastRow.label)})` : ""}</span><strong>${deltaLabel}</strong><small>${previousRow ? `vs. ${escapeHtml(previousRow.label)}` : "Need another month"}</small></div></div>
+      <div class="trend-summary-card positive"><span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M5 5H3v2a4 4 0 0 0 4 4"/><path d="M19 5h2v2a4 4 0 0 1-4 4"/></svg></span><div><span>Highest Average</span><strong>${highestPoint ? `${highestPoint.value.toFixed(1)}%` : "-"}</strong><small>${highestPoint ? `${escapeHtml(highestPoint.label)} (${escapeHtml(highestPoint.month)})` : "No grades"}</small></div></div>
+      <div class="trend-summary-card negative"><span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg></span><div><span>Lowest Average</span><strong>${lowestPoint ? `${lowestPoint.value.toFixed(1)}%` : "-"}</strong><small>${lowestPoint ? `${escapeHtml(lowestPoint.label)} (${escapeHtml(lowestPoint.month)})` : "No grades"}</small></div></div>
+      <div class="trend-summary-card neutral"><span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span><div><span>${months.length}-Month Average</span><strong>${averageValue === null ? "-" : `${averageValue.toFixed(1)}%`}</strong><small>${selectedInstructorIds.length ? `${selectedInstructorIds.length} selected instructors` : "All Instructors"}</small></div></div>
+    </div>`;
+}
+
 function renderGpaTrending() {
   const chartHost = document.getElementById("gpa-trending-chart");
   if (!chartHost) return;
@@ -12587,6 +12867,9 @@ function renderDashboard() {
   Array.from(trendSelectedStudentIds).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) trendSelectedStudentIds.delete(studentId);
   });
+  Array.from(instructorGradeTrendSelectedStudentIds).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) instructorGradeTrendSelectedStudentIds.delete(studentId);
+  });
   Array.from(complianceHoursSelectedStudentIds).forEach((studentId) => {
     if (!validStudentIds.has(studentId)) complianceHoursSelectedStudentIds.delete(studentId);
   });
@@ -12609,6 +12892,9 @@ function renderDashboard() {
   const validInstructorIds = new Set(state.instructors.map((instructor) => instructor.id));
   Array.from(studentPerformanceSelectedInstructorIds).forEach((instructorId) => {
     if (!validInstructorIds.has(instructorId)) studentPerformanceSelectedInstructorIds.delete(instructorId);
+  });
+  Array.from(instructorGradeTrendSelectedInstructorIds).forEach((instructorId) => {
+    if (!validInstructorIds.has(instructorId)) instructorGradeTrendSelectedInstructorIds.delete(instructorId);
   });
   Array.from(studentInstructionalHoursSelectedInstructorIds).forEach((instructorId) => {
     if (!validInstructorIds.has(instructorId)) studentInstructionalHoursSelectedInstructorIds.delete(instructorId);
@@ -12635,6 +12921,7 @@ function renderDashboard() {
   renderDashboardExpandableTablesFast();
 
   renderGradeTrending();
+  renderInstructorGradeTrending();
   renderComplianceHoursMonthlyChart();
   renderComplianceDaysMonthlyChart();
   renderGpaTrending();
@@ -16993,6 +17280,45 @@ function bindEvents() {
       renderGradeTrending();
     }
   });
+  ["instructor-grade-trend-filter-quarter", "instructor-grade-trend-filter-subject", "instructor-grade-trend-filter-grade-type"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderInstructorGradeTrending());
+  });
+  const instructorGradeTrendClearFiltersBtn = document.getElementById("instructor-grade-trend-clear-filters-btn");
+  if (instructorGradeTrendClearFiltersBtn) {
+    instructorGradeTrendClearFiltersBtn.addEventListener("click", () => {
+      ["instructor-grade-trend-filter-quarter", "instructor-grade-trend-filter-subject", "instructor-grade-trend-filter-grade-type"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "all";
+      });
+      instructorGradeTrendSelectedInstructorIds.clear();
+      instructorGradeTrendSelectedStudentIds.clear();
+      document.querySelectorAll(".instructor-grade-trend-instructor-checkbox, .instructor-grade-trend-student-checkbox").forEach((el) => { el.checked = false; });
+      updateInstructorGradeTrendInstructorSummary();
+      updateInstructorGradeTrendStudentSummary();
+      renderInstructorGradeTrending();
+    });
+  }
+  document.getElementById("instructor-grade-trending-chart")?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const viewButton = target.closest("[data-instructor-grade-trend-view]");
+    if (viewButton instanceof HTMLElement) {
+      const view = viewButton.getAttribute("data-instructor-grade-trend-view");
+      if (view === "line" || view === "area") {
+        instructorGradeTrendViewMode = view;
+        renderInstructorGradeTrending();
+      }
+    }
+  });
+  document.getElementById("instructor-grade-trending-chart")?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.id === "instructor-grade-trend-data-points-toggle") {
+      instructorGradeTrendShowDataPoints = target.checked;
+      renderInstructorGradeTrending();
+    }
+  });
   ["gpa-trend-filter-quarter", "gpa-trend-filter-subject", "gpa-trend-filter-instructor", "gpa-trend-filter-grade-type"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGpaTrending());
@@ -17125,6 +17451,20 @@ function bindEvents() {
       getTrendSelectedStudentIds().forEach((id) => trendSelectedStudentIds.add(id));
       updateTrendStudentSummary();
       renderGradeTrending();
+      return;
+    }
+    if (t.classList.contains("instructor-grade-trend-instructor-checkbox")) {
+      instructorGradeTrendSelectedInstructorIds.clear();
+      getInstructorGradeTrendSelectedInstructorIds().forEach((id) => instructorGradeTrendSelectedInstructorIds.add(id));
+      updateInstructorGradeTrendInstructorSummary();
+      renderInstructorGradeTrending();
+      return;
+    }
+    if (t.classList.contains("instructor-grade-trend-student-checkbox")) {
+      instructorGradeTrendSelectedStudentIds.clear();
+      getInstructorGradeTrendSelectedStudentIds().forEach((id) => instructorGradeTrendSelectedStudentIds.add(id));
+      updateInstructorGradeTrendStudentSummary();
+      renderInstructorGradeTrending();
       return;
     }
     if (t.classList.contains("gpa-trend-student-checkbox")) {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605071335">
+  <link rel="stylesheet" href="styles.css?v=202605071540">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -599,7 +599,7 @@
         <div class="trend-section-heading">
           <span class="trend-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M5 15l4-4 4 3 6-7"/><path d="M15 7h4v4"/></svg></span>
           <div>
-            <h3>Grade Trending</h3>
+            <h3>Student Grade Trending</h3>
             <p class="muted">Track average grades over time.</p>
           </div>
         </div>
@@ -638,6 +638,47 @@
           <button id="trend-clear-filters-btn" type="button" class="secondary-button">Clear Filters</button>
         </form>
         <div id="grade-trending-chart" class="chart-wrap"></div>
+      </div>
+
+      <div id="dashboard-section-instructor-grade-trending" class="dashboard-section dashboard-section-trending">
+        <div class="trend-section-heading">
+          <span class="trend-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M5 15l4-4 4 3 6-7"/><path d="M15 7h4v4"/></svg></span>
+          <div>
+            <h3>Instructor Grade Trending</h3>
+            <p class="muted">Track average grades across instructors over time.</p>
+          </div>
+        </div>
+        <form id="instructor-grade-trend-filter-form" class="grid-form">
+          <label class="trend-student-field">Instructor
+            <details id="instructor-grade-trend-instructor-dropdown" class="multi-select-dropdown">
+              <summary id="instructor-grade-trend-instructor-summary">Instructors (0 selected)</summary>
+              <div id="instructor-grade-trend-instructor-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label>Quarter
+            <select id="instructor-grade-trend-filter-quarter">
+              <option value="all">All Quarters</option>
+            </select>
+          </label>
+          <label>Subject
+            <select id="instructor-grade-trend-filter-subject">
+              <option value="all">All Subjects</option>
+            </select>
+          </label>
+          <label class="trend-student-field">Student
+            <details id="instructor-grade-trend-student-dropdown" class="multi-select-dropdown">
+              <summary id="instructor-grade-trend-student-summary">Students (0 selected)</summary>
+              <div id="instructor-grade-trend-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label>Grade Type
+            <select id="instructor-grade-trend-filter-grade-type">
+              <option value="all">All Grade Types</option>
+            </select>
+          </label>
+          <button id="instructor-grade-trend-clear-filters-btn" type="button" class="secondary-button">Clear Filters</button>
+        </form>
+        <div id="instructor-grade-trending-chart" class="chart-wrap"></div>
       </div>
 
       <div id="dashboard-section-gpa-trending" class="dashboard-section dashboard-section-gpa-trending">
@@ -1993,6 +2034,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605071455"></script>
+  <script src="app.js?v=202605071540"></script>
   </body>
   </html>
