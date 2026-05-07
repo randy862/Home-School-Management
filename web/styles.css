@@ -5381,14 +5381,12 @@ tbody tr:hover {
 #app-shell .progress-bullet-card {
   position: relative;
   overflow: hidden;
-  padding: 1.2rem;
-  border: 1px solid #dbe6f2;
-  border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(249, 252, 255, 0.99)),
-    radial-gradient(circle at 92% 8%, rgba(23, 97, 174, 0.08), transparent 30%);
+  padding: 1.05rem 1.1rem;
+  border: 1px solid #e0e8f3;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
   box-shadow:
-    0 16px 34px rgba(31, 47, 69, 0.07),
+    0 12px 28px rgba(31, 47, 69, 0.055),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
@@ -5404,17 +5402,17 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 4.4rem;
-  height: 4.4rem;
-  border: 8px solid #ffffff;
+  width: 3.85rem;
+  height: 3.85rem;
+  border: 6px solid #ffffff;
   border-radius: 999px;
   background:
     linear-gradient(#ffffff, #ffffff) padding-box,
-    conic-gradient(#2c7be5, #0f5fb8, #2c7be5) border-box;
+    conic-gradient(#2f80ed 0deg, #0f63c4 300deg, #e8eef7 300deg 360deg) border-box;
   color: #102041;
-  font-size: 1.05rem;
+  font-size: 0.98rem;
   font-weight: 900;
-  box-shadow: 0 12px 26px rgba(23, 97, 174, 0.12);
+  box-shadow: 0 10px 22px rgba(23, 97, 174, 0.11);
 }
 
 #app-shell .progress-title {
@@ -5432,46 +5430,48 @@ tbody tr:hover {
 
 #app-shell .progress-bullet-bar {
   position: relative;
-  height: 30px;
+  height: 24px;
   overflow: hidden;
-  border: 1px solid #d8e2ef;
+  border: 1px solid #dce5f0;
   border-radius: 999px;
-  background: #f2f6fb;
-  box-shadow: inset 0 1px 2px rgba(31, 47, 69, 0.08);
+  background: #edf2f7;
+  box-shadow:
+    inset 0 1px 2px rgba(31, 47, 69, 0.08),
+    0 8px 18px rgba(31, 47, 69, 0.045);
 }
 
 #app-shell .progress-bullet-bar::after {
   content: "";
   position: absolute;
-  inset: 4px;
+  inset: 3px;
   z-index: 3;
   border-radius: inherit;
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
+    linear-gradient(90deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
   pointer-events: none;
 }
 
 #app-shell .progress-fill {
   border-radius: inherit;
-  background: linear-gradient(90deg, #4d89d8 0%, #1e66bd 62%, #0d4f9e 100%);
-  box-shadow: 0 12px 24px rgba(23, 97, 174, 0.16);
+  background: linear-gradient(90deg, #4c8fe2 0%, #1f6dcc 68%, #0f5fb8 100%);
+  box-shadow: 0 8px 16px rgba(23, 97, 174, 0.12);
 }
 
 #app-shell .progress-bullet-note {
   margin: 0.25rem 0 0;
-  color: #5f6f86;
-  font-size: 0.88rem;
+  color: #66758d;
+  font-size: 0.82rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 #app-shell .progress-bullet-ticks {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  margin: 0 0 0.35rem;
-  color: #6d7a91;
-  font-size: 0.74rem;
+  margin: 0 0 0.3rem;
+  color: #66758d;
+  font-size: 0.7rem;
   font-weight: 800;
 }
 
@@ -5490,27 +5490,27 @@ tbody tr:hover {
 #app-shell .progress-bullet-status {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
-  margin-top: 0.85rem;
-  color: #20a33f;
+  gap: 0.48rem;
+  margin-top: 0.72rem;
+  color: #209542;
 }
 
 #app-shell .progress-status-icon {
-  width: 2rem;
-  height: 2rem;
+  width: 1.65rem;
+  height: 1.65rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: #e6f8e9;
-  color: #20a33f;
-  font-size: 1.1rem;
+  background: #eaf8ed;
+  color: #209542;
+  font-size: 0.95rem;
   font-weight: 900;
 }
 
 #app-shell .progress-bullet-status strong {
-  color: #20a33f;
-  font-size: 0.95rem;
+  color: #209542;
+  font-size: 0.88rem;
   font-weight: 900;
 }
 
