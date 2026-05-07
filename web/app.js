@@ -11884,6 +11884,7 @@ function renderDashboardExecutionSummary(snapshot) {
   const classesOpenCount = document.getElementById("dashboard-overview-classes-open-count");
   const gradesOpenCount = document.getElementById("dashboard-overview-grades-open-count");
   const overridesOpenCount = document.getElementById("dashboard-overview-overrides-open-count");
+  const openItemsDateButtons = document.querySelectorAll("[data-open-items-date]");
   const detailCompletionValue = document.getElementById("dashboard-completion-today-value");
   const detailCompletionNote = document.getElementById("dashboard-completion-today-note");
   const completionFill = document.getElementById("dashboard-completion-today-fill");
@@ -11913,6 +11914,9 @@ function renderDashboardExecutionSummary(snapshot) {
   if (classesOpenCount) classesOpenCount.textContent = String(snapshot.needsCompletionCount);
   if (gradesOpenCount) gradesOpenCount.textContent = String(snapshot.needsGradeCount);
   if (overridesOpenCount) overridesOpenCount.textContent = String(snapshot.overrideCount);
+  openItemsDateButtons.forEach((button) => {
+    button.setAttribute("data-date", snapshot.date);
+  });
   if (detailCompletionValue) detailCompletionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
   if (detailCompletionNote) detailCompletionNote.textContent = snapshot.scheduledCount
     ? `${snapshot.completedCount} of ${snapshot.scheduledCount} scheduled classes are completed on ${formatDisplayDate(snapshot.date)}.`

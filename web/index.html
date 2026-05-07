@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605071445">
+  <link rel="stylesheet" href="styles.css?v=202605071635">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -237,10 +237,10 @@
             <p id="dashboard-overview-attention-label" class="dashboard-summary-label">Open Items Today</p>
             <p id="dashboard-overview-attention-value" class="dashboard-summary-value">0</p>
             <div class="dashboard-open-mini" aria-label="Open item breakdown">
-              <span><b id="dashboard-overview-attendance-open-count">0</b><small>Attendance</small></span>
-              <span><b id="dashboard-overview-classes-open-count">0</b><small>Classes</small></span>
-              <span><b id="dashboard-overview-grades-open-count">0</b><small>Grades</small></span>
-              <span><b id="dashboard-overview-overrides-open-count">0</b><small>Overrides</small></span>
+              <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="attendance" data-open-items-date="1"><b id="dashboard-overview-attendance-open-count">0</b><small>Attendance</small></button>
+              <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-school-day-quick-filter="needs-completion" data-open-items-date="1"><b id="dashboard-overview-classes-open-count">0</b><small>Classes</small></button>
+              <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-school-day-quick-filter="needs-grade" data-open-items-date="1"><b id="dashboard-overview-grades-open-count">0</b><small>Grades</small></button>
+              <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-school-day-quick-filter="overridden" data-open-items-date="1"><b id="dashboard-overview-overrides-open-count">0</b><small>Overrides</small></button>
             </div>
             <p id="dashboard-overview-attention-note" class="dashboard-summary-note muted">No open items for today.</p>
           </article>
@@ -1972,6 +1972,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605071610"></script>
+  <script src="app.js?v=202605071635"></script>
   </body>
   </html>

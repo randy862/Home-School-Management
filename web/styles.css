@@ -4098,7 +4098,7 @@ h4 {
   margin-top: 1.15rem;
 }
 
-.dashboard-open-mini span {
+.dashboard-open-mini button {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -4108,6 +4108,16 @@ h4 {
   border: 1px solid #e3ebf4;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.dashboard-open-mini button:hover,
+.dashboard-open-mini button:focus-visible {
+  border-color: #b8d1ea;
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+  transform: translateY(-1px);
 }
 
 .dashboard-open-mini b {
