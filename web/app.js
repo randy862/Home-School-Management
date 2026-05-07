@@ -4575,7 +4575,7 @@ function assignedInstructorIdForCourse(courseId) {
   return String(course?.instructorId || "").trim();
 }
 function testInstructorId(test) {
-  return assignedInstructorIdForCourse(test?.courseId || "");
+  return effectiveInstructionInstructorId(test?.studentId || "", test?.courseId || "", test?.date || "");
 }
 function testMatchesInstructorFilter(test, filterInstructorId) {
   return matchesInstructorFilter(testInstructorId(test), filterInstructorId);
