@@ -5906,6 +5906,140 @@ tbody tr:hover {
   color: inherit;
 }
 
+#app-shell .dashboard-open-gauge {
+  --open-gauge: #1761ae;
+  --open-gauge-dark: #0f4f99;
+  --open-gauge-soft: #eaf2ff;
+  position: relative;
+  min-height: 182px;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  gap: 0.48rem;
+  overflow: hidden;
+  padding: 0.92rem 0.95rem 0.95rem;
+  border: 1px solid #dfe7f1;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--open-gauge) 10%, transparent), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  color: #14233b;
+  text-align: left;
+  box-shadow: 0 14px 28px rgba(31, 47, 69, 0.05);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+#app-shell .dashboard-open-gauge::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--open-gauge-dark), color-mix(in srgb, var(--open-gauge) 64%, white));
+}
+
+#app-shell .dashboard-open-gauge:hover,
+#app-shell .dashboard-open-gauge:focus-visible {
+  border-color: color-mix(in srgb, var(--open-gauge) 38%, #dfe7f1);
+  box-shadow: 0 18px 34px rgba(31, 47, 69, 0.1);
+  transform: translateY(-1px);
+}
+
+#app-shell .dashboard-open-gauge-icon {
+  width: 3.1rem;
+  height: 3.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--open-gauge) 28%, #ffffff);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.98) 0 52%, transparent 53%),
+    color-mix(in srgb, var(--open-gauge-soft) 72%, white);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--open-gauge) 13%, transparent);
+}
+
+#app-shell .dashboard-open-gauge-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+  fill: none;
+  stroke: var(--open-gauge);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+#app-shell .dashboard-open-gauge-label {
+  color: #6b778c;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+#app-shell .dashboard-open-gauge-value {
+  color: var(--open-gauge-dark);
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+}
+
+#app-shell .dashboard-open-gauge-action {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  width: 2.2rem;
+  height: 2.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--open-gauge-soft) 62%, white);
+  color: var(--open-gauge);
+}
+
+#app-shell .dashboard-open-gauge-action svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+#app-shell .dashboard-open-gauge-note {
+  align-self: end;
+  max-width: 24ch;
+  color: #5f6f86;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+#app-shell .dashboard-open-gauge-attendance {
+  --open-gauge: #1761ae;
+  --open-gauge-dark: #0f4f99;
+  --open-gauge-soft: #eaf2ff;
+}
+
+#app-shell .dashboard-open-gauge-classes {
+  --open-gauge: #2a9d68;
+  --open-gauge-dark: #1f7a4f;
+  --open-gauge-soft: #eaf8f0;
+}
+
+#app-shell .dashboard-open-gauge-grades {
+  --open-gauge: #8b4ae8;
+  --open-gauge-dark: #5f2ab5;
+  --open-gauge-soft: #f1eaff;
+}
+
+#app-shell .dashboard-open-gauge-overrides {
+  --open-gauge: #e8751a;
+  --open-gauge-dark: #bd5608;
+  --open-gauge-soft: #fff1e7;
+}
+
 #app-shell button.dashboard-chip-card:hover {
   border-color: #c8d8ec;
   background: #f8fbff;

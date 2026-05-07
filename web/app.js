@@ -12415,14 +12415,47 @@ function renderDashboardExecutionSummary(snapshot) {
   const chipsHost = document.getElementById("dashboard-needs-attention-chips");
   if (chipsHost) {
     chipsHost.innerHTML = [
-      { label: "Attendance Open", value: snapshot.needsAttendanceCount, quickFilter: "needs-attendance" },
-      { label: "Classes Open", value: snapshot.needsCompletionCount, quickFilter: "needs-completion" },
-      { label: "Grades Open", value: snapshot.needsGradeCount, quickFilter: "needs-grade" },
-      { label: "Overrides Active", value: snapshot.overrideCount, quickFilter: "overridden" }
+      {
+        key: "attendance",
+        label: "Attendance Open",
+        value: snapshot.needsAttendanceCount,
+        quickFilter: "needs-attendance",
+        note: `${snapshot.needsAttendanceCount} attendance record${snapshot.needsAttendanceCount === 1 ? "" : "s"} still open for ${formatDisplayDate(snapshot.date)}.`,
+        icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>`
+      },
+      {
+        key: "classes",
+        label: "Classes Open",
+        value: snapshot.needsCompletionCount,
+        quickFilter: "needs-completion",
+        note: `${snapshot.needsCompletionCount} scheduled class${snapshot.needsCompletionCount === 1 ? "" : "es"} still need${snapshot.needsCompletionCount === 1 ? "s" : ""} completion for ${formatDisplayDate(snapshot.date)}.`,
+        icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M8 7h8M8 11h6"/></svg>`
+      },
+      {
+        key: "grades",
+        label: "Grades Open",
+        value: snapshot.needsGradeCount,
+        quickFilter: "needs-grade",
+        note: `${snapshot.needsGradeCount} class${snapshot.needsGradeCount === 1 ? "" : "es"} still need${snapshot.needsGradeCount === 1 ? "s" : ""} grades for ${formatDisplayDate(snapshot.date)}.`,
+        icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 3v5h5"/><path d="M8 16h5M8 12h8"/></svg>`
+      },
+      {
+        key: "overrides",
+        label: "Overrides Active",
+        value: snapshot.overrideCount,
+        quickFilter: "overridden",
+        note: `${snapshot.overrideCount} schedule override${snapshot.overrideCount === 1 ? "" : "s"} active for ${formatDisplayDate(snapshot.date)}.`,
+        icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M2 14h4"/><path d="M10 8h4"/><path d="M18 16h4"/></svg>`
+      }
     ].map((item) => `
-      <button type="button" class="dashboard-chip-card" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-school-day-quick-filter="${item.quickFilter}">
-        <p class="dashboard-chip-label">${item.label}</p>
-        <p class="dashboard-chip-value">${item.value}</p>
+      <button type="button" class="dashboard-open-gauge dashboard-open-gauge-${item.key}" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-school-day-quick-filter="${item.quickFilter}" data-dashboard-context-label="${item.label}">
+        <span class="dashboard-open-gauge-icon">${item.icon}</span>
+        <span class="dashboard-open-gauge-label">${item.label}</span>
+        <span class="dashboard-open-gauge-value">${item.value}</span>
+        <span class="dashboard-open-gauge-action" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+        <span class="dashboard-open-gauge-note">${item.note}</span>
       </button>`).join("");
   }
 }
