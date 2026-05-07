@@ -6786,7 +6786,7 @@ tbody tr:hover {
   gap: 0.35rem;
 }
 
-#app-shell .trend-view-toggle span {
+#app-shell .trend-view-toggle button {
   display: inline-flex;
   align-items: center;
   min-height: 32px;
@@ -6797,9 +6797,10 @@ tbody tr:hover {
   font-size: 0.82rem;
   font-weight: 750;
   background: #ffffff;
+  cursor: pointer;
 }
 
-#app-shell .trend-view-toggle .active {
+#app-shell .trend-view-toggle button.active {
   border-color: #d8e5ff;
   background: #eef5ff;
   color: #2563eb;
@@ -6860,6 +6861,10 @@ tbody tr:hover {
   stroke-linecap: round;
   stroke-linejoin: round;
   filter: url(#gradeTrendGlow);
+}
+
+#app-shell .trend-area {
+  fill-opacity: 0.08;
 }
 
 #app-shell .trend-point {

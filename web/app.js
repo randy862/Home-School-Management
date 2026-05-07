@@ -1465,6 +1465,8 @@ let dashboardExpandableMetricsCache = null;
 let dashboardDirty = true;
 const studentPerformanceSelectedGradeMethods = new Set(STUDENT_PERFORMANCE_GRADE_METHODS);
 const trendSelectedStudentIds = new Set();
+let gradeTrendViewMode = "line";
+let gradeTrendShowDataPoints = true;
 const gpaTrendSelectedStudentIds = new Set();
 const instructionHoursTrendSelectedStudentIds = new Set();
 const complianceHoursSelectedStudentIds = new Set();
@@ -10393,6 +10395,7 @@ function renderGradeTrending() {
     const clamped = clamp(value, yMin, yMax);
     return margin.top + ((yMax - clamped) / (yMax - yMin)) * plotH;
   };
+  const baselineY = yFor(yMin);
 
   const yTickSvg = yTicks.map((tick) => {
     const y = yFor(tick);
@@ -10417,12 +10420,23 @@ function renderGradeTrending() {
     return path ? `<path d="${path.trim()}" class="trend-line" style="stroke:${lineSeries.color}" fill="none"></path>` : "";
   }).join("");
 
-  const pointSvg = series.flatMap((lineSeries) => lineSeries.monthly.map((row, idx) => {
+  const areaSvg = gradeTrendViewMode === "area" ? series.map((lineSeries) => {
+    const points = lineSeries.monthly
+      .map((row, idx) => row.count > 0 ? { x: xFor(idx), y: yFor(row.avg || 0) } : null)
+      .filter(Boolean);
+    if (points.length < 2) return "";
+    const linePath = points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+    const first = points[0];
+    const last = points[points.length - 1];
+    return `<path d="${linePath} L ${last.x.toFixed(2)} ${baselineY.toFixed(2)} L ${first.x.toFixed(2)} ${baselineY.toFixed(2)} Z" class="trend-area" style="fill:${lineSeries.color}"></path>`;
+  }).join("") : "";
+
+  const pointSvg = gradeTrendShowDataPoints ? series.flatMap((lineSeries) => lineSeries.monthly.map((row, idx) => {
     if (row.count <= 0) return "";
     const x = xFor(idx);
     const y = yFor(row.avg || 0);
     return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${lineSeries.color};stroke:${lineSeries.color}"><title>${lineSeries.label} ${row.label}: ${row.avg.toFixed(1)}%</title></circle>`;
-  })).join("");
+  })).join("") : "";
 
   const labelTop = margin.top + 10;
   const labelBottom = height - margin.bottom - 6;
@@ -10470,7 +10484,7 @@ function renderGradeTrending() {
       valueLabelParts.push(`<g class="trend-value-pill"><rect x="${(label.x - labelWidth / 2).toFixed(2)}" y="${(label.preferredY - 12).toFixed(2)}" width="${labelWidth}" height="18" rx="6" style="fill:${label.color};stroke:${label.color}"></rect><text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text></g>`);
     });
   });
-  const valueLabelSvg = valueLabelParts.join("");
+  const valueLabelSvg = gradeTrendShowDataPoints ? valueLabelParts.join("") : "";
 
   const firstSeries = series[0];
   const firstDataRows = firstSeries ? firstSeries.monthly.filter((row) => row.count > 0) : [];
@@ -10523,8 +10537,11 @@ function renderGradeTrending() {
   chartHost.innerHTML = `
     <div class="trend-chart-panel">
     <div class="trend-chart-toolbar">
-      <div class="trend-view-toggle" aria-hidden="true"><span class="active">Line View</span><span>Area View</span></div>
-      <label class="trend-data-toggle"><span>Show Data Points</span><input type="checkbox" checked disabled><span aria-hidden="true"></span></label>
+      <div class="trend-view-toggle" aria-label="Grade trend chart view">
+        <button type="button" data-grade-trend-view="line" class="${gradeTrendViewMode === "line" ? "active" : ""}">Line View</button>
+        <button type="button" data-grade-trend-view="area" class="${gradeTrendViewMode === "area" ? "active" : ""}">Area View</button>
+      </div>
+      <label class="trend-data-toggle"><span>Show Data Points</span><input id="grade-trend-data-points-toggle" type="checkbox"${gradeTrendShowDataPoints ? " checked" : ""}><span aria-hidden="true"></span></label>
     </div>
     <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly grade trend line chart">
       <defs>
@@ -10534,6 +10551,7 @@ function renderGradeTrending() {
       <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
       ${yTickSvg}
       ${xTickSvg}
+      ${areaSvg}
       ${lineSvg}
       ${pointSvg}
       ${valueLabelSvg}
@@ -16935,6 +16953,26 @@ function bindEvents() {
       renderGradeTrending();
     });
   }
+  document.getElementById("grade-trending-chart")?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const viewButton = target.closest("[data-grade-trend-view]");
+    if (viewButton instanceof HTMLElement) {
+      const view = viewButton.getAttribute("data-grade-trend-view");
+      if (view === "line" || view === "area") {
+        gradeTrendViewMode = view;
+        renderGradeTrending();
+      }
+    }
+  });
+  document.getElementById("grade-trending-chart")?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.id === "grade-trend-data-points-toggle") {
+      gradeTrendShowDataPoints = target.checked;
+      renderGradeTrending();
+    }
+  });
   ["gpa-trend-filter-quarter", "gpa-trend-filter-subject", "gpa-trend-filter-instructor", "gpa-trend-filter-grade-type"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGpaTrending());
