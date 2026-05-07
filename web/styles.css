@@ -5841,10 +5841,12 @@ tbody tr:hover {
 #app-shell .dashboard-visual-card-open .dashboard-summary-value,
 #app-shell .dashboard-visual-card-grades .dashboard-summary-value {
   color: var(--card-accent-dark);
-  font-size: clamp(3.65rem, 6.9vw, 5.65rem);
+  max-width: 100%;
+  font-size: clamp(2.35rem, 3.8vw, 3.15rem);
   font-weight: 900;
-  line-height: 0.95;
-  letter-spacing: -0.04em;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  overflow-wrap: anywhere;
 }
 
 #app-shell .dashboard-summary-value.positive {
