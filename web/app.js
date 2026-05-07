@@ -12248,8 +12248,12 @@ function renderDashboard() {
 
   document.getElementById("year-progress-fill").style.width = `${yP.toFixed(1)}%`;
   document.getElementById("year-progress-text").textContent = `${state.settings.schoolYear.label}: ${yP.toFixed(1)}%`;
+  const yearProgressBadge = document.getElementById("year-progress-badge");
+  if (yearProgressBadge) yearProgressBadge.textContent = `${yP.toFixed(1)}%`;
   document.getElementById("quarter-progress-fill").style.width = `${qP.toFixed(1)}%`;
   document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
+  const quarterProgressBadge = document.getElementById("quarter-progress-badge");
+  if (quarterProgressBadge) quarterProgressBadge.textContent = q ? `${qP.toFixed(1)}%` : "-";
   renderDashboardExecutionSummary(buildDashboardExecutionSnapshot(referenceDate, dashboardStudents));
   renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate));
   renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
