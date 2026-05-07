@@ -1481,6 +1481,7 @@ const workDistributionSelectedGradeTypes = new Set();
 const studentPerformanceSelectedInstructorIds = new Set();
 const studentInstructionalHoursSelectedInstructorIds = new Set();
 let studentInstructionalHoursSelectedStudentId = "all";
+let completionTodaySelectedStudentId = "all";
 let workDistributionGradeTypesInitialized = false;
 let editingCourseId = "";
 let courseFormOpen = false;
@@ -12162,14 +12163,20 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
         ? sum + effectiveInstructionMinutes(student.id, block.courseId, referenceISO)
         : sum
     ), 0);
+    const scheduledMinutes = instructionBlocks.reduce((sum, block) => (
+      sum + effectiveInstructionMinutes(student.id, block.courseId, referenceISO)
+    ), 0);
+    const gradedCount = instructionBlocks.filter((block) => gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length > 0).length;
     return {
       student,
       scheduledCount: instructionBlocks.length,
       completedCount,
       openCount: Math.max(instructionBlocks.length - completedCount, 0),
+      gradedCount,
       needsGradeCount,
       overrideCount,
       completedMinutes,
+      scheduledMinutes,
       attendanceState: attendance ? (attendance.present ? "present" : "absent") : "open"
     };
   }).filter(Boolean);
@@ -12177,10 +12184,12 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
   const totals = students.reduce((summary, entry) => {
     summary.scheduledCount += entry.scheduledCount;
     summary.completedCount += entry.completedCount;
+    summary.gradedCount += entry.gradedCount;
     summary.needsGradeCount += entry.needsGradeCount;
     summary.overrideCount += entry.overrideCount;
     summary.needsCompletionCount += entry.openCount;
     summary.completedMinutes += entry.completedMinutes;
+    summary.scheduledMinutes += entry.scheduledMinutes;
     if (entry.attendanceState === "open") summary.needsAttendanceCount += 1;
     if (entry.attendanceState === "present") summary.presentCount += 1;
     if (entry.attendanceState === "absent") summary.absentCount += 1;
@@ -12188,22 +12197,78 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
   }, {
     scheduledCount: 0,
     completedCount: 0,
+    gradedCount: 0,
     needsGradeCount: 0,
     overrideCount: 0,
     needsCompletionCount: 0,
     needsAttendanceCount: 0,
     presentCount: 0,
     absentCount: 0,
-    completedMinutes: 0
+    completedMinutes: 0,
+    scheduledMinutes: 0
   });
 
   return {
     date: referenceISO,
     students,
     completionPercent: totals.scheduledCount > 0 ? (totals.completedCount / totals.scheduledCount) * 100 : 0,
+    gradedPercent: totals.scheduledCount > 0 ? (totals.gradedCount / totals.scheduledCount) * 100 : 0,
+    loggedHoursPercent: totals.scheduledMinutes > 0 ? (totals.completedMinutes / totals.scheduledMinutes) * 100 : 0,
     attentionTotal: totals.needsAttendanceCount + totals.needsGradeCount + totals.needsCompletionCount + totals.overrideCount,
     ...totals
   };
+}
+
+function filterDashboardExecutionSnapshot(snapshot, studentId = "all") {
+  if (!snapshot || !studentId || studentId === "all") return snapshot;
+  const students = (snapshot.students || []).filter((entry) => entry.student?.id === studentId);
+  const totals = students.reduce((summary, entry) => {
+    summary.scheduledCount += entry.scheduledCount;
+    summary.completedCount += entry.completedCount;
+    summary.gradedCount += entry.gradedCount;
+    summary.needsGradeCount += entry.needsGradeCount;
+    summary.overrideCount += entry.overrideCount;
+    summary.needsCompletionCount += entry.openCount;
+    summary.completedMinutes += entry.completedMinutes;
+    summary.scheduledMinutes += entry.scheduledMinutes;
+    if (entry.attendanceState === "open") summary.needsAttendanceCount += 1;
+    if (entry.attendanceState === "present") summary.presentCount += 1;
+    if (entry.attendanceState === "absent") summary.absentCount += 1;
+    return summary;
+  }, {
+    scheduledCount: 0,
+    completedCount: 0,
+    gradedCount: 0,
+    needsGradeCount: 0,
+    overrideCount: 0,
+    needsCompletionCount: 0,
+    needsAttendanceCount: 0,
+    presentCount: 0,
+    absentCount: 0,
+    completedMinutes: 0,
+    scheduledMinutes: 0
+  });
+  return {
+    ...snapshot,
+    students,
+    completionPercent: totals.scheduledCount > 0 ? (totals.completedCount / totals.scheduledCount) * 100 : 0,
+    gradedPercent: totals.scheduledCount > 0 ? (totals.gradedCount / totals.scheduledCount) * 100 : 0,
+    loggedHoursPercent: totals.scheduledMinutes > 0 ? (totals.completedMinutes / totals.scheduledMinutes) * 100 : 0,
+    attentionTotal: totals.needsAttendanceCount + totals.needsGradeCount + totals.needsCompletionCount + totals.overrideCount,
+    ...totals
+  };
+}
+
+function renderCompletionTodayStudentFilter(dashboardStudents) {
+  const select = document.getElementById("dashboard-completion-today-student-filter");
+  if (!select) return;
+  const students = Array.isArray(dashboardStudents) ? dashboardStudents : visibleStudents();
+  const validIds = new Set(students.map((student) => student.id));
+  if (completionTodaySelectedStudentId !== "all" && !validIds.has(completionTodaySelectedStudentId)) {
+    completionTodaySelectedStudentId = "all";
+  }
+  select.innerHTML = `<option value="all">All Students</option>${students.map((student) => `<option value="${student.id}">${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</option>`).join("")}`;
+  select.value = validIds.has(completionTodaySelectedStudentId) ? completionTodaySelectedStudentId : "all";
 }
 
 function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructionalHoursSnapshot, yearProgressPercent, referenceDate = defaultReferenceDateForActiveYear()) {
@@ -12373,15 +12438,24 @@ function renderDashboardExecutionSummary(snapshot) {
   const detailCompletionValue = document.getElementById("dashboard-completion-today-value");
   const detailCompletionNote = document.getElementById("dashboard-completion-today-note");
   const completionFill = document.getElementById("dashboard-completion-today-fill");
+  const gradesValue = document.getElementById("dashboard-completion-grades-value");
+  const gradesFill = document.getElementById("dashboard-completion-grades-fill");
+  const hoursValue = document.getElementById("dashboard-completion-hours-value");
+  const hoursFill = document.getElementById("dashboard-completion-hours-fill");
+  const completionStatus = document.getElementById("dashboard-completion-today-status");
+  const gradesStatus = document.getElementById("dashboard-completion-grades-status");
+  const hoursStatus = document.getElementById("dashboard-completion-hours-status");
   const detailAttentionValue = document.getElementById("dashboard-needs-attention-value");
   const detailAttentionNote = document.getElementById("dashboard-needs-attention-note");
-  const completionRows = snapshot.students.map((entry) => `
+  const detailSnapshot = filterDashboardExecutionSnapshot(snapshot, completionTodaySelectedStudentId);
+  const completionRows = detailSnapshot.students.map((entry) => `
     <tr>
       <td>${escapeHtml(entry.student.firstName)} ${escapeHtml(entry.student.lastName)}</td>
       <td>${entry.scheduledCount}</td>
       <td>${entry.completedCount}</td>
+      <td>${entry.gradedCount}</td>
       <td>${entry.openCount}</td>
-      <td>${(entry.completedMinutes / 60).toFixed(2)}</td>
+      <td>${(entry.completedMinutes / 60).toFixed(2)} / ${(entry.scheduledMinutes / 60).toFixed(2)}</td>
     </tr>`);
 
   if (completionLabel) completionLabel.textContent = context.isLiveToday ? "Completion Today" : `Completion ${context.label}`;
@@ -12402,12 +12476,19 @@ function renderDashboardExecutionSummary(snapshot) {
   openItemsDateButtons.forEach((button) => {
     button.setAttribute("data-date", snapshot.date);
   });
-  if (detailCompletionValue) detailCompletionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
-  if (detailCompletionNote) detailCompletionNote.textContent = snapshot.scheduledCount
-    ? `${snapshot.completedCount} of ${snapshot.scheduledCount} scheduled classes are completed on ${formatDisplayDate(snapshot.date)}.`
+  if (detailCompletionValue) detailCompletionValue.textContent = `${detailSnapshot.completionPercent.toFixed(1)}%`;
+  if (gradesValue) gradesValue.textContent = `${detailSnapshot.gradedPercent.toFixed(1)}%`;
+  if (hoursValue) hoursValue.textContent = `${detailSnapshot.loggedHoursPercent.toFixed(1)}%`;
+  if (detailCompletionNote) detailCompletionNote.textContent = detailSnapshot.scheduledCount
+    ? `${detailSnapshot.completedCount} of ${detailSnapshot.scheduledCount} scheduled classes are completed on ${formatDisplayDate(snapshot.date)}.`
     : `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`;
-  if (completionFill) completionFill.style.width = `${snapshot.completionPercent.toFixed(1)}%`;
-  rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`, 5);
+  if (completionFill) completionFill.style.width = `${detailSnapshot.completionPercent.toFixed(1)}%`;
+  if (gradesFill) gradesFill.style.width = `${detailSnapshot.gradedPercent.toFixed(1)}%`;
+  if (hoursFill) hoursFill.style.width = `${detailSnapshot.loggedHoursPercent.toFixed(1)}%`;
+  if (completionStatus) completionStatus.textContent = `${detailSnapshot.completedCount} / ${detailSnapshot.scheduledCount} classes completed`;
+  if (gradesStatus) gradesStatus.textContent = `${detailSnapshot.gradedCount} / ${detailSnapshot.scheduledCount} scheduled classes graded`;
+  if (hoursStatus) hoursStatus.textContent = `${(detailSnapshot.completedMinutes / 60).toFixed(2)} / ${(detailSnapshot.scheduledMinutes / 60).toFixed(2)} hours logged`;
+  rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`, 6);
   if (detailAttentionValue) detailAttentionValue.textContent = String(snapshot.attentionTotal);
   if (detailAttentionNote) detailAttentionNote.textContent = snapshot.attentionTotal
     ? `Open on ${formatDisplayDate(snapshot.date)}: ${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
@@ -12877,6 +12958,7 @@ function renderDashboard() {
   if (quarterProgressBadge) quarterProgressBadge.textContent = q ? `${qP.toFixed(1)}%` : "-";
   const quarterProgressStatus = document.getElementById("quarter-progress-status");
   if (quarterProgressStatus) quarterProgressStatus.textContent = q ? calendarProgressStatus(qP) : "No quarter set";
+  renderCompletionTodayStudentFilter(dashboardStudents);
   renderDashboardExecutionSummary(buildDashboardExecutionSnapshot(referenceDate, dashboardStudents));
   renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate));
   renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
@@ -17565,6 +17647,11 @@ function bindEvents() {
     }
     if ((t.id === "student-instructional-hours-student-filter" || t.id === "dashboard-hour-pace-student-filter") && t instanceof HTMLSelectElement) {
       studentInstructionalHoursSelectedStudentId = t.value || "all";
+      renderDashboard();
+      return;
+    }
+    if (t.id === "dashboard-completion-today-student-filter" && t instanceof HTMLSelectElement) {
+      completionTodaySelectedStudentId = t.value || "all";
       renderDashboard();
       return;
     }

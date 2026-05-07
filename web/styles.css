@@ -6045,6 +6045,7 @@ tbody tr:hover {
 }
 
 #app-shell .completion-detail-gauge .progress-bullet-header {
+  align-items: flex-start;
   margin-bottom: 1.05rem;
 }
 
@@ -6061,14 +6062,88 @@ tbody tr:hover {
   line-height: 1.35;
 }
 
-#app-shell .completion-detail-gauge .progress-bullet-badge {
-  width: 4.35rem;
-  height: 4.35rem;
-  font-size: 1.05rem;
+#app-shell .completion-detail-filter {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 220px;
+  color: #5f6f89;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#app-shell .completion-detail-filter select {
+  min-height: 38px;
+  border-color: #dce6f4;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #233451;
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#app-shell .completion-detail-bars {
+  display: grid;
+  gap: 0.95rem;
+}
+
+#app-shell .completion-detail-bar-row {
+  display: grid;
+  gap: 0.28rem;
+}
+
+#app-shell .completion-detail-bar-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+#app-shell .completion-detail-bar-heading span {
+  color: #6b778c;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#app-shell .completion-detail-bar-heading strong {
+  color: #14233b;
+  font-size: 1.08rem;
+  font-weight: 900;
 }
 
 #app-shell .completion-detail-bar {
   height: 12px;
+}
+
+#app-shell .completion-detail-bar-grades .progress-fill {
+  background: linear-gradient(90deg, #7b61ff 0%, #8b4ae8 58%, #5f2ab5 100%);
+}
+
+#app-shell .completion-detail-bar-grades .progress-status-icon,
+#app-shell .completion-detail-bar-grades .progress-bullet-status strong {
+  color: #5f2ab5;
+}
+
+#app-shell .completion-detail-bar-grades .progress-status-icon {
+  background: #f1eaff;
+}
+
+#app-shell .completion-detail-bar-hours .progress-fill {
+  background: linear-gradient(90deg, #35b987 0%, #2a9d68 58%, #1f7a4f 100%);
+}
+
+#app-shell .completion-detail-bar-hours .progress-status-icon,
+#app-shell .completion-detail-bar-hours .progress-bullet-status strong {
+  color: #1f7a4f;
+}
+
+#app-shell .completion-detail-bar-hours .progress-status-icon {
+  background: #eaf8f0;
 }
 
 #app-shell .completion-detail-table-wrap {
