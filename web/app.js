@@ -1481,7 +1481,9 @@ const workDistributionSelectedGradeTypes = new Set();
 const studentPerformanceSelectedInstructorIds = new Set();
 const studentInstructionalHoursSelectedInstructorIds = new Set();
 let studentInstructionalHoursSelectedStudentId = "all";
-let completionTodaySelectedStudentId = "all";
+const completionTodaySelectedStudentIds = new Set();
+const completionTodaySelectedInstructorIds = new Set();
+let completionTodaySelectedSubjectId = "all";
 let workDistributionGradeTypesInitialized = false;
 let editingCourseId = "";
 let courseFormOpen = false;
@@ -12147,12 +12149,17 @@ function renderDashboardExpandableTablesFast() {
   );
 }
 
-function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
+function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filters = {}) {
   const targetStudents = Array.isArray(dashboardStudents) ? dashboardStudents : visibleStudents();
   const studentIds = targetStudents.map((student) => student.id);
   const blocksByStudent = dailyScheduledBlocks(referenceISO, studentIds);
+  const instructorIds = Array.isArray(filters.instructorIds) ? filters.instructorIds.filter(Boolean) : [];
+  const subjectId = filters.subjectId || "all";
   const students = targetStudents.map((student) => {
-    const instructionBlocks = (blocksByStudent.get(student.id) || []).filter((block) => block.type === "instruction");
+    const instructionBlocks = (blocksByStudent.get(student.id) || [])
+      .filter((block) => block.type === "instruction")
+      .filter((block) => subjectId === "all" || getCourse(block.courseId)?.subjectId === subjectId)
+      .filter((block) => !instructorIds.length || instructorIds.some((instructorId) => instructionMatchesInstructorFilter(student.id, block.courseId, referenceISO, instructorId)));
     if (!instructionBlocks.length) return null;
     const completedCount = instructionBlocks.filter((block) => effectiveInstructionCompleted(student.id, block.courseId, referenceISO)).length;
     const needsGradeCount = instructionBlocks.filter((block) => gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length === 0).length;
@@ -12219,56 +12226,61 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents) {
   };
 }
 
-function filterDashboardExecutionSnapshot(snapshot, studentId = "all") {
-  if (!snapshot || !studentId || studentId === "all") return snapshot;
-  const students = (snapshot.students || []).filter((entry) => entry.student?.id === studentId);
-  const totals = students.reduce((summary, entry) => {
-    summary.scheduledCount += entry.scheduledCount;
-    summary.completedCount += entry.completedCount;
-    summary.gradedCount += entry.gradedCount;
-    summary.needsGradeCount += entry.needsGradeCount;
-    summary.overrideCount += entry.overrideCount;
-    summary.needsCompletionCount += entry.openCount;
-    summary.completedMinutes += entry.completedMinutes;
-    summary.scheduledMinutes += entry.scheduledMinutes;
-    if (entry.attendanceState === "open") summary.needsAttendanceCount += 1;
-    if (entry.attendanceState === "present") summary.presentCount += 1;
-    if (entry.attendanceState === "absent") summary.absentCount += 1;
-    return summary;
-  }, {
-    scheduledCount: 0,
-    completedCount: 0,
-    gradedCount: 0,
-    needsGradeCount: 0,
-    overrideCount: 0,
-    needsCompletionCount: 0,
-    needsAttendanceCount: 0,
-    presentCount: 0,
-    absentCount: 0,
-    completedMinutes: 0,
-    scheduledMinutes: 0
-  });
-  return {
-    ...snapshot,
-    students,
-    completionPercent: totals.scheduledCount > 0 ? (totals.completedCount / totals.scheduledCount) * 100 : 0,
-    gradedPercent: totals.scheduledCount > 0 ? (totals.gradedCount / totals.scheduledCount) * 100 : 0,
-    loggedHoursPercent: totals.scheduledMinutes > 0 ? (totals.completedMinutes / totals.scheduledMinutes) * 100 : 0,
-    attentionTotal: totals.needsAttendanceCount + totals.needsGradeCount + totals.needsCompletionCount + totals.overrideCount,
-    ...totals
-  };
-}
-
-function renderCompletionTodayStudentFilter(dashboardStudents) {
-  const select = document.getElementById("dashboard-completion-today-student-filter");
-  if (!select) return;
+function renderCompletionTodayFilterOptions(dashboardStudents) {
   const students = Array.isArray(dashboardStudents) ? dashboardStudents : visibleStudents();
   const validIds = new Set(students.map((student) => student.id));
-  if (completionTodaySelectedStudentId !== "all" && !validIds.has(completionTodaySelectedStudentId)) {
-    completionTodaySelectedStudentId = "all";
+  Array.from(completionTodaySelectedStudentIds).forEach((studentId) => {
+    if (!validIds.has(studentId)) completionTodaySelectedStudentIds.delete(studentId);
+  });
+  Array.from(completionTodaySelectedInstructorIds).forEach((instructorId) => {
+    if (!state.instructors.some((instructor) => instructor.id === instructorId)) completionTodaySelectedInstructorIds.delete(instructorId);
+  });
+  if (completionTodaySelectedSubjectId !== "all" && !state.subjects.some((subject) => subject.id === completionTodaySelectedSubjectId)) {
+    completionTodaySelectedSubjectId = "all";
   }
-  select.innerHTML = `<option value="all">All Students</option>${students.map((student) => `<option value="${student.id}">${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</option>`).join("")}`;
-  select.value = validIds.has(completionTodaySelectedStudentId) ? completionTodaySelectedStudentId : "all";
+
+  const studentOptions = document.getElementById("completion-today-student-options");
+  if (studentOptions) {
+    studentOptions.innerHTML = students
+      .slice()
+      .sort((a, b) => `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`))
+      .map((student, idx) => {
+        const checked = completionTodaySelectedStudentIds.has(student.id) ? " checked" : "";
+        const inputId = `completion-today-student-${idx}-${student.id}`;
+        return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="completion-today-student-checkbox" value="${student.id}"${checked}><label for="${inputId}">${student.firstName} ${student.lastName}</label></div>`;
+      }).join("") || "<span>No students available.</span>";
+  }
+  const studentSummary = document.getElementById("completion-today-student-summary");
+  if (studentSummary) studentSummary.textContent = `Students (${completionTodaySelectedStudentIds.size} selected)`;
+
+  const instructorOptions = document.getElementById("completion-today-instructor-options");
+  if (instructorOptions) {
+    instructorOptions.innerHTML = state.instructors
+      .slice()
+      .sort((a, b) => `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`))
+      .map((instructor, idx) => {
+        const checked = completionTodaySelectedInstructorIds.has(instructor.id) ? " checked" : "";
+        const inputId = `completion-today-instructor-${idx}-${instructor.id}`;
+        return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="completion-today-instructor-checkbox" value="${instructor.id}"${checked}><label for="${inputId}">${instructor.firstName} ${instructor.lastName}</label></div>`;
+      }).join("") || "<span>No instructors available.</span>";
+  }
+  const instructorSummary = document.getElementById("completion-today-instructor-summary");
+  if (instructorSummary) instructorSummary.textContent = `Instructors (${completionTodaySelectedInstructorIds.size} selected)`;
+
+  const subjectSelect = document.getElementById("completion-today-subject-filter");
+  if (subjectSelect) {
+    subjectSelect.innerHTML = "<option value=\"all\">All Subjects</option>";
+    state.subjects
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((subject) => {
+        const option = document.createElement("option");
+        option.value = subject.id;
+        option.textContent = subject.name;
+        subjectSelect.appendChild(option);
+      });
+    subjectSelect.value = completionTodaySelectedSubjectId;
+  }
 }
 
 function buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructionalHoursSnapshot, yearProgressPercent, referenceDate = defaultReferenceDateForActiveYear()) {
@@ -12421,7 +12433,7 @@ function buildDashboardGradeRiskSnapshot(dashboardStudents) {
   };
 }
 
-function renderDashboardExecutionSummary(snapshot) {
+function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = snapshot) {
   const context = activeYearReferenceContext(snapshot.date);
   const completionLabel = document.getElementById("dashboard-overview-completion-label");
   const attentionLabel = document.getElementById("dashboard-overview-attention-label");
@@ -12447,7 +12459,7 @@ function renderDashboardExecutionSummary(snapshot) {
   const hoursStatus = document.getElementById("dashboard-completion-hours-status");
   const detailAttentionValue = document.getElementById("dashboard-needs-attention-value");
   const detailAttentionNote = document.getElementById("dashboard-needs-attention-note");
-  const detailSnapshot = filterDashboardExecutionSnapshot(snapshot, completionTodaySelectedStudentId);
+  const detailSnapshot = completionDetailSnapshot || snapshot;
   const completionRows = detailSnapshot.students.map((entry) => `
     <tr>
       <td>${escapeHtml(entry.student.firstName)} ${escapeHtml(entry.student.lastName)}</td>
@@ -12958,8 +12970,16 @@ function renderDashboard() {
   if (quarterProgressBadge) quarterProgressBadge.textContent = q ? `${qP.toFixed(1)}%` : "-";
   const quarterProgressStatus = document.getElementById("quarter-progress-status");
   if (quarterProgressStatus) quarterProgressStatus.textContent = q ? calendarProgressStatus(qP) : "No quarter set";
-  renderCompletionTodayStudentFilter(dashboardStudents);
-  renderDashboardExecutionSummary(buildDashboardExecutionSnapshot(referenceDate, dashboardStudents));
+  renderCompletionTodayFilterOptions(dashboardStudents);
+  const executionSnapshot = buildDashboardExecutionSnapshot(referenceDate, dashboardStudents);
+  const completionDetailStudents = completionTodaySelectedStudentIds.size
+    ? dashboardStudents.filter((student) => completionTodaySelectedStudentIds.has(student.id))
+    : dashboardStudents;
+  const completionDetailSnapshot = buildDashboardExecutionSnapshot(referenceDate, completionDetailStudents, {
+    instructorIds: Array.from(completionTodaySelectedInstructorIds),
+    subjectId: completionTodaySelectedSubjectId
+  });
+  renderDashboardExecutionSummary(executionSnapshot, completionDetailSnapshot);
   renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate));
   renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
   renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
@@ -17650,8 +17670,20 @@ function bindEvents() {
       renderDashboard();
       return;
     }
-    if (t.id === "dashboard-completion-today-student-filter" && t instanceof HTMLSelectElement) {
-      completionTodaySelectedStudentId = t.value || "all";
+    if (t.classList.contains("completion-today-student-checkbox")) {
+      completionTodaySelectedStudentIds.clear();
+      document.querySelectorAll(".completion-today-student-checkbox:checked").forEach((checkbox) => completionTodaySelectedStudentIds.add(checkbox.value));
+      renderDashboard();
+      return;
+    }
+    if (t.classList.contains("completion-today-instructor-checkbox")) {
+      completionTodaySelectedInstructorIds.clear();
+      document.querySelectorAll(".completion-today-instructor-checkbox:checked").forEach((checkbox) => completionTodaySelectedInstructorIds.add(checkbox.value));
+      renderDashboard();
+      return;
+    }
+    if (t.id === "completion-today-subject-filter" && t instanceof HTMLSelectElement) {
+      completionTodaySelectedSubjectId = t.value || "all";
       renderDashboard();
       return;
     }

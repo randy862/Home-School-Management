@@ -6044,6 +6044,68 @@ tbody tr:hover {
   margin-bottom: 0.9rem;
 }
 
+#app-shell #dashboard-section-completion-today {
+  padding: 1.35rem;
+  border-color: #dfe7f3;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(23, 36, 61, 0.06);
+}
+
+#app-shell .completion-detail-toolbar {
+  margin-bottom: 1.1rem;
+}
+
+#app-shell .completion-detail-toolbar .student-performance-heading p {
+  margin: 0.45rem 0 0;
+  color: #596986;
+  font-size: 0.95rem;
+}
+
+#app-shell #completion-today-filter-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 0.7rem;
+  align-items: end;
+  margin: 0;
+}
+
+#app-shell #completion-today-filter-form > label {
+  display: grid;
+  gap: 0.35rem;
+  color: #5f6f89;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#app-shell #completion-today-filter-form .multi-select-dropdown,
+#app-shell #completion-today-filter-form .multi-select-dropdown summary,
+#app-shell #completion-today-filter-form select {
+  width: 100%;
+  min-width: 0;
+}
+
+#app-shell #completion-today-filter-form .multi-select-dropdown,
+#app-shell #completion-today-filter-form select {
+  border-color: #dce6f4;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(23, 36, 61, 0.04);
+}
+
+#app-shell #completion-today-filter-form .multi-select-dropdown summary,
+#app-shell #completion-today-filter-form select {
+  min-height: 42px;
+  padding: 0.55rem 0.75rem;
+  color: #233451;
+  font-size: 0.88rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 #app-shell .completion-detail-gauge .progress-bullet-header {
   align-items: flex-start;
   margin-bottom: 1.05rem;
@@ -6060,29 +6122,6 @@ tbody tr:hover {
   font-size: 0.94rem;
   font-weight: 500;
   line-height: 1.35;
-}
-
-#app-shell .completion-detail-filter {
-  display: grid;
-  gap: 0.25rem;
-  min-width: 220px;
-  color: #5f6f89;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-#app-shell .completion-detail-filter select {
-  min-height: 38px;
-  border-color: #dce6f4;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #233451;
-  font-size: 0.88rem;
-  font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
 }
 
 #app-shell .completion-detail-bars {
@@ -6154,7 +6193,9 @@ tbody tr:hover {
 }
 
 #app-shell .completion-detail-table {
-  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 980px;
 }
 
 #app-shell .completion-detail-table th,
@@ -7271,6 +7312,10 @@ tbody tr:hover {
   }
 
   #app-shell #student-performance-filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell #completion-today-filter-form {
     grid-template-columns: 1fr;
   }
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605071725">
+  <link rel="stylesheet" href="styles.css?v=202605071750">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -289,17 +289,42 @@
       </div>
 
       <div id="dashboard-section-completion-today" class="dashboard-section dashboard-section-execution-detail hidden">
+        <div class="completion-detail-toolbar student-performance-toolbar">
+          <div class="student-performance-heading">
+            <span class="student-performance-heading-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-6"/><path d="M16 8h3v3"/></svg>
+            </span>
+            <div>
+              <h3>Completion Today</h3>
+              <p>Track daily class completion, grade entry, and logged instructional time.</p>
+            </div>
+          </div>
+          <form id="completion-today-filter-form" class="grid-form">
+            <label>Students
+              <details id="completion-today-student-dropdown" class="multi-select-dropdown">
+                <summary id="completion-today-student-summary">Students (0 selected)</summary>
+                <div id="completion-today-student-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label>Instructor
+              <details id="completion-today-instructor-dropdown" class="multi-select-dropdown">
+                <summary id="completion-today-instructor-summary">Instructors (0 selected)</summary>
+                <div id="completion-today-instructor-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label>Subject
+              <select id="completion-today-subject-filter">
+                <option value="all">All Subjects</option>
+              </select>
+            </label>
+          </form>
+        </div>
         <div class="completion-detail-gauge progress-bullet-card">
           <div class="progress-bullet-header">
             <div>
               <p class="progress-title">Completion Today</p>
               <p id="dashboard-completion-today-note" class="muted progress-bullet-note">No scheduled classes for today.</p>
             </div>
-            <label class="completion-detail-filter">Student
-              <select id="dashboard-completion-today-student-filter">
-                <option value="all">All Students</option>
-              </select>
-            </label>
           </div>
           <div class="completion-detail-bars">
             <div class="completion-detail-bar-row completion-detail-bar-classes">
@@ -2068,6 +2093,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605071725"></script>
+  <script src="app.js?v=202605071750"></script>
   </body>
   </html>
