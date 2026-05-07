@@ -10502,10 +10502,15 @@ function renderGradeTrending() {
   const averageValue = plottedValues.length ? avg(plottedValues) : null;
   const deltaLabel = trendDelta === null ? "No prior month" : `${trendDelta >= 0 ? "+" : ""}${trendDelta.toFixed(1)}%`;
   const deltaClass = trendDelta === null ? "neutral" : (trendDelta >= 0 ? "positive" : "negative");
+  const trendIconSvg = trendDelta === null
+    ? `<svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/></svg>`
+    : (trendDelta >= 0
+      ? `<svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M16 8h4v4"/></svg>`
+      : `<svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg>`);
   const summaryHtml = `
     <div class="trend-summary-strip">
       <div class="trend-summary-card ${deltaClass}">
-        <span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M16 8h4v4"/></svg></span>
+        <span class="trend-summary-icon" aria-hidden="true">${trendIconSvg}</span>
         <div><span>Overall Trend ${lastRow ? `(${escapeHtml(lastRow.label)})` : ""}</span><strong>${deltaLabel}</strong><small>${previousRow ? `vs. ${escapeHtml(previousRow.label)}` : "Need another month"}</small></div>
       </div>
       <div class="trend-summary-card positive">
