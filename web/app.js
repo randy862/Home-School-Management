@@ -8882,6 +8882,13 @@ function rerenderAfterEnrollmentChange() {
   renderCurrentTabPanel();
 }
 
+function rerenderAfterSchoolCalendarConfigChange() {
+  invalidateDashboardCache();
+  renderAll();
+  if (currentTab !== "dashboard") renderDashboard();
+  renderAlertsMenu();
+}
+
 function schoolDayInstructionActualIds(date, studentIds = [], courseIds = []) {
   return state.instructionActuals
     .filter((entry) =>
@@ -15934,7 +15941,7 @@ function bindEvents() {
           }
           editingSchoolYearId = "";
           await refreshHostedSchoolConfigState();
-          renderAll();
+          rerenderAfterSchoolCalendarConfigChange();
         } catch (error) {
           alert(error.message || "Unable to save school year.");
         }
@@ -15975,7 +15982,7 @@ function bindEvents() {
     setCurrentSchoolYear(schoolYearId);
     editingSchoolYearId = "";
     saveState();
-    renderAll();
+    rerenderAfterSchoolCalendarConfigChange();
   });
   const schoolYearCancelEditBtn = document.getElementById("school-year-cancel-edit-btn");
   if (schoolYearCancelEditBtn) {
@@ -16011,7 +16018,7 @@ function bindEvents() {
           });
           await refreshHostedSchoolConfigState();
           fillSchoolDaySettingsForm(schoolYearId);
-          renderAll();
+          rerenderAfterSchoolCalendarConfigChange();
         } catch (error) {
           alert(error.message || "Unable to save school day settings.");
         }
@@ -16026,7 +16033,7 @@ function bindEvents() {
     if (schoolYear.id === state.settings.currentSchoolYearId) setCurrentSchoolYear(schoolYear.id);
     saveState();
     fillSchoolDaySettingsForm(schoolYearId);
-    renderAll();
+    rerenderAfterSchoolCalendarConfigChange();
   });
 
   document.getElementById("quarters-form").addEventListener("submit", (e) => {
@@ -16052,7 +16059,7 @@ function bindEvents() {
           await saveHostedQuarters(schoolYearId, q);
           editingQuarterSchoolYearId = "";
           await refreshHostedSchoolConfigState();
-          renderAll();
+          rerenderAfterSchoolCalendarConfigChange();
         } catch (error) {
           alert(error.message || "Unable to save quarters.");
         }
@@ -16064,7 +16071,7 @@ function bindEvents() {
     if (schoolYearId === state.settings.currentSchoolYearId) setCurrentSchoolYear(schoolYearId);
     editingQuarterSchoolYearId = "";
     saveState();
-    renderAll();
+    rerenderAfterSchoolCalendarConfigChange();
   });
   const quartersCancelEditBtn = document.getElementById("quarters-cancel-edit-btn");
   if (quartersCancelEditBtn) {
