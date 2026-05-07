@@ -4040,7 +4040,7 @@ h4 {
 .dashboard-visual-card .dashboard-summary-value {
   margin-top: 0.72rem;
   color: var(--card-accent-dark);
-  font-size: clamp(2.75rem, 5vw, 4.35rem);
+  font-size: clamp(3rem, 5.8vw, 4.8rem);
   font-weight: 900;
   line-height: 0.95;
   letter-spacing: -0.04em;
@@ -4079,41 +4079,41 @@ h4 {
 
 .dashboard-open-mini {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.4rem;
-  margin-top: 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem 0.5rem;
+  margin-top: 1.15rem;
 }
 
 .dashboard-open-mini span {
-  display: grid;
-  justify-items: center;
-  gap: 0.2rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
   min-width: 0;
-  padding-inline: 0.25rem;
-  border-right: 1px solid #e3ebf4;
-}
-
-.dashboard-open-mini span:last-child {
-  border-right: 0;
+  padding: 0.35rem 0.42rem;
+  border: 1px solid #e3ebf4;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .dashboard-open-mini b {
   color: #22334e;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 900;
 }
 
 .dashboard-open-mini small {
   color: #66758d;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 700;
-  text-align: center;
+  line-height: 1;
+  text-align: right;
 }
 
 .dashboard-pace-arc {
   position: relative;
-  height: 52px;
-  margin: 0.85rem auto 0.15rem;
+  height: 38px;
+  margin: 0.72rem auto 0;
   overflow: hidden;
 }
 
@@ -4122,20 +4122,20 @@ h4 {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -58px;
-  width: 124px;
-  height: 124px;
+  bottom: -47px;
+  width: 102px;
+  height: 102px;
   transform: translateX(-50%);
   border-radius: 999px;
 }
 
 .dashboard-pace-arc::before {
-  border: 12px solid #eef2f8;
+  border: 9px solid #eef2f8;
 }
 
 .dashboard-pace-arc span {
   --pace-progress: 0%;
-  border: 12px solid transparent;
+  border: 9px solid transparent;
   background:
     linear-gradient(#ffffff, #ffffff) padding-box,
     conic-gradient(from 270deg, var(--card-accent) 0 var(--pace-progress), transparent var(--pace-progress) 100%) border-box;
@@ -4145,21 +4145,21 @@ h4 {
 .dashboard-pace-mini {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 0.42rem;
-  margin-top: 0.1rem;
+  gap: 0.25rem;
+  margin-top: 0;
   text-align: center;
 }
 
 .dashboard-pace-mini b {
   display: block;
   color: #1d2e49;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 900;
 }
 
 .dashboard-pace-mini small {
   color: #66758d;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
 }
 
 .dashboard-grade-check {
