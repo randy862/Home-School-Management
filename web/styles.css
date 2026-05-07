@@ -3103,18 +3103,17 @@ td {
   column-gap: 0.6rem;
 }
 
-#grade-type-submit-btn {
-  grid-column: 3;
-  width: auto;
-  justify-self: start;
-  align-self: end;
+#grade-type-form .grade-type-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
 }
 
+#grade-type-submit-btn,
 #grade-type-cancel-edit-btn {
-  grid-column: 4;
   width: auto;
-  justify-self: start;
-  align-self: end;
 }
 
 .grade-types-apply-row {
@@ -7487,7 +7486,7 @@ tbody tr:hover {
 }
 
 #app-shell #grade-type-form {
-  grid-template-columns: minmax(180px, 1fr) minmax(130px, 0.5fr) minmax(180px, 0.8fr) auto auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(130px, 0.5fr) minmax(180px, 0.8fr);
 }
 
 #app-shell #grade-type-icon {
