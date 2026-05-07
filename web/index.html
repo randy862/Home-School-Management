@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605070945">
+  <link rel="stylesheet" href="styles.css?v=202605071000">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -196,19 +196,27 @@
         <div class="progress-wrap progress-bullet-wrap">
           <div class="progress-bullet-card">
             <div class="progress-bullet-header">
-              <p class="progress-title">School Year Progress</p>
+              <div>
+                <p class="progress-title">School Year Progress</p>
+                <p id="year-progress-text" class="muted progress-bullet-note">0%</p>
+              </div>
               <span id="year-progress-badge" class="progress-bullet-badge">0%</span>
             </div>
-            <div class="progress-bar progress-bullet-bar"><div id="year-progress-fill" class="progress-fill"></div><i></i></div>
-            <p id="year-progress-text" class="muted progress-bullet-note">0%</p>
+            <div class="progress-bullet-ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+            <div class="progress-bar progress-bullet-bar"><div id="year-progress-fill" class="progress-fill"></div></div>
+            <div class="progress-bullet-status"><span class="progress-status-icon">✓</span><strong id="year-progress-status">In progress</strong></div>
           </div>
           <div class="progress-bullet-card">
             <div class="progress-bullet-header">
-              <p class="progress-title">Current Quarter Progress</p>
+              <div>
+                <p class="progress-title">Current Quarter Progress</p>
+                <p id="quarter-progress-text" class="muted progress-bullet-note">0%</p>
+              </div>
               <span id="quarter-progress-badge" class="progress-bullet-badge">0%</span>
             </div>
-            <div class="progress-bar progress-bullet-bar"><div id="quarter-progress-fill" class="progress-fill"></div><i></i></div>
-            <p id="quarter-progress-text" class="muted progress-bullet-note">0%</p>
+            <div class="progress-bullet-ticks"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div>
+            <div class="progress-bar progress-bullet-bar"><div id="quarter-progress-fill" class="progress-fill"></div></div>
+            <div class="progress-bullet-status"><span class="progress-status-icon">✓</span><strong id="quarter-progress-status">In progress</strong></div>
           </div>
         </div>
 
@@ -1920,6 +1928,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605070930"></script>
+  <script src="app.js?v=202605071000"></script>
   </body>
   </html>

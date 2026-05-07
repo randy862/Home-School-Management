@@ -12250,10 +12250,14 @@ function renderDashboard() {
   document.getElementById("year-progress-text").textContent = `${state.settings.schoolYear.label}: ${yP.toFixed(1)}%`;
   const yearProgressBadge = document.getElementById("year-progress-badge");
   if (yearProgressBadge) yearProgressBadge.textContent = `${yP.toFixed(1)}%`;
+  const yearProgressStatus = document.getElementById("year-progress-status");
+  if (yearProgressStatus) yearProgressStatus.textContent = yP >= 99 ? "Excellent progress" : yP >= 75 ? "Strong progress" : "In progress";
   document.getElementById("quarter-progress-fill").style.width = `${qP.toFixed(1)}%`;
   document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
   const quarterProgressBadge = document.getElementById("quarter-progress-badge");
   if (quarterProgressBadge) quarterProgressBadge.textContent = q ? `${qP.toFixed(1)}%` : "-";
+  const quarterProgressStatus = document.getElementById("quarter-progress-status");
+  if (quarterProgressStatus) quarterProgressStatus.textContent = q ? (qP >= 99 ? "Excellent progress" : qP >= 75 ? "Strong progress" : "In progress") : "No quarter set";
   renderDashboardExecutionSummary(buildDashboardExecutionSnapshot(referenceDate, dashboardStudents));
   renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate));
   renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
