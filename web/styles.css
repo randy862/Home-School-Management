@@ -5310,22 +5310,16 @@ tbody tr:hover {
   transition: stroke-dashoffset 220ms ease;
 }
 
-#app-shell .dial-needle {
-  transform-box: view-box;
-  transform-origin: 120px 106px;
-  transition: transform 220ms ease;
+#app-shell .dial-arc-progress[data-status="danger"] {
+  stroke: #e86f6f;
 }
 
-#app-shell .dial-needle line {
-  stroke: #8892a5;
-  stroke-width: 3;
-  stroke-linecap: round;
+#app-shell .dial-arc-progress[data-status="warning"] {
+  stroke: #ffd54f;
 }
 
-#app-shell .dial-needle circle {
-  fill: #ffffff;
-  stroke: #8892a5;
-  stroke-width: 2;
+#app-shell .dial-arc-progress[data-status="good"] {
+  stroke: #54b86a;
 }
 
 #app-shell .kpi-dial-scale {
@@ -5343,7 +5337,7 @@ tbody tr:hover {
 #app-shell .kpi-dial-center {
   position: absolute;
   left: 50%;
-  top: 56%;
+  top: 61%;
   display: grid;
   justify-items: center;
   gap: 0.02rem;
@@ -5352,15 +5346,8 @@ tbody tr:hover {
 }
 
 #app-shell .kpi-dial-center strong {
-  font-size: 1.35rem;
+  font-size: 1.55rem;
   line-height: 1;
-}
-
-#app-shell .kpi-dial-center span {
-  color: #6b778c;
-  font-size: 0.72rem;
-  font-weight: 700;
-  white-space: nowrap;
 }
 
 #app-shell .kpi-dial-note {
