@@ -5248,18 +5248,13 @@ tbody tr:hover {
   position: relative;
   overflow: hidden;
   min-height: 158px;
+  border-color: #dbe6f2;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.98)),
     radial-gradient(circle at 84% 18%, rgba(23, 97, 174, 0.12), transparent 34%);
-}
-
-#app-shell .dashboard-section-overview .kpi-dial-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-left: 4px solid #1761ae;
-  opacity: 0.92;
-  pointer-events: none;
+  box-shadow:
+    0 14px 30px rgba(31, 47, 69, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 #app-shell .dashboard-section-overview .kpi-label,
@@ -5387,20 +5382,14 @@ tbody tr:hover {
   position: relative;
   overflow: hidden;
   padding: 0.95rem;
-  border: 1px solid #e2eaf4;
+  border: 1px solid #dbe6f2;
   border-radius: 16px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.98)),
     radial-gradient(circle at 90% 8%, rgba(23, 97, 174, 0.12), transparent 34%);
-}
-
-#app-shell .progress-bullet-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-left: 4px solid #1761ae;
-  opacity: 0.92;
-  pointer-events: none;
+  box-shadow:
+    0 14px 30px rgba(31, 47, 69, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 #app-shell .progress-bullet-header {
