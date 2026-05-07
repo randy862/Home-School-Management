@@ -5614,6 +5614,39 @@ tbody tr:hover {
   stroke: #54b86a;
 }
 
+#app-shell .dial-arc-progress[data-status="attendance-outstanding"],
+#app-shell .dial-arc-progress[data-status="performance-exceptional"] {
+  stroke: #1f7a4f;
+}
+
+#app-shell .dial-arc-progress[data-status="attendance-excellent"],
+#app-shell .dial-arc-progress[data-status="performance-strong"] {
+  stroke: #54b86a;
+}
+
+#app-shell .dial-arc-progress[data-status="attendance-strong"] {
+  stroke: #2a9d8f;
+}
+
+#app-shell .dial-arc-progress[data-status="performance-satisfactory"] {
+  stroke: #2f73cf;
+}
+
+#app-shell .dial-arc-progress[data-status="attendance-watch"],
+#app-shell .dial-arc-progress[data-status="performance-watch"] {
+  stroke: #e7b63f;
+}
+
+#app-shell .dial-arc-progress[data-status="attendance-concern"],
+#app-shell .dial-arc-progress[data-status="performance-risk"] {
+  stroke: #f29f4b;
+}
+
+#app-shell .dial-arc-progress[data-status="attendance-critical"],
+#app-shell .dial-arc-progress[data-status="performance-critical"] {
+  stroke: #e86f6f;
+}
+
 #app-shell .kpi-dial-scale {
   position: absolute;
   left: 17%;
@@ -5648,6 +5681,58 @@ tbody tr:hover {
   font-size: 0.78rem;
   font-weight: 700;
   text-align: center;
+}
+
+#app-shell .kpi-dial-note strong,
+#app-shell .kpi-dial-note small {
+  display: block;
+}
+
+#app-shell .kpi-dial-note strong {
+  color: inherit;
+  font-size: 0.78rem;
+  line-height: 1.15;
+}
+
+#app-shell .kpi-dial-note small {
+  margin-top: 0.12rem;
+  color: #66758d;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+#app-shell .kpi-dial-note[data-status="attendance-outstanding"],
+#app-shell .kpi-dial-note[data-status="performance-exceptional"] {
+  color: #1f7a4f;
+}
+
+#app-shell .kpi-dial-note[data-status="attendance-excellent"],
+#app-shell .kpi-dial-note[data-status="performance-strong"] {
+  color: #3f8f55;
+}
+
+#app-shell .kpi-dial-note[data-status="attendance-strong"] {
+  color: #2a847b;
+}
+
+#app-shell .kpi-dial-note[data-status="performance-satisfactory"] {
+  color: #2f64aa;
+}
+
+#app-shell .kpi-dial-note[data-status="attendance-watch"],
+#app-shell .kpi-dial-note[data-status="performance-watch"] {
+  color: #9a6a0a;
+}
+
+#app-shell .kpi-dial-note[data-status="attendance-concern"],
+#app-shell .kpi-dial-note[data-status="performance-risk"] {
+  color: #a85e12;
+}
+
+#app-shell .kpi-dial-note[data-status="attendance-critical"],
+#app-shell .kpi-dial-note[data-status="performance-critical"] {
+  color: #b84545;
 }
 
 #app-shell .progress-wrap {
@@ -5706,7 +5791,7 @@ tbody tr:hover {
 
 #app-shell .progress-title {
   margin: 0;
-  color: #102041;
+  color: #6b778c;
   font-size: 1.08rem;
   font-weight: 900;
 }

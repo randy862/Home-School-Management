@@ -12196,6 +12196,24 @@ function renderDashboardGradeRiskSummary(snapshot) {
 
 function renderDashboard() {
   renderDashboardSectionVisibility();
+  const attendanceDialStatus = (value) => {
+    const pct = Number(value || 0);
+    if (pct >= 98) return { status: "attendance-outstanding", label: "Outstanding Attendance", text: "Exceptional consistency and participation" };
+    if (pct >= 95) return { status: "attendance-excellent", label: "Excellent Attendance", text: "Consistently above target" };
+    if (pct >= 92) return { status: "attendance-strong", label: "Strong Attendance", text: "Meeting attendance expectations" };
+    if (pct >= 88) return { status: "attendance-watch", label: "Attendance Watch", text: "Slightly below recommended target" };
+    if (pct >= 80) return { status: "attendance-concern", label: "Attendance Concern", text: "Frequent absences may impact progress" };
+    return { status: "attendance-critical", label: "Critical Attendance Risk", text: "Immediate improvement needed" };
+  };
+  const performanceDialStatus = (value) => {
+    const pct = Number(value || 0);
+    if (pct >= 95) return { status: "performance-exceptional", label: "Exceptional Performance", text: "Mastery-level academic progress" };
+    if (pct >= 90) return { status: "performance-strong", label: "Strong Performance", text: "Above the target threshold" };
+    if (pct >= 80) return { status: "performance-satisfactory", label: "Satisfactory Progress", text: "Maintaining expected performance" };
+    if (pct >= 70) return { status: "performance-watch", label: "Performance Watch", text: "Improvement recommended" };
+    if (pct >= 60) return { status: "performance-risk", label: "At Risk", text: "Falling below expectations" };
+    return { status: "performance-critical", label: "Critical Academic Risk", text: "Immediate intervention recommended" };
+  };
   const setOverviewDial = (arcId, value, mode = "risk") => {
     const arc = document.getElementById(arcId);
     const pct = clamp(Number(value || 0), 0, 100);
@@ -12203,13 +12221,20 @@ function renderDashboard() {
     arc.style.strokeDashoffset = `${(258 - ((pct / 100) * 258)).toFixed(1)}`;
     arc.dataset.status = mode === "static"
       ? "static"
-      : pct < 70
+      : mode !== "risk"
+        ? mode
+        : pct < 70
         ? "danger"
         : pct < 80
           ? "orange"
           : pct < 90
             ? "warning"
             : "good";
+  };
+  const setDialStatusNote = (node, status) => {
+    if (!node || !status) return;
+    node.dataset.status = status.status;
+    node.innerHTML = `<strong>${status.label}</strong><small>${status.text}</small>`;
   };
   const allowedStudentIds = visibleStudentIds();
   const dashboardStudents = visibleStudents();
@@ -12249,9 +12274,10 @@ function renderDashboard() {
     ? studentOverallAverage(dashboardStudents[0].id)
     : g.running;
   document.getElementById("kpi-running-avg").textContent = `${runningAverage.toFixed(1)}%`;
-  setOverviewDial("kpi-grade-dial-arc", runningAverage);
+  const gradeDialStatus = performanceDialStatus(runningAverage);
+  setOverviewDial("kpi-grade-dial-arc", runningAverage, gradeDialStatus.status);
   const gradeDialNote = document.getElementById("kpi-grade-dial-note");
-  if (gradeDialNote) gradeDialNote.textContent = `${runningAverage.toFixed(1)}% average`;
+  setDialStatusNote(gradeDialNote, gradeDialStatus);
 
   const attendanceDatesThroughToday = dates.filter((d) => d <= referenceDate);
   const totalAttendanceDays = attendanceDatesThroughToday.length;
@@ -12265,9 +12291,10 @@ function renderDashboard() {
     ? (attendanceTotals.present / totalPossibleAttendance) * 100
     : 0;
   document.getElementById("kpi-attendance-overall").textContent = `${overallAttendanceAverage.toFixed(1)}%`;
-  setOverviewDial("kpi-attendance-dial-arc", overallAttendanceAverage);
+  const attendanceDialStatusValue = attendanceDialStatus(overallAttendanceAverage);
+  setOverviewDial("kpi-attendance-dial-arc", overallAttendanceAverage, attendanceDialStatusValue.status);
   const attendanceDialNote = document.getElementById("kpi-attendance-dial-note");
-  if (attendanceDialNote) attendanceDialNote.textContent = `${overallAttendanceAverage.toFixed(1)}% attendance`;
+  setDialStatusNote(attendanceDialNote, attendanceDialStatusValue);
 
   const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate));
   const q = currentQuarter(toDate(referenceDate));
