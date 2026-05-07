@@ -5244,16 +5244,16 @@ tbody tr:hover {
   justify-content: space-between;
 }
 
-#app-shell .dashboard-section-overview .kpi-bullet-card {
+#app-shell .dashboard-section-overview .kpi-dial-card {
   position: relative;
   overflow: hidden;
-  min-height: 132px;
+  min-height: 168px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.98)),
     radial-gradient(circle at 84% 18%, rgba(23, 97, 174, 0.12), transparent 34%);
 }
 
-#app-shell .dashboard-section-overview .kpi-bullet-card::before {
+#app-shell .dashboard-section-overview .kpi-dial-card::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -5279,53 +5279,83 @@ tbody tr:hover {
   letter-spacing: 0;
 }
 
-#app-shell .kpi-bullet-track {
+#app-shell .kpi-dial-gauge {
   position: relative;
-  height: 12px;
-  margin-top: 0.15rem;
-  overflow: hidden;
-  border: 1px solid #d8e2ef;
-  border-radius: 999px;
-  background: #e9eff7;
+  width: min(190px, 100%);
+  margin: -0.1rem auto -0.2rem;
+  aspect-ratio: 1.68 / 1;
 }
 
-#app-shell .kpi-bullet-track::after {
-  content: "";
+#app-shell .kpi-dial-gauge svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 10px 18px rgba(31, 47, 69, 0.08));
+}
+
+#app-shell .dial-band {
+  fill: none;
+  stroke-width: 26;
+  stroke-linecap: butt;
+}
+
+#app-shell .dial-band-danger {
+  stroke: #e48b8b;
+}
+
+#app-shell .dial-band-watch {
+  stroke: #f2df9b;
+}
+
+#app-shell .dial-band-good {
+  stroke: #79b14b;
+}
+
+#app-shell .dial-needle {
+  transform-box: fill-box;
+  transform-origin: 110px 110px;
+  transition: transform 220ms ease;
+}
+
+#app-shell .dial-needle path {
+  fill: #566074;
+}
+
+#app-shell .dial-needle circle {
+  fill: #ffffff;
+  stroke: #566074;
+  stroke-width: 3;
+}
+
+#app-shell .kpi-dial-center {
   position: absolute;
-  inset: 2px;
-  z-index: 3;
-  border-radius: inherit;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0));
-  pointer-events: none;
+  left: 50%;
+  top: 62%;
+  display: grid;
+  justify-items: center;
+  gap: 0.02rem;
+  transform: translate(-50%, -50%);
+  color: #14233b;
 }
 
-#app-shell .kpi-bullet-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  z-index: 2;
-  width: 0%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #1761ae 0%, #2f8f68 100%);
-  box-shadow: 0 8px 18px rgba(23, 97, 174, 0.18);
+#app-shell .kpi-dial-center strong {
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
-#app-shell .kpi-bullet-track i {
-  position: absolute;
-  top: -3px;
-  right: 10%;
-  z-index: 4;
-  width: 2px;
-  height: 18px;
-  border-radius: 999px;
-  background: #17243d;
-  opacity: 0.78;
+#app-shell .kpi-dial-center span {
+  color: #6b778c;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
-#app-shell .kpi-bullet-note {
+#app-shell .kpi-dial-note {
   margin: 0;
   color: #5f6f86;
   font-size: 0.78rem;
   font-weight: 700;
+  text-align: center;
 }
 
 #app-shell .progress-wrap {

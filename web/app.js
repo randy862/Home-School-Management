@@ -12182,11 +12182,13 @@ function renderDashboard() {
 
   document.getElementById("kpi-days-complete").textContent = String(completeDays);
   document.getElementById("kpi-days-total").textContent = String(totalDays);
-  const daysBulletFill = document.getElementById("kpi-days-bullet-fill");
-  const daysBulletNote = document.getElementById("kpi-days-bullet-note");
+  const daysDialNeedle = document.getElementById("kpi-days-dial-needle");
+  const daysDialValue = document.getElementById("kpi-days-dial-value");
+  const daysDialNote = document.getElementById("kpi-days-dial-note");
   const daysProgressPct = totalDays > 0 ? clamp((completeDays / totalDays) * 100, 0, 100) : 0;
-  if (daysBulletFill) daysBulletFill.style.width = `${daysProgressPct.toFixed(1)}%`;
-  if (daysBulletNote) daysBulletNote.textContent = `${daysProgressPct.toFixed(0)}% completed`;
+  if (daysDialNeedle) daysDialNeedle.style.transform = `rotate(${(-180 + (daysProgressPct * 1.8)).toFixed(1)}deg)`;
+  if (daysDialValue) daysDialValue.textContent = `${daysProgressPct.toFixed(0)}%`;
+  if (daysDialNote) daysDialNote.textContent = `${daysProgressPct.toFixed(0)}% completed`;
 
   const g = gradeAnalytics();
   const dashboardInstructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { referenceDate });
@@ -12196,13 +12198,15 @@ function renderDashboard() {
     return totals;
   }, { earned: 0, projected: 0 });
   document.getElementById("kpi-instruction-hours").textContent = `${instructionalTotals.earned.toFixed(1)} / ${instructionalTotals.projected.toFixed(1)}`;
-  const hoursBulletFill = document.getElementById("kpi-hours-bullet-fill");
-  const hoursBulletNote = document.getElementById("kpi-hours-bullet-note");
+  const hoursDialNeedle = document.getElementById("kpi-hours-dial-needle");
+  const hoursDialValue = document.getElementById("kpi-hours-dial-value");
+  const hoursDialNote = document.getElementById("kpi-hours-dial-note");
   const hoursProgressPct = instructionalTotals.projected > 0
     ? clamp((instructionalTotals.earned / instructionalTotals.projected) * 100, 0, 100)
     : 0;
-  if (hoursBulletFill) hoursBulletFill.style.width = `${hoursProgressPct.toFixed(1)}%`;
-  if (hoursBulletNote) hoursBulletNote.textContent = `${hoursProgressPct.toFixed(0)}% logged`;
+  if (hoursDialNeedle) hoursDialNeedle.style.transform = `rotate(${(-180 + (hoursProgressPct * 1.8)).toFixed(1)}deg)`;
+  if (hoursDialValue) hoursDialValue.textContent = `${hoursProgressPct.toFixed(0)}%`;
+  if (hoursDialNote) hoursDialNote.textContent = `${hoursProgressPct.toFixed(0)}% logged`;
   const runningAverage = isStudentUser() && dashboardStudents.length === 1
     ? studentOverallAverage(dashboardStudents[0].id)
     : g.running;
