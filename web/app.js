@@ -12457,9 +12457,9 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
   const detailAttentionValue = document.getElementById("dashboard-needs-attention-value");
   const detailAttentionNote = document.getElementById("dashboard-needs-attention-note");
   const detailSnapshot = completionDetailSnapshot || snapshot;
-  const metricPill = (value, total, tone = "strong") => {
+  const metricPill = (value, total, tone = "strong", attrs = "") => {
     const percent = total > 0 ? clamp((Number(value || 0) / total) * 100, 0, 100) : 0;
-    return `<span class="completion-metric-cell"><span class="student-performance-score-pill ${tone}">${value}</span><small>${percent.toFixed(0)}%</small></span>`;
+    return `<span class="completion-metric-cell"><span class="student-performance-score-pill ${tone}"${attrs}>${value}</span><small>${percent.toFixed(0)}%</small></span>`;
   };
   const completionRows = detailSnapshot.students.map((entry) => {
     const studentName = `${entry.student.firstName} ${entry.student.lastName}`;
@@ -12475,8 +12475,8 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
       </td>
       <td><span class="completion-count-pill">${entry.scheduledCount}</span></td>
       <td>${metricPill(entry.completedCount, entry.scheduledCount, entry.completedCount === entry.scheduledCount ? "excellent" : "strong")}</td>
+      <td>${metricPill(entry.openCount, entry.scheduledCount, openTone, ` role="button" tabindex="0" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-student-id="${entry.student.id}" data-school-day-quick-filter="needs-completion" data-dashboard-context-label="Classes Open"` )}</td>
       <td>${metricPill(entry.gradedCount, entry.scheduledCount, entry.gradedCount === entry.scheduledCount ? "excellent" : "strong")}</td>
-      <td>${metricPill(entry.openCount, entry.scheduledCount, openTone)}</td>
       <td>
         <div class="hours-analytics-cell completion-hours-cell">
           <span>${(entry.completedMinutes / 60).toFixed(2)} / ${(entry.scheduledMinutes / 60).toFixed(2)} hrs</span>

@@ -6286,6 +6286,18 @@ tbody tr:hover {
   font-weight: 700;
 }
 
+#app-shell .completion-metric-cell [data-dashboard-open-school-day] {
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+#app-shell .completion-metric-cell [data-dashboard-open-school-day]:hover,
+#app-shell .completion-metric-cell [data-dashboard-open-school-day]:focus-visible {
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.12);
+  outline: none;
+  transform: translateY(-1px);
+}
+
 #app-shell .completion-hours-cell {
   max-width: 190px;
 }
