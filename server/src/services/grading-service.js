@@ -21,12 +21,13 @@ function normalizeGradeTypePayload(input) {
   const name = String(input?.name || "").trim();
   const weightRaw = input?.weight;
   const weight = weightRaw === "" || weightRaw == null ? null : Number(weightRaw);
+  const iconKey = String(input?.iconKey || input?.icon_key || "").trim() || null;
   if (!name || (weight != null && (!Number.isFinite(weight) || weight < 0 || weight > 100))) {
     const error = new Error("Provide valid grade type values.");
     error.statusCode = 400;
     throw error;
   }
-  return { id, name, weight };
+  return { id, name, weight, iconKey };
 }
 
 function normalizeGradingCriteriaPayload(input) {

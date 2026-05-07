@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS school_years (
 CREATE TABLE IF NOT EXISTS grade_types (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  weight NUMERIC(6, 2) NULL
+  weight NUMERIC(6, 2) NULL,
+  icon_key TEXT NULL
 );
 
 CREATE TABLE IF NOT EXISTS grading_criteria (

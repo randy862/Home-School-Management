@@ -1,0 +1,2 @@
+ALTER TABLE grade_types
+  ADD COLUMN IF NOT EXISTS icon_key TEXT NULL;

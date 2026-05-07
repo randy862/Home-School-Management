@@ -6556,6 +6556,13 @@ tbody tr:hover {
   font-weight: 900;
 }
 
+#app-shell .student-performance-type-icon-img,
+#app-shell .grade-type-icon-img {
+  width: 17px;
+  height: 17px;
+  object-fit: contain;
+}
+
 #app-shell .student-avg-toggle {
   display: inline-grid;
   place-items: center;
@@ -7477,6 +7484,34 @@ tbody tr:hover {
   border-radius: 14px;
   background: #ffffff;
   overflow: auto;
+}
+
+#app-shell #grade-type-form {
+  grid-template-columns: minmax(180px, 1fr) minmax(130px, 0.5fr) minmax(180px, 0.8fr) auto auto;
+}
+
+#app-shell #grade-type-icon {
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 12px;
+  color: #17243d;
+  font-weight: 400;
+}
+
+#app-shell .grade-type-icon-preview {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #dfe8f5;
+  border-radius: 10px;
+  background: #f6f9ff;
+}
+
+#app-shell .management-section-grade-types td:first-child,
+#app-shell .management-section-grade-types th:first-child {
+  width: 58px;
+  text-align: center;
 }
 
 #app-shell .management-section table {

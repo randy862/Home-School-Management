@@ -36,7 +36,8 @@ function createGradingRepository(deps) {
         SELECT
           id,
           name,
-          weight
+          weight,
+          icon_key AS "iconKey"
         FROM grade_types
         ORDER BY lower(name)
       `);
@@ -55,13 +56,14 @@ function createGradingRepository(deps) {
         const saved = [];
         for (const gradeType of gradeTypes) {
           const result = await client.query(`
-            INSERT INTO grade_types (id, name, weight)
-            VALUES ($1, $2, $3)
+            INSERT INTO grade_types (id, name, weight, icon_key)
+            VALUES ($1, $2, $3, $4)
             RETURNING
               id,
               name,
-              weight
-          `, [gradeType.id, gradeType.name, gradeType.weight]);
+              weight,
+              icon_key AS "iconKey"
+          `, [gradeType.id, gradeType.name, gradeType.weight, gradeType.iconKey]);
           saved.push({
             ...result.rows[0],
             weight: result.rows[0].weight == null ? null : Number(result.rows[0].weight)

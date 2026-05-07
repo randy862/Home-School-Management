@@ -40,6 +40,25 @@ const SESSION_KEY = "hsm_session_v1";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
+const GRADE_TYPE_ICON_OPTIONS = [
+  { key: "assignment", label: "Assignment", file: "assignment.svg" },
+  { key: "quiz", label: "Quiz", file: "quiz.svg" },
+  { key: "exam", label: "Exam", file: "exam.svg" },
+  { key: "final-exam", label: "Final Exam", file: "final-exam.svg" },
+  { key: "essay", label: "Essay", file: "essay.svg" },
+  { key: "homework", label: "Homework", file: "homework.svg" },
+  { key: "project", label: "Project", file: "project.svg" },
+  { key: "lab", label: "Lab", file: "lab.svg" },
+  { key: "participation", label: "Participation", file: "participation.svg" },
+  { key: "practice", label: "Practice", file: "practice.svg" },
+  { key: "presentation", label: "Presentation", file: "presentation.svg" },
+  { key: "reading", label: "Reading", file: "reading.svg" },
+  { key: "file-text", label: "Document", file: "file-text.svg" },
+  { key: "book-open", label: "Book", file: "book-open.svg" },
+  { key: "clipboard-check", label: "Clipboard Check", file: "clipboard-check.svg" },
+  { key: "star", label: "Star", file: "star.svg" }
+];
+const GRADE_TYPE_ICON_OPTION_MAP = new Map(GRADE_TYPE_ICON_OPTIONS.map((entry) => [entry.key, entry]));
 const DEFAULT_SCHOOL_DAY_START_TIME = "08:00";
 const DEFAULT_MINUTES_BETWEEN_CLASSES = 5;
 const FLEX_BLOCK_MIN_GAP_MINUTES = 10;
@@ -462,7 +481,7 @@ function defaultState() {
       allQuarters: quarters,
       dailyBreaks: [],
       holidays: [],
-      gradeTypes: DEFAULT_GRADE_TYPES.map((name) => ({ id: uid(), name, weight: null })),
+      gradeTypes: DEFAULT_GRADE_TYPES.map((name) => ({ id: uid(), name, weight: null, iconKey: defaultGradeTypeIconKey(name) })),
       gradingCriteria: {
         letterScale: DEFAULT_LETTER_GRADE_SCALE.map(({ label }) => ({ label, start: null, end: null })),
         gpaScaleOption: "4",
@@ -1248,7 +1267,7 @@ function normalizeSettingsShape(inputState) {
   if (!Array.isArray(s.settings.holidays)) s.settings.holidays = [];
 
   if (!Array.isArray(s.settings.gradeTypes)) {
-    s.settings.gradeTypes = DEFAULT_GRADE_TYPES.map((name) => ({ id: uid(), name, weight: null }));
+    s.settings.gradeTypes = DEFAULT_GRADE_TYPES.map((name) => ({ id: uid(), name, weight: null, iconKey: defaultGradeTypeIconKey(name) }));
   } else {
     const byName = new Map();
     s.settings.gradeTypes
@@ -1258,7 +1277,8 @@ function normalizeSettingsShape(inputState) {
         const normalized = {
           id: gt.id || uid(),
           name: String(gt.name).trim(),
-          weight: Number.isFinite(parsedWeight) && parsedWeight >= 0 ? parsedWeight : null
+          weight: Number.isFinite(parsedWeight) && parsedWeight >= 0 ? parsedWeight : null,
+          iconKey: normalizeGradeTypeIconKey(gt.iconKey || gt.icon_key || "", gt.name)
         };
         const key = normalized.name.toLowerCase();
         if (!byName.has(key)) byName.set(key, normalized);
@@ -1549,11 +1569,56 @@ let globalSearchActiveIndex = -1;
 let hostedSetupChecked = false;
 let hostedSetupInitialized = true;
 function cloneGradeTypes(items) {
-  return (items || []).map((gt) => ({ id: gt.id || uid(), name: String(gt.name || "").trim(), weight: gt.weight == null ? null : Number(gt.weight) }));
+  return (items || []).map((gt) => {
+    const name = String(gt.name || "").trim();
+    return {
+      id: gt.id || uid(),
+      name,
+      weight: gt.weight == null ? null : Number(gt.weight),
+      iconKey: normalizeGradeTypeIconKey(gt.iconKey || gt.icon_key || "", name)
+    };
+  });
 }
 let gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
 function draftGradeTypes() {
   return Array.isArray(gradeTypesDraft) ? gradeTypesDraft : [];
+}
+
+function defaultGradeTypeIconKey(name = "") {
+  const label = String(name || "").toLowerCase();
+  if (label.includes("quiz")) return "quiz";
+  if (label.includes("quarter") || label.includes("final")) return "final-exam";
+  if (label.includes("exam") || label.includes("test")) return "exam";
+  if (label.includes("essay")) return "essay";
+  if (label.includes("homework")) return "homework";
+  if (label.includes("project")) return "project";
+  if (label.includes("lab") || label.includes("experiment")) return "lab";
+  if (label.includes("participation")) return "participation";
+  if (label.includes("practice") || label.includes("drill")) return "practice";
+  if (label.includes("presentation") || label.includes("oral")) return "presentation";
+  if (label.includes("reading")) return "reading";
+  if (label.includes("assignment") || label.includes("worksheet")) return "assignment";
+  return "file-text";
+}
+
+function normalizeGradeTypeIconKey(iconKey = "", name = "") {
+  const key = String(iconKey || "").trim();
+  return GRADE_TYPE_ICON_OPTION_MAP.has(key) ? key : defaultGradeTypeIconKey(name);
+}
+
+function gradeTypeIconOption(iconKey = "", name = "") {
+  return GRADE_TYPE_ICON_OPTION_MAP.get(normalizeGradeTypeIconKey(iconKey, name)) || GRADE_TYPE_ICON_OPTIONS[0];
+}
+
+function gradeTypeIconMarkup(iconKey = "", name = "", className = "grade-type-icon-img") {
+  const icon = gradeTypeIconOption(iconKey, name);
+  return `<img class="${className}" src="assets/icons/${icon.file}" alt="" loading="lazy">`;
+}
+
+function gradeTypeIconKeyForName(name = "") {
+  const target = String(name || "").trim().toLowerCase();
+  const configured = configuredGradeTypes().find((gradeType) => String(gradeType.name || "").trim().toLowerCase() === target);
+  return normalizeGradeTypeIconKey(configured?.iconKey || "", name);
 }
 
 function saveSession() {
@@ -2176,7 +2241,8 @@ async function refreshHostedGradeTypes() {
   if (Array.isArray(gradeTypes)) {
     state.settings.gradeTypes = gradeTypes.map((entry) => ({
       ...entry,
-      weight: entry.weight == null ? null : Number(entry.weight)
+      weight: entry.weight == null ? null : Number(entry.weight),
+      iconKey: normalizeGradeTypeIconKey(entry.iconKey || entry.icon_key || "", entry.name)
     }));
   }
 }
@@ -8011,14 +8077,15 @@ function renderGradeTypes() {
   const cancelChangesBtn = document.getElementById("grade-type-cancel-changes-btn");
   if (!tableBody || !totalEl) return;
   if (!gradeTypeDraftDirty) gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+  renderGradeTypeIconSelect();
 
   const rows = draftGradeTypes().map((gt) => {
     const weightText = gt.weight == null ? "Not set" : `${Number(gt.weight).toFixed(1)}%`;
-    return `<tr><td>${gt.name}</td><td>${weightText}</td><td><button data-edit-grade-type="${gt.id}" type="button">Edit</button> <button data-remove-grade-type="${gt.id}" type="button">Remove</button></td></tr>`;
+    return `<tr><td><span class="grade-type-icon-preview">${gradeTypeIconMarkup(gt.iconKey, gt.name)}</span></td><td>${escapeHtml(gt.name)}</td><td>${weightText}</td><td><button data-edit-grade-type="${gt.id}" type="button">Edit</button> <button data-remove-grade-type="${gt.id}" type="button">Remove</button></td></tr>`;
   });
   const totalWeight = draftGradeTypes().reduce((sum, gt) => sum + (gt.weight == null ? 0 : Number(gt.weight) || 0), 0);
-  if (rows.length) rows.push(`<tr><td><strong>Total Weight</strong></td><td><strong>${totalWeight.toFixed(1)}%</strong></td><td></td></tr>`);
-  rowOrEmpty(tableBody, rows, "No grade types configured.", 3);
+  if (rows.length) rows.push(`<tr><td></td><td><strong>Total Weight</strong></td><td><strong>${totalWeight.toFixed(1)}%</strong></td><td></td></tr>`);
+  rowOrEmpty(tableBody, rows, "No grade types configured.", 4);
 
   totalEl.textContent = totalWeight > 0 && Math.abs(totalWeight - 100) > 0.05
     ? `Configured Weight Total: ${totalWeight.toFixed(1)}% (remaining weight is distributed equally across unweighted grade types)`
@@ -8131,8 +8198,10 @@ function beginGradeTypeEdit(gradeTypeId) {
   editingGradeTypeId = gradeType.id;
   const nameInput = document.getElementById("grade-type-name");
   const weightInput = document.getElementById("grade-type-weight");
+  const iconSelect = document.getElementById("grade-type-icon");
   if (nameInput) nameInput.value = gradeType.name;
   if (weightInput) weightInput.value = gradeType.weight == null ? "" : String(gradeType.weight);
+  if (iconSelect) iconSelect.value = normalizeGradeTypeIconKey(gradeType.iconKey, gradeType.name);
   renderGradeTypes();
 }
 
@@ -8140,6 +8209,7 @@ function cancelGradeTypeEdit() {
   editingGradeTypeId = "";
   const form = document.getElementById("grade-type-form");
   if (form) form.reset();
+  renderGradeTypeIconSelect();
   renderGradeTypes();
 }
 
@@ -9693,6 +9763,20 @@ function openSearchResult(result) {
       schoolDaySelectedCourseIds = new Set([section.courseId]);
     }
   }
+}
+
+function renderGradeTypeIconSelect() {
+  const select = document.getElementById("grade-type-icon");
+  if (!(select instanceof HTMLSelectElement)) return;
+  const current = select.value || "";
+  select.innerHTML = GRADE_TYPE_ICON_OPTIONS
+    .map((icon) => `<option value="${icon.key}">${icon.label}</option>`)
+    .join("");
+  const editingGradeType = editingGradeTypeId ? draftGradeTypes().find((gt) => gt.id === editingGradeTypeId) : null;
+  const nextValue = editingGradeType
+    ? normalizeGradeTypeIconKey(editingGradeType.iconKey, editingGradeType.name)
+    : (GRADE_TYPE_ICON_OPTION_MAP.has(current) ? current : "assignment");
+  select.value = nextValue;
 }
 
 function renderSchoolDayStudentChecklist(preselectedStudentIds = []) {
@@ -11280,12 +11364,7 @@ function dashboardAverageScoreClass(value) {
 }
 
 function dashboardGradeTypeIcon(gradeType = "") {
-  const label = String(gradeType).toLowerCase();
-  if (label.includes("assignment")) return "D";
-  if (label.includes("quiz")) return "?";
-  if (label.includes("test")) return "#";
-  if (label.includes("final")) return "F";
-  return "G";
+  return gradeTypeIconMarkup(gradeTypeIconKeyForName(gradeType), gradeType, "student-performance-type-icon-img");
 }
 
 function formatDashboardInstructionalHoursCell(bucketMetrics) {
@@ -14580,6 +14659,7 @@ function updateLegacyLocalDraftGradeType(existingGradeType, payload) {
   if (!existingGradeType) return;
   existingGradeType.name = payload.name;
   existingGradeType.weight = payload.weight;
+  existingGradeType.iconKey = normalizeGradeTypeIconKey(payload.iconKey, payload.name);
 }
 
 function createLegacyLocalDraftGradeType(payload) {
@@ -15472,8 +15552,10 @@ function bindEvents() {
     if (!ensureAdminAction()) return;
     const nameInput = document.getElementById("grade-type-name");
     const weightInput = document.getElementById("grade-type-weight");
+    const iconSelect = document.getElementById("grade-type-icon");
     const name = nameInput.value.trim();
     const weightRaw = weightInput.value.trim();
+    const iconKey = normalizeGradeTypeIconKey(iconSelect?.value || "", name);
     if (!name) { alert("Grade Type is required."); return; }
     if (draftGradeTypes().some((gt) => gt.id !== editingGradeTypeId && gt.name.toLowerCase() === name.toLowerCase())) {
       alert("That grade type already exists.");
@@ -15496,13 +15578,14 @@ function bindEvents() {
       weight = parsed;
     }
     if (editingGradeTypeId) {
-      updateLegacyLocalDraftGradeType(draftGradeTypes().find((gt) => gt.id === editingGradeTypeId), { name, weight });
+      updateLegacyLocalDraftGradeType(draftGradeTypes().find((gt) => gt.id === editingGradeTypeId), { name, weight, iconKey });
       editingGradeTypeId = "";
     } else {
-      createLegacyLocalDraftGradeType({ name, weight });
+      createLegacyLocalDraftGradeType({ name, weight, iconKey });
     }
     gradeTypeDraftDirty = true;
     e.target.reset();
+    renderGradeTypeIconSelect();
     renderGradeTypes();
   });
   const gradeTypeCancelEditBtn = document.getElementById("grade-type-cancel-edit-btn");
@@ -15549,6 +15632,7 @@ function bindEvents() {
       editingGradeTypeId = "";
       const form = document.getElementById("grade-type-form");
       if (form) form.reset();
+      renderGradeTypeIconSelect();
       renderGradeTypes();
     });
   }
