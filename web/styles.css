@@ -6774,6 +6774,53 @@ tbody tr:hover {
   stroke-linejoin: round;
 }
 
+#app-shell .dashboard-section-course-watchlist {
+  position: relative;
+  overflow: hidden;
+}
+
+#app-shell .dashboard-section-course-watchlist::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #336ce8, #8e4de6 48%, #f19012);
+}
+
+#app-shell .course-watchlist-toolbar {
+  grid-template-columns: minmax(300px, 1fr) auto;
+  align-items: center;
+}
+
+#app-shell .course-watchlist-heading-icon {
+  background: linear-gradient(145deg, #fff7ed, #ffedd5);
+  color: #f19012;
+  box-shadow: 0 10px 24px rgba(241, 144, 18, 0.16);
+}
+
+#app-shell .course-watchlist-summary {
+  display: grid;
+  min-width: 148px;
+  justify-items: end;
+  gap: 0.35rem;
+}
+
+#app-shell .course-watchlist-summary-label {
+  color: #5f6f89;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#app-shell .course-watchlist-count {
+  min-width: 74px;
+  border-color: #c8dcff;
+  background: linear-gradient(145deg, #ffffff, #edf5ff);
+  color: #255fd6;
+  box-shadow: 0 10px 22px rgba(51, 108, 232, 0.12);
+}
+
 #app-shell #student-performance-filter-form {
   display: grid;
   grid-template-columns: minmax(320px, 1.1fr) minmax(280px, 0.9fr);
@@ -6911,6 +6958,65 @@ tbody tr:hover {
   font-weight: 850;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+#app-shell .course-watchlist-table {
+  min-width: 980px;
+}
+
+#app-shell .course-watchlist-table th,
+#app-shell .course-watchlist-table td {
+  text-align: center;
+}
+
+#app-shell .course-watchlist-table th:first-child,
+#app-shell .course-watchlist-table td:first-child,
+#app-shell .course-watchlist-table th:nth-child(2),
+#app-shell .course-watchlist-table td:nth-child(2),
+#app-shell .course-watchlist-table th:nth-child(3),
+#app-shell .course-watchlist-table td:nth-child(3) {
+  text-align: left;
+}
+
+#app-shell .course-watchlist-table td:first-child {
+  color: #14233d;
+  font-weight: 800;
+}
+
+#app-shell .course-watchlist-table td:nth-child(2) {
+  color: #253b63;
+  font-weight: 700;
+}
+
+#app-shell .course-watchlist-table tbody tr {
+  background: linear-gradient(90deg, rgba(255, 248, 232, 0.68), rgba(255, 255, 255, 0) 34%);
+}
+
+#app-shell .course-watchlist-grade-chip,
+#app-shell .course-watchlist-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  border-radius: 999px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+#app-shell .course-watchlist-grade-chip {
+  min-width: 34px;
+  border: 1px solid #d8e3f3;
+  background: #f6f9ff;
+  color: #253b63;
+}
+
+#app-shell .course-watchlist-status {
+  min-width: 84px;
+  padding: 0.2rem 0.65rem;
+  border: 1px solid #f5dea6;
+  background: #fff8e8;
+  color: #b86b00;
+  box-shadow: 0 8px 18px rgba(241, 144, 18, 0.1);
 }
 
 #app-shell .student-performance-table td:first-child {
@@ -7066,6 +7172,289 @@ tbody tr:hover {
 
 #app-shell .quarter-dot.q4 {
   background: #f19012;
+}
+
+#app-shell .dashboard-section-volume.dashboard-section-student-performance {
+  padding: 1.7rem 1.85rem 1.35rem;
+  border-color: #dfe7f3;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(23, 36, 61, 0.06);
+}
+
+#app-shell .grade-type-volume-toolbar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.45rem;
+  margin-bottom: 1.5rem;
+}
+
+#app-shell .grade-type-volume-toolbar > .student-performance-heading h3 {
+  font-size: 1.9rem;
+  letter-spacing: 0;
+}
+
+#app-shell .grade-type-volume-toolbar > .student-performance-heading .muted {
+  font-size: 1rem;
+}
+
+#app-shell .grade-type-volume-heading-icon {
+  width: 48px;
+  height: 48px;
+  flex-basis: 48px;
+  background: linear-gradient(145deg, #eef5ff, #dceaff);
+  color: #336ce8;
+  box-shadow: 0 10px 24px rgba(51, 108, 232, 0.16);
+}
+
+#app-shell #volume-filter-form.grade-type-volume-filter-form {
+  display: grid;
+  grid-template-columns: minmax(250px, 1.25fr) minmax(230px, 1.12fr) minmax(210px, 1.05fr) minmax(200px, 1fr) minmax(210px, 1.05fr) auto;
+  gap: 1.15rem;
+  align-items: end;
+  margin: 0;
+}
+
+#app-shell #volume-filter-form.grade-type-volume-filter-form > label {
+  color: #5f6f89;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#app-shell #volume-filter-form.grade-type-volume-filter-form select,
+#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown,
+#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary {
+  width: 100%;
+  min-width: 0;
+}
+
+#app-shell #volume-filter-form.grade-type-volume-filter-form select,
+#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown {
+  border-color: #dce6f4;
+  border-radius: 9px;
+  background-color: #ffffff;
+  box-shadow: 0 8px 20px rgba(23, 36, 61, 0.04);
+}
+
+#app-shell #volume-filter-form.grade-type-volume-filter-form select {
+  min-height: 42px;
+  padding-left: 2.75rem;
+  color: #152545;
+  font-weight: 750;
+}
+
+#app-shell #volume-filter-form.grade-type-volume-filter-form label {
+  position: relative;
+}
+
+#app-shell #volume-filter-form.grade-type-volume-filter-form label:nth-of-type(2)::after,
+#app-shell #volume-filter-form.grade-type-volume-filter-form label:nth-of-type(3)::after,
+#app-shell #volume-filter-form.grade-type-volume-filter-form label:nth-of-type(4)::after,
+#app-shell #volume-filter-form.grade-type-volume-filter-form label:nth-of-type(5)::after {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.72rem;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #2370f4;
+  border-radius: 5px;
+  box-shadow: inset 6px 0 0 rgba(35, 112, 244, 0.14);
+}
+
+#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary {
+  min-height: 42px;
+  padding: 0.55rem 0.75rem;
+  color: #233451;
+  font-weight: 750;
+}
+
+#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary span:last-child {
+  min-width: 0;
+}
+
+#app-shell .volume-filter-icon,
+#app-shell .grade-type-volume-table-toggle span:first-child {
+  display: inline-grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  color: #2370f4;
+}
+
+#app-shell .volume-filter-icon svg,
+#app-shell .grade-type-volume-table-toggle svg,
+#app-shell .grade-type-volume-metric-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#app-shell #volume-clear-filters-btn {
+  min-height: 42px;
+  padding: 0 1.1rem;
+  border: 1px solid #2370f4;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #2370f4;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(51, 108, 232, 0.1);
+}
+
+#app-shell #volume-clear-filters-btn,
+#app-shell .grade-type-volume-table-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+#app-shell .grade-type-volume-chart-wrap {
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#app-shell .grade-type-volume-panel {
+  padding: 1.25rem 1.25rem 0.9rem;
+  border: 1px solid #dfe7f3;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(23, 36, 61, 0.04);
+}
+
+#app-shell .grade-type-volume-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+#app-shell .grade-type-volume-panel-header h4 {
+  margin: 0;
+  color: #17243d;
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+#app-shell .grade-type-volume-panel-header .muted {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+}
+
+#app-shell .grade-type-volume-table-toggle {
+  min-height: 42px;
+  padding: 0 1.2rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #eef5ff, #e7f0ff);
+  color: #2370f4;
+  font-weight: 850;
+  box-shadow: 0 10px 22px rgba(51, 108, 232, 0.12);
+}
+
+#app-shell .grade-type-volume-chart-scroll {
+  overflow-x: auto;
+}
+
+#app-shell .grade-type-volume-chart-wrap .trend-chart {
+  min-width: 940px;
+}
+
+#app-shell .grade-type-volume-bar {
+  opacity: 0.96;
+  filter: drop-shadow(0 5px 8px rgba(23, 36, 61, 0.12));
+}
+
+#app-shell .grade-type-volume-value {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+#app-shell .grade-type-volume-table-wrap {
+  overflow-x: auto;
+}
+
+#app-shell .grade-type-volume-table {
+  min-width: 720px;
+}
+
+#app-shell .grade-type-volume-table th,
+#app-shell .grade-type-volume-table td {
+  text-align: center;
+}
+
+#app-shell .grade-type-volume-table th:first-child,
+#app-shell .grade-type-volume-table td:first-child {
+  text-align: left;
+}
+
+#app-shell .grade-type-volume-chart-wrap .volume-legend-box {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+#app-shell .grade-type-volume-chart-wrap .trend-legend {
+  margin-top: 0.6rem;
+}
+
+#app-shell .grade-type-volume-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 1rem;
+  border: 1px solid #dfe7f3;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(23, 36, 61, 0.04);
+  overflow: hidden;
+}
+
+#app-shell .grade-type-volume-metric {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+  min-height: 84px;
+  padding: 0.85rem 1.15rem;
+  border-right: 1px solid #dfe7f3;
+}
+
+#app-shell .grade-type-volume-metric:last-child {
+  border-right: 0;
+}
+
+#app-shell .grade-type-volume-metric-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #f2f6ff;
+  color: var(--volume-accent);
+}
+
+#app-shell .grade-type-volume-metric small,
+#app-shell .grade-type-volume-metric em {
+  display: block;
+  color: #51617d;
+  font-style: normal;
+  font-weight: 650;
+}
+
+#app-shell .grade-type-volume-metric strong {
+  display: block;
+  color: #17243d;
+  font-size: 1.4rem;
+  line-height: 1.05;
 }
 
 #app-shell .dashboard-section-trending {
@@ -7410,12 +7799,25 @@ tbody tr:hover {
 }
 
 @media (max-width: 1100px) {
-  #app-shell .student-performance-toolbar {
+  #app-shell .student-performance-toolbar,
+  #app-shell .course-watchlist-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  #app-shell .course-watchlist-summary {
+    justify-items: start;
   }
 
   #app-shell #student-performance-filter-form {
     grid-template-columns: 1fr;
+  }
+
+  #app-shell #volume-filter-form.grade-type-volume-filter-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #app-shell .grade-type-volume-metrics {
+    grid-template-columns: 1fr 1fr;
   }
 
   #app-shell #completion-today-filter-form {
@@ -7432,6 +7834,28 @@ tbody tr:hover {
 @media (max-width: 720px) {
   #app-shell .student-performance-grade-method-options {
     grid-template-columns: 1fr;
+  }
+
+  #app-shell #volume-filter-form.grade-type-volume-filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .grade-type-volume-panel-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #app-shell .grade-type-volume-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .grade-type-volume-metric {
+    border-right: 0;
+    border-bottom: 1px solid #dfe7f3;
+  }
+
+  #app-shell .grade-type-volume-metric:last-child {
+    border-bottom: 0;
   }
 
   #app-shell #trend-filter-form,

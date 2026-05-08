@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605071910">
+  <link rel="stylesheet" href="styles.css?v=202605072140">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -385,17 +385,25 @@
         <p class="muted">All Execution gauges are currently hidden. Re-enable them in Administration > Workspace Configuration if you want this tab to show daily operational work.</p>
       </div>
 
-      <div id="dashboard-section-grade-risk-watchlist" class="dashboard-section dashboard-section-student-performance hidden">
-        <div class="dashboard-section-header">
-          <div>
-            <h3>Course Watchlist</h3>
-            <p id="dashboard-grade-risk-note" class="muted">No at-risk courses right now.</p>
+      <div id="dashboard-section-grade-risk-watchlist" class="dashboard-section dashboard-section-student-performance dashboard-section-course-watchlist hidden">
+        <div class="student-performance-toolbar course-watchlist-toolbar">
+          <div class="student-performance-heading">
+            <span class="student-performance-heading-icon course-watchlist-heading-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 7h10l1.5 2H20v8h-7l-1.5-2H4"/><path d="M8 11h5"/></svg>
+            </span>
+            <div>
+              <h3>Course Watchlist</h3>
+              <p id="dashboard-grade-risk-note" class="muted">No at-risk courses right now.</p>
+            </div>
           </div>
-          <span id="dashboard-grade-risk-value" class="dashboard-pill-metric">0</span>
+          <div class="course-watchlist-summary" aria-label="Courses on watchlist">
+            <span class="course-watchlist-summary-label">Active Watch</span>
+            <span id="dashboard-grade-risk-value" class="dashboard-pill-metric course-watchlist-count">0</span>
+          </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th>Average</th><th>Letter</th><th>GPA</th><th>Status</th></tr></thead>
+        <div class="table-wrap student-performance-table-wrap course-watchlist-table-wrap">
+          <table class="student-performance-table course-watchlist-table">
+            <thead><tr><th>Student</th><th>Course</th><th>Subject</th><th><span class="quarter-dot total"></span>Average</th><th>Letter</th><th>GPA</th><th><span class="quarter-dot q4"></span>Status</th></tr></thead>
             <tbody id="dashboard-grade-risk-table"></tbody>
           </table>
         </div>
@@ -797,43 +805,53 @@
         <div id="instruction-hours-trending-chart" class="chart-wrap"></div>
       </div>
 
-      <div id="dashboard-section-grade-type-volume" class="dashboard-section dashboard-section-volume">
-        <h3>Grade Type Volume</h3>
-        <form id="volume-filter-form" class="grid-form">
-          <label class="volume-student-field">Student
-            <details id="volume-student-dropdown" class="multi-select-dropdown">
-              <summary id="volume-student-summary">Students (0 selected)</summary>
-              <div id="volume-student-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label>Quarter
-            <select id="volume-filter-quarter">
-              <option value="all">All Quarters</option>
-            </select>
-          </label>
-          <label>Subject
-            <select id="volume-filter-subject">
-              <option value="all">All Subjects</option>
-            </select>
-          </label>
-          <label>Instructor
-            <select id="volume-filter-instructor">
-              <option value="all">All Instructors</option>
-            </select>
-          </label>
-          <label>Grade Type
-            <select id="volume-filter-grade-type">
-              <option value="all">All Grade Types</option>
-              <option value="Assignment">Assignment</option>
-              <option value="Quiz">Quiz</option>
-              <option value="Test">Test</option>
-              <option value="Quarterly Final">Quarterly Final</option>
-              <option value="Final">Final</option>
-            </select>
-          </label>
-          <button id="volume-clear-filters-btn" type="button">Clear Filters</button>
-        </form>
-        <div id="grade-type-volume-chart" class="chart-wrap"></div>
+      <div id="dashboard-section-grade-type-volume" class="dashboard-section dashboard-section-volume dashboard-section-student-performance">
+        <div class="student-performance-toolbar grade-type-volume-toolbar">
+          <div class="student-performance-heading">
+            <span class="student-performance-heading-icon grade-type-volume-heading-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M8 19V9"/><path d="M12 19V7"/><path d="M16 19v-5"/><path d="M20 19V11"/></svg>
+            </span>
+            <div>
+              <h3>Grade Type Volume</h3>
+              <p class="muted">Compare monthly grading activity by assignment category.</p>
+            </div>
+          </div>
+          <form id="volume-filter-form" class="grid-form grade-type-volume-filter-form">
+            <label class="volume-student-field">Student
+              <details id="volume-student-dropdown" class="multi-select-dropdown">
+                <summary id="volume-student-summary"><span class="volume-filter-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Students (0 selected)</span></summary>
+                <div id="volume-student-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label>Quarter
+              <select id="volume-filter-quarter">
+                <option value="all">All Quarters</option>
+              </select>
+            </label>
+            <label>Subject
+              <select id="volume-filter-subject">
+                <option value="all">All Subjects</option>
+              </select>
+            </label>
+            <label>Instructor
+              <select id="volume-filter-instructor">
+                <option value="all">All Instructors</option>
+              </select>
+            </label>
+            <label>Grade Type
+              <select id="volume-filter-grade-type">
+                <option value="all">All Grade Types</option>
+                <option value="Assignment">Assignment</option>
+                <option value="Quiz">Quiz</option>
+                <option value="Test">Test</option>
+                <option value="Quarterly Final">Quarter Final</option>
+                <option value="Final">Final</option>
+              </select>
+            </label>
+            <button id="volume-clear-filters-btn" type="button"><span class="volume-filter-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg></span><span>Clear Filters</span></button>
+          </form>
+        </div>
+        <div id="grade-type-volume-chart" class="chart-wrap grade-type-volume-chart-wrap"></div>
       </div>
 
       <div id="dashboard-section-work-distribution" class="dashboard-section dashboard-section-work-distribution">
@@ -2081,6 +2099,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605071910"></script>
+  <script src="app.js?v=202605072140"></script>
   </body>
   </html>

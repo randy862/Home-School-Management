@@ -4818,8 +4818,11 @@ function currentGpaMax() {
 function scoreToLetterGrade(scorePct) {
   const numeric = Number(scorePct);
   if (!Number.isFinite(numeric)) return "";
-  const clampedScore = Math.floor(clamp(numeric, 0, 100));
-  const match = effectiveLetterGradeScale().find((entry) => clampedScore >= entry.start && clampedScore <= entry.end);
+  const clampedScore = Number(clamp(numeric, 0, 100).toFixed(1));
+  const match = effectiveLetterGradeScale().find((entry) => {
+    const upperBound = entry.end >= 100 ? 100 : entry.end + 1;
+    return clampedScore >= entry.start && (entry.end >= 100 ? clampedScore <= upperBound : clampedScore < upperBound);
+  });
   return match ? match.label : "";
 }
 function canonicalGradeTypes() {
@@ -5974,7 +5977,7 @@ function renderSelects() {
     availableGradeTypes().forEach((type) => {
       const option = document.createElement("option");
       option.value = type;
-      option.textContent = type;
+      option.textContent = type === "Quarterly Final" ? "Quarter Final" : type;
       volumeGradeTypeSelect.appendChild(option);
     });
     if (Array.from(volumeGradeTypeSelect.options).some((o) => o.value === current)) volumeGradeTypeSelect.value = current;
@@ -7236,7 +7239,7 @@ function updateVolumeStudentSummary() {
   const summary = document.getElementById("volume-student-summary");
   if (!summary) return;
   const selectedCount = document.querySelectorAll(".volume-student-checkbox:checked").length;
-  summary.textContent = `Students (${selectedCount} selected)`;
+  summary.innerHTML = `<span class="volume-filter-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Students (${selectedCount} selected)</span>`;
 }
 
 function getVolumeSelectedStudentIds() {
@@ -11470,6 +11473,12 @@ function renderGradeTypeVolumeChart() {
   const chartHost = document.getElementById("grade-type-volume-chart");
   if (!chartHost) return;
   const allowedStudentIds = visibleStudentIds();
+  const preferredTypeOrder = ["Assignment", "Quiz", "Test", "Quarterly Final"];
+  const typeOrderValue = (type) => {
+    const index = preferredTypeOrder.indexOf(type);
+    return index === -1 ? preferredTypeOrder.length : index;
+  };
+  const displayGradeTypeVolumeLabel = (type) => type === "Quarterly Final" ? "Quarter Final" : type;
 
   const sy = state.settings.schoolYear;
   const syStart = toDate(sy.startDate);
@@ -11491,7 +11500,8 @@ function renderGradeTypeVolumeChart() {
   const selectedStudentIds = getVolumeSelectedStudentIds();
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
 
-  const knownTypes = availableGradeTypes().length ? [...availableGradeTypes()] : [...DEFAULT_GRADE_TYPES];
+  const knownTypes = (availableGradeTypes().length ? [...availableGradeTypes()] : [...DEFAULT_GRADE_TYPES])
+    .sort((a, b) => typeOrderValue(a) - typeOrderValue(b) || a.localeCompare(b));
   const inYearTests = state.tests.filter((t) => inRange(t.date, sy.startDate, sy.endDate));
   const filteredTests = inYearTests.filter((t) => {
     if (!allowedStudentIds.has(t.studentId)) return false;
@@ -11508,6 +11518,7 @@ function renderGradeTypeVolumeChart() {
     const gradeType = gradeTypeName(test);
     if (!knownTypes.includes(gradeType)) knownTypes.push(gradeType);
   });
+  knownTypes.sort((a, b) => typeOrderValue(a) - typeOrderValue(b) || a.localeCompare(b));
 
   const monthlyCounts = months.map((entry) => {
     const monthStart = new Date(entry.year, entry.month, 1, 12, 0, 0);
@@ -11528,13 +11539,13 @@ function renderGradeTypeVolumeChart() {
 
   const maxCount = Math.max(1, ...monthlyCounts.flatMap((m) => knownTypes.map((type) => m.counts.get(type) || 0)));
   const yTickStep = maxCount <= 10 ? 1 : (maxCount <= 30 ? 5 : 10);
+  const yAxisMax = Math.ceil((maxCount + yTickStep) / yTickStep) * yTickStep;
   const yTicks = [];
-  for (let tick = 0; tick <= maxCount; tick += yTickStep) yTicks.push(tick);
-  if (yTicks[yTicks.length - 1] !== maxCount) yTicks.push(maxCount);
+  for (let tick = 0; tick <= yAxisMax; tick += yTickStep) yTicks.push(tick);
 
   const width = 960;
-  const height = 300;
-  const margin = { top: 24, right: 20, bottom: 56, left: 52 };
+  const height = 320;
+  const margin = { top: 28, right: 20, bottom: 62, left: 52 };
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
 
@@ -11547,7 +11558,7 @@ function renderGradeTypeVolumeChart() {
 
   const xGroupStart = (idx) => margin.left + (idx * groupSlot) + ((groupSlot - groupWidth) / 2);
   const xForBar = (monthIdx, typeIdx) => xGroupStart(monthIdx) + (typeIdx * (barWidth + barGap));
-  const yFor = (value) => margin.top + ((maxCount - value) / maxCount) * plotH;
+  const yFor = (value) => margin.top + ((yAxisMax - value) / yAxisMax) * plotH;
 
   const yTickSvg = yTicks.map((tick) => {
     const y = yFor(tick);
@@ -11559,7 +11570,13 @@ function renderGradeTypeVolumeChart() {
     return `<text x="${x.toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${row.label}</text>`;
   }).join("");
 
-  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
+  const palette = ["#a66a32", "#2d5d8c", "#b0525c", "#3f8b5d", "#8e4de6", "#f19012", "#35736f", "#9b4d2f"];
+  const metricIcons = {
+    Assignment: `<svg viewBox="0 0 24 24"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5"/></svg>`,
+    "Quarterly Final": `<svg viewBox="0 0 24 24"><path d="M5 5v14"/><path d="M5 5c4-2 7 2 11 0v9c-4 2-7-2-11 0"/></svg>`,
+    Quiz: `<svg viewBox="0 0 24 24"><path d="M8 6h12"/><path d="M8 12h12"/><path d="M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>`,
+    Test: `<svg viewBox="0 0 24 24"><path d="M9 5h6"/><path d="M9 3h6v4H9z"/><path d="M5 5h14v16H5z"/><path d="m9 14 2 2 4-5"/></svg>`
+  };
   const barsSvg = monthlyCounts.flatMap((row, monthIdx) =>
     knownTypes.map((type, typeIdx) => {
       const count = row.counts.get(type) || 0;
@@ -11567,7 +11584,10 @@ function renderGradeTypeVolumeChart() {
       const y = yFor(count);
       const h = Math.max(0, (height - margin.bottom) - y);
       const color = palette[typeIdx % palette.length];
-      return `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${h.toFixed(2)}" fill="${color}" opacity="0.9"><title>${row.label} ${type}: ${count}</title></rect>`;
+      const labelY = Math.max(margin.top + 14, y - 7);
+      const labelX = x + (barWidth / 2);
+      const valueLabel = `<text x="${labelX.toFixed(2)}" y="${labelY.toFixed(2)}" text-anchor="middle" class="grade-type-volume-value" fill="${color}">${count}</text>`;
+      return `<g><rect class="grade-type-volume-bar" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barWidth.toFixed(2)}" height="${h.toFixed(2)}" rx="3" fill="${color}"><title>${row.label} ${displayGradeTypeVolumeLabel(type)}: ${count}</title></rect>${valueLabel}</g>`;
     })
   ).join("");
 
@@ -11582,22 +11602,72 @@ function renderGradeTypeVolumeChart() {
       ${knownTypes.map((type, idx) => `
         <span class="trend-legend-item">
           <span class="volume-legend-box" style="background:${palette[idx % palette.length]}"></span>
-          <span>${type}</span>
+          <span>${displayGradeTypeVolumeLabel(type)}</span>
         </span>`).join("")}
+    </div>`;
+  const metricHtml = `
+    <div class="grade-type-volume-metrics">
+      ${knownTypes.map((type, idx) => {
+        const total = monthlyCounts.reduce((sum, row) => sum + (row.counts.get(type) || 0), 0);
+        const label = displayGradeTypeVolumeLabel(type);
+        const plural = type === "Quiz" ? "Quizzes" : (type === "Test" ? "Tests" : `${label}s`);
+        return `
+          <article class="grade-type-volume-metric" style="--volume-accent:${palette[idx % palette.length]}">
+            <span class="grade-type-volume-metric-icon" aria-hidden="true">${metricIcons[type] || metricIcons.Assignment}</span>
+            <span>
+              <small>Total ${plural}</small>
+              <strong>${total}</strong>
+              <em>All Time</em>
+            </span>
+          </article>`;
+      }).join("")}
+    </div>`;
+  const tableHtml = `
+    <div class="grade-type-volume-table-wrap hidden">
+      <table class="student-performance-table grade-type-volume-table">
+        <thead>
+          <tr><th>Month</th>${knownTypes.map((type) => `<th>${displayGradeTypeVolumeLabel(type)}</th>`).join("")}</tr>
+        </thead>
+        <tbody>
+          ${monthlyCounts.map((row) => `
+            <tr>
+              <td>${row.label}</td>
+              ${knownTypes.map((type) => `<td>${row.counts.get(type) || 0}</td>`).join("")}
+            </tr>`).join("")}
+        </tbody>
+      </table>
     </div>`;
 
   chartHost.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly grade type volume bar chart">
-      <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
-      <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
-      ${yTickSvg}
-      ${xTickSvg}
-      ${barsSvg}
-      ${noData}
-      <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
-      <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Count</text>
-    </svg>
-    ${legendHtml}`;
+    <div class="grade-type-volume-panel">
+      <div class="grade-type-volume-panel-header">
+        <div class="student-performance-heading">
+          <span class="student-performance-heading-icon grade-type-volume-heading-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M8 19V9"/><path d="M12 19V7"/><path d="M16 19v-5"/><path d="M20 19V11"/></svg>
+          </span>
+          <div>
+            <h4>Grade Volume by Type</h4>
+            <p class="muted">Showing grade counts by month</p>
+          </div>
+        </div>
+        <button type="button" class="grade-type-volume-table-toggle" aria-pressed="false"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M6 15l4-4 3 3 5-7"/><path d="M15 7h3v3"/></svg></span><span>View as Table</span></button>
+      </div>
+      <div class="grade-type-volume-chart-scroll">
+        <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly grade type volume bar chart">
+          <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+          <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+          ${yTickSvg}
+          ${xTickSvg}
+          ${barsSvg}
+          ${noData}
+          <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
+          <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Count</text>
+        </svg>
+      </div>
+      ${tableHtml}
+      ${legendHtml}
+    </div>
+    ${metricHtml}`;
 }
 
 function renderWorkDistributionChart() {
@@ -11723,7 +11793,7 @@ function formatDashboardAverageCell(avgValue, count, selectedGradeMethods) {
 }
 
 function dashboardAverageScoreClass(value) {
-  const score = Number(value || 0);
+  const score = Number(clamp(Number(value || 0), 0, 100).toFixed(1));
   if (score >= 90) return "excellent";
   if (score >= 80) return "strong";
   if (score >= 70) return "watch";
@@ -12842,14 +12912,14 @@ function renderDashboardGradeRiskSummary(snapshot) {
   const riskValue = document.getElementById("dashboard-grade-risk-value");
   const riskNote = document.getElementById("dashboard-grade-risk-note");
   const riskRows = snapshot.rows.map((row) => `
-    <tr>
+    <tr class="student-performance-row course-watchlist-row">
       <td>${escapeHtml(row.studentName)}</td>
       <td>${escapeHtml(row.courseName)}</td>
       <td>${escapeHtml(row.subjectName)}</td>
-      <td>${row.averageScore.toFixed(1)}%</td>
-      <td>${escapeHtml(row.letterGrade)}</td>
+      <td><span class="student-performance-score-pill ${dashboardAverageScoreClass(row.averageScore)}">${row.averageScore.toFixed(1)}%</span></td>
+      <td><span class="course-watchlist-grade-chip">${escapeHtml(row.letterGrade)}</span></td>
       <td>${row.gpa.toFixed(2)}</td>
-      <td>${escapeHtml(row.riskLevel)}</td>
+      <td><span class="course-watchlist-status">${escapeHtml(row.riskLevel)}</span></td>
     </tr>`);
   if (riskValue) riskValue.textContent = String(snapshot.count);
   if (riskNote) riskNote.textContent = snapshot.count
@@ -17565,6 +17635,20 @@ function bindEvents() {
       renderGradeTypeVolumeChart();
     });
   }
+  document.addEventListener("click", (e) => {
+    const toggle = e.target instanceof HTMLElement ? e.target.closest(".grade-type-volume-table-toggle") : null;
+    if (!toggle) return;
+    const panel = toggle.closest(".grade-type-volume-panel");
+    const chart = panel?.querySelector(".grade-type-volume-chart-scroll");
+    const table = panel?.querySelector(".grade-type-volume-table-wrap");
+    const label = toggle.querySelector("span:last-child");
+    if (!chart || !table || !label) return;
+    const showTable = table.classList.contains("hidden");
+    table.classList.toggle("hidden", !showTable);
+    chart.classList.toggle("hidden", showTable);
+    toggle.setAttribute("aria-pressed", showTable ? "true" : "false");
+    label.textContent = showTable ? "View as Chart" : "View as Table";
+  });
   ["work-filter-quarter", "work-filter-instructor"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderWorkDistributionChart());

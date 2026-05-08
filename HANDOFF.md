@@ -1,75 +1,60 @@
 # Session Handoff
 
-Date: 2026-05-07
+Date: 2026-05-08
 
 ## Current Work
 
-Main app modern preview refinement on branch:
+Modern app preview refinement on branch:
 
 app-modern-interface-shell
 
-## Current State
-
-The modern preview exists at:
+Preview URL:
 
 https://mitchell.navigrader.com/modern-preview/
 
 The live tenant app has not been replaced.
 
-Recent dashboard work focused on the modern Dashboard visuals, especially Overview and Execution analytics:
+## Current State
 
-- Overview gauges were restyled into cleaner modern cards.
-- School Year Progress and Current Quarter Progress were polished and relabeled as calendar progress indicators.
-- Attendance Percentage and Running Grade Average gauge statuses were updated with meaningful threshold labels.
-- Execution tab Open Items Today and Completed Today sections were modernized.
-- Completed Today now includes multi-bar completion analytics and a student-style detail table.
-- Open item cards link toward relevant School Day filtered views.
+Dashboard Performance visuals were refined and deployed to WEB001 `/modern-preview/`.
 
-## Latest Discussion
+Completed this session:
 
-Instruction Days and School Year Progress use different denominators:
+- Course Watchlist now matches the modern Student Performance styling.
+- Student Performance letter grades now align with one-decimal displayed averages.
+- Student Performance score pill colors now use the same rounded value as the displayed grade.
+- Grade Type Volume was rebuilt to match the supplied target design.
+- Grade Type Volume includes icon filters, inner chart panel, bar labels, summary metric strip, and real chart/table toggle.
+- Grade Type Volume order is Assignment, Quiz, Test, Quarter Final.
+- Grade Type Volume Y-axis headroom, April label visibility, and Quarter filter width were fixed.
 
-- Instruction Days gauge uses completed instructional days divided by total required instructional days.
-- School Year Progress uses calendar progress through the school-year date range.
+Current served preview cache key:
 
-With 174 completed instruction days and 195 total required days, the Instruction Days gauge shows about 89%.
-
-The useful next refinement may be to expose "available instruction days to date" separately, because if 174 days were available through today and 174 are completed, then year-to-date instruction day completion is 100% even though full-year completion is 89%.
+- `styles.css?v=202605072140`
+- `app.js?v=202605072140`
 
 ## Next Action
 
-Before coding, inspect only the files needed for the specific requested change.
+Start with the latest user feedback from `/modern-preview/`.
 
-Default files for UI preview work:
+For UI-only work, inspect only:
 
-- web/index.html
-- web/styles.css
-- web/app.js
+- `web/index.html`
+- `web/styles.css`
+- `web/app.js`
 
-Do NOT read:
+Then make the smallest focused change and redeploy those files to:
 
-- JOURNAL/
-- archive/
-- NOTES/
-- long planning docs
+`debian@192.168.1.210:/var/www/home-school-management/web/modern-preview/`
 
-Unless historical context is explicitly requested.
+## Risks
 
-## Current Risks
-
-- Do not change live app entry point unless explicitly approved.
-- Do not change backend, billing, provisioning, auth, tenant lifecycle, or database behavior during visual-only work.
-- Avoid broad rewrites.
-- Untracked icon/tmp files exist and should not be removed unless explicitly requested.
+- Do not replace the live app unless explicitly approved.
+- Do not change backend, auth, tenant lifecycle, billing, or database behavior during visual-only work.
+- Existing untracked `tmp/` and icon files remain intentionally untouched.
 
 ## Validation
 
-For visual-only work:
-
-- run git diff --check
-- run node --check web/app.js only if app.js changed
-- verify preview cache key was bumped if CSS/JS changed
-
-## If More Context Is Needed
-
-Use NOTES/app-interface-modernization-plan.md as reference only, not default startup context.
+- `node --check web/app.js`
+- `git diff --check`
+- Verify public preview cache key after publishing.

@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-07
+Date: 2026-05-08
 
 ## Active Workstream
 
@@ -8,15 +8,17 @@ Modern app preview refinement.
 
 ## Current Focus
 
-Dashboard analytics and gauge clarity in /modern-preview/.
+Dashboard Performance tab polish in `/modern-preview/`.
 
 ## Completed Recently
 
-- Governance files were optimized for shorter Codex context.
-- Journal rules were added.
-- Calendar, Administration, Reports, Grades, Attendance, Curriculum, Schedule, Dashboard, and SaaS visual refinements were completed.
-- Search navigation, alerts, profile photo support, grade type icons, dashboard compliance, student performance, grade trending, execution analytics, and completion analytics received preview refinements.
-- Latest tracked work is committed and pushed on app-modern-interface-shell.
+- Course Watchlist was modernized to match Student Performance styling.
+- Student Performance average display, letter grade, and color tone now use consistent one-decimal rounding.
+- Grade Type Volume was restyled to match the latest target design.
+- Grade Type Volume now has icon filters, value-labeled bars, summary totals, and a working chart/table toggle.
+- Grade Type Volume order is Assignment, Quiz, Test, Quarter Final.
+- Grade Type Volume Y-axis and Quarter filter width issues were fixed.
+- Updated preview files were deployed to WEB001 `/var/www/home-school-management/web/modern-preview/`.
 
 ## Current Blockers
 
@@ -24,14 +26,13 @@ None.
 
 ## Current Risks
 
-- Do not load JOURNAL/, archive/, or long planning notes by default.
-- Visual preview work must not alter backend or production tenant behavior.
-- Leave existing untracked tmp/icon files alone unless explicitly asked.
+- Live app has not been replaced.
+- Untracked `tmp/` and icon files remain outside the current commit unless explicitly requested.
+- Continue avoiding JOURNAL/, archive/, and NOTES/ unless the task requires them.
 
 ## Next Actions
 
-1. Clarify whether Instruction Days should show full-year completion only or also available-to-date completion.
-2. Consider adding "available instruction days to date" to Dashboard Overview or Compliance.
-3. Inspect only the minimum required files for the requested slice.
-4. Make the smallest safe change.
-5. Validate with git diff --check and node --check only if app.js changed.
+1. Review `/modern-preview/` for any remaining visual issues.
+2. Keep future UI preview changes scoped to `web/index.html`, `web/styles.css`, and `web/app.js`.
+3. Validate with `node --check web/app.js` and `git diff --check`.
+4. Redeploy changed preview files to WEB001 and verify cache keys.
