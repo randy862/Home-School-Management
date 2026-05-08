@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605072140">
+  <link rel="stylesheet" href="styles.css?v=202605081022">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -603,8 +603,14 @@
         </div>
       </div>
 
-      <div id="dashboard-section-compliance-hours-monthly" class="dashboard-section dashboard-section-compliance-detail hidden">
-        <h3>Instruction Hours Per Month</h3>
+      <div id="dashboard-section-compliance-hours-monthly" class="dashboard-section dashboard-section-compliance-detail dashboard-section-trending hidden">
+        <div class="trend-section-heading">
+          <span class="trend-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M5 15l4-4 4 3 6-7"/><path d="M15 7h4v4"/></svg></span>
+          <div>
+            <h3>Instruction Hours Per Month</h3>
+            <p class="muted">Track completed instruction hours over time.</p>
+          </div>
+        </div>
         <form id="compliance-hours-filter-form" class="grid-form">
           <label class="trend-student-field">Student
             <details id="compliance-hours-student-dropdown" class="multi-select-dropdown">
@@ -617,6 +623,11 @@
               <option value="all">All Quarters</option>
             </select>
           </label>
+          <label>Subject
+            <select id="compliance-hours-filter-subject">
+              <option value="all">All Subjects</option>
+            </select>
+          </label>
           <label>Instructor
             <select id="compliance-hours-filter-instructor">
               <option value="all">All Instructors</option>
@@ -627,8 +638,14 @@
         <div id="compliance-hours-monthly-chart" class="chart-wrap"></div>
       </div>
 
-      <div id="dashboard-section-compliance-days-monthly" class="dashboard-section dashboard-section-compliance-detail hidden">
-        <h3>Instruction Days Per Month</h3>
+      <div id="dashboard-section-compliance-days-monthly" class="dashboard-section dashboard-section-compliance-detail dashboard-section-trending hidden">
+        <div class="trend-section-heading">
+          <span class="trend-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M5 15l4-4 4 3 6-7"/><path d="M15 7h4v4"/></svg></span>
+          <div>
+            <h3>Instruction Days Per Month</h3>
+            <p class="muted">Track completed instruction days over time.</p>
+          </div>
+        </div>
         <form id="compliance-days-filter-form" class="grid-form">
           <label class="trend-student-field">Student
             <details id="compliance-days-student-dropdown" class="multi-select-dropdown">
@@ -639,6 +656,11 @@
           <label>Quarter
             <select id="compliance-days-filter-quarter">
               <option value="all">All Quarters</option>
+            </select>
+          </label>
+          <label>Subject
+            <select id="compliance-days-filter-subject">
+              <option value="all">All Subjects</option>
             </select>
           </label>
           <label>Instructor
@@ -1000,7 +1022,8 @@
               <label class="checklist-row"><input type="checkbox" id="admin-alert-show-open-completion"> <span>Open class completion</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-alert-show-missing-grades"> <span>Missing grades</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-alert-show-instruction-pace"> <span>Behind instruction pace</span></label>
-              <label class="checklist-row"><input type="checkbox" id="admin-alert-show-grade-risk"> <span>Grade risk</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-alert-show-grade-risk"> <span>Average grade risk</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-alert-show-single-grade-risk"> <span>Single grade risk</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-alert-show-attendance-risk"> <span>Attendance risk</span></label>
             </div>
           </section>
@@ -1008,8 +1031,11 @@
           <section class="administration-config-card">
             <h4>Risk Thresholds</h4>
             <div class="administration-config-select-grid alert-number-field-grid">
-              <label>Grade risk below
+              <label>Average Grade Risk below
                 <input id="admin-alert-grade-risk-threshold" type="number" min="0" max="100" step="1">
+              </label>
+              <label>Single Grade Risk below
+                <input id="admin-alert-single-grade-risk-threshold" type="number" min="0" max="100" step="1">
               </label>
               <label>Attendance risk below
                 <input id="admin-alert-attendance-risk-threshold" type="number" min="0" max="100" step="1">
@@ -1019,7 +1045,7 @@
 
           <section class="administration-config-card">
             <h4>Alert Persistence</h4>
-            <p class="muted">Applies only to Behind Instructional Days, Behind Instructional Hours, Grade Risk, and Attendance Risk alerts. For Open Attendance, Completion, and Missing Grade alerts, once acknowledged, they remain acknowledged for the rest of the current instructional day.</p>
+            <p class="muted">Applies only to Behind Instructional Days, Behind Instructional Hours, Average Grade Risk, Single Grade Risk, and Attendance Risk alerts. For Open Attendance, Completion, and Missing Grade alerts, once acknowledged, they remain acknowledged for the rest of the current instructional day.</p>
             <div class="administration-config-select-grid alert-number-field-grid">
               <label>Re-alert after number of days:
                 <input id="admin-alert-risk-cadence-days" type="number" min="1" max="365" step="1">
@@ -2099,6 +2125,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605072140"></script>
+  <script src="app.js?v=202605081022"></script>
   </body>
   </html>

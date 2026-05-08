@@ -162,8 +162,10 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showMissingGrades: true,
     showInstructionPace: true,
     showGradeRisk: true,
+    showSingleGradeRisk: true,
     showAttendanceRisk: true,
     gradeRiskThresholdPercent: 70,
+    singleGradeRiskThresholdPercent: 70,
     attendanceRiskThresholdPercent: 90,
     riskAlertCadenceDays: 7
   }
@@ -1467,6 +1469,10 @@ const studentPerformanceSelectedGradeMethods = new Set(STUDENT_PERFORMANCE_GRADE
 const trendSelectedStudentIds = new Set();
 let gradeTrendViewMode = "line";
 let gradeTrendShowDataPoints = true;
+let complianceHoursTrendViewMode = "line";
+let complianceHoursTrendShowDataPoints = true;
+let complianceDaysTrendViewMode = "line";
+let complianceDaysTrendShowDataPoints = true;
 const instructorGradeTrendSelectedInstructorIds = new Set();
 const instructorGradeTrendSelectedStudentIds = new Set();
 let instructorGradeTrendViewMode = "line";
@@ -3444,6 +3450,7 @@ function buildAlertsSnapshot() {
   const executionSnapshot = buildDashboardExecutionSnapshot(referenceDate, dashboardStudents);
   const paceSnapshot = buildDashboardInstructionHourPaceSnapshot(dashboardStudents, instructionalHoursSnapshot, yearProgressPercent, referenceDate);
   const gradeRiskSnapshot = buildDashboardGradeRiskSnapshot(dashboardStudents);
+  const gradeRiskQuarter = currentQuarter(toDate(referenceDate));
   const alerts = [];
   const pushAlert = (alert) => alerts.push({
     id: alert.id || uid(),
@@ -3556,10 +3563,10 @@ function buildAlertsSnapshot() {
     .filter((row) => alertConfig.showGradeRisk && row.averageScore < alertConfig.gradeRiskThresholdPercent)
     .forEach((row) => {
       pushAlert({
-        id: `grade-risk-${row.studentId}-${row.courseId}-${state.settings.currentSchoolYearId}-${gradeRiskSnapshot.quarterName}-${alertConfig.gradeRiskThresholdPercent}`,
+        id: `average-grade-risk-${row.studentId}-${row.courseId}-${state.settings.currentSchoolYearId}-${gradeRiskSnapshot.quarterName}-${alertConfig.gradeRiskThresholdPercent}`,
         severity: "critical",
-        type: "Grade Risk",
-        label: "Grade Risk",
+        type: "Average Grade Risk",
+        label: "Average Grade Risk",
         title: row.studentName,
         detail: `${row.courseName} average is ${row.averageScore.toFixed(1)}%.`,
         actionLabel: "Open Grades",
@@ -3567,6 +3574,32 @@ function buildAlertsSnapshot() {
         action: { view: "grades-search", studentId: row.studentId, courseId: row.courseId }
       });
     });
+
+  if (alertConfig.showSingleGradeRisk) {
+    const allowedStudentIds = new Set(dashboardStudents.map((student) => student.id));
+    const threshold = alertConfig.singleGradeRiskThresholdPercent;
+    state.tests
+      .filter((test) => {
+        if (!allowedStudentIds.has(test.studentId)) return false;
+        if (gradeRiskQuarter) return inRange(test.date, gradeRiskQuarter.startDate, gradeRiskQuarter.endDate);
+        return recordDateInActiveYear(test);
+      })
+      .forEach((test) => {
+        const gradePercent = pct(test.score, test.maxScore);
+        if (gradePercent >= threshold) return;
+        pushAlert({
+          id: `single-grade-risk-${test.id || `${test.studentId}-${test.courseId}-${test.date}-${gradeTypeName(test)}`}-${state.settings.currentSchoolYearId}-${threshold}`,
+          severity: "critical",
+          type: "Single Grade Risk",
+          label: "Single Grade Risk",
+          title: getStudentName(test.studentId),
+          detail: `${getCourseName(test.courseId)} ${gradeTypeName(test)} scored ${gradePercent.toFixed(1)}% on ${formatDisplayDate(test.date)}.`,
+          actionLabel: "Open Grades",
+          ackMode: "temporary",
+          action: { view: "grades-search", studentId: test.studentId, courseId: test.courseId }
+        });
+      });
+  }
 
   dashboardStudents.forEach((student) => {
     const records = state.attendance.filter((record) => record.studentId === student.id && recordDateInActiveYear(record));
@@ -5931,6 +5964,19 @@ function renderSelects() {
     if (Array.from(complianceHoursQuarterSelect.options).some((o) => o.value === current)) complianceHoursQuarterSelect.value = current;
   }
 
+  const complianceHoursSubjectSelect = document.getElementById("compliance-hours-filter-subject");
+  if (complianceHoursSubjectSelect) {
+    const current = complianceHoursSubjectSelect.value || "all";
+    complianceHoursSubjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+    state.subjects.forEach((subject) => {
+      const option = document.createElement("option");
+      option.value = subject.id;
+      option.textContent = subject.name;
+      complianceHoursSubjectSelect.appendChild(option);
+    });
+    if (Array.from(complianceHoursSubjectSelect.options).some((o) => o.value === current)) complianceHoursSubjectSelect.value = current;
+  }
+
   const complianceDaysQuarterSelect = document.getElementById("compliance-days-filter-quarter");
   if (complianceDaysQuarterSelect) {
     const current = complianceDaysQuarterSelect.value || "all";
@@ -5942,6 +5988,19 @@ function renderSelects() {
       complianceDaysQuarterSelect.appendChild(option);
     });
     if (Array.from(complianceDaysQuarterSelect.options).some((o) => o.value === current)) complianceDaysQuarterSelect.value = current;
+  }
+
+  const complianceDaysSubjectSelect = document.getElementById("compliance-days-filter-subject");
+  if (complianceDaysSubjectSelect) {
+    const current = complianceDaysSubjectSelect.value || "all";
+    complianceDaysSubjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+    state.subjects.forEach((subject) => {
+      const option = document.createElement("option");
+      option.value = subject.id;
+      option.textContent = subject.name;
+      complianceDaysSubjectSelect.appendChild(option);
+    });
+    if (Array.from(complianceDaysSubjectSelect.options).some((o) => o.value === current)) complianceDaysSubjectSelect.value = current;
   }
 
   const volumeQuarterSelect = document.getElementById("volume-filter-quarter");
@@ -7771,6 +7830,7 @@ function renderAdministration() {
     ["admin-alert-show-missing-grades", alertConfig.showMissingGrades],
     ["admin-alert-show-instruction-pace", alertConfig.showInstructionPace],
     ["admin-alert-show-grade-risk", alertConfig.showGradeRisk],
+    ["admin-alert-show-single-grade-risk", alertConfig.showSingleGradeRisk],
     ["admin-alert-show-attendance-risk", alertConfig.showAttendanceRisk]
   ].forEach(([id, value]) => {
     const input = document.getElementById(id);
@@ -7778,6 +7838,8 @@ function renderAdministration() {
   });
   const gradeRiskThreshold = document.getElementById("admin-alert-grade-risk-threshold");
   if (gradeRiskThreshold) gradeRiskThreshold.value = String(alertConfig.gradeRiskThresholdPercent);
+  const singleGradeRiskThreshold = document.getElementById("admin-alert-single-grade-risk-threshold");
+  if (singleGradeRiskThreshold) singleGradeRiskThreshold.value = String(alertConfig.singleGradeRiskThresholdPercent);
   const attendanceRiskThreshold = document.getElementById("admin-alert-attendance-risk-threshold");
   if (attendanceRiskThreshold) attendanceRiskThreshold.value = String(alertConfig.attendanceRiskThresholdPercent);
   const riskCadenceDays = document.getElementById("admin-alert-risk-cadence-days");
@@ -7848,8 +7910,10 @@ function buildAlertsConfigFromAdminForm() {
     showMissingGrades: !!document.getElementById("admin-alert-show-missing-grades")?.checked,
     showInstructionPace: !!document.getElementById("admin-alert-show-instruction-pace")?.checked,
     showGradeRisk: !!document.getElementById("admin-alert-show-grade-risk")?.checked,
+    showSingleGradeRisk: !!document.getElementById("admin-alert-show-single-grade-risk")?.checked,
     showAttendanceRisk: !!document.getElementById("admin-alert-show-attendance-risk")?.checked,
     gradeRiskThresholdPercent: Number(document.getElementById("admin-alert-grade-risk-threshold")?.value || DEFAULT_WORKSPACE_CONFIG.alerts.gradeRiskThresholdPercent),
+    singleGradeRiskThresholdPercent: Number(document.getElementById("admin-alert-single-grade-risk-threshold")?.value || DEFAULT_WORKSPACE_CONFIG.alerts.singleGradeRiskThresholdPercent),
     attendanceRiskThresholdPercent: Number(document.getElementById("admin-alert-attendance-risk-threshold")?.value || DEFAULT_WORKSPACE_CONFIG.alerts.attendanceRiskThresholdPercent),
     riskAlertCadenceDays: Number(document.getElementById("admin-alert-risk-cadence-days")?.value || DEFAULT_WORKSPACE_CONFIG.alerts.riskAlertCadenceDays)
   };
@@ -10585,6 +10649,22 @@ function renderGradeTrending() {
   });
   const valueLabelSvg = gradeTrendShowDataPoints ? valueLabelParts.join("") : "";
 
+  const monthHoverZoneSvg = months.map((monthEntry, monthIdx) => {
+    const x = xFor(monthIdx);
+    const previousX = monthIdx > 0 ? xFor(monthIdx - 1) : margin.left;
+    const nextX = monthIdx < months.length - 1 ? xFor(monthIdx + 1) : width - margin.right;
+    const left = monthIdx > 0 ? (previousX + x) / 2 : margin.left;
+    const right = monthIdx < months.length - 1 ? (x + nextX) / 2 : width - margin.right;
+    const monthLabel = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0).toLocaleDateString(undefined, { month: "short" });
+    const monthTooltip = series.map((lineSeries) => {
+      const row = lineSeries.monthly[monthIdx];
+      if (!row || row.count <= 0) return "";
+      return `${lineSeries.label} ${monthLabel}: ${row.avg.toFixed(1)}%`;
+    }).filter(Boolean).join("\n");
+    if (!monthTooltip) return "";
+    return `<rect x="${left.toFixed(2)}" y="${margin.top}" width="${Math.max(1, right - left).toFixed(2)}" height="${plotH.toFixed(2)}" fill="transparent" pointer-events="all"><title>${escapeHtml(monthTooltip)}</title></rect>`;
+  }).join("");
+
   const selectedStudentIdSet = new Set(selectedStudentIds);
   const summaryMonthly = months.map((monthEntry) => {
     const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
@@ -10674,6 +10754,7 @@ function renderGradeTrending() {
       ${lineSvg}
       ${pointSvg}
       ${valueLabelSvg}
+      ${monthHoverZoneSvg}
       ${noData}
       <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
       <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Average Grade (%)</text>
@@ -10822,6 +10903,21 @@ function renderInstructorGradeTrending() {
     const labelWidth = 37;
     return `<g class="trend-value-pill"><rect x="${(x - labelWidth / 2).toFixed(2)}" y="${(y - 12).toFixed(2)}" width="${labelWidth}" height="18" rx="6" style="fill:${lineSeries.color};stroke:${lineSeries.color}"></rect><text x="${x.toFixed(2)}" y="${y.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${lineSeries.color}">${(row.avg || 0).toFixed(1)}%</text></g>`;
   })).join("") : "";
+  const monthHoverZoneSvg = months.map((monthEntry, monthIdx) => {
+    const x = xFor(monthIdx);
+    const previousX = monthIdx > 0 ? xFor(monthIdx - 1) : margin.left;
+    const nextX = monthIdx < months.length - 1 ? xFor(monthIdx + 1) : width - margin.right;
+    const left = monthIdx > 0 ? (previousX + x) / 2 : margin.left;
+    const right = monthIdx < months.length - 1 ? (x + nextX) / 2 : width - margin.right;
+    const monthLabel = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0).toLocaleDateString(undefined, { month: "short" });
+    const monthTooltip = series.map((lineSeries) => {
+      const row = lineSeries.monthly[monthIdx];
+      if (!row || row.count <= 0) return "";
+      return `${lineSeries.label} ${monthLabel}: ${row.avg.toFixed(1)}%`;
+    }).filter(Boolean).join("\n");
+    if (!monthTooltip) return "";
+    return `<rect x="${left.toFixed(2)}" y="${margin.top}" width="${Math.max(1, right - left).toFixed(2)}" height="${plotH.toFixed(2)}" fill="transparent" pointer-events="all"><title>${escapeHtml(monthTooltip)}</title></rect>`;
+  }).join("");
   const summaryRows = months.map((monthEntry) => {
     const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
     const monthEnd = new Date(monthEntry.year, monthEntry.month + 1, 0, 12, 0, 0);
@@ -10853,7 +10949,7 @@ function renderInstructorGradeTrending() {
         <defs><filter id="instructorGradeTrendGlow" x="-15%" y="-40%" width="130%" height="180%"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
         <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
         <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
-        ${yTickSvg}${xTickSvg}${areaSvg}${lineSvg}${pointSvg}${valueLabelSvg}${noData}
+        ${yTickSvg}${xTickSvg}${areaSvg}${lineSvg}${pointSvg}${valueLabelSvg}${monthHoverZoneSvg}${noData}
         <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
         <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Average Grade (%)</text>
       </svg>
@@ -11287,6 +11383,7 @@ function buildComplianceMonthlySeries(selectedStudentIds = [], options = {}) {
   const effectiveEnd = syEnd < today ? syEnd : today;
   const months = schoolYearMonths(sy.startDate, toISO(effectiveEnd));
   const quarterFilter = options.quarterFilter || "all";
+  const subjectFilter = options.subjectFilter || "all";
   const instructorFilter = options.instructorFilter || "all";
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter) || null;
   let monthStartIso = sy.startDate;
@@ -11324,6 +11421,7 @@ function buildComplianceMonthlySeries(selectedStudentIds = [], options = {}) {
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction" || !targetStudentIdSet.has(block.studentId)) return;
       if (quarterRange && quarterFilter !== "all" && !inRange(dateKey, quarterRange.startDate, quarterRange.endDate)) return;
+      if (subjectFilter !== "all" && (block.subjectId || getCourse(block.courseId)?.subjectId) !== subjectFilter) return;
       if (attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) !== true) return;
       if (!instructionMatchesInstructorFilter(block.studentId, block.courseId, dateKey, instructorFilter)) return;
       if (!instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)) return;
@@ -11440,33 +11538,471 @@ function renderComplianceMonthlyBarChart(chartHostId, valueKey, emptyMessage, ar
 }
 
 function renderComplianceHoursMonthlyChart() {
-  renderComplianceMonthlyBarChart(
-    "compliance-hours-monthly-chart",
-    "hours",
-    "No completed instructional hours for the selected filters",
-    "Monthly instruction hours bar chart",
-    "Hours",
-    getComplianceHoursSelectedStudentIds(),
-    {
-      quarterFilter: document.getElementById("compliance-hours-filter-quarter")?.value || "all",
-      instructorFilter: document.getElementById("compliance-hours-filter-instructor")?.value || "all"
+  renderComplianceHoursMonthlyModernChart();
+}
+
+function renderComplianceHoursMonthlyModernChart() {
+  const chartHost = document.getElementById("compliance-hours-monthly-chart");
+  if (!chartHost) return;
+  const sy = state.settings.schoolYear;
+  const syStart = toDate(sy.startDate);
+  const today = toDate(todayISO());
+  const selectedStudentIds = getComplianceHoursSelectedStudentIds();
+  const { months, series } = buildComplianceMonthlySeries(selectedStudentIds, {
+    quarterFilter: document.getElementById("compliance-hours-filter-quarter")?.value || "all",
+    subjectFilter: document.getElementById("compliance-hours-filter-subject")?.value || "all",
+    instructorFilter: document.getElementById("compliance-hours-filter-instructor")?.value || "all"
+  });
+  if (!months.length) {
+    chartHost.innerHTML = syStart > today
+      ? "<p class='muted'>School year has not started yet.</p>"
+      : "<p class='muted'>No school year range set.</p>";
+    return;
+  }
+  if (!series.length) {
+    chartHost.innerHTML = "<p class='muted'>No visible students for the current filter.</p>";
+    return;
+  }
+
+  const monthlyRows = months.map((monthEntry, monthIdx) => ({
+    label: new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0).toLocaleDateString(undefined, { month: "short" }),
+    values: series.map((studentSeries) => Number(studentSeries.monthly[monthIdx]?.hours || 0))
+  }));
+  const plottedValues = monthlyRows.flatMap((row) => row.values);
+  const rawMax = plottedValues.length ? Math.max(...plottedValues) : 0;
+  const yTickStep = rawMax <= 10 ? 1 : (rawMax <= 30 ? 5 : (rawMax <= 80 ? 10 : 20));
+  const yAxisMax = rawMax > 0 ? Math.ceil((rawMax + yTickStep) / yTickStep) * yTickStep : 10;
+  const yTicks = [];
+  for (let tick = 0; tick <= yAxisMax; tick += yTickStep) yTicks.push(tick);
+
+  const width = 1120;
+  const height = 330;
+  const margin = { top: 40, right: 34, bottom: 58, left: 74 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const xPad = 16;
+  const xSpan = Math.max(1, plotW - (xPad * 2));
+  const xStep = monthlyRows.length > 1 ? xSpan / (monthlyRows.length - 1) : 0;
+  const xForMonth = (idx) => monthlyRows.length > 1 ? margin.left + xPad + (idx * xStep) : margin.left + (plotW / 2);
+  const yFor = (value) => margin.top + ((yAxisMax - value) / yAxisMax) * plotH;
+  const baselineY = yFor(0);
+  const formatHours = (value) => Number(value || 0).toFixed(Number(value || 0) % 1 === 0 ? 0 : 1);
+  const palette = ["#f97316", "#20a65a", "#2563eb", "#8b5cf6", "#ef4444", "#0f766e", "#a16207", "#db2777"];
+  const studentColors = series.map((studentSeries, idx) => studentSeries.color || palette[idx % palette.length]);
+
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${formatHours(tick)}</text></g>`;
+  }).join("");
+
+  const xTickSvg = monthlyRows.map((row, idx) => {
+    const x = xForMonth(idx);
+    return `<text x="${x.toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${row.label}</text>`;
+  }).join("");
+
+  const lineSvg = series.map((studentSeries, studentIdx) => {
+    const color = studentColors[studentIdx];
+    const points = monthlyRows.map((row, monthIdx) => ({
+      label: row.label,
+      value: Number(row.values[studentIdx] || 0),
+      x: xForMonth(monthIdx),
+      y: yFor(Number(row.values[studentIdx] || 0))
+    })).filter((point) => point.value > 0);
+    if (!points.length) return "";
+    const path = points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+    return `<path d="${path}" class="trend-line" style="stroke:${color}" fill="none"><title>${escapeHtml(studentSeries.label)}</title></path>`;
+  }).join("");
+
+  const areaSvg = complianceHoursTrendViewMode === "area" ? series.map((studentSeries, studentIdx) => {
+    const color = studentColors[studentIdx];
+    const points = monthlyRows.map((row, monthIdx) => ({
+      value: Number(row.values[studentIdx] || 0),
+      x: xForMonth(monthIdx),
+      y: yFor(Number(row.values[studentIdx] || 0))
+    })).filter((point) => point.value > 0);
+    if (points.length < 2) return "";
+    const linePath = points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+    const first = points[0];
+    const last = points[points.length - 1];
+    return `<path d="${linePath} L ${last.x.toFixed(2)} ${baselineY.toFixed(2)} L ${first.x.toFixed(2)} ${baselineY.toFixed(2)} Z" class="trend-area" style="fill:${color}"></path>`;
+  }).join("") : "";
+
+  const pointSvg = complianceHoursTrendShowDataPoints ? series.flatMap((studentSeries, studentIdx) => monthlyRows.map((row, monthIdx) => {
+    const value = Number(row.values[studentIdx] || 0);
+    if (value <= 0) return "";
+    const x = xForMonth(monthIdx);
+    const y = yFor(value);
+    const color = studentColors[studentIdx];
+    const monthTooltip = series.map((entry, idx) => {
+      const monthValue = Number(monthlyRows[monthIdx]?.values[idx] || 0);
+      return `${entry.label} ${row.label}: ${formatHours(monthValue)} hours`;
+    }).join("\n");
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${color};stroke:${color}"><title>${escapeHtml(monthTooltip)}</title></circle>`;
+  })).join("") : "";
+
+  const monthHoverZoneSvg = monthlyRows.map((row, monthIdx) => {
+    const x = xForMonth(monthIdx);
+    const previousX = monthIdx > 0 ? xForMonth(monthIdx - 1) : margin.left;
+    const nextX = monthIdx < monthlyRows.length - 1 ? xForMonth(monthIdx + 1) : width - margin.right;
+    const left = monthIdx > 0 ? (previousX + x) / 2 : margin.left;
+    const right = monthIdx < monthlyRows.length - 1 ? (x + nextX) / 2 : width - margin.right;
+    const monthTooltip = series.map((entry, idx) => {
+      const monthValue = Number(row.values[idx] || 0);
+      return `${entry.label} ${row.label}: ${formatHours(monthValue)} hours`;
+    }).join("\n");
+    return `<rect x="${left.toFixed(2)}" y="${margin.top}" width="${Math.max(1, right - left).toFixed(2)}" height="${plotH.toFixed(2)}" fill="transparent" pointer-events="all"><title>${escapeHtml(monthTooltip)}</title></rect>`;
+  }).join("");
+
+  const labelTop = margin.top + 10;
+  const labelBottom = height - margin.bottom - 6;
+  const minLabelGap = 12;
+  const valueLabelParts = [];
+  monthlyRows.forEach((_, monthIdx) => {
+    const monthLabels = series.map((studentSeries, studentIdx) => {
+      const value = Number(studentSeries.monthly[monthIdx]?.hours || 0);
+      if (value <= 0) return null;
+      const x = xForMonth(monthIdx);
+      const y = yFor(value);
+      const nearTop = y <= margin.top + 16;
+      const nearBottom = y >= (height - margin.bottom - 10);
+      const offsetBase = ((monthIdx + studentIdx) % 2 === 0) ? -10 : 14;
+      const offset = nearTop ? 22 : (nearBottom ? -10 : offsetBase);
+      return {
+        color: studentColors[studentIdx],
+        text: formatHours(value),
+        x,
+        preferredY: clamp(y + offset, labelTop, labelBottom)
+      };
+    }).filter(Boolean).sort((a, b) => a.preferredY - b.preferredY);
+
+    for (let i = 1; i < monthLabels.length; i += 1) {
+      if (monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+        monthLabels[i].preferredY = monthLabels[i - 1].preferredY + minLabelGap;
+      }
     }
-  );
+    const overflow = monthLabels.length ? monthLabels[monthLabels.length - 1].preferredY - labelBottom : 0;
+    if (overflow > 0) {
+      for (let i = monthLabels.length - 1; i >= 0; i -= 1) {
+        monthLabels[i].preferredY -= overflow;
+        if (i > 0 && monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+          monthLabels[i - 1].preferredY = monthLabels[i].preferredY - minLabelGap;
+        }
+      }
+    }
+    monthLabels.forEach((label) => {
+      label.preferredY = clamp(label.preferredY, labelTop, labelBottom);
+      const labelWidth = 37;
+      valueLabelParts.push(`<g class="trend-value-pill"><rect x="${(label.x - labelWidth / 2).toFixed(2)}" y="${(label.preferredY - 12).toFixed(2)}" width="${labelWidth}" height="18" rx="6" style="fill:${label.color};stroke:${label.color}"></rect><text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text></g>`);
+    });
+  });
+  const valueLabelSvg = complianceHoursTrendShowDataPoints ? valueLabelParts.join("") : "";
+
+  const totalHours = series.reduce((sum, studentSeries) => sum + studentSeries.monthly.reduce((inner, row) => inner + Number(row.hours || 0), 0), 0);
+  const noData = totalHours === 0
+    ? `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No completed instructional hours for the selected filters</text>`
+    : "";
+
+  const summaryRows = monthlyRows.map((row) => ({
+    label: row.label,
+    total: row.values.reduce((sum, value) => sum + Number(value || 0), 0)
+  })).filter((row) => row.total > 0);
+  const lastRow = summaryRows[summaryRows.length - 1];
+  const previousRow = summaryRows[summaryRows.length - 2];
+  const trendDelta = lastRow && previousRow ? lastRow.total - previousRow.total : null;
+  const highestPoint = series.flatMap((studentSeries, studentIdx) => studentSeries.monthly
+    .filter((row) => Number(row.hours || 0) > 0)
+    .map((row) => ({ label: studentSeries.label, month: row.label, value: Number(row.hours || 0), color: studentColors[studentIdx] })))
+    .sort((a, b) => b.value - a.value)[0];
+  const lowestPoint = series.flatMap((studentSeries, studentIdx) => studentSeries.monthly
+    .filter((row) => Number(row.hours || 0) > 0)
+    .map((row) => ({ label: studentSeries.label, month: row.label, value: Number(row.hours || 0), color: studentColors[studentIdx] })))
+    .sort((a, b) => a.value - b.value)[0];
+  const averageValue = summaryRows.length ? totalHours / summaryRows.length : null;
+  const deltaLabel = trendDelta === null ? "No prior month" : `${trendDelta >= 0 ? "+" : ""}${formatHours(trendDelta)}`;
+  const deltaClass = trendDelta === null ? "neutral" : (trendDelta >= 0 ? "positive" : "negative");
+  const trendIconSvg = trendDelta === null
+    ? `<svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/></svg>`
+    : (trendDelta >= 0
+      ? `<svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M16 8h4v4"/></svg>`
+      : `<svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg>`);
+  const summaryHtml = `
+    <div class="trend-summary-strip">
+      <div class="trend-summary-card ${deltaClass}"><span class="trend-summary-icon" aria-hidden="true">${trendIconSvg}</span><div><span>Overall Trend ${lastRow ? `(${escapeHtml(lastRow.label)})` : ""}</span><strong>${deltaLabel}</strong><small>${previousRow ? `vs. ${escapeHtml(previousRow.label)}` : "Need another month"}</small></div></div>
+      <div class="trend-summary-card positive"><span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M5 5H3v2a4 4 0 0 0 4 4"/><path d="M19 5h2v2a4 4 0 0 1-4 4"/></svg></span><div><span>Highest Hours</span><strong>${highestPoint ? formatHours(highestPoint.value) : "-"}</strong><small>${highestPoint ? `${escapeHtml(highestPoint.label)} (${escapeHtml(highestPoint.month)})` : "No hours"}</small></div></div>
+      <div class="trend-summary-card negative"><span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg></span><div><span>Lowest Hours</span><strong>${lowestPoint ? formatHours(lowestPoint.value) : "-"}</strong><small>${lowestPoint ? `${escapeHtml(lowestPoint.label)} (${escapeHtml(lowestPoint.month)})` : "No hours"}</small></div></div>
+      <div class="trend-summary-card neutral"><span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span><div><span>${months.length}-Month Average</span><strong>${averageValue === null ? "-" : formatHours(averageValue)}</strong><small>${selectedStudentIds.length ? `${selectedStudentIds.length} selected students` : "All Students"}</small></div></div>
+    </div>`;
+
+  const legendHtml = `
+    <div class="trend-legend">
+      ${series.map((studentSeries, idx) => `
+        <span class="trend-legend-item">
+          <span class="trend-legend-line" style="background:${studentColors[idx]}"></span>
+          <span>${escapeHtml(studentSeries.label)}</span>
+        </span>`).join("")}
+    </div>`;
+  chartHost.innerHTML = `
+    <div class="trend-chart-panel">
+      <div class="trend-chart-toolbar">
+        <div class="trend-view-toggle" aria-label="Instruction hours chart view">
+          <button type="button" data-compliance-hours-trend-view="line" class="${complianceHoursTrendViewMode === "line" ? "active" : ""}">Line View</button>
+          <button type="button" data-compliance-hours-trend-view="area" class="${complianceHoursTrendViewMode === "area" ? "active" : ""}">Area View</button>
+        </div>
+        <label class="trend-data-toggle"><span>Show Data Points</span><input id="compliance-hours-trend-data-points-toggle" type="checkbox"${complianceHoursTrendShowDataPoints ? " checked" : ""}><span aria-hidden="true"></span></label>
+      </div>
+      <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly instruction hours line chart">
+        <defs>
+          <filter id="gradeTrendGlow" x="-15%" y="-40%" width="130%" height="180%"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+        <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+        ${yTickSvg}
+        ${xTickSvg}
+        ${areaSvg}
+        ${lineSvg}
+        ${pointSvg}
+        ${valueLabelSvg}
+        ${monthHoverZoneSvg}
+        ${noData}
+        <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
+        <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Instruction Hours</text>
+      </svg>
+      ${legendHtml}
+    </div>
+    ${summaryHtml}`;
 }
 
 function renderComplianceDaysMonthlyChart() {
-  renderComplianceMonthlyBarChart(
-    "compliance-days-monthly-chart",
-    "days",
-    "No completed instruction days for the selected filters",
-    "Monthly instruction days bar chart",
-    "Days",
-    getComplianceDaysSelectedStudentIds(),
-    {
-      quarterFilter: document.getElementById("compliance-days-filter-quarter")?.value || "all",
-      instructorFilter: document.getElementById("compliance-days-filter-instructor")?.value || "all"
+  renderComplianceDaysMonthlyModernChart();
+}
+
+function renderComplianceDaysMonthlyModernChart() {
+  const chartHost = document.getElementById("compliance-days-monthly-chart");
+  if (!chartHost) return;
+  const sy = state.settings.schoolYear;
+  const syStart = toDate(sy.startDate);
+  const today = toDate(todayISO());
+  const selectedStudentIds = getComplianceDaysSelectedStudentIds();
+  const { months, series } = buildComplianceMonthlySeries(selectedStudentIds, {
+    quarterFilter: document.getElementById("compliance-days-filter-quarter")?.value || "all",
+    subjectFilter: document.getElementById("compliance-days-filter-subject")?.value || "all",
+    instructorFilter: document.getElementById("compliance-days-filter-instructor")?.value || "all"
+  });
+  if (!months.length) {
+    chartHost.innerHTML = syStart > today
+      ? "<p class='muted'>School year has not started yet.</p>"
+      : "<p class='muted'>No school year range set.</p>";
+    return;
+  }
+  if (!series.length) {
+    chartHost.innerHTML = "<p class='muted'>No visible students for the current filter.</p>";
+    return;
+  }
+
+  const monthlyRows = months.map((monthEntry, monthIdx) => ({
+    label: new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0).toLocaleDateString(undefined, { month: "short" }),
+    values: series.map((studentSeries) => Number(studentSeries.monthly[monthIdx]?.days || 0))
+  }));
+  const plottedValues = monthlyRows.flatMap((row) => row.values);
+  const rawMax = plottedValues.length ? Math.max(...plottedValues) : 0;
+  const yTickStep = rawMax <= 10 ? 1 : (rawMax <= 30 ? 5 : 10);
+  const yAxisMax = rawMax > 0 ? Math.ceil((rawMax + yTickStep) / yTickStep) * yTickStep : 10;
+  const yTicks = [];
+  for (let tick = 0; tick <= yAxisMax; tick += yTickStep) yTicks.push(tick);
+
+  const width = 1120;
+  const height = 330;
+  const margin = { top: 40, right: 34, bottom: 58, left: 74 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const xPad = 16;
+  const xSpan = Math.max(1, plotW - (xPad * 2));
+  const xStep = monthlyRows.length > 1 ? xSpan / (monthlyRows.length - 1) : 0;
+  const xForMonth = (idx) => monthlyRows.length > 1 ? margin.left + xPad + (idx * xStep) : margin.left + (plotW / 2);
+  const yFor = (value) => margin.top + ((yAxisMax - value) / yAxisMax) * plotH;
+  const baselineY = yFor(0);
+  const formatDays = (value) => Number(value || 0).toFixed(Number(value || 0) % 1 === 0 ? 0 : 1);
+  const palette = ["#f97316", "#20a65a", "#2563eb", "#8b5cf6", "#ef4444", "#0f766e", "#a16207", "#db2777"];
+  const studentColors = series.map((studentSeries, idx) => studentSeries.color || palette[idx % palette.length]);
+
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${formatDays(tick)}</text></g>`;
+  }).join("");
+
+  const xTickSvg = monthlyRows.map((row, idx) => {
+    const x = xForMonth(idx);
+    return `<text x="${x.toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${row.label}</text>`;
+  }).join("");
+
+  const lineSvg = series.map((studentSeries, studentIdx) => {
+    const color = studentColors[studentIdx];
+    const points = monthlyRows.map((row, monthIdx) => ({
+      value: Number(row.values[studentIdx] || 0),
+      x: xForMonth(monthIdx),
+      y: yFor(Number(row.values[studentIdx] || 0))
+    })).filter((point) => point.value > 0);
+    if (!points.length) return "";
+    const path = points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+    return `<path d="${path}" class="trend-line" style="stroke:${color}" fill="none"><title>${escapeHtml(studentSeries.label)}</title></path>`;
+  }).join("");
+
+  const areaSvg = complianceDaysTrendViewMode === "area" ? series.map((studentSeries, studentIdx) => {
+    const color = studentColors[studentIdx];
+    const points = monthlyRows.map((row, monthIdx) => ({
+      value: Number(row.values[studentIdx] || 0),
+      x: xForMonth(monthIdx),
+      y: yFor(Number(row.values[studentIdx] || 0))
+    })).filter((point) => point.value > 0);
+    if (points.length < 2) return "";
+    const linePath = points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+    const first = points[0];
+    const last = points[points.length - 1];
+    return `<path d="${linePath} L ${last.x.toFixed(2)} ${baselineY.toFixed(2)} L ${first.x.toFixed(2)} ${baselineY.toFixed(2)} Z" class="trend-area" style="fill:${color}"></path>`;
+  }).join("") : "";
+
+  const pointSvg = complianceDaysTrendShowDataPoints ? series.flatMap((studentSeries, studentIdx) => monthlyRows.map((row, monthIdx) => {
+    const value = Number(row.values[studentIdx] || 0);
+    if (value <= 0) return "";
+    const x = xForMonth(monthIdx);
+    const y = yFor(value);
+    const color = studentColors[studentIdx];
+    const monthTooltip = series.map((entry, idx) => {
+      const monthValue = Number(monthlyRows[monthIdx]?.values[idx] || 0);
+      return `${entry.label} ${row.label}: ${formatDays(monthValue)} days`;
+    }).join("\n");
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${color};stroke:${color}"><title>${escapeHtml(monthTooltip)}</title></circle>`;
+  })).join("") : "";
+
+  const monthHoverZoneSvg = monthlyRows.map((row, monthIdx) => {
+    const x = xForMonth(monthIdx);
+    const previousX = monthIdx > 0 ? xForMonth(monthIdx - 1) : margin.left;
+    const nextX = monthIdx < monthlyRows.length - 1 ? xForMonth(monthIdx + 1) : width - margin.right;
+    const left = monthIdx > 0 ? (previousX + x) / 2 : margin.left;
+    const right = monthIdx < monthlyRows.length - 1 ? (x + nextX) / 2 : width - margin.right;
+    const monthTooltip = series.map((entry, idx) => {
+      const monthValue = Number(row.values[idx] || 0);
+      return `${entry.label} ${row.label}: ${formatDays(monthValue)} days`;
+    }).join("\n");
+    return `<rect x="${left.toFixed(2)}" y="${margin.top}" width="${Math.max(1, right - left).toFixed(2)}" height="${plotH.toFixed(2)}" fill="transparent" pointer-events="all"><title>${escapeHtml(monthTooltip)}</title></rect>`;
+  }).join("");
+
+  const labelTop = margin.top + 10;
+  const labelBottom = height - margin.bottom - 6;
+  const minLabelGap = 12;
+  const valueLabelParts = [];
+  monthlyRows.forEach((_, monthIdx) => {
+    const monthLabels = series.map((studentSeries, studentIdx) => {
+      const value = Number(studentSeries.monthly[monthIdx]?.days || 0);
+      if (value <= 0) return null;
+      const x = xForMonth(monthIdx);
+      const y = yFor(value);
+      const nearTop = y <= margin.top + 16;
+      const nearBottom = y >= (height - margin.bottom - 10);
+      const offsetBase = ((monthIdx + studentIdx) % 2 === 0) ? -10 : 14;
+      const offset = nearTop ? 22 : (nearBottom ? -10 : offsetBase);
+      return {
+        color: studentColors[studentIdx],
+        text: formatDays(value),
+        x,
+        preferredY: clamp(y + offset, labelTop, labelBottom)
+      };
+    }).filter(Boolean).sort((a, b) => a.preferredY - b.preferredY);
+
+    for (let i = 1; i < monthLabels.length; i += 1) {
+      if (monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+        monthLabels[i].preferredY = monthLabels[i - 1].preferredY + minLabelGap;
+      }
     }
-  );
+    const overflow = monthLabels.length ? monthLabels[monthLabels.length - 1].preferredY - labelBottom : 0;
+    if (overflow > 0) {
+      for (let i = monthLabels.length - 1; i >= 0; i -= 1) {
+        monthLabels[i].preferredY -= overflow;
+        if (i > 0 && monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+          monthLabels[i - 1].preferredY = monthLabels[i].preferredY - minLabelGap;
+        }
+      }
+    }
+    monthLabels.forEach((label) => {
+      label.preferredY = clamp(label.preferredY, labelTop, labelBottom);
+      const labelWidth = 37;
+      valueLabelParts.push(`<g class="trend-value-pill"><rect x="${(label.x - labelWidth / 2).toFixed(2)}" y="${(label.preferredY - 12).toFixed(2)}" width="${labelWidth}" height="18" rx="6" style="fill:${label.color};stroke:${label.color}"></rect><text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text></g>`);
+    });
+  });
+  const valueLabelSvg = complianceDaysTrendShowDataPoints ? valueLabelParts.join("") : "";
+
+  const totalDays = series.reduce((sum, studentSeries) => sum + studentSeries.monthly.reduce((inner, row) => inner + Number(row.days || 0), 0), 0);
+  const noData = totalDays === 0
+    ? `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No completed instruction days for the selected filters</text>`
+    : "";
+  const summaryRows = monthlyRows.map((row) => ({
+    label: row.label,
+    total: row.values.reduce((sum, value) => sum + Number(value || 0), 0)
+  })).filter((row) => row.total > 0);
+  const lastRow = summaryRows[summaryRows.length - 1];
+  const previousRow = summaryRows[summaryRows.length - 2];
+  const trendDelta = lastRow && previousRow ? lastRow.total - previousRow.total : null;
+  const highestPoint = series.flatMap((studentSeries, studentIdx) => studentSeries.monthly
+    .filter((row) => Number(row.days || 0) > 0)
+    .map((row) => ({ label: studentSeries.label, month: row.label, value: Number(row.days || 0), color: studentColors[studentIdx] })))
+    .sort((a, b) => b.value - a.value)[0];
+  const lowestPoint = series.flatMap((studentSeries, studentIdx) => studentSeries.monthly
+    .filter((row) => Number(row.days || 0) > 0)
+    .map((row) => ({ label: studentSeries.label, month: row.label, value: Number(row.days || 0), color: studentColors[studentIdx] })))
+    .sort((a, b) => a.value - b.value)[0];
+  const averageValue = summaryRows.length ? totalDays / summaryRows.length : null;
+  const deltaLabel = trendDelta === null ? "No prior month" : `${trendDelta >= 0 ? "+" : ""}${formatDays(trendDelta)}`;
+  const deltaClass = trendDelta === null ? "neutral" : (trendDelta >= 0 ? "positive" : "negative");
+  const trendIconSvg = trendDelta === null
+    ? `<svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/></svg>`
+    : (trendDelta >= 0
+      ? `<svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M16 8h4v4"/></svg>`
+      : `<svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg>`);
+  const summaryHtml = `
+    <div class="trend-summary-strip">
+      <div class="trend-summary-card ${deltaClass}"><span class="trend-summary-icon" aria-hidden="true">${trendIconSvg}</span><div><span>Overall Trend ${lastRow ? `(${escapeHtml(lastRow.label)})` : ""}</span><strong>${deltaLabel}</strong><small>${previousRow ? `vs. ${escapeHtml(previousRow.label)}` : "Need another month"}</small></div></div>
+      <div class="trend-summary-card positive"><span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M5 5H3v2a4 4 0 0 0 4 4"/><path d="M19 5h2v2a4 4 0 0 1-4 4"/></svg></span><div><span>Highest Days</span><strong>${highestPoint ? formatDays(highestPoint.value) : "-"}</strong><small>${highestPoint ? `${escapeHtml(highestPoint.label)} (${escapeHtml(highestPoint.month)})` : "No days"}</small></div></div>
+      <div class="trend-summary-card negative"><span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg></span><div><span>Lowest Days</span><strong>${lowestPoint ? formatDays(lowestPoint.value) : "-"}</strong><small>${lowestPoint ? `${escapeHtml(lowestPoint.label)} (${escapeHtml(lowestPoint.month)})` : "No days"}</small></div></div>
+      <div class="trend-summary-card neutral"><span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span><div><span>${months.length}-Month Average</span><strong>${averageValue === null ? "-" : formatDays(averageValue)}</strong><small>${selectedStudentIds.length ? `${selectedStudentIds.length} selected students` : "All Students"}</small></div></div>
+    </div>`;
+  const legendHtml = `
+    <div class="trend-legend">
+      ${series.map((studentSeries, idx) => `
+        <span class="trend-legend-item">
+          <span class="trend-legend-line" style="background:${studentColors[idx]}"></span>
+          <span>${escapeHtml(studentSeries.label)}</span>
+        </span>`).join("")}
+    </div>`;
+
+  chartHost.innerHTML = `
+    <div class="trend-chart-panel">
+      <div class="trend-chart-toolbar">
+        <div class="trend-view-toggle" aria-label="Instruction days chart view">
+          <button type="button" data-compliance-days-trend-view="line" class="${complianceDaysTrendViewMode === "line" ? "active" : ""}">Line View</button>
+          <button type="button" data-compliance-days-trend-view="area" class="${complianceDaysTrendViewMode === "area" ? "active" : ""}">Area View</button>
+        </div>
+        <label class="trend-data-toggle"><span>Show Data Points</span><input id="compliance-days-trend-data-points-toggle" type="checkbox"${complianceDaysTrendShowDataPoints ? " checked" : ""}><span aria-hidden="true"></span></label>
+      </div>
+      <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly instruction days line chart">
+        <defs>
+          <filter id="gradeTrendGlow" x="-15%" y="-40%" width="130%" height="180%"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+        <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+        ${yTickSvg}
+        ${xTickSvg}
+        ${areaSvg}
+        ${lineSvg}
+        ${pointSvg}
+        ${valueLabelSvg}
+        ${monthHoverZoneSvg}
+        ${noData}
+        <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
+        <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Instruction Days</text>
+      </svg>
+      ${legendHtml}
+    </div>
+    ${summaryHtml}`;
 }
 
 function renderGradeTypeVolumeChart() {
@@ -17580,7 +18116,7 @@ function bindEvents() {
       renderInstructionHoursTrending();
     });
   }
-  ["compliance-hours-filter-quarter", "compliance-hours-filter-instructor"].forEach((id) => {
+  ["compliance-hours-filter-quarter", "compliance-hours-filter-subject", "compliance-hours-filter-instructor"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderComplianceHoursMonthlyChart());
   });
@@ -17588,8 +18124,10 @@ function bindEvents() {
   if (complianceHoursClearFiltersBtn) {
     complianceHoursClearFiltersBtn.addEventListener("click", () => {
       const quarterFilter = document.getElementById("compliance-hours-filter-quarter");
+      const subjectFilter = document.getElementById("compliance-hours-filter-subject");
       const instructorFilter = document.getElementById("compliance-hours-filter-instructor");
       if (quarterFilter) quarterFilter.value = "all";
+      if (subjectFilter) subjectFilter.value = "all";
       if (instructorFilter) instructorFilter.value = "all";
       complianceHoursSelectedStudentIds.clear();
       document.querySelectorAll(".compliance-hours-student-checkbox").forEach((el) => { el.checked = false; });
@@ -17597,7 +18135,27 @@ function bindEvents() {
       renderComplianceHoursMonthlyChart();
     });
   }
-  ["compliance-days-filter-quarter", "compliance-days-filter-instructor"].forEach((id) => {
+  document.getElementById("compliance-hours-monthly-chart")?.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (!target) return;
+    const viewButton = target.closest("[data-compliance-hours-trend-view]");
+    if (viewButton) {
+      const view = viewButton.getAttribute("data-compliance-hours-trend-view");
+      if (view === "line" || view === "area") {
+        complianceHoursTrendViewMode = view;
+        renderComplianceHoursMonthlyChart();
+      }
+    }
+  });
+  document.getElementById("compliance-hours-monthly-chart")?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.id === "compliance-hours-trend-data-points-toggle") {
+      complianceHoursTrendShowDataPoints = target.checked;
+      renderComplianceHoursMonthlyChart();
+    }
+  });
+  ["compliance-days-filter-quarter", "compliance-days-filter-subject", "compliance-days-filter-instructor"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderComplianceDaysMonthlyChart());
   });
@@ -17605,8 +18163,10 @@ function bindEvents() {
   if (complianceDaysClearFiltersBtn) {
     complianceDaysClearFiltersBtn.addEventListener("click", () => {
       const quarterFilter = document.getElementById("compliance-days-filter-quarter");
+      const subjectFilter = document.getElementById("compliance-days-filter-subject");
       const instructorFilter = document.getElementById("compliance-days-filter-instructor");
       if (quarterFilter) quarterFilter.value = "all";
+      if (subjectFilter) subjectFilter.value = "all";
       if (instructorFilter) instructorFilter.value = "all";
       complianceDaysSelectedStudentIds.clear();
       document.querySelectorAll(".compliance-days-student-checkbox").forEach((el) => { el.checked = false; });
@@ -17614,6 +18174,26 @@ function bindEvents() {
       renderComplianceDaysMonthlyChart();
     });
   }
+  document.getElementById("compliance-days-monthly-chart")?.addEventListener("click", (event) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (!target) return;
+    const viewButton = target.closest("[data-compliance-days-trend-view]");
+    if (viewButton) {
+      const view = viewButton.getAttribute("data-compliance-days-trend-view");
+      if (view === "line" || view === "area") {
+        complianceDaysTrendViewMode = view;
+        renderComplianceDaysMonthlyChart();
+      }
+    }
+  });
+  document.getElementById("compliance-days-monthly-chart")?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.id === "compliance-days-trend-data-points-toggle") {
+      complianceDaysTrendShowDataPoints = target.checked;
+      renderComplianceDaysMonthlyChart();
+    }
+  });
   ["volume-filter-quarter", "volume-filter-subject", "volume-filter-instructor", "volume-filter-grade-type"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderGradeTypeVolumeChart());

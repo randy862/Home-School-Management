@@ -37,8 +37,10 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showMissingGrades: true,
     showInstructionPace: true,
     showGradeRisk: true,
+    showSingleGradeRisk: true,
     showAttendanceRisk: true,
     gradeRiskThresholdPercent: 70,
+    singleGradeRiskThresholdPercent: 70,
     attendanceRiskThresholdPercent: 90,
     riskAlertCadenceDays: 7
   }
@@ -116,8 +118,10 @@ function normalizeWorkspaceConfigPayload(input) {
       showMissingGrades: normalizeBoolean(alerts.showMissingGrades, DEFAULT_WORKSPACE_CONFIG.alerts.showMissingGrades),
       showInstructionPace: normalizeBoolean(alerts.showInstructionPace, DEFAULT_WORKSPACE_CONFIG.alerts.showInstructionPace),
       showGradeRisk: normalizeBoolean(alerts.showGradeRisk, DEFAULT_WORKSPACE_CONFIG.alerts.showGradeRisk),
+      showSingleGradeRisk: normalizeBoolean(alerts.showSingleGradeRisk, DEFAULT_WORKSPACE_CONFIG.alerts.showSingleGradeRisk),
       showAttendanceRisk: normalizeBoolean(alerts.showAttendanceRisk, DEFAULT_WORKSPACE_CONFIG.alerts.showAttendanceRisk),
       gradeRiskThresholdPercent: normalizePercent(alerts.gradeRiskThresholdPercent, DEFAULT_WORKSPACE_CONFIG.alerts.gradeRiskThresholdPercent),
+      singleGradeRiskThresholdPercent: normalizePercent(alerts.singleGradeRiskThresholdPercent, DEFAULT_WORKSPACE_CONFIG.alerts.singleGradeRiskThresholdPercent),
       attendanceRiskThresholdPercent: normalizePercent(alerts.attendanceRiskThresholdPercent, DEFAULT_WORKSPACE_CONFIG.alerts.attendanceRiskThresholdPercent),
       riskAlertCadenceDays: normalizePositiveInteger(alerts.riskAlertCadenceDays, DEFAULT_WORKSPACE_CONFIG.alerts.riskAlertCadenceDays, 365)
     }

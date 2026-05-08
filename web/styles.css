@@ -834,6 +834,18 @@ button.secondary-btn {
   column-gap: 0.75rem;
 }
 
+#compliance-hours-filter-form {
+  grid-template-columns: minmax(220px, 1.6fr) minmax(110px, 0.75fr) minmax(145px, 1fr) minmax(145px, 1fr) auto;
+  align-items: end;
+  column-gap: 0.75rem;
+}
+
+#compliance-days-filter-form {
+  grid-template-columns: minmax(220px, 1.6fr) minmax(110px, 0.75fr) minmax(145px, 1fr) minmax(145px, 1fr) auto;
+  align-items: end;
+  column-gap: 0.75rem;
+}
+
 #gpa-trend-filter-form {
   grid-template-columns: minmax(260px, 2.2fr) minmax(90px, 0.6fr) minmax(140px, 1fr) minmax(140px, 1fr) auto;
   align-items: end;
@@ -859,6 +871,14 @@ button.secondary-btn {
   min-width: 0;
 }
 
+#compliance-hours-filter-form label {
+  min-width: 0;
+}
+
+#compliance-days-filter-form label {
+  min-width: 0;
+}
+
 #gpa-trend-filter-form label {
   min-width: 0;
 }
@@ -876,6 +896,14 @@ button.secondary-btn {
 }
 
 #trend-filter-quarter {
+  max-width: 110px;
+}
+
+#compliance-hours-filter-quarter {
+  max-width: 110px;
+}
+
+#compliance-days-filter-quarter {
   max-width: 110px;
 }
 
@@ -897,6 +925,14 @@ button.secondary-btn {
 
 #trend-filter-subject,
 #trend-filter-grade-type {
+  max-width: 220px;
+}
+
+#compliance-hours-filter-subject {
+  max-width: 220px;
+}
+
+#compliance-days-filter-subject {
   max-width: 220px;
 }
 
@@ -944,6 +980,14 @@ button.secondary-btn {
     grid-template-columns: 1fr 1fr;
   }
 
+  #compliance-hours-filter-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #compliance-days-filter-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
   #gpa-trend-filter-form {
     grid-template-columns: 1fr 1fr;
   }
@@ -962,7 +1006,11 @@ button.secondary-btn {
 
   #trend-filter-quarter,
   #trend-filter-subject,
-  #trend-filter-grade-type {
+  #trend-filter-grade-type,
+  #compliance-hours-filter-quarter,
+  #compliance-hours-filter-subject,
+  #compliance-days-filter-quarter,
+  #compliance-days-filter-subject {
     max-width: none;
   }
 
@@ -6836,7 +6884,7 @@ tbody tr:hover {
 
 #app-shell .student-performance-grade-method-field legend,
 #app-shell #student-performance-filter-form > label {
-  color: #5f6f89;
+  color: #68768d;
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -6872,8 +6920,8 @@ tbody tr:hover {
   width: 19px;
   height: 19px;
   border-radius: 5px;
-  background: #336ce8;
-  color: #ffffff;
+  background: #eef2f7;
+  color: #53627a;
   font-size: 0.68rem;
   font-weight: 900;
 }
@@ -6886,11 +6934,13 @@ tbody tr:hover {
   height: 20px;
   border-radius: 999px;
   transform: translateY(-50%);
-  background: #d8e3f3;
+  border: 1px solid #cdd6e3;
+  background: #ffffff;
 }
 
 #app-shell .student-performance-grade-method-chip input:checked ~ .student-performance-chip-check {
-  background: #336ce8;
+  border-color: #7b8798;
+  background: #7b8798;
 }
 
 #app-shell .student-performance-grade-method-chip input:checked ~ .student-performance-chip-check::after {
@@ -7207,7 +7257,8 @@ tbody tr:hover {
   box-shadow: 0 10px 24px rgba(51, 108, 232, 0.16);
 }
 
-#app-shell #volume-filter-form.grade-type-volume-filter-form {
+#app-shell #volume-filter-form.grade-type-volume-filter-form,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form {
   display: grid;
   grid-template-columns: minmax(250px, 1.25fr) minmax(230px, 1.12fr) minmax(210px, 1.05fr) minmax(200px, 1fr) minmax(210px, 1.05fr) auto;
   gap: 1.15rem;
@@ -7215,7 +7266,13 @@ tbody tr:hover {
   margin: 0;
 }
 
-#app-shell #volume-filter-form.grade-type-volume-filter-form > label {
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form {
+  grid-template-columns: minmax(250px, 1.35fr) minmax(190px, 0.9fr) minmax(210px, 1fr) minmax(210px, 1fr) auto;
+  margin-bottom: 1.15rem;
+}
+
+#app-shell #volume-filter-form.grade-type-volume-filter-form > label,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form > label {
   color: #5f6f89;
   font-size: 0.72rem;
   font-weight: 800;
@@ -7225,34 +7282,45 @@ tbody tr:hover {
 
 #app-shell #volume-filter-form.grade-type-volume-filter-form select,
 #app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown,
-#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary {
+#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form select,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form .multi-select-dropdown,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary {
   width: 100%;
+  max-width: none;
   min-width: 0;
 }
 
 #app-shell #volume-filter-form.grade-type-volume-filter-form select,
-#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown {
+#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form select,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form .multi-select-dropdown {
   border-color: #dce6f4;
   border-radius: 9px;
   background-color: #ffffff;
   box-shadow: 0 8px 20px rgba(23, 36, 61, 0.04);
 }
 
-#app-shell #volume-filter-form.grade-type-volume-filter-form select {
+#app-shell #volume-filter-form.grade-type-volume-filter-form select,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form select {
   min-height: 42px;
   padding-left: 2.75rem;
   color: #152545;
   font-weight: 750;
 }
 
-#app-shell #volume-filter-form.grade-type-volume-filter-form label {
+#app-shell #volume-filter-form.grade-type-volume-filter-form label,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form label {
   position: relative;
 }
 
 #app-shell #volume-filter-form.grade-type-volume-filter-form label:nth-of-type(2)::after,
 #app-shell #volume-filter-form.grade-type-volume-filter-form label:nth-of-type(3)::after,
 #app-shell #volume-filter-form.grade-type-volume-filter-form label:nth-of-type(4)::after,
-#app-shell #volume-filter-form.grade-type-volume-filter-form label:nth-of-type(5)::after {
+#app-shell #volume-filter-form.grade-type-volume-filter-form label:nth-of-type(5)::after,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form label:nth-of-type(2)::after,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form label:nth-of-type(3)::after,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form label:nth-of-type(4)::after {
   content: "";
   position: absolute;
   left: 0.75rem;
@@ -7264,14 +7332,16 @@ tbody tr:hover {
   box-shadow: inset 6px 0 0 rgba(35, 112, 244, 0.14);
 }
 
-#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary {
+#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary {
   min-height: 42px;
   padding: 0.55rem 0.75rem;
   color: #233451;
   font-weight: 750;
 }
 
-#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary span:last-child {
+#app-shell #volume-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary span:last-child,
+#app-shell #compliance-hours-filter-form.grade-type-volume-filter-form .multi-select-dropdown summary span:last-child {
   min-width: 0;
 }
 
@@ -7296,7 +7366,8 @@ tbody tr:hover {
   stroke-linejoin: round;
 }
 
-#app-shell #volume-clear-filters-btn {
+#app-shell #volume-clear-filters-btn,
+#app-shell #compliance-hours-clear-filters-btn {
   min-height: 42px;
   padding: 0 1.1rem;
   border: 1px solid #2370f4;
@@ -7308,6 +7379,7 @@ tbody tr:hover {
 }
 
 #app-shell #volume-clear-filters-btn,
+#app-shell #compliance-hours-clear-filters-btn,
 #app-shell .grade-type-volume-table-toggle {
   display: inline-flex;
   align-items: center;
@@ -7377,6 +7449,15 @@ tbody tr:hover {
 #app-shell .grade-type-volume-value {
   font-size: 11px;
   font-weight: 900;
+}
+
+#app-shell .compliance-hours-volume-value {
+  font-size: 9px;
+  font-weight: 850;
+}
+
+#app-shell .compliance-hours-line {
+  filter: drop-shadow(0 5px 8px rgba(23, 36, 61, 0.1));
 }
 
 #app-shell .grade-type-volume-table-wrap {
@@ -7816,6 +7897,10 @@ tbody tr:hover {
     grid-template-columns: 1fr 1fr;
   }
 
+  #app-shell #compliance-hours-filter-form.grade-type-volume-filter-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
   #app-shell .grade-type-volume-metrics {
     grid-template-columns: 1fr 1fr;
   }
@@ -7825,6 +7910,7 @@ tbody tr:hover {
   }
 
   #app-shell #trend-filter-form,
+  #app-shell #compliance-hours-filter-form,
   #app-shell #instructor-grade-trend-filter-form,
   #app-shell .trend-summary-strip {
     grid-template-columns: 1fr 1fr;
@@ -7837,6 +7923,14 @@ tbody tr:hover {
   }
 
   #app-shell #volume-filter-form.grade-type-volume-filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell #compliance-hours-filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell #compliance-days-filter-form {
     grid-template-columns: 1fr;
   }
 
