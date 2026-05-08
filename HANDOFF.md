@@ -1,6 +1,6 @@
 # Session Handoff
 
-Date: 2026-05-05
+Date: 2026-05-07
 
 ## Current Work
 
@@ -15,6 +15,26 @@ The modern preview exists at:
 https://mitchell.navigrader.com/modern-preview/
 
 The live tenant app has not been replaced.
+
+Recent dashboard work focused on the modern Dashboard visuals, especially Overview and Execution analytics:
+
+- Overview gauges were restyled into cleaner modern cards.
+- School Year Progress and Current Quarter Progress were polished and relabeled as calendar progress indicators.
+- Attendance Percentage and Running Grade Average gauge statuses were updated with meaningful threshold labels.
+- Execution tab Open Items Today and Completed Today sections were modernized.
+- Completed Today now includes multi-bar completion analytics and a student-style detail table.
+- Open item cards link toward relevant School Day filtered views.
+
+## Latest Discussion
+
+Instruction Days and School Year Progress use different denominators:
+
+- Instruction Days gauge uses completed instructional days divided by total required instructional days.
+- School Year Progress uses calendar progress through the school-year date range.
+
+With 174 completed instruction days and 195 total required days, the Instruction Days gauge shows about 89%.
+
+The useful next refinement may be to expose "available instruction days to date" separately, because if 174 days were available through today and 174 are completed, then year-to-date instruction day completion is 100% even though full-year completion is 89%.
 
 ## Next Action
 
@@ -33,13 +53,14 @@ Do NOT read:
 - NOTES/
 - long planning docs
 
-Unless I explicitly request historical context.
+Unless historical context is explicitly requested.
 
 ## Current Risks
 
 - Do not change live app entry point unless explicitly approved.
 - Do not change backend, billing, provisioning, auth, tenant lifecycle, or database behavior during visual-only work.
 - Avoid broad rewrites.
+- Untracked icon/tmp files exist and should not be removed unless explicitly requested.
 
 ## Validation
 
