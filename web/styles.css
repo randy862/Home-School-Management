@@ -5603,6 +5603,179 @@ tbody tr:hover {
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
+#app-shell .dashboard-section-overview button.kpi {
+  appearance: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+#app-shell .dashboard-section-overview button.kpi:hover {
+  border-color: #c8d8ec;
+  box-shadow: 0 14px 28px rgba(31, 47, 69, 0.08);
+  transform: translateY(-1px);
+}
+
+#app-shell .kpi-projected-hours-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 158px;
+  gap: 0.72rem;
+  border-color: #dbe6f2;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.98)),
+    radial-gradient(circle at 78% 16%, rgba(34, 197, 94, 0.1), transparent 34%);
+  box-shadow:
+    0 14px 30px rgba(31, 47, 69, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+#app-shell .kpi-projected-hours-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 4px;
+  background: linear-gradient(90deg, #16a34a, #7ddf9f);
+}
+
+#app-shell .kpi-projected-hours-card[data-status="behind"] {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 249, 246, 0.98)),
+    radial-gradient(circle at 78% 16%, rgba(226, 65, 23, 0.1), transparent 34%);
+}
+
+#app-shell .kpi-projected-hours-card[data-status="behind"]::after {
+  background: linear-gradient(90deg, #e24117, #ff9f73);
+}
+
+#app-shell .kpi-projected-hours-top,
+#app-shell .kpi-projected-hours-status,
+#app-shell .kpi-projected-hours-metrics {
+  position: relative;
+  z-index: 1;
+}
+
+#app-shell .kpi-projected-hours-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+#app-shell .kpi-info-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border: 2px solid #6b778c;
+  border-radius: 999px;
+  color: #6b778c;
+  font-size: 0.8rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+#app-shell .kpi-projected-hours-status {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 0.72rem;
+  align-items: center;
+}
+
+#app-shell .kpi-projected-hours-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #29c16f, #16834a);
+  box-shadow: 0 14px 26px rgba(22, 163, 74, 0.18);
+}
+
+#app-shell .kpi-projected-hours-icon.behind {
+  background: linear-gradient(145deg, #ff865d, #e24117);
+  box-shadow: 0 14px 26px rgba(226, 65, 23, 0.16);
+}
+
+#app-shell .kpi-projected-hours-icon.starting {
+  background: linear-gradient(145deg, #64748b, #334155);
+  box-shadow: 0 14px 26px rgba(51, 65, 85, 0.14);
+}
+
+#app-shell .kpi-projected-hours-icon svg {
+  width: 34px;
+  height: 34px;
+  fill: currentColor;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#app-shell .kpi-projected-hours-status strong {
+  display: block;
+  color: #16a34a;
+  font-size: 1.38rem;
+  font-weight: 850;
+  line-height: 1.02;
+}
+
+#app-shell .kpi-projected-hours-card[data-status="behind"] .kpi-projected-hours-status strong {
+  color: #e24117;
+}
+
+#app-shell .kpi-projected-hours-card[data-status="starting"] .kpi-projected-hours-status strong {
+  color: #334155;
+}
+
+#app-shell .kpi-projected-hours-status small {
+  display: block;
+  margin-top: 0.18rem;
+  color: #52617b;
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.22;
+}
+
+#app-shell .kpi-projected-hours-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  padding-top: 0.64rem;
+  border-top: 1px solid #e3ebf5;
+}
+
+#app-shell .kpi-projected-hours-metrics span {
+  display: grid;
+  gap: 0.18rem;
+}
+
+#app-shell .kpi-projected-hours-metrics small {
+  color: #6b778c;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#app-shell .kpi-projected-hours-metrics strong {
+  color: #17243d;
+  font-size: 0.9rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+#app-shell .kpi-projected-hours-metrics span:last-child strong {
+  color: #16a34a;
+}
+
+#app-shell .kpi-projected-hours-card[data-status="behind"] .kpi-projected-hours-metrics span:last-child strong {
+  color: #e24117;
+}
+
 #app-shell .dashboard-section-overview .kpi-label,
 #app-shell .dashboard-summary-label,
 #app-shell .dashboard-chip-label {

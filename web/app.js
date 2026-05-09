@@ -13782,19 +13782,26 @@ function renderDashboard() {
 
   const g = gradeAnalytics();
   const dashboardInstructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { referenceDate });
-  const instructionalTotals = Array.from(dashboardInstructionalHours.summaryByStudent.values()).reduce((totals, studentSummary) => {
-    totals.earned += Number(studentSummary.buckets.total?.earned || 0);
-    totals.projected += Number(studentSummary.buckets.total?.projected || 0);
-    return totals;
-  }, { earned: 0, projected: 0 });
-  document.getElementById("kpi-instruction-hours").textContent = `${instructionalTotals.earned.toFixed(1)} / ${instructionalTotals.projected.toFixed(1)}`;
-  const hoursDialArc = document.getElementById("kpi-hours-dial-arc");
-  const hoursDialValue = document.getElementById("kpi-hours-dial-value");
-  const hoursProgressPct = instructionalTotals.projected > 0
-    ? clamp((instructionalTotals.earned / instructionalTotals.projected) * 100, 0, 100)
-    : 0;
-  setOverviewDial("kpi-hours-dial-arc", hoursProgressPct, "static");
-  if (hoursDialValue) hoursDialValue.textContent = `${hoursProgressPct.toFixed(0)}%`;
+  const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate));
+  const overviewHourPaceSnapshot = buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate);
+  const projectedHourStatusNode = document.getElementById("kpi-instruction-hours-status");
+  const projectedHourNoteNode = document.getElementById("kpi-instruction-hours-note");
+  const projectedHourRequiredNode = document.getElementById("kpi-instruction-hours-required");
+  const projectedHourProjectedNode = document.getElementById("kpi-instruction-hours-projected");
+  const projectedHourIconNode = document.getElementById("kpi-instruction-hours-icon");
+  const projectedHourCard = document.querySelector(".kpi-projected-hours-card");
+  const projectedToleranceHours = Math.max(1, Number(overviewHourPaceSnapshot.requiredTotal || 0) * 0.01);
+  const projectedHourStatus = overviewHourPaceSnapshot.requiredTotal <= 0.01 && overviewHourPaceSnapshot.projectedTotal <= 0.01
+    ? { label: "Year Opening", className: "starting", note: "Projected instruction hours will appear once the year begins." }
+    : overviewHourPaceSnapshot.projectedVarianceHours < -projectedToleranceHours
+      ? { label: "Projected Short", className: "behind", note: "Projected below the required instruction hours." }
+      : { label: "On Track", className: "on-track", note: "Projected to exceed the required instruction hours." };
+  if (projectedHourStatusNode) projectedHourStatusNode.textContent = projectedHourStatus.label;
+  if (projectedHourNoteNode) projectedHourNoteNode.textContent = projectedHourStatus.note;
+  if (projectedHourRequiredNode) projectedHourRequiredNode.textContent = `${overviewHourPaceSnapshot.requiredTotal.toFixed(2)} hrs`;
+  if (projectedHourProjectedNode) projectedHourProjectedNode.textContent = `${overviewHourPaceSnapshot.projectedTotal.toFixed(2)} hrs`;
+  if (projectedHourIconNode) projectedHourIconNode.className = `kpi-projected-hours-icon ${projectedHourStatus.className}`;
+  if (projectedHourCard) projectedHourCard.dataset.status = projectedHourStatus.className;
   const runningAverage = isStudentUser() && dashboardStudents.length === 1
     ? studentOverallAverage(dashboardStudents[0].id)
     : g.running;
@@ -13821,7 +13828,6 @@ function renderDashboard() {
   const attendanceDialNote = document.getElementById("kpi-attendance-dial-note");
   setDialStatusNote(attendanceDialNote, attendanceDialStatusValue);
 
-  const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate));
   const q = currentQuarter(toDate(referenceDate));
   const qP = q ? progress(q.startDate, q.endDate, toDate(referenceDate)) : 0;
 
@@ -13847,7 +13853,7 @@ function renderDashboard() {
     subjectId: completionTodaySelectedSubjectId
   });
   renderDashboardExecutionSummary(executionSnapshot, completionDetailSnapshot);
-  renderDashboardInstructionHourPaceSummary(buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate));
+  renderDashboardInstructionHourPaceSummary(overviewHourPaceSnapshot);
   renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
   renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
   renderDashboardGradeRiskSummary(buildDashboardGradeRiskSnapshot(dashboardStudents));
@@ -19000,7 +19006,8 @@ function bindEvents() {
       renderAdministrationSectionVisibility();
       return;
     }
-    const dashboardTab = t.getAttribute("data-dashboard-tab");
+    const dashboardTabTarget = t.closest("[data-dashboard-tab]");
+    const dashboardTab = dashboardTabTarget?.getAttribute("data-dashboard-tab");
     if (dashboardTab) {
       currentDashboardTab = ["overview", "execution", "performance", "compliance"].includes(dashboardTab) ? dashboardTab : "overview";
       renderDashboardSectionVisibility();
