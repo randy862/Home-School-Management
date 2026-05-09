@@ -13761,35 +13761,39 @@ function renderDashboard() {
     node.dataset.status = status.status;
     node.innerHTML = `<strong>${status.label}</strong><small>${status.text}</small>`;
   };
-  const allowedStudentIds = visibleStudentIds();
   const dashboardStudents = visibleStudents();
   const referenceDate = defaultReferenceDateForActiveYear();
   const dates = instructionalDates();
-  const dateSet = new Set(dates);
-  const presentSet = new Set(state.attendance
-    .filter((a) => allowedStudentIds.has(a.studentId) && a.present && a.date <= referenceDate && recordDateInActiveYear(a))
-    .map((a) => a.date));
-  const completeDays = Array.from(presentSet).filter((d) => dateSet.has(d)).length;
-  const totalDays = dates.length;
-
-  document.getElementById("kpi-days-complete").textContent = String(completeDays);
-  document.getElementById("kpi-days-total").textContent = String(totalDays);
-  const daysDialArc = document.getElementById("kpi-days-dial-arc");
-  const daysDialValue = document.getElementById("kpi-days-dial-value");
-  const daysProgressPct = totalDays > 0 ? clamp((completeDays / totalDays) * 100, 0, 100) : 0;
-  setOverviewDial("kpi-days-dial-arc", daysProgressPct, "static");
-  if (daysDialValue) daysDialValue.textContent = `${daysProgressPct.toFixed(0)}%`;
+  const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate));
+  const overviewDaySnapshot = buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate);
+  const projectedDayStatusNode = document.getElementById("kpi-instruction-days-status");
+  const projectedDayNoteNode = document.getElementById("kpi-instruction-days-note");
+  const projectedDayRequiredNode = document.getElementById("kpi-instruction-days-required");
+  const projectedDayProjectedNode = document.getElementById("kpi-instruction-days-projected");
+  const projectedDayIconNode = document.getElementById("kpi-instruction-days-icon");
+  const projectedDayCard = document.querySelector(".kpi-instruction-days-card");
+  const projectedToleranceDays = Math.max(1, Number(overviewDaySnapshot.requiredTotal || 0) * 0.01);
+  const projectedDayStatus = overviewDaySnapshot.requiredTotal <= 0.01 && overviewDaySnapshot.projected <= 0.01
+    ? { label: "Year Opening", className: "starting", note: "Projected instruction days will appear once the year begins." }
+    : overviewDaySnapshot.projectedDiff < -projectedToleranceDays
+      ? { label: "Projected Short", className: "behind", note: "Projected below the required instruction days." }
+      : { label: "On Track", className: "on-track", note: "Projected to meet the required instruction days." };
+  if (projectedDayStatusNode) projectedDayStatusNode.textContent = projectedDayStatus.label;
+  if (projectedDayNoteNode) projectedDayNoteNode.textContent = projectedDayStatus.note;
+  if (projectedDayRequiredNode) projectedDayRequiredNode.textContent = `${overviewDaySnapshot.requiredTotal.toFixed(0)} days`;
+  if (projectedDayProjectedNode) projectedDayProjectedNode.textContent = `${overviewDaySnapshot.projected.toFixed(0)} days`;
+  if (projectedDayIconNode) projectedDayIconNode.className = `kpi-projected-hours-icon ${projectedDayStatus.className}`;
+  if (projectedDayCard) projectedDayCard.dataset.status = projectedDayStatus.className;
 
   const g = gradeAnalytics();
   const dashboardInstructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { referenceDate });
-  const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate));
   const overviewHourPaceSnapshot = buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate);
   const projectedHourStatusNode = document.getElementById("kpi-instruction-hours-status");
   const projectedHourNoteNode = document.getElementById("kpi-instruction-hours-note");
   const projectedHourRequiredNode = document.getElementById("kpi-instruction-hours-required");
   const projectedHourProjectedNode = document.getElementById("kpi-instruction-hours-projected");
   const projectedHourIconNode = document.getElementById("kpi-instruction-hours-icon");
-  const projectedHourCard = document.querySelector(".kpi-projected-hours-card");
+  const projectedHourCard = document.querySelector(".kpi-instruction-hours-card");
   const projectedToleranceHours = Math.max(1, Number(overviewHourPaceSnapshot.requiredTotal || 0) * 0.01);
   const projectedHourStatus = overviewHourPaceSnapshot.requiredTotal <= 0.01 && overviewHourPaceSnapshot.projectedTotal <= 0.01
     ? { label: "Year Opening", className: "starting", note: "Projected instruction hours will appear once the year begins." }

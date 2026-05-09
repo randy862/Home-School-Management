@@ -37,11 +37,12 @@ Completed this session:
 - Current Pace and Year-End Projection gauges were polished and aligned.
 - Required marker label now sits outside the projection arc.
 - Required Hours Progress Over Time now keeps actuals through YTD and starts projection from the current/YTD point.
+- Overview Instruction Days now matches the projected instruction card style with status, note, and required/projected metrics.
 
 Current served preview cache key:
 
-- `styles.css?v=202605081940`
-- `app.js?v=202605081940`
+- `styles.css?v=202605091519`
+- `app.js?v=202605091519`
 
 ## Next Action
 

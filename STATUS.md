@@ -18,7 +18,8 @@ Dashboard Performance alert and trend-chart polish in `/modern-preview/`.
 - Progress Over Time no longer plots missing future/pre-projection values as zero.
 - Projection line now starts at the current/YTD point and continues to year end.
 - Required Hours preview files were deployed to WEB001 `/var/www/home-school-management/web/modern-preview/`.
-- Current served preview cache key is `202605081940`.
+- Overview Instruction Days now matches the projected instruction card style.
+- Current served preview cache key is `202605091519`.
 
 ## Current Blockers
 

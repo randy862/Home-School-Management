@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605091007">
+  <link rel="stylesheet" href="styles.css?v=202605091519">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -135,21 +135,26 @@
 
       <div id="dashboard-section-overview" class="dashboard-section dashboard-section-overview">
         <div class="kpi-grid">
-          <article class="kpi kpi-dial-card">
-            <p class="kpi-label">Instruction Days</p>
-            <div class="kpi-dial-gauge" aria-label="Instruction days gauge">
-              <svg viewBox="0 0 240 126" role="img" aria-hidden="true">
-                <path class="dial-arc dial-arc-base" d="M 38 106 A 82 82 0 0 1 202 106"></path>
-                <path id="kpi-days-dial-arc" class="dial-arc dial-arc-progress" d="M 38 106 A 82 82 0 0 1 202 106"></path>
-              </svg>
-              <div class="kpi-dial-scale"><span>0</span><span>100</span></div>
-              <div class="kpi-dial-center">
-                <strong id="kpi-days-dial-value">0%</strong>
-              </div>
+          <button type="button" class="kpi kpi-projected-hours-card kpi-instruction-days-card" data-dashboard-tab="compliance" aria-label="Open Compliance tab for instruction days">
+            <div class="kpi-projected-hours-top">
+              <p class="kpi-label">Instruction Days</p>
+              <span class="kpi-info-icon" aria-hidden="true">i</span>
             </div>
-            <p class="kpi-dial-note"><span id="kpi-days-complete">0</span> / <span id="kpi-days-total">0</span></p>
-          </article>
-          <button type="button" class="kpi kpi-projected-hours-card" data-dashboard-tab="compliance" aria-label="Open Compliance tab for projected instruction hours">
+            <div class="kpi-projected-hours-status">
+              <span id="kpi-instruction-days-icon" class="kpi-projected-hours-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 5 3 9 7 11 4-2 7-6 7-11V5z"/><path d="m7.5 12 3 3 6-6"/></svg>
+              </span>
+              <span>
+                <strong id="kpi-instruction-days-status">On Track</strong>
+                <small id="kpi-instruction-days-note">Projected to meet the required instruction days.</small>
+              </span>
+            </div>
+            <div class="kpi-projected-hours-metrics">
+              <span><small>Required Days</small><strong id="kpi-instruction-days-required">0 days</strong></span>
+              <span><small>Projected Days</small><strong id="kpi-instruction-days-projected">0 days</strong></span>
+            </div>
+          </button>
+          <button type="button" class="kpi kpi-projected-hours-card kpi-instruction-hours-card" data-dashboard-tab="compliance" aria-label="Open Compliance tab for projected instruction hours">
             <div class="kpi-projected-hours-top">
               <p class="kpi-label">Projected Instruction Hours</p>
               <span class="kpi-info-icon" aria-hidden="true">i</span>
@@ -2153,6 +2158,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605091007"></script>
+  <script src="app.js?v=202605091519"></script>
   </body>
   </html>
