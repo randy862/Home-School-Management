@@ -33,11 +33,15 @@ Completed this session:
 - Instruction Hours/Days include Subject filters, Line/Area toggles, data point toggles, summary cards, and month-wide hover summaries.
 - Student Grade Trending and Instructor Grade Trending now also use month-wide hover summaries.
 - APP001 workspace config normalizer was updated for the new Single Grade Risk settings.
+- Required Instructional Hours analytics visual was rebuilt in the modern card style.
+- Current Pace and Year-End Projection gauges were polished and aligned.
+- Required marker label now sits outside the projection arc.
+- Required Hours Progress Over Time now keeps actuals through YTD and starts projection from the current/YTD point.
 
 Current served preview cache key:
 
-- `styles.css?v=202605081022`
-- `app.js?v=202605081022`
+- `styles.css?v=202605081940`
+- `app.js?v=202605081940`
 
 ## Next Action
 

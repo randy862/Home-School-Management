@@ -13175,6 +13175,142 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
   }
 }
 
+function renderRequiredHoursProgressChart(host, view, context, selectedStudentId) {
+  if (!host) return;
+  const sy = state.settings.schoolYear;
+  const syStart = toDate(sy.startDate);
+  const syEnd = toDate(sy.endDate);
+  const referenceDate = toDate(context.referenceDate);
+  const months = schoolYearMonths(sy.startDate, sy.endDate);
+  if (!months.length || Number.isNaN(syStart.getTime()) || Number.isNaN(syEnd.getTime())) {
+    host.innerHTML = "<p class='muted'>No school year range set.</p>";
+    return;
+  }
+
+  const selectedIds = selectedStudentId && selectedStudentId !== "all" ? [selectedStudentId] : [];
+  const completedSeries = buildComplianceMonthlySeries(selectedIds, {
+    quarterFilter: "all",
+    subjectFilter: "all",
+    instructorFilter: "all"
+  });
+  const actualByMonth = new Map();
+  completedSeries.months.forEach((monthEntry, monthIdx) => {
+    const key = `${monthEntry.year}-${monthEntry.month}`;
+    const total = completedSeries.series.reduce((sum, studentSeries) => sum + Number(studentSeries.monthly[monthIdx]?.hours || 0), 0);
+    actualByMonth.set(key, total);
+  });
+
+  let actualCumulative = 0;
+  const rawReferenceMonthIndex = months.findIndex((monthEntry) => monthEntry.year === referenceDate.getFullYear() && monthEntry.month === referenceDate.getMonth());
+  const referenceMonthIndex = rawReferenceMonthIndex >= 0
+    ? rawReferenceMonthIndex
+    : (referenceDate > syEnd ? months.length - 1 : 0);
+  const rows = months.map((monthEntry, monthIdx) => {
+    const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
+    const monthEnd = new Date(monthEntry.year, monthEntry.month + 1, 0, 12, 0, 0);
+    const monthKey = `${monthEntry.year}-${monthEntry.month}`;
+    const isFuture = monthStart > referenceDate;
+    if (!isFuture) actualCumulative += Number(actualByMonth.get(monthKey) || 0);
+    const expectedDate = monthIdx === referenceMonthIndex ? referenceDate : monthEnd;
+    const elapsed = clamp((expectedDate - syStart) / Math.max(1, syEnd - syStart), 0, 1);
+    const expected = Number(view.requiredTotal || 0) * elapsed;
+    return {
+      label: monthStart.toLocaleDateString(undefined, { month: "short" }),
+      actual: isFuture ? null : actualCumulative,
+      expected,
+      projected: monthIdx < referenceMonthIndex ? null : null
+    };
+  });
+
+  const remainingSteps = Math.max(1, rows.length - 1 - referenceMonthIndex);
+  rows.forEach((row, idx) => {
+    if (idx < referenceMonthIndex) return;
+    const t = idx === referenceMonthIndex ? 0 : (idx - referenceMonthIndex) / remainingSteps;
+    row.projected = Number(view.actualToDate || 0) + ((Number(view.projectedTotal || 0) - Number(view.actualToDate || 0)) * t);
+  });
+  if (rows[referenceMonthIndex]) rows[referenceMonthIndex].actual = Number(view.actualToDate || rows[referenceMonthIndex].actual || 0);
+
+  const isChartValue = (value) => value !== null && value !== undefined && Number.isFinite(Number(value));
+  const plottedValues = rows
+    .flatMap((row) => [row.actual, row.expected, row.projected, view.requiredTotal])
+    .filter(isChartValue)
+    .map(Number);
+  const maxValue = Math.max(1, ...plottedValues);
+  const tickStep = niceTickStep(maxValue, 5);
+  const yAxisMax = Math.ceil((maxValue + tickStep) / tickStep) * tickStep;
+  const yTicks = [];
+  for (let tick = 0; tick <= yAxisMax; tick += tickStep) yTicks.push(tick);
+
+  const width = 980;
+  const height = 260;
+  const margin = { top: 30, right: 54, bottom: 50, left: 58 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const xStep = rows.length > 1 ? plotW / (rows.length - 1) : 0;
+  const xFor = (idx) => rows.length > 1 ? margin.left + (idx * xStep) : margin.left + (plotW / 2);
+  const yFor = (value) => margin.top + ((yAxisMax - Number(value || 0)) / yAxisMax) * plotH;
+  const hourTick = (value) => {
+    const rounded = Number(value || 0);
+    if (Math.abs(rounded) >= 1000) return `${(rounded / 1000).toFixed(rounded % 1000 === 0 ? 0 : 1)}K`;
+    return rounded.toFixed(0);
+  };
+  const formatHoursShort = (value) => Number(value || 0).toFixed(Number(value || 0) % 1 === 0 ? 0 : 1);
+  const pathFor = (key) => rows
+    .map((row, idx) => {
+      const value = row[key];
+      return isChartValue(value)
+        ? { x: xFor(idx), y: yFor(Number(value)) }
+        : null;
+    })
+    .filter(Boolean)
+    .map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(" ");
+  const loggedPath = pathFor("actual");
+  const expectedPath = pathFor("expected");
+  const projectedPath = pathFor("projected");
+  const requiredY = yFor(view.requiredTotal);
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${hourTick(tick)}</text></g>`;
+  }).join("");
+  const xTickSvg = rows.map((row, idx) => `<text x="${xFor(idx).toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${escapeHtml(row.label)}</text>`).join("");
+  const loggedArea = loggedPath ? `${loggedPath} L ${xFor(Math.min(referenceMonthIndex, rows.length - 1)).toFixed(2)} ${yFor(0).toFixed(2)} L ${xFor(0).toFixed(2)} ${yFor(0).toFixed(2)} Z` : "";
+  const pointSvg = rows.map((row, idx) => Number(row.actual) > 0
+    ? `<circle cx="${xFor(idx).toFixed(2)}" cy="${yFor(row.actual).toFixed(2)}" r="4" class="trend-point" style="fill:#2563eb;stroke:#2563eb"><title>${escapeHtml(`${row.label}: ${formatHoursShort(row.actual)} logged hours`)}</title></circle>`
+    : "").join("");
+  const markerX = xFor(Math.min(referenceMonthIndex, rows.length - 1));
+  const projectedLabelX = xFor(rows.length - 1);
+  const requiredLabelX = width - margin.right;
+
+  host.innerHTML = `
+    <div class="required-hours-progress-legend">
+      <span><i style="background:#2563eb"></i>Logged Hours</span>
+      <span><i class="dashed" style="background:#94a3b8"></i>Expected Pace</span>
+      <span><i class="dotted" style="background:#16a34a"></i>Projected (Year-End)</span>
+      <span><i style="background:#8b5cf6"></i>Required</span>
+    </div>
+    <svg viewBox="0 0 ${width} ${height}" class="trend-chart required-hours-chart" role="img" aria-label="Required instructional hours progress over time">
+      <defs>
+        <linearGradient id="requiredHoursLoggedFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#2563eb" stop-opacity="0.16"/><stop offset="100%" stop-color="#2563eb" stop-opacity="0.02"/></linearGradient>
+      </defs>
+      <line x1="${margin.left}" y1="${yFor(0).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${yFor(0).toFixed(2)}" class="trend-axis"></line>
+      <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${yFor(0).toFixed(2)}" class="trend-axis"></line>
+      ${yTickSvg}
+      ${xTickSvg}
+      ${loggedArea ? `<path d="${loggedArea}" fill="url(#requiredHoursLoggedFill)"></path>` : ""}
+      ${expectedPath ? `<path d="${expectedPath}" class="required-hours-expected-line" fill="none"></path>` : ""}
+      <line x1="${margin.left}" y1="${requiredY.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${requiredY.toFixed(2)}" class="required-hours-required-line"></line>
+      ${loggedPath ? `<path d="${loggedPath}" class="trend-line required-hours-logged-line" fill="none"></path>` : ""}
+      ${projectedPath ? `<path d="${projectedPath}" class="required-hours-projected-line" fill="none"></path>` : ""}
+      <line x1="${markerX.toFixed(2)}" y1="${margin.top}" x2="${markerX.toFixed(2)}" y2="${yFor(0).toFixed(2)}" class="required-hours-today-line"></line>
+      ${pointSvg}
+      <text x="${markerX.toFixed(2)}" y="${(height - 10).toFixed(2)}" text-anchor="middle" class="required-hours-chart-badge">YTD</text>
+      <text x="${projectedLabelX.toFixed(2)}" y="${(yFor(view.projectedTotal) - 8).toFixed(2)}" text-anchor="start" class="required-hours-chart-label projected">${formatHoursShort(view.projectedTotal)}</text>
+      <text x="${requiredLabelX.toFixed(2)}" y="${(requiredY + 18).toFixed(2)}" text-anchor="end" class="required-hours-chart-label required">${formatHoursShort(view.requiredTotal)}</text>
+      <text x="14" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 14 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Hours</text>
+    </svg>`;
+}
+
 function renderDashboardInstructionHourPaceSummary(snapshot) {
   const context = activeYearReferenceContext(snapshot.referenceDate);
   const selectedStudentId = studentInstructionalHoursSelectedStudentId || "all";
@@ -13216,6 +13352,28 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
   const projectedFill = document.getElementById("dashboard-hour-pace-projected-fill");
   const expectedMarker = document.getElementById("dashboard-hour-pace-expected-marker");
   const requiredMarker = document.getElementById("dashboard-hour-pace-required-marker");
+  const outcomeNode = document.getElementById("dashboard-hour-pace-outcome");
+  const currentPaceBadge = document.getElementById("dashboard-hour-current-pace-badge");
+  const currentGauge = document.getElementById("dashboard-hour-current-gauge");
+  const currentPercentNode = document.getElementById("dashboard-hour-current-percent");
+  const currentAlert = document.getElementById("dashboard-hour-current-alert");
+  const projectionBadge = document.getElementById("dashboard-hour-projection-badge");
+  const projectionGauge = document.getElementById("dashboard-hour-projection-gauge");
+  const projectionSvg = document.getElementById("dashboard-hour-projection-svg");
+  const projectionTrackPath = document.getElementById("dashboard-hour-projection-track");
+  const projectionFillPath = document.getElementById("dashboard-hour-projection-fill");
+  const requiredMarkerLine = document.getElementById("dashboard-hour-required-marker-line");
+  const requiredMarkerLabel = document.getElementById("dashboard-hour-required-marker-label");
+  const projectedPercentNode = document.getElementById("dashboard-hour-projected-percent");
+  const projectedTotalLabel = document.getElementById("dashboard-hour-projected-total-label");
+  const projectionAlert = document.getElementById("dashboard-hour-projection-alert");
+  const keyRequired = document.getElementById("dashboard-hour-key-required");
+  const keyActual = document.getElementById("dashboard-hour-key-actual");
+  const keyExpected = document.getElementById("dashboard-hour-key-expected");
+  const keyCurrentDiff = document.getElementById("dashboard-hour-key-current-diff");
+  const keyProjected = document.getElementById("dashboard-hour-key-projected");
+  const keyProjectedDiff = document.getElementById("dashboard-hour-key-projected-diff");
+  const progressChart = document.getElementById("dashboard-hour-pace-progress-chart");
   const studentFilter = document.getElementById("dashboard-hour-pace-student-filter");
   const toggleButton = document.getElementById("dashboard-hour-pace-toggle");
   const studentBreakdown = document.getElementById("dashboard-hour-pace-student-breakdown");
@@ -13283,17 +13441,20 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
     detailValue.className = `dashboard-pill-metric ${view.statusClass}`;
   }
   if (detailNote) detailNote.textContent = `${view.actualToDate.toFixed(2)} logged vs ${view.expectedToDate.toFixed(2)} expected through ${formatDisplayDate(context.referenceDate)}; ${view.projectedTotal.toFixed(2)} projected against ${view.requiredTotal.toFixed(2)} required.`;
-  if (forecastNode) forecastNode.textContent = view.projectedVarianceHours < -0.01
-    ? `${Math.abs(view.projectedVarianceHours).toFixed(2)} hours projected short`
-    : `${view.projectedVarianceHours.toFixed(2)} hours projected over requirement`;
-  if (requiredNode) requiredNode.textContent = view.requiredTotal.toFixed(2);
-  if (expectedNode) expectedNode.textContent = view.expectedToDate.toFixed(2);
-  if (actualNode) actualNode.textContent = view.actualToDate.toFixed(2);
+  const projectedCompliant = view.projectedVarianceHours >= -finalProjectionTolerance;
+  const currentPercent = view.expectedToDate > 0 ? (view.actualToDate / view.expectedToDate) * 100 : 0;
+  const currentGaugePercent = clamp(currentPercent, 0, 100);
+  const projectionPercent = view.requiredTotal > 0 ? (view.projectedTotal / view.requiredTotal) * 100 : 0;
+  const projectionGaugePercent = clamp(projectionPercent, 0, 108);
+  if (forecastNode) forecastNode.textContent = projectedCompliant ? "On Track to Meet Required Hours" : "Projected Below Required Hours";
+  if (requiredNode) requiredNode.textContent = `${view.requiredTotal.toFixed(2)} hrs`;
+  if (expectedNode) expectedNode.textContent = `${view.expectedToDate.toFixed(2)} hrs`;
+  if (actualNode) actualNode.textContent = `${view.actualToDate.toFixed(2)} hrs`;
   if (varianceNode) {
     varianceNode.textContent = varianceText;
     varianceNode.className = `dashboard-summary-value ${metricClass(view.varianceHours)}`;
   }
-  if (projectedNode) projectedNode.textContent = view.projectedTotal.toFixed(2);
+  if (projectedNode) projectedNode.textContent = `${view.projectedTotal.toFixed(2)} hrs`;
   if (projectedVarianceNode) {
     projectedVarianceNode.textContent = projectedVarianceText;
     projectedVarianceNode.className = `dashboard-summary-value ${metricClass(view.projectedVarianceHours)}`;
@@ -13305,15 +13466,99 @@ function renderDashboardInstructionHourPaceSummary(snapshot) {
   }
   if (expectedMarker) expectedMarker.style.left = `${percentOfScale(view.expectedToDate).toFixed(2)}%`;
   if (requiredMarker) requiredMarker.style.left = `${percentOfScale(view.requiredTotal).toFixed(2)}%`;
-  if (varianceNote) varianceNote.textContent = view.projectedVarianceHours < -0.01
-    ? "Projected final compliance is below requirement if the current plan holds."
-    : view.status === "On Pace"
-      ? "Current pace and final projection are compliant."
-    : view.status === "Ahead of Pace"
-      ? "Ahead of the expected year-to-date pace."
-      : view.status === "Behind Pace"
-        ? "Behind the expected year-to-date pace, but final projection remains compliant."
-        : "School year pacing has not started yet.";
+  if (varianceNote) varianceNote.textContent = projectedCompliant
+    ? `You are projected to exceed the requirement by +${Math.abs(view.projectedVarianceHours).toFixed(2)} hours.`
+    : `You are projected to finish ${Math.abs(view.projectedVarianceHours).toFixed(2)} hours short of the requirement.`;
+  if (outcomeNode) {
+    outcomeNode.classList.toggle("short", !projectedCompliant);
+  }
+  if (currentPaceBadge) {
+    currentPaceBadge.textContent = currentPaceStatus.label;
+    currentPaceBadge.className = currentPaceStatus.className;
+  }
+  if (currentGauge) currentGauge.style.setProperty("--gauge-needle", `${((-180) + (currentGaugePercent * 1.8)).toFixed(2)}deg`);
+  if (currentPercentNode) currentPercentNode.textContent = `${Math.round(currentPercent)}%`;
+  if (currentAlert) {
+    currentAlert.textContent = currentPaceStatus.className === "behind"
+      ? `You are ${Math.abs(view.varianceHours).toFixed(2)} hours behind the expected pace.`
+      : currentPaceStatus.className === "ahead"
+        ? `You are ${Math.abs(view.varianceHours).toFixed(2)} hours ahead of the expected pace.`
+        : "You are on pace with expected progress.";
+    currentAlert.className = `required-hours-alert ${currentPaceStatus.className === "behind" ? "warning" : "success"}`;
+  }
+  if (projectionBadge) {
+    projectionBadge.textContent = projectedCompliant ? "Projected Compliant" : "Projected Short";
+    projectionBadge.className = projectedCompliant ? "success" : "warning";
+  }
+  if (projectionGauge) projectionGauge.style.setProperty("--projection-progress", `${projectionGaugePercent.toFixed(2)}%`);
+  if (projectionSvg && projectionTrackPath && projectionFillPath && requiredMarkerLine && requiredMarkerLabel) {
+    const hasProjection = view.requiredTotal > 0.01 && view.projectedTotal > 0.01;
+    const arcCenterX = 180;
+    const arcCenterY = 154;
+    const arcRadius = 132;
+    const pointOnProjectionArc = (ratio, radius = arcRadius) => {
+      const t = clamp(Number(ratio) || 0, 0, 1);
+      const angle = Math.PI - (t * Math.PI);
+      return {
+        angle,
+        x: arcCenterX + (Math.cos(angle) * radius),
+        y: arcCenterY - (Math.sin(angle) * radius)
+      };
+    };
+    const buildProjectionArcPath = (startRatio, endRatio, radius = arcRadius) => {
+      const start = clamp(Number(startRatio) || 0, 0, 1);
+      const end = clamp(Number(endRatio) || 0, 0, 1);
+      if (end <= start) return "";
+      const steps = Math.max(2, Math.ceil((end - start) * 56));
+      const points = [];
+      for (let i = 0; i <= steps; i += 1) {
+        points.push(pointOnProjectionArc(start + ((end - start) * (i / steps)), radius));
+      }
+      return points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+    };
+    projectionTrackPath.setAttribute("d", buildProjectionArcPath(0, 1));
+    projectionSvg.classList.toggle("required-marker-hidden", !hasProjection);
+    if (hasProjection) {
+      const projectionScaleMax = Math.max(100, Number(projectionPercent || 0));
+      const projectedRatio = clamp(Number(projectionPercent || 0) / projectionScaleMax, 0, 1);
+      const requiredRatio = clamp(100 / projectionScaleMax, 0, 1);
+      projectionFillPath.setAttribute("d", buildProjectionArcPath(0, projectedRatio));
+      const innerPoint = pointOnProjectionArc(requiredRatio, arcRadius - 23);
+      const outerPoint = pointOnProjectionArc(requiredRatio, arcRadius + 23);
+      requiredMarkerLine.setAttribute("x1", innerPoint.x.toFixed(2));
+      requiredMarkerLine.setAttribute("y1", innerPoint.y.toFixed(2));
+      requiredMarkerLine.setAttribute("x2", outerPoint.x.toFixed(2));
+      requiredMarkerLine.setAttribute("y2", outerPoint.y.toFixed(2));
+      requiredMarkerLabel.textContent = "Required";
+      const labelX = requiredRatio >= 0.5 ? outerPoint.x + 8 : outerPoint.x - 8;
+      const labelY = outerPoint.y;
+      requiredMarkerLabel.setAttribute("x", labelX.toFixed(2));
+      requiredMarkerLabel.setAttribute("y", labelY.toFixed(2));
+      requiredMarkerLabel.setAttribute("text-anchor", requiredRatio >= 0.5 ? "start" : "end");
+    } else {
+      projectionFillPath.setAttribute("d", "");
+    }
+  }
+  if (projectedPercentNode) projectedPercentNode.textContent = `${projectionPercent.toFixed(1)}%`;
+  if (projectedTotalLabel) projectedTotalLabel.textContent = `${view.projectedTotal.toFixed(2)} hrs`;
+  if (projectionAlert) {
+    projectionAlert.textContent = projectedCompliant
+      ? `Projected to exceed requirement by +${Math.abs(view.projectedVarianceHours).toFixed(2)} hours.`
+      : `Projected to finish ${Math.abs(view.projectedVarianceHours).toFixed(2)} hours short.`;
+    projectionAlert.className = `required-hours-alert ${projectedCompliant ? "success" : "warning"}`;
+  }
+  const setKeyMetric = (node, value, signed = false) => {
+    if (!node) return;
+    node.textContent = `${signed && value >= 0 ? "+" : ""}${value.toFixed(2)} hrs`;
+    node.className = signed ? metricClass(value) : "";
+  };
+  setKeyMetric(keyRequired, view.requiredTotal);
+  setKeyMetric(keyActual, view.actualToDate);
+  setKeyMetric(keyExpected, view.expectedToDate);
+  setKeyMetric(keyCurrentDiff, view.varianceHours, true);
+  setKeyMetric(keyProjected, view.projectedTotal);
+  setKeyMetric(keyProjectedDiff, view.projectedVarianceHours, true);
+  renderRequiredHoursProgressChart(progressChart, view, context, selectedStudentId);
   if (toggleButton) {
     toggleButton.textContent = dashboardInstructionHourPaceExpanded ? "Hide Student Breakdown" : "Show Student Breakdown";
     toggleButton.setAttribute("aria-expanded", dashboardInstructionHourPaceExpanded ? "true" : "false");

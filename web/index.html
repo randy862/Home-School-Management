@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605081022">
+  <link rel="stylesheet" href="styles.css?v=202605081940">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -414,13 +414,16 @@
         <p class="muted">All Performance gauges are currently hidden. Re-enable them in Administration > Workspace Configuration if you want this tab to show academic trends and watchlists.</p>
       </div>
 
-      <div id="dashboard-section-instruction-hour-pace" class="dashboard-section dashboard-section-compliance-detail hidden">
-        <div class="dashboard-section-header">
-          <div>
-            <h3>Required Instructional Hours</h3>
-            <p id="dashboard-hour-pace-note" class="muted">0.00 earned vs 0.00 expected to date.</p>
+      <div id="dashboard-section-instruction-hour-pace" class="dashboard-section dashboard-section-compliance-detail required-hours-analytics hidden">
+        <div class="required-hours-header">
+          <div class="student-performance-heading">
+            <span class="student-performance-heading-icon required-hours-heading-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <div>
+              <h3>Required Instructional Hours</h3>
+              <p id="dashboard-hour-pace-note" class="muted">Track instructional hours progress and year-end projection.</p>
+            </div>
           </div>
-          <div class="compliance-gauge-controls">
+          <div class="required-hours-controls">
             <label>Student
               <select id="dashboard-hour-pace-student-filter">
                 <option value="all">All Students</option>
@@ -429,53 +432,73 @@
             <span id="dashboard-hour-pace-value" class="dashboard-pill-metric">On pace</span>
           </div>
         </div>
-        <div class="compliance-gauge-card">
-          <div class="compliance-gauge-header">
-            <div>
-              <p class="dashboard-summary-label">Final Compliance Forecast</p>
-              <p id="dashboard-hour-pace-forecast" class="compliance-gauge-forecast">Projected on track</p>
+
+        <section id="dashboard-hour-pace-outcome" class="required-hours-outcome">
+          <div class="required-hours-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 12 4 4 8-8"/></svg></div>
+          <div>
+            <p class="dashboard-summary-label">Projected Outcome</p>
+            <p id="dashboard-hour-pace-forecast" class="required-hours-outcome-title">On Track to Meet Required Hours</p>
+            <p id="dashboard-hour-pace-variance-note" class="dashboard-summary-note">You are projected to exceed the requirement.</p>
+          </div>
+          <div class="required-hours-outcome-metrics">
+            <span><small>Projected Year-End Total</small><strong id="dashboard-hour-pace-projected">0.00 hrs</strong><em>Projected Hours</em></span>
+            <span><small>Required Total</small><strong id="dashboard-hour-pace-required">0.00 hrs</strong><em>Required Hours</em></span>
+          </div>
+          <div class="required-hours-shield" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 5 3 9 7 11 4-2 7-6 7-11V5z"/><path d="m12 8 1.2 2.4 2.8.4-2 1.9.5 2.8-2.5-1.3-2.5 1.3.5-2.8-2-1.9 2.8-.4z"/></svg></div>
+        </section>
+
+        <div class="required-hours-layout">
+          <div class="required-hours-main">
+            <section class="required-hours-card required-hours-pace-card">
+              <div class="required-hours-card-heading"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 5-5"/><path d="M12 14h.01"/></svg></span><h4>Current Pace <small>(Year to Date)</small></h4><em id="dashboard-hour-current-pace-badge">On Pace</em></div>
+              <div id="dashboard-hour-current-gauge" class="required-hours-speedometer" style="--gauge-needle: 0deg;">
+                <div class="required-hours-speedometer-arc"></div>
+                <div class="required-hours-speedometer-needle"></div>
+                <div class="required-hours-speedometer-center"><strong id="dashboard-hour-current-percent">0%</strong><span>of expected pace</span></div>
+                <span class="required-hours-gauge-min">0%</span><span class="required-hours-gauge-mid">50%</span><span class="required-hours-gauge-max">100%</span>
+              </div>
+              <div class="required-hours-comparison">
+                <span><strong id="dashboard-hour-pace-actual">0.00 hrs</strong><small>Logged Hours</small></span>
+                <span><strong id="dashboard-hour-pace-expected">0.00 hrs</strong><small>Expected by Today</small></span>
+              </div>
+              <p id="dashboard-hour-current-alert" class="required-hours-alert">You are on pace.</p>
+            </section>
+
+            <section class="required-hours-card required-hours-projection-card">
+              <div class="required-hours-card-heading"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M8 19v-6"/><path d="M12 19V8"/><path d="M16 19v-9"/><path d="M20 19v-4"/></svg></span><h4>Year-End Projection</h4><em id="dashboard-hour-projection-badge">Projected Compliant</em></div>
+              <div id="dashboard-hour-projection-gauge" class="required-hours-arc-gauge" style="--projection-progress: 0%;">
+                <svg id="dashboard-hour-projection-svg" class="required-hours-arc-svg" viewBox="0 0 360 190" aria-hidden="true">
+                  <path id="dashboard-hour-projection-track" class="required-hours-arc-track-path"></path>
+                  <path id="dashboard-hour-projection-fill" class="required-hours-arc-fill-path"></path>
+                  <line id="dashboard-hour-required-marker-line" class="required-hours-required-line" x1="300" y1="154" x2="344" y2="154"></line>
+                  <text id="dashboard-hour-required-marker-label" class="required-hours-required-label" x="292" y="140">Required</text>
+                </svg>
+                <div class="required-hours-arc-center"><strong id="dashboard-hour-projected-percent">0%</strong><span>of required hours</span></div>
+              </div>
+              <p class="required-hours-projected-total"><strong id="dashboard-hour-projected-total-label">0.00 hrs</strong><span>Projected Year-End Total</span></p>
+              <p id="dashboard-hour-projection-alert" class="required-hours-alert success">Projected to meet requirement.</p>
+            </section>
+
+            <section class="required-hours-card required-hours-progress-card">
+              <div class="required-hours-card-heading"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M5 15l4-4 4 3 6-7"/><path d="M15 7h4v4"/></svg></span><h4>Progress Over Time</h4></div>
+              <div id="dashboard-hour-pace-progress-chart" class="required-hours-progress-chart"></div>
+              <p class="required-hours-footnote">Projections are calculated based on current averages and remaining instructional days.</p>
+            </section>
+          </div>
+
+          <aside class="required-hours-key-card">
+            <h4>Key Numbers</h4>
+            <div class="required-hours-key-list">
+              <div><span class="required-hours-key-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span>Required Hours</span><strong id="dashboard-hour-key-required">0.00 hrs</strong></div>
+              <div><span class="required-hours-key-icon"><svg viewBox="0 0 24 24"><path d="M8 3h8l2 3v15H6V6z"/><path d="M9 12h6"/><path d="M9 16h6"/></svg></span><span>Logged Hours (YTD)</span><strong id="dashboard-hour-key-actual">0.00 hrs</strong></div>
+              <div><span class="required-hours-key-icon"><svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg></span><span>Expected Hours (YTD)</span><strong id="dashboard-hour-key-expected">0.00 hrs</strong></div>
+              <div><span class="required-hours-key-icon negative"><svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg></span><span>Current Difference</span><strong id="dashboard-hour-key-current-diff">0.00 hrs</strong></div>
+              <div><span class="required-hours-key-icon positive"><svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M16 8h4v4"/></svg></span><span>Projected Hours (Year-End)</span><strong id="dashboard-hour-key-projected">0.00 hrs</strong></div>
+              <div><span class="required-hours-key-icon success"><svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/></svg></span><span>Projected Difference</span><strong id="dashboard-hour-key-projected-diff">0.00 hrs</strong></div>
             </div>
-            <p id="dashboard-hour-pace-variance-note" class="dashboard-summary-note muted compliance-gauge-note">Currently on pace.</p>
-          </div>
-          <div class="compliance-gauge-track" aria-label="Instructional hours progress">
-            <div id="dashboard-hour-pace-actual-fill" class="compliance-gauge-fill actual"></div>
-            <div id="dashboard-hour-pace-projected-fill" class="compliance-gauge-fill projected"></div>
-            <span id="dashboard-hour-pace-expected-marker" class="compliance-gauge-marker expected"><span>Expected</span></span>
-            <span id="dashboard-hour-pace-required-marker" class="compliance-gauge-marker required"><span>Required</span></span>
-          </div>
-          <div class="compliance-gauge-legend">
-            <span><i class="legend-dot actual"></i>Logged</span>
-            <span><i class="legend-dot projected"></i>Projected</span>
-            <span><i class="legend-line expected"></i>Expected to date</span>
-            <span><i class="legend-line required"></i>Required</span>
-          </div>
+          </aside>
         </div>
-        <div class="dashboard-pace-grid compliance-metric-grid">
-          <article class="dashboard-summary-card dashboard-summary-card-tight">
-            <p class="dashboard-summary-label">Required Hours</p>
-            <p id="dashboard-hour-pace-required" class="dashboard-summary-value">0.00</p>
-          </article>
-          <article class="dashboard-summary-card dashboard-summary-card-tight">
-            <p class="dashboard-summary-label">Logged Hours</p>
-            <p id="dashboard-hour-pace-actual" class="dashboard-summary-value">0.00</p>
-          </article>
-          <article class="dashboard-summary-card dashboard-summary-card-tight">
-            <p class="dashboard-summary-label">Expected to Date</p>
-            <p id="dashboard-hour-pace-expected" class="dashboard-summary-value">0.00</p>
-          </article>
-          <article class="dashboard-summary-card dashboard-summary-card-tight">
-            <p class="dashboard-summary-label">Current Diff</p>
-            <p id="dashboard-hour-pace-variance" class="dashboard-summary-value">0.00</p>
-          </article>
-          <article class="dashboard-summary-card dashboard-summary-card-tight">
-            <p class="dashboard-summary-label">Projected Hours</p>
-            <p id="dashboard-hour-pace-projected" class="dashboard-summary-value">0.00</p>
-          </article>
-          <article class="dashboard-summary-card dashboard-summary-card-tight">
-            <p class="dashboard-summary-label">Projected Diff</p>
-            <p id="dashboard-hour-pace-projected-variance" class="dashboard-summary-value">0.00</p>
-          </article>
-        </div>
+
         <div class="dashboard-detail-toggle-row">
           <button id="dashboard-hour-pace-toggle" type="button" class="secondary-btn dashboard-detail-toggle" aria-expanded="false" aria-controls="dashboard-hour-pace-student-breakdown">Show Student Breakdown</button>
         </div>
@@ -2125,6 +2148,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605081022"></script>
+  <script src="app.js?v=202605081940"></script>
   </body>
   </html>

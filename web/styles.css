@@ -6631,6 +6631,633 @@ tbody tr:hover {
   margin-top: 0;
 }
 
+#app-shell .required-hours-analytics {
+  padding: 1.15rem;
+  border: 1px solid #dfe8f5;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(23, 36, 61, 0.06);
+}
+
+#app-shell .required-hours-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, auto);
+  gap: 1rem;
+  align-items: center;
+}
+
+#app-shell .required-hours-heading-icon {
+  width: 54px;
+  height: 54px;
+  flex-basis: 54px;
+  border-radius: 14px;
+}
+
+#app-shell .required-hours-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 0.8rem;
+  align-items: end;
+}
+
+#app-shell .required-hours-controls label {
+  display: grid;
+  gap: 0.35rem;
+  color: #53627d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+#app-shell .required-hours-controls select {
+  min-height: 42px;
+  border-color: #dce6f4;
+  border-radius: 9px;
+  color: #233451;
+  font-weight: 700;
+}
+
+#app-shell .required-hours-controls .dashboard-pill-metric {
+  min-height: 42px;
+  align-items: center;
+  padding-inline: 1rem;
+}
+
+#app-shell .required-hours-outcome {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 1.3rem;
+  align-items: center;
+  margin-top: 1.15rem;
+  padding: 1.35rem;
+  border: 1px solid #bfe8d4;
+  border-radius: 16px;
+  background: linear-gradient(115deg, #f0fff7 0%, #ffffff 58%, #f2fff8 100%);
+}
+
+#app-shell .required-hours-outcome.short {
+  border-color: #fed7c5;
+  background: linear-gradient(115deg, #fff6ef 0%, #ffffff 58%, #fff8f3 100%);
+}
+
+#app-shell .required-hours-check,
+#app-shell .required-hours-shield {
+  display: inline-grid;
+  place-items: center;
+  color: #ffffff;
+  background: linear-gradient(145deg, #29c16f, #16834a);
+  box-shadow: 0 18px 34px rgba(22, 163, 74, 0.22);
+}
+
+#app-shell .required-hours-check {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+}
+
+#app-shell .required-hours-shield {
+  width: 86px;
+  height: 86px;
+  border-radius: 24px;
+  background: linear-gradient(145deg, #57d98c, #119657);
+}
+
+#app-shell .required-hours-outcome.short .required-hours-check,
+#app-shell .required-hours-outcome.short .required-hours-shield {
+  background: linear-gradient(145deg, #ff865d, #e24117);
+  box-shadow: 0 18px 34px rgba(226, 65, 23, 0.18);
+}
+
+#app-shell .required-hours-check svg,
+#app-shell .required-hours-shield svg,
+#app-shell .required-hours-card-heading svg,
+#app-shell .required-hours-key-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#app-shell .required-hours-shield svg {
+  width: 58px;
+  height: 58px;
+  fill: currentColor;
+  stroke: rgba(255, 255, 255, 0.86);
+}
+
+#app-shell .required-hours-outcome-title {
+  margin: 0.15rem 0 0.35rem;
+  color: #17243d;
+  font-size: 1.45rem;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+#app-shell .required-hours-outcome-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 1.25rem;
+  padding-left: 1.35rem;
+  border-left: 1px solid #dbe5f1;
+}
+
+#app-shell .required-hours-outcome-metrics span {
+  display: grid;
+  gap: 0.22rem;
+}
+
+#app-shell .required-hours-outcome-metrics small,
+#app-shell .required-hours-key-card h4 {
+  color: #6a7891;
+  font-size: 0.74rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#app-shell .required-hours-outcome-metrics strong {
+  color: #159651;
+  font-size: 1.35rem;
+  line-height: 1.1;
+}
+
+#app-shell .required-hours-outcome.short .required-hours-outcome-metrics strong {
+  color: #e24117;
+}
+
+#app-shell .required-hours-outcome-metrics em {
+  color: #52617b;
+  font-size: 0.82rem;
+  font-style: normal;
+}
+
+#app-shell .required-hours-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+#app-shell .required-hours-main {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+#app-shell .required-hours-card,
+#app-shell .required-hours-key-card {
+  border: 1px solid #dfe7f3;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(23, 36, 61, 0.05);
+}
+
+#app-shell .required-hours-card {
+  padding: 1rem;
+}
+
+#app-shell .required-hours-pace-card,
+#app-shell .required-hours-projection-card {
+  display: grid;
+  grid-template-rows: auto 225px minmax(48px, auto) auto;
+}
+
+#app-shell .required-hours-progress-card {
+  grid-column: 1 / -1;
+}
+
+#app-shell .required-hours-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 36px;
+}
+
+#app-shell .required-hours-card-heading > span,
+#app-shell .required-hours-key-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 10px;
+  background: #edf5ff;
+  color: #2563eb;
+}
+
+#app-shell .required-hours-card-heading h4 {
+  flex: 1;
+  margin: 0;
+  color: #17243d;
+  font-size: 0.95rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+#app-shell .required-hours-card-heading small {
+  font-weight: 650;
+  text-transform: none;
+}
+
+#app-shell .required-hours-card-heading em {
+  padding: 0.45rem 0.7rem;
+  border-radius: 9px;
+  background: #f1fff6;
+  color: #16834a;
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 800;
+}
+
+#app-shell .required-hours-card-heading em.behind,
+#app-shell .required-hours-card-heading em.warning {
+  background: #fff4ed;
+  color: #e24117;
+}
+
+#app-shell .required-hours-speedometer {
+  --gauge-needle: 0deg;
+  position: relative;
+  width: min(360px, 100%);
+  height: 206px;
+  margin: 1.15rem auto 0;
+}
+
+#app-shell .required-hours-speedometer::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 29%;
+  width: 17px;
+  height: 17px;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  background: #12244b;
+  box-shadow: 0 7px 15px rgba(18, 36, 75, 0.2);
+  transform: translate(-50%, 50%);
+  z-index: 3;
+}
+
+#app-shell .required-hours-speedometer-arc,
+#app-shell .required-hours-arc-track,
+#app-shell .required-hours-arc-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px 999px 18px 18px;
+  clip-path: polygon(0 0, 100% 0, 100% 72%, 0 72%);
+}
+
+#app-shell .required-hours-speedometer-arc {
+  background: conic-gradient(from 235deg at 50% 75%, #e24117 0 24%, #f59e0b 24% 60%, #22c55e 60% 100%);
+  mask: radial-gradient(circle at 50% 75%, transparent 0 45%, #000 46% 58%, transparent 59%);
+}
+
+#app-shell .required-hours-speedometer-needle {
+  position: absolute;
+  left: 50%;
+  bottom: calc(29% - 5px);
+  width: 35%;
+  height: 10px;
+  border-radius: 999px 3px 3px 999px;
+  background: #12244b;
+  clip-path: polygon(0 0, 100% 43%, 100% 57%, 0 100%);
+  transform-origin: left center;
+  transform: rotate(var(--gauge-needle));
+  box-shadow: 0 6px 12px rgba(18, 36, 75, 0.18);
+  z-index: 1;
+}
+
+#app-shell .required-hours-speedometer-needle::before {
+  content: none;
+}
+
+#app-shell .required-hours-speedometer-center,
+#app-shell .required-hours-arc-center {
+  position: absolute;
+  inset: auto 0 18%;
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+  z-index: 2;
+}
+
+#app-shell .required-hours-speedometer-center {
+  bottom: 44%;
+  pointer-events: none;
+  z-index: 4;
+}
+
+#app-shell .required-hours-speedometer-center strong,
+#app-shell .required-hours-arc-center strong {
+  color: #e24117;
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+#app-shell .required-hours-arc-center strong {
+  color: #16a34a;
+  font-size: 2.1rem;
+}
+
+#app-shell .required-hours-speedometer-center span,
+#app-shell .required-hours-arc-center span {
+  color: #52617b;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+#app-shell .required-hours-gauge-min,
+#app-shell .required-hours-gauge-mid,
+#app-shell .required-hours-gauge-max {
+  position: absolute;
+  color: #53627d;
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+#app-shell .required-hours-gauge-min { left: 10%; bottom: 16%; }
+#app-shell .required-hours-gauge-mid { left: 50%; top: -1%; transform: translateX(-50%); }
+#app-shell .required-hours-gauge-max { right: 8%; bottom: 16%; }
+
+#app-shell .required-hours-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
+  gap: 0.8rem;
+  margin-top: 0.4rem;
+}
+
+#app-shell .required-hours-comparison span,
+#app-shell .required-hours-projected-total {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.15rem;
+  margin: 0;
+}
+
+#app-shell .required-hours-comparison strong,
+#app-shell .required-hours-projected-total strong {
+  color: #17243d;
+  font-size: 1.15rem;
+}
+
+#app-shell .required-hours-comparison small,
+#app-shell .required-hours-projected-total span {
+  color: #52617b;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+#app-shell .required-hours-alert {
+  margin: 1rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #d3eadc;
+  border-radius: 10px;
+  background: #f4fff8;
+  color: #236143;
+  text-align: center;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
+#app-shell .required-hours-alert.warning {
+  border-color: #ffd2be;
+  background: #fff7f0;
+  color: #e24117;
+}
+
+#app-shell .required-hours-arc-gauge {
+  --projection-progress: 0%;
+  position: relative;
+  width: min(360px, 100%);
+  height: 206px;
+  margin: 1.15rem auto 0;
+}
+
+#app-shell .required-hours-arc-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  z-index: 1;
+}
+
+#app-shell .required-hours-arc-track-path,
+#app-shell .required-hours-arc-fill-path {
+  fill: none;
+  stroke-width: 34;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#app-shell .required-hours-arc-track-path {
+  stroke: #e8eef6;
+}
+
+#app-shell .required-hours-arc-fill-path {
+  stroke: #1fb565;
+  filter: drop-shadow(0 7px 12px rgba(22, 163, 74, 0.12));
+}
+
+#app-shell .required-hours-arc-track {
+  background: #e8eef6;
+  mask: radial-gradient(circle at 50% 100%, transparent 0 56%, #000 57% 69%, transparent 70%);
+}
+
+#app-shell .required-hours-arc-fill {
+  background: conic-gradient(from 250deg at 50% 100%, #1fb565 0 var(--projection-progress), transparent var(--projection-progress) 100%);
+  mask: radial-gradient(circle at 50% 100%, transparent 0 56%, #000 57% 69%, transparent 70%);
+}
+
+#app-shell .required-hours-required-line {
+  stroke: #334155;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.16));
+}
+
+#app-shell .required-hours-required-label {
+  fill: #52617b;
+  font-size: 9px;
+  font-weight: 750;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+#app-shell .required-hours-arc-svg.required-marker-hidden .required-hours-required-line,
+#app-shell .required-hours-arc-svg.required-marker-hidden .required-hours-required-label {
+  display: none;
+}
+
+#app-shell .required-hours-key-card {
+  padding: 1.05rem;
+}
+
+#app-shell .required-hours-key-card h4 {
+  margin: 0 0 0.9rem;
+}
+
+#app-shell .required-hours-key-list {
+  display: grid;
+}
+
+#app-shell .required-hours-key-list > div {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid #e8eef7;
+}
+
+#app-shell .required-hours-key-list > div:last-child {
+  border-bottom: 0;
+}
+
+#app-shell .required-hours-key-list span:not(.required-hours-key-icon) {
+  color: #44536d;
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+#app-shell .required-hours-key-list strong {
+  color: #17243d;
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+#app-shell .required-hours-key-list strong.positive {
+  color: #16a34a;
+}
+
+#app-shell .required-hours-key-list strong.negative {
+  color: #e24117;
+}
+
+#app-shell .required-hours-key-icon.positive,
+#app-shell .required-hours-key-icon.success {
+  background: #eafaf0;
+  color: #16a34a;
+}
+
+#app-shell .required-hours-key-icon.negative {
+  background: #fff1ea;
+  color: #e24117;
+}
+
+#app-shell .required-hours-progress-chart {
+  margin-top: 0.7rem;
+  overflow-x: auto;
+}
+
+#app-shell .required-hours-progress-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.3rem;
+  margin: 0.2rem 0 0.6rem;
+  color: #53627d;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+#app-shell .required-hours-progress-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+#app-shell .required-hours-progress-legend i {
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+#app-shell .required-hours-progress-legend i.dashed {
+  background: repeating-linear-gradient(90deg, #94a3b8 0 8px, transparent 8px 14px) !important;
+}
+
+#app-shell .required-hours-progress-legend i.dotted {
+  background: repeating-linear-gradient(90deg, #16a34a 0 3px, transparent 3px 9px) !important;
+}
+
+#app-shell .required-hours-chart {
+  min-width: 820px;
+}
+
+#app-shell .required-hours-logged-line {
+  stroke: #2563eb;
+}
+
+#app-shell .required-hours-expected-line {
+  stroke: #94a3b8;
+  stroke-width: 2;
+  stroke-dasharray: 8 6;
+}
+
+#app-shell .required-hours-projected-line {
+  stroke: #16a34a;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 2 9;
+}
+
+#app-shell .required-hours-required-line {
+  stroke: #8b5cf6;
+  stroke-width: 2;
+}
+
+#app-shell .required-hours-today-line {
+  stroke: #cbd5e1;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+#app-shell .required-hours-chart-badge,
+#app-shell .required-hours-chart-label {
+  fill: #ffffff;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+#app-shell .required-hours-chart-badge {
+  paint-order: stroke;
+  stroke: #2563eb;
+  stroke-width: 10px;
+  stroke-linejoin: round;
+}
+
+#app-shell .required-hours-chart-label.projected {
+  fill: #ffffff;
+  paint-order: stroke;
+  stroke: #16a34a;
+  stroke-width: 10px;
+  stroke-linejoin: round;
+}
+
+#app-shell .required-hours-chart-label.required {
+  fill: #ffffff;
+  paint-order: stroke;
+  stroke: #8b5cf6;
+  stroke-width: 10px;
+  stroke-linejoin: round;
+}
+
+#app-shell .required-hours-footnote {
+  margin: 0.4rem 0 0;
+  color: #52617b;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
 #app-shell .student-analytics-row td {
   vertical-align: middle;
 }
@@ -9745,6 +10372,28 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  #app-shell .required-hours-header,
+  #app-shell .required-hours-layout {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .required-hours-key-card {
+    order: 2;
+  }
+
+  #app-shell .required-hours-outcome {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  #app-shell .required-hours-outcome-metrics,
+  #app-shell .required-hours-shield {
+    grid-column: 1 / -1;
+  }
+
+  #app-shell .required-hours-shield {
+    display: none;
+  }
+
   #app-shell .school-day-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -9836,6 +10485,26 @@ tbody tr:hover {
   #app-shell .compliance-ring-card {
     grid-template-columns: 1fr;
     justify-items: start;
+  }
+
+  #app-shell .required-hours-controls,
+  #app-shell .required-hours-main,
+  #app-shell .required-hours-outcome-metrics,
+  #app-shell .required-hours-comparison {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .required-hours-outcome {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  #app-shell .required-hours-outcome-metrics {
+    width: 100%;
+    padding-left: 0;
+    padding-top: 1rem;
+    border-left: 0;
+    border-top: 1px solid #dbe5f1;
   }
 
   #app-shell .school-day-nav-row,
