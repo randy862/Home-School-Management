@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-09
+Date: 2026-05-10
 
 ## Active Workstream
 
@@ -8,7 +8,7 @@ Modern app preview refinement.
 
 ## Current Focus
 
-Dashboard Overview, Performance, and Compliance polish in `/modern-preview/`.
+Dashboard Overview and Students table polish in `/modern-preview/`.
 
 ## Completed Recently
 
@@ -20,10 +20,14 @@ Dashboard Overview, Performance, and Compliance polish in `/modern-preview/`.
 - Compliance now has Instructional Hours, Instructional Days, and Other subtabs.
 - Instructional Days now mirrors the Required Instructional Hours panel, including progress chart and student breakdown wiring.
 - Completed Today filter layout and compliance chart sizing were tuned.
+- Required Instructional Days student breakdown was deployed to the modern preview.
+- Instruction Days Trending now shows data values and month-wide hover popups.
+- Overview now has Missing Required Subjects instead of Completed/Awaiting Grades.
+- Students table now includes Required status and Student, Grade, Status, Required filters.
 
 ## Current Blockers
 
-- WEB001 / Proxmox host networking is unreachable, so the final Instructional Days student breakdown update has not been deployed to preview.
+- None.
 
 ## Current Risks
 
@@ -33,6 +37,5 @@ Dashboard Overview, Performance, and Compliance polish in `/modern-preview/`.
 
 ## Next Actions
 
-1. Restore WEB001 / Proxmox network access.
-2. Deploy `web/index.html`, `web/app.js`, and `web/styles.css` to `/var/www/home-school-management/web/modern-preview/`.
-3. Verify preview cache keys and smoke-test Dashboard Compliance > Instructional Days.
+1. Smoke-test Dashboard Overview Missing Required Subjects and Students table filters.
+2. Keep live app unchanged unless replacement is explicitly approved.

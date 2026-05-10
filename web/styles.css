@@ -1582,6 +1582,44 @@ td {
   color: #5d6b82;
 }
 
+.student-required-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.student-required-status.yes {
+  background: #e8f4e3;
+  color: #25612a;
+}
+
+.student-required-status.no {
+  background: #fff0f0;
+  color: #a92f2f;
+}
+
+.student-table-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(140px, 1fr));
+  gap: 0.65rem;
+  align-items: end;
+  margin: 0 0 0.75rem;
+}
+
+.student-table-filter-grid label {
+  min-width: 0;
+}
+
+.student-table-filter-grid input,
+.student-table-filter-grid select {
+  min-height: 2.35rem;
+}
+
 .students-toolbar,
 .students-detail-toolbar {
   display: flex;
@@ -4062,6 +4100,12 @@ h4 {
   --card-accent-soft: rgba(217, 75, 75, 0.12);
 }
 
+.dashboard-visual-card-required-subjects {
+  --card-accent: #d94b4b;
+  --card-accent-dark: #a92f2f;
+  --card-accent-soft: rgba(217, 75, 75, 0.12);
+}
+
 .dashboard-visual-icon {
   width: 4.25rem;
   height: 4.25rem;
@@ -4110,6 +4154,7 @@ h4 {
 .dashboard-visual-card-completion .dashboard-summary-value,
 .dashboard-visual-card-open .dashboard-summary-value,
 .dashboard-visual-card-grade-risk .dashboard-summary-value,
+.dashboard-visual-card-required-subjects .dashboard-summary-value,
 .dashboard-visual-card-grades .dashboard-summary-value {
   font-size: clamp(3.65rem, 6.9vw, 5.65rem);
 }
@@ -4202,6 +4247,63 @@ h4 {
 
 .dashboard-risk-mini button {
   padding-block: 0.48rem;
+}
+
+.dashboard-required-subject-mini {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 5.7rem;
+  margin-top: 1.15rem;
+  overflow-y: auto;
+  padding-right: 0.18rem;
+}
+
+.dashboard-required-subject-mini:empty {
+  display: none;
+}
+
+.dashboard-required-subject-mini button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.42rem 0.5rem;
+  border: 1px solid #e3ebf4;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.dashboard-required-subject-mini button:hover,
+.dashboard-required-subject-mini button:focus-visible {
+  border-color: #b8d1ea;
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.dashboard-required-subject-mini b,
+.dashboard-required-subject-mini small {
+  min-width: 0;
+}
+
+.dashboard-required-subject-mini b {
+  overflow: hidden;
+  color: #22334e;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-required-subject-mini small {
+  color: #66758d;
+  font-size: 0.68rem;
+  font-weight: 750;
+  white-space: nowrap;
 }
 
 .dashboard-pace-arc {
@@ -6798,6 +6900,7 @@ tbody tr:hover {
 #app-shell .dashboard-visual-card-completion .dashboard-summary-value,
 #app-shell .dashboard-visual-card-open .dashboard-summary-value,
 #app-shell .dashboard-visual-card-grade-risk .dashboard-summary-value,
+#app-shell .dashboard-visual-card-required-subjects .dashboard-summary-value,
 #app-shell .dashboard-visual-card-grades .dashboard-summary-value {
   color: var(--card-accent-dark);
   max-width: 100%;

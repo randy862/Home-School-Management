@@ -1468,6 +1468,10 @@ let editingUserId = "";
 let userViewMode = "list";
 let studentViewMode = "list";
 let instructorViewMode = "list";
+let studentTableFilterStudent = "";
+let studentTableFilterGrade = "all";
+let studentTableFilterStatus = "all";
+let studentTableFilterRequired = "all";
 let studentEnrollmentDraftStudentId = "";
 let studentEnrollmentDraft = [];
 let studentEnrollmentDraftDirty = false;
@@ -3341,6 +3345,18 @@ function beginStudentDetail(studentId) {
   primeStudentEnrollmentDraft(studentId);
   setStudentViewMode("detail");
   renderStudentViewMode();
+}
+
+function openMissingRequiredStudent(studentId) {
+  const student = state.students.find((entry) => entry.id === studentId);
+  if (!student) return;
+  studentTableFilterStudent = `${student.firstName || ""} ${student.lastName || ""}`.trim();
+  studentTableFilterGrade = "all";
+  studentTableFilterStatus = "all";
+  studentTableFilterRequired = "no";
+  activateTab("students");
+  beginStudentDetail(studentId);
+  renderCurrentTabPanel();
 }
 
 function setActiveTab(tabName) {
@@ -8033,6 +8049,28 @@ function buildAlertsConfigFromAdminForm() {
 
 function renderStudents() {
   if (!isAdminUser()) return;
+  const gradeFilter = document.getElementById("student-table-filter-grade");
+  if (gradeFilter) {
+    const current = studentTableFilterGrade || gradeFilter.value || "all";
+    const grades = Array.from(new Set(state.students.map((student) => student.grade || "").filter(Boolean)))
+      .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+    gradeFilter.innerHTML = "<option value='all'>All Grades</option>";
+    grades.forEach((grade) => {
+      const option = document.createElement("option");
+      option.value = grade;
+      option.textContent = grade;
+      gradeFilter.appendChild(option);
+    });
+    gradeFilter.value = grades.includes(current) ? current : "all";
+    studentTableFilterGrade = gradeFilter.value;
+  }
+  const studentFilterInput = document.getElementById("student-table-filter-student");
+  if (studentFilterInput && studentFilterInput.value !== studentTableFilterStudent) studentFilterInput.value = studentTableFilterStudent;
+  const statusFilter = document.getElementById("student-table-filter-status");
+  if (statusFilter && statusFilter.value !== studentTableFilterStatus) statusFilter.value = studentTableFilterStatus;
+  const requiredFilter = document.getElementById("student-table-filter-required");
+  if (requiredFilter && requiredFilter.value !== studentTableFilterRequired) requiredFilter.value = studentTableFilterRequired;
+  const studentNeedle = (studentTableFilterStudent || "").trim().toLowerCase();
   const rows = state.students
     .slice()
     .sort((a, b) => {
@@ -8040,18 +8078,35 @@ function renderStudents() {
       if (archivedDelta) return archivedDelta;
       return `${a.lastName || ""} ${a.firstName || ""}`.localeCompare(`${b.lastName || ""} ${b.firstName || ""}`);
     })
+    .filter((student) => {
+      const archived = studentIsArchived(student);
+      const requiredComplete = studentHasAllRequiredSubjects(student.id);
+      const fullName = `${student.firstName || ""} ${student.lastName || ""}`.toLowerCase();
+      if (studentNeedle && !fullName.includes(studentNeedle)) return false;
+      if (studentTableFilterGrade !== "all" && student.grade !== studentTableFilterGrade) return false;
+      if (studentTableFilterStatus === "active" && archived) return false;
+      if (studentTableFilterStatus === "archived" && !archived) return false;
+      if (studentTableFilterRequired === "yes" && !requiredComplete) return false;
+      if (studentTableFilterRequired === "no" && requiredComplete) return false;
+      return true;
+    })
     .map((s) => {
     const ageNow = calculateAge(s.birthdate);
     const overallAvg = studentOverallAverage(s.id);
     const absences = studentAbsenceCount(s.id);
     const archived = studentIsArchived(s);
+    const missingRequiredSubjects = studentMissingRequiredSubjects(s.id);
+    const requiredComplete = missingRequiredSubjects.length === 0;
     const status = archived
       ? `<span class="student-status-pill archived">Archived</span>`
       : `<span class="student-status-pill">Active</span>`;
+      const requiredCell = requiredComplete
+        ? "<span class=\"student-required-status yes\">Yes</span>"
+        : `<span class="student-required-status no" title="${escapeHtml(missingRequiredSubjects.map((subject) => subject.name).join(", "))}">No</span>`;
       const restoreButton = archived ? `<button data-restore-student='${s.id}' type='button'>Restore</button>` : "";
-      return `<tr><td>${escapeHtml(s.firstName)} ${escapeHtml(s.lastName)}</td><td>${escapeHtml(s.grade)}</td><td>${ageNow}</td><td>${status}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}' type='button'>Edit/Enroll</button>${restoreButton}</div></td></tr>`;
+      return `<tr><td>${escapeHtml(s.firstName)} ${escapeHtml(s.lastName)}</td><td>${escapeHtml(s.grade)}</td><td>${ageNow}</td><td>${status}</td><td>${requiredCell}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}' type='button'>Edit/Enroll</button>${restoreButton}</div></td></tr>`;
     });
-  rowOrEmpty(document.getElementById("student-table"), rows, "No students added yet.", 7);
+  rowOrEmpty(document.getElementById("student-table"), rows, "No students match the selected filters.", 8);
 }
 
 function renderInstructors() {
@@ -8125,6 +8180,24 @@ function studentEnrolledCourseIds(studentId, sourceEnrollments = state.enrollmen
       if (section?.courseId) enrolledCourseIds.add(section.courseId);
     });
   return enrolledCourseIds;
+}
+
+function studentMissingRequiredSubjects(studentId) {
+  const requiredSubjects = state.subjects.filter((subject) => subject.required);
+  if (!requiredSubjects.length) return [];
+  const enrolledCourseIds = studentEnrolledCourseIds(studentId);
+  const enrolledSubjectIds = new Set(
+    Array.from(enrolledCourseIds)
+      .map((courseId) => getCourse(courseId)?.subjectId || "")
+      .filter(Boolean)
+  );
+  return requiredSubjects
+    .filter((subject) => !enrolledSubjectIds.has(subject.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function studentHasAllRequiredSubjects(studentId) {
+  return studentMissingRequiredSubjects(studentId).length === 0;
 }
 
 function isStudentEnrolledInCourse(studentId, courseId, sourceEnrollments = state.enrollments) {
@@ -11624,12 +11697,72 @@ function renderInstructionDaysTrending() {
     });
     return `<path d="${path.trim()}" class="trend-line" style="stroke:${colors[studentIdx]}" fill="none"></path>`;
   }).join("");
+  const formatDays = (value) => Number(value || 0).toFixed(Number(value || 0) % 1 === 0 ? 0 : 1);
   const pointSvg = series.flatMap((studentSeries, studentIdx) => monthlyRows.map((row, idx) => {
     const value = Number(row.values[studentIdx] || 0);
     const x = xFor(idx);
     const y = yFor(value);
-    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${colors[studentIdx]};stroke:${colors[studentIdx]}"><title>${escapeHtml(`${studentSeries.label} ${row.label}: ${value.toFixed(0)} days`)}</title></circle>`;
+    const monthTooltip = series.map((entry, entryIdx) => {
+      const monthValue = Number(row.values[entryIdx] || 0);
+      return `${entry.label} ${row.label}: ${formatDays(monthValue)} days`;
+    }).join("\n");
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${colors[studentIdx]};stroke:${colors[studentIdx]}"><title>${escapeHtml(monthTooltip)}</title></circle>`;
   })).join("");
+  const monthHoverZoneSvg = monthlyRows.map((row, idx) => {
+    const x = xFor(idx);
+    const previousX = idx > 0 ? xFor(idx - 1) : margin.left;
+    const nextX = idx < monthlyRows.length - 1 ? xFor(idx + 1) : width - margin.right;
+    const left = idx > 0 ? (previousX + x) / 2 : margin.left;
+    const right = idx < monthlyRows.length - 1 ? (x + nextX) / 2 : width - margin.right;
+    const monthTooltip = series.map((entry, entryIdx) => {
+      const monthValue = Number(row.values[entryIdx] || 0);
+      return `${entry.label} ${row.label}: ${formatDays(monthValue)} days`;
+    }).join("\n");
+    return `<rect x="${left.toFixed(2)}" y="${margin.top}" width="${Math.max(1, right - left).toFixed(2)}" height="${plotH.toFixed(2)}" fill="transparent" pointer-events="all"><title>${escapeHtml(monthTooltip)}</title></rect>`;
+  }).join("");
+  const labelTop = margin.top + 10;
+  const labelBottom = height - margin.bottom - 6;
+  const minLabelGap = 12;
+  const valueLabelParts = [];
+  monthlyRows.forEach((_, monthIdx) => {
+    const monthLabels = series.map((studentSeries, studentIdx) => {
+      const value = Number(studentSeries.monthly[monthIdx]?.days || 0);
+      if (value <= 0) return null;
+      const x = xFor(monthIdx);
+      const y = yFor(value);
+      const nearTop = y <= margin.top + 16;
+      const nearBottom = y >= (height - margin.bottom - 10);
+      const offsetBase = ((monthIdx + studentIdx) % 2 === 0) ? -10 : 14;
+      const offset = nearTop ? 22 : (nearBottom ? -10 : offsetBase);
+      return {
+        color: colors[studentIdx],
+        text: formatDays(value),
+        x,
+        preferredY: clamp(y + offset, labelTop, labelBottom)
+      };
+    }).filter(Boolean).sort((a, b) => a.preferredY - b.preferredY);
+
+    for (let i = 1; i < monthLabels.length; i += 1) {
+      if (monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+        monthLabels[i].preferredY = monthLabels[i - 1].preferredY + minLabelGap;
+      }
+    }
+    const overflow = monthLabels.length ? monthLabels[monthLabels.length - 1].preferredY - labelBottom : 0;
+    if (overflow > 0) {
+      for (let i = monthLabels.length - 1; i >= 0; i -= 1) {
+        monthLabels[i].preferredY -= overflow;
+        if (i > 0 && monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
+          monthLabels[i - 1].preferredY = monthLabels[i].preferredY - minLabelGap;
+        }
+      }
+    }
+    monthLabels.forEach((label) => {
+      label.preferredY = clamp(label.preferredY, labelTop, labelBottom);
+      const labelWidth = 37;
+      valueLabelParts.push(`<g class="trend-value-pill"><rect x="${(label.x - labelWidth / 2).toFixed(2)}" y="${(label.preferredY - 12).toFixed(2)}" width="${labelWidth}" height="18" rx="6" style="fill:${label.color};stroke:${label.color}"></rect><text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text></g>`);
+    });
+  });
+  const valueLabelSvg = valueLabelParts.join("");
   const legendHtml = `<div class="trend-legend">${series.map((studentSeries, idx) => `<span class="trend-legend-item"><span class="trend-legend-line" style="background:${colors[idx]}"></span><span>${escapeHtml(studentSeries.label)}</span></span>`).join("")}</div>`;
   const hasData = monthlyRows.some((row) => row.values.some((value) => value > 0));
   const noData = hasData ? "" : `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No instructional days for selected filters</text>`;
@@ -11641,6 +11774,8 @@ function renderInstructionDaysTrending() {
       ${xTickSvg}
       ${lineSvg}
       ${pointSvg}
+      ${valueLabelSvg}
+      ${monthHoverZoneSvg}
       ${noData}
       <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
       <text x="12" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 12 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Instruction Days</text>
@@ -13361,6 +13496,37 @@ function renderDashboardWeeklyGradeRiskSummary(snapshot) {
   }
 }
 
+function buildDashboardMissingRequiredSubjectsSnapshot(dashboardStudents) {
+  const rows = (dashboardStudents || [])
+    .filter((student) => !studentIsArchived(student))
+    .map((student) => ({
+      student,
+      missingSubjects: studentMissingRequiredSubjects(student.id)
+    }))
+    .filter((entry) => entry.missingSubjects.length > 0)
+    .sort((a, b) => `${a.student.lastName || ""} ${a.student.firstName || ""}`.localeCompare(`${b.student.lastName || ""} ${b.student.firstName || ""}`));
+  return { count: rows.length, rows };
+}
+
+function renderDashboardMissingRequiredSubjectsSummary(snapshot) {
+  const valueNode = document.getElementById("dashboard-overview-required-subject-value");
+  const listNode = document.getElementById("dashboard-overview-required-subject-list");
+  const noteNode = document.getElementById("dashboard-overview-required-subject-note");
+  if (valueNode) valueNode.textContent = String(snapshot.count || 0);
+  if (listNode) {
+    listNode.innerHTML = (snapshot.rows || []).map((entry) => {
+      const name = `${entry.student.firstName || ""} ${entry.student.lastName || ""}`.trim();
+      const missingText = entry.missingSubjects.map((subject) => subject.name).join(", ");
+      return `<button type="button" data-open-missing-required-student="${entry.student.id}" title="${escapeHtml(missingText)}"><b>${escapeHtml(name)}</b><small>${entry.missingSubjects.length} missing</small></button>`;
+    }).join("");
+  }
+  if (noteNode) {
+    noteNode.textContent = snapshot.count
+      ? `${snapshot.count} student${snapshot.count === 1 ? "" : "s"} missing required subject enrollment.`
+      : "All students have required subjects.";
+  }
+}
+
 function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = snapshot) {
   const context = activeYearReferenceContext(snapshot.date);
   const completionLabel = document.getElementById("dashboard-overview-completion-label");
@@ -14450,6 +14616,7 @@ function renderDashboard() {
   renderDashboardExecutionSummary(executionSnapshot, completionDetailSnapshot);
   renderDashboardInstructionHourPaceSummary(overviewHourPaceSnapshot);
   renderDashboardWeeklyGradeRiskSummary(buildDashboardWeeklyGradeRiskSnapshot(dashboardStudents, referenceDate));
+  renderDashboardMissingRequiredSubjectsSummary(buildDashboardMissingRequiredSubjectsSnapshot(dashboardStudents));
   renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
   renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
   renderDashboardGradeRiskSummary(buildDashboardGradeRiskSnapshot(dashboardStudents));
@@ -18764,6 +18931,18 @@ function bindEvents() {
     resetAttendanceEditMode();
     renderAll();
   });
+  ["student-table-filter-student", "student-table-filter-grade", "student-table-filter-status", "student-table-filter-required"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const eventName = id === "student-table-filter-student" ? "input" : "change";
+    el.addEventListener(eventName, () => {
+      studentTableFilterStudent = document.getElementById("student-table-filter-student")?.value || "";
+      studentTableFilterGrade = document.getElementById("student-table-filter-grade")?.value || "all";
+      studentTableFilterStatus = document.getElementById("student-table-filter-status")?.value || "all";
+      studentTableFilterRequired = document.getElementById("student-table-filter-required")?.value || "all";
+      renderStudents();
+    });
+  });
   ["attendance-filter-student", "attendance-filter-date", "attendance-filter-quarter", "attendance-filter-status"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => {
@@ -19530,6 +19709,11 @@ function bindEvents() {
     const averageGradeRiskTarget = t.closest("#dashboard-overview-average-grade-risk-btn");
     if (averageGradeRiskTarget instanceof HTMLElement) {
       openAverageGradeRiskWatchlist();
+      return;
+    }
+    const missingRequiredStudentTarget = t.closest("[data-open-missing-required-student]");
+    if (missingRequiredStudentTarget instanceof HTMLElement) {
+      openMissingRequiredStudent(missingRequiredStudentTarget.getAttribute("data-open-missing-required-student") || "");
       return;
     }
     const openDayTarget = t.closest("[data-open-calendar-day]");

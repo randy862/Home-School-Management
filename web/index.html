@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605092132">
+  <link rel="stylesheet" href="styles.css?v=202605102145">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -281,16 +281,14 @@
             </div>
             <p id="dashboard-overview-grade-risk-note" class="dashboard-summary-note muted">No grade risks this school week.</p>
           </article>
-          <article class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-grades" role="button" tabindex="0" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-school-day-quick-filter="needs-grade,completed" data-open-items-date="1">
+          <article id="dashboard-overview-required-subject-card" class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-required-subjects">
             <div class="dashboard-visual-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>
+              <svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 3v5h5"/><path d="m8 13 2.5 2.5L16 10"/></svg>
             </div>
-            <p id="dashboard-overview-missing-grades-label" class="dashboard-summary-label">Completed - Awaiting Grades Today</p>
-            <p id="dashboard-overview-missing-grades-value" class="dashboard-summary-value">0</p>
-            <div class="dashboard-grade-check" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></svg>
-            </div>
-            <p id="dashboard-overview-missing-grades-note" class="dashboard-summary-note muted">No completed classes are waiting on grades today.</p>
+            <p class="dashboard-summary-label">Missing Required Subjects</p>
+            <p id="dashboard-overview-required-subject-value" class="dashboard-summary-value">0</p>
+            <div id="dashboard-overview-required-subject-list" class="dashboard-required-subject-mini" aria-label="Students missing required subjects"></div>
+            <p id="dashboard-overview-required-subject-note" class="dashboard-summary-note muted">All students have required subjects.</p>
           </article>
         </div>
       </div>
@@ -1320,9 +1318,15 @@
         <p class="muted students-helper-text">Select <strong>Edit/Enroll</strong> to manage course enrollment and review that student's schedule, attendance summary, and instructional hours.</p>
         <div class="students-section students-section-manage">
           <h3>Students</h3>
+          <form id="student-table-filter-form" class="student-table-filter-grid">
+            <label>Student<input id="student-table-filter-student" type="search" placeholder="All students"></label>
+            <label>Grade<select id="student-table-filter-grade"><option value="all">All Grades</option></select></label>
+            <label>Status<select id="student-table-filter-status"><option value="all">All Statuses</option><option value="active">Active</option><option value="archived">Archived</option></select></label>
+            <label>Required<select id="student-table-filter-required"><option value="all">All</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+          </form>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Name</th><th>Grade</th><th>Age</th><th>Status</th><th>Overall Avg</th><th>Absences</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Grade</th><th>Age</th><th>Status</th><th>Required</th><th>Overall Avg</th><th>Absences</th><th>Actions</th></tr></thead>
               <tbody id="student-table"></tbody>
             </table>
           </div>
@@ -2257,6 +2261,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605092145"></script>
+  <script src="app.js?v=202605102145"></script>
   </body>
   </html>

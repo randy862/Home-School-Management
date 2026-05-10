@@ -1,6 +1,6 @@
 # Session Handoff
 
-Date: 2026-05-09
+Date: 2026-05-10
 
 ## Current Work
 
@@ -30,25 +30,24 @@ Completed this session:
 - Added Compliance subtabs: Instructional Hours, Instructional Days, Other.
 - Built Instructional Days compliance content to mirror Instructional Hours, including student breakdown wiring.
 - Tuned Completed Today filter placement and typography.
+- Added visible data values and month-wide hover popups to Instruction Days Trending.
+- Replaced Overview Completed/Awaiting Grades card with Missing Required Subjects.
+- Added Students table filters for Student, Grade, Status, and Required.
 
 Current local cache keys:
 
-- `styles.css?v=202605092132`
-- `app.js?v=202605092145`
+- `styles.css?v=202605102145`
+- `app.js?v=202605102145`
 
 ## Next Action
 
-After WEB001 / Proxmox networking is restored, deploy:
+Smoke-test Dashboard Overview Missing Required Subjects and Students table filters:
 
-`scp web/index.html web/app.js web/styles.css debian@192.168.1.210:/var/www/home-school-management/web/modern-preview/`
-
-Then verify:
-
-`curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -Pattern "styles.css\?v=|app.js\?v="`
+`https://mitchell.navigrader.com/modern-preview/`
 
 ## Risks
 
-- Final Required Instructional Days student breakdown change is not deployed because WEB001 is unreachable.
+- Final Required Instructional Days student breakdown change has been deployed to preview.
 - Do not replace the live app unless explicitly approved.
 - Existing untracked `tmp/` and icon files remain intentionally untouched.
 
@@ -56,3 +55,7 @@ Then verify:
 
 - `node --check web/app.js`
 - `git diff --check`
+- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -Pattern "styles.css\?v=|app.js\?v="`
+- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -Pattern "dashboard-day-pace-toggle|dashboard-day-pace-student-breakdown|Required Instructional Days"`
+- `curl.exe -s https://mitchell.navigrader.com/modern-preview/app.js?v=202605100930 | Select-String -Pattern "monthHoverZoneSvg|valueLabelSvg|instruction-days-trending-chart"`
+- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -Pattern "styles.css\?v=202605102145|app.js\?v=202605102145|Missing Required Subjects|student-table-filter-required"`
