@@ -1,12 +1,12 @@
 # Session Handoff
 
-Date: 2026-05-08
+Date: 2026-05-09
 
 ## Current Work
 
 Modern app preview refinement on branch:
 
-app-modern-interface-shell
+`app-modern-interface-shell`
 
 Preview URL:
 
@@ -16,63 +16,43 @@ The live tenant app has not been replaced.
 
 ## Current State
 
-Dashboard Performance alerts and visuals were refined and deployed to WEB001 `/modern-preview/`.
+Dashboard and Curriculum refinements are implemented locally.
 
 Completed this session:
 
-- Course Watchlist now matches the modern Student Performance styling.
-- Student Performance letter grades now align with one-decimal displayed averages.
-- Student Performance score pill colors now use the same rounded value as the displayed grade.
-- Grade Type Volume was rebuilt to match the supplied target design.
-- Grade Type Volume includes icon filters, inner chart panel, bar labels, summary metric strip, and real chart/table toggle.
-- Grade Type Volume order is Assignment, Quiz, Test, Quarter Final.
-- Grade Type Volume Y-axis headroom, April label visibility, and Quarter filter width were fixed.
-- Grade Risk was renamed to Average Grade Risk.
-- Single Grade Risk alert type and threshold were added.
-- Instruction Hours Per Month and Instruction Days Per Month now match Student Grade Trending style.
-- Instruction Hours/Days include Subject filters, Line/Area toggles, data point toggles, summary cards, and month-wide hover summaries.
-- Student Grade Trending and Instructor Grade Trending now also use month-wide hover summaries.
-- APP001 workspace config normalizer was updated for the new Single Grade Risk settings.
-- Required Instructional Hours analytics visual was rebuilt in the modern card style.
-- Current Pace and Year-End Projection gauges were polished and aligned.
-- Required marker label now sits outside the projection arc.
-- Required Hours Progress Over Time now keeps actuals through YTD and starts projection from the current/YTD point.
-- Overview Instruction Days now matches the projected instruction card style with status, note, and required/projected metrics.
-- Subject Required flag was added and deployed: subjects now persist `required`, Curriculum > Subjects exposes the flag, student enrollment shows missing required subjects, and dashboard subject rows label required subjects.
-- PostgreSQL migration `026_subject_required_flag.sql` was applied on APP001 across tenant subject schemas.
-- Subject form layout was refined so the Subject input is about half width and Add Subject is on a second row aligned left.
+- Added Required flag support for Subjects and related enrollment/dashboard indicators.
+- Refined Curriculum > Subjects form layout.
+- Restyled Attendance and Running Grade Average overview cards to match instruction status cards.
+- Added Overview Grades at Risk with Average Grade Risk and Single Grade Risk counts.
+- Added Grade Search grade-value filtering for risk links.
+- Linked Average Grade Risk to Performance Course Watchlist.
+- Tightened Performance tables and dashboard chart sizing to avoid horizontal scrollbars.
+- Added Compliance subtabs: Instructional Hours, Instructional Days, Other.
+- Built Instructional Days compliance content to mirror Instructional Hours, including student breakdown wiring.
+- Tuned Completed Today filter placement and typography.
 
-Current served preview cache key:
+Current local cache keys:
 
-- `styles.css?v=202605091712`
-- `app.js?v=202605091712`
+- `styles.css?v=202605092132`
+- `app.js?v=202605092145`
 
 ## Next Action
 
-Start with the latest user feedback from `/modern-preview/`.
+After WEB001 / Proxmox networking is restored, deploy:
 
-For UI-only work, inspect only:
+`scp web/index.html web/app.js web/styles.css debian@192.168.1.210:/var/www/home-school-management/web/modern-preview/`
 
-- `web/index.html`
-- `web/styles.css`
-- `web/app.js`
+Then verify:
 
-Then make the smallest focused change and redeploy those files to:
-
-`debian@192.168.1.210:/var/www/home-school-management/web/modern-preview/`
-
-If alert config persistence changes, also update APP001:
-
-`debian@192.168.1.200:/home/debian/apps/home-school-management/server/src/services/`
+`curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -Pattern "styles.css\?v=|app.js\?v="`
 
 ## Risks
 
+- Final Required Instructional Days student breakdown change is not deployed because WEB001 is unreachable.
 - Do not replace the live app unless explicitly approved.
-- Do not change backend, auth, tenant lifecycle, billing, or database behavior during visual-only work.
 - Existing untracked `tmp/` and icon files remain intentionally untouched.
 
 ## Validation
 
 - `node --check web/app.js`
 - `git diff --check`
-- Verify public preview cache key after publishing.

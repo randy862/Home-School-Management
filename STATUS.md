@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-08
+Date: 2026-05-09
 
 ## Active Workstream
 
@@ -8,33 +8,31 @@ Modern app preview refinement.
 
 ## Current Focus
 
-Dashboard Performance alert and trend-chart polish in `/modern-preview/`.
+Dashboard Overview, Performance, and Compliance polish in `/modern-preview/`.
 
 ## Completed Recently
 
-- Required Instructional Hours analytics visual was rebuilt in the modern card style.
-- Current Pace gauge needle, hub, labels, metric row, and alert row were aligned.
-- Year-End Projection gauge now draws the required marker on the arc with the label outside the arc.
-- Progress Over Time no longer plots missing future/pre-projection values as zero.
-- Projection line now starts at the current/YTD point and continues to year end.
-- Required Hours preview files were deployed to WEB001 `/var/www/home-school-management/web/modern-preview/`.
-- Overview Instruction Days now matches the projected instruction card style.
-- Subject Required flag was deployed to APP001/WEB001, including migration `026_subject_required_flag.sql`.
-- Subject form layout was refined after deployment.
-- Current served preview cache key is `202605091712`.
+- Required Subjects were added to Curriculum, enrollment checks, dashboard subject rows, and database persistence.
+- Overview Attendance and Running Grade Average cards now match instruction status-card styling.
+- Overview Grades at Risk replaced School Year-to-Date Pace.
+- Grade Search supports grade-value filtering for Single Grade Risk workflows.
+- Performance tables were tightened to fit without internal horizontal scrolling.
+- Compliance now has Instructional Hours, Instructional Days, and Other subtabs.
+- Instructional Days now mirrors the Required Instructional Hours panel, including progress chart and student breakdown wiring.
+- Completed Today filter layout and compliance chart sizing were tuned.
 
 ## Current Blockers
 
-None.
+- WEB001 / Proxmox host networking is unreachable, so the final Instructional Days student breakdown update has not been deployed to preview.
 
 ## Current Risks
 
 - Live app has not been replaced.
 - Untracked `tmp/` and icon files remain outside the current commit unless explicitly requested.
-- Continue avoiding JOURNAL/, archive/, and NOTES/ unless the task requires them.
+- Continue avoiding archive/ and NOTES/ unless the task requires them.
 
 ## Next Actions
 
-1. Review `/modern-preview/` for any remaining visual issues.
-2. Keep future UI preview changes scoped to `web/index.html`, `web/styles.css`, and `web/app.js` unless alert config persistence changes are needed.
-3. Validate with `node --check web/app.js` and `git diff --check`.
+1. Restore WEB001 / Proxmox network access.
+2. Deploy `web/index.html`, `web/app.js`, and `web/styles.css` to `/var/www/home-school-management/web/modern-preview/`.
+3. Verify preview cache keys and smoke-test Dashboard Compliance > Instructional Days.

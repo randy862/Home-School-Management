@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605091712">
+  <link rel="stylesheet" href="styles.css?v=202605092132">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -132,10 +132,15 @@
         <button class="subtab-btn" data-dashboard-tab="performance" type="button">Performance</button>
         <button class="subtab-btn" data-dashboard-tab="compliance" type="button">Compliance</button>
       </div>
+      <div id="dashboard-compliance-subtabs" class="subtabs dashboard-compliance-subtabs hidden" aria-label="Compliance sections">
+        <button class="subtab-btn active" data-compliance-tab="instructional-hours" type="button">Instructional Hours</button>
+        <button class="subtab-btn" data-compliance-tab="instructional-days" type="button">Instructional Days</button>
+        <button class="subtab-btn" data-compliance-tab="other" type="button">Other</button>
+      </div>
 
       <div id="dashboard-section-overview" class="dashboard-section dashboard-section-overview">
         <div class="kpi-grid">
-          <button type="button" class="kpi kpi-projected-hours-card kpi-instruction-days-card" data-dashboard-tab="compliance" aria-label="Open Compliance tab for instruction days">
+          <button type="button" class="kpi kpi-projected-hours-card kpi-instruction-days-card" data-dashboard-tab="compliance" data-compliance-target="instructional-days" aria-label="Open Compliance tab for instruction days">
             <div class="kpi-projected-hours-top">
               <p class="kpi-label">Instruction Days</p>
               <span class="kpi-info-icon" aria-hidden="true">i</span>
@@ -154,7 +159,7 @@
               <span><small>Projected Days</small><strong id="kpi-instruction-days-projected">0 days</strong></span>
             </div>
           </button>
-          <button type="button" class="kpi kpi-projected-hours-card kpi-instruction-hours-card" data-dashboard-tab="compliance" aria-label="Open Compliance tab for projected instruction hours">
+          <button type="button" class="kpi kpi-projected-hours-card kpi-instruction-hours-card" data-dashboard-tab="compliance" data-compliance-target="instructional-hours" aria-label="Open Compliance tab for projected instruction hours">
             <div class="kpi-projected-hours-top">
               <p class="kpi-label">Projected Instruction Hours</p>
               <span class="kpi-info-icon" aria-hidden="true">i</span>
@@ -173,33 +178,43 @@
               <span><small>Projected Hours</small><strong id="kpi-instruction-hours-projected">0.00 hrs</strong></span>
             </div>
           </button>
-          <article class="kpi kpi-dial-card">
-            <p class="kpi-label">Attendance Percentage</p>
-            <div class="kpi-dial-gauge" aria-label="Attendance percentage gauge">
-              <svg viewBox="0 0 240 126" role="img" aria-hidden="true">
-                <path class="dial-arc dial-arc-base" d="M 38 106 A 82 82 0 0 1 202 106"></path>
-                <path id="kpi-attendance-dial-arc" class="dial-arc dial-arc-progress" d="M 38 106 A 82 82 0 0 1 202 106"></path>
-              </svg>
-              <div class="kpi-dial-scale"><span>0</span><span>100</span></div>
-              <div class="kpi-dial-center">
-                <strong id="kpi-attendance-overall">0%</strong>
-              </div>
+          <article id="kpi-attendance-card" class="kpi kpi-projected-hours-card kpi-status-card kpi-attendance-card" data-status="attendance-excellent">
+            <div class="kpi-projected-hours-top">
+              <p class="kpi-label">Attendance Percentage</p>
+              <span class="kpi-info-icon" aria-hidden="true">i</span>
             </div>
-            <p id="kpi-attendance-dial-note" class="kpi-dial-note">Attendance</p>
+            <div class="kpi-projected-hours-status">
+              <span id="kpi-attendance-icon" class="kpi-projected-hours-icon kpi-status-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 5 3 9 7 11 4-2 7-6 7-11V5z"/><path d="m7.5 12 3 3 6-6"/></svg>
+              </span>
+              <span>
+                <strong id="kpi-attendance-status">Excellent</strong>
+                <small id="kpi-attendance-note">Consistently above target</small>
+              </span>
+            </div>
+            <div class="kpi-projected-hours-metrics">
+              <span><small>Attendance Level</small><strong id="kpi-attendance-level">Excellent = 95%</strong></span>
+              <span><small>Attendance</small><strong id="kpi-attendance-overall">0.0%</strong></span>
+            </div>
           </article>
-          <article class="kpi kpi-dial-card">
-            <p class="kpi-label">Running Grade Average</p>
-            <div class="kpi-dial-gauge" aria-label="Running grade average gauge">
-              <svg viewBox="0 0 240 126" role="img" aria-hidden="true">
-                <path class="dial-arc dial-arc-base" d="M 38 106 A 82 82 0 0 1 202 106"></path>
-                <path id="kpi-grade-dial-arc" class="dial-arc dial-arc-progress" d="M 38 106 A 82 82 0 0 1 202 106"></path>
-              </svg>
-              <div class="kpi-dial-scale"><span>0</span><span>100</span></div>
-              <div class="kpi-dial-center">
-                <strong id="kpi-running-avg">0%</strong>
-              </div>
+          <article id="kpi-grade-card" class="kpi kpi-projected-hours-card kpi-status-card kpi-grade-card" data-status="performance-strong">
+            <div class="kpi-projected-hours-top">
+              <p class="kpi-label">Running Grade Average</p>
+              <span class="kpi-info-icon" aria-hidden="true">i</span>
             </div>
-            <p id="kpi-grade-dial-note" class="kpi-dial-note">Average</p>
+            <div class="kpi-projected-hours-status">
+              <span id="kpi-grade-icon" class="kpi-projected-hours-icon kpi-status-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M8 3h8l2 3v15H6V6z"/><path d="M9 10h6"/><path d="M9 14h6"/><path d="m9 18 2 2 4-4"/></svg>
+              </span>
+              <span>
+                <strong id="kpi-grade-status">Strong</strong>
+                <small id="kpi-grade-note">Above the target threshold</small>
+              </span>
+            </div>
+            <div class="kpi-projected-hours-metrics">
+              <span><small>Grade Level</small><strong id="kpi-grade-level">Strong = 90%</strong></span>
+              <span><small>Grade Average</small><strong id="kpi-running-avg">0.0%</strong></span>
+            </div>
           </article>
         </div>
 
@@ -254,35 +269,17 @@
             </div>
             <p id="dashboard-overview-attention-note" class="dashboard-summary-note muted">No open items for today.</p>
           </article>
-          <article id="dashboard-overview-pace-card" class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-pace">
+          <article id="dashboard-overview-grade-risk-card" class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-grade-risk">
             <div class="dashboard-visual-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-6"/><path d="M16 8h3v3"/></svg>
+              <svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 3v5h5"/><path d="M9 12h6"/><path d="M9 16h3"/></svg>
             </div>
-            <p class="dashboard-summary-label">School Year-to-Date Pace</p>
-            <p id="dashboard-overview-pace-value" class="dashboard-summary-value">On Pace</p>
-            <div class="dashboard-pace-arc" aria-hidden="true">
-              <svg viewBox="0 0 220 122" role="img">
-                <path class="dashboard-pace-track" pathLength="100" d="M24 98 A86 86 0 0 1 196 98"></path>
-                <path id="dashboard-overview-pace-arc-fill" class="dashboard-pace-arc-fill" pathLength="100" d="M24 98 A86 86 0 0 1 196 98"></path>
-                <g class="dashboard-pace-ticks">
-                  <path d="M38 91l7-3"></path>
-                  <path d="M56 62l6 5"></path>
-                  <path d="M84 45l3 8"></path>
-                  <path d="M110 39v9"></path>
-                  <path d="M136 45l-3 8"></path>
-                  <path d="M164 62l-6 5"></path>
-                  <path d="M182 91l-7-3"></path>
-                </g>
-                <line class="dashboard-pace-needle" x1="110" y1="98" x2="110" y2="49"></line>
-                <circle class="dashboard-pace-hub" cx="110" cy="98" r="4"></circle>
-              </svg>
+            <p class="dashboard-summary-label">Grades at Risk</p>
+            <p id="dashboard-overview-grade-risk-value" class="dashboard-summary-value">0</p>
+            <div class="dashboard-open-mini dashboard-risk-mini" aria-label="Grade risk breakdown">
+              <button id="dashboard-overview-average-grade-risk-btn" type="button"><b id="dashboard-overview-average-grade-risk-count">0</b><small>Average Grade Risks</small></button>
+              <button id="dashboard-overview-single-grade-risk-btn" type="button"><b id="dashboard-overview-single-grade-risk-count">0</b><small>Single Grade Risks</small></button>
             </div>
-            <div class="dashboard-pace-mini">
-              <span><b id="dashboard-overview-pace-logged">0.00</b><small>Logged</small></span>
-              <span><b id="dashboard-overview-pace-projected">0.00</b><small>Expected to Date</small></span>
-              <span><b id="dashboard-overview-pace-required">0.00</b><small>Current Diff</small></span>
-            </div>
-            <p id="dashboard-overview-pace-note" class="dashboard-summary-note muted">0.00 earned vs 0.00 expected.</p>
+            <p id="dashboard-overview-grade-risk-note" class="dashboard-summary-note muted">No grade risks this school week.</p>
           </article>
           <article class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-grades" role="button" tabindex="0" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-school-day-quick-filter="needs-grade,completed" data-open-items-date="1">
             <div class="dashboard-visual-icon" aria-hidden="true">
@@ -322,7 +319,6 @@
             </span>
             <div>
               <h3>Completed Today</h3>
-              <p>Track daily class completion, grade entry, and logged instructional time.</p>
             </div>
           </div>
           <form id="completion-today-filter-form" class="grid-form">
@@ -424,7 +420,7 @@
         <p class="muted">All Performance gauges are currently hidden. Re-enable them in Administration > Workspace Configuration if you want this tab to show academic trends and watchlists.</p>
       </div>
 
-      <div id="dashboard-section-instruction-hour-pace" class="dashboard-section dashboard-section-compliance-detail required-hours-analytics hidden">
+      <div id="dashboard-section-instruction-hour-pace" class="dashboard-section dashboard-section-compliance-detail required-hours-analytics hidden" data-compliance-section="instructional-hours">
         <div class="required-hours-header">
           <div class="student-performance-heading">
             <span class="student-performance-heading-icon required-hours-heading-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
@@ -522,52 +518,107 @@
         </div>
       </div>
 
-      <div id="dashboard-section-instruction-day-compliance" class="dashboard-section dashboard-section-compliance-detail hidden">
-        <div class="dashboard-section-header">
-          <div>
-            <h3>Required Instructional Days</h3>
-            <p id="dashboard-day-compliance-note" class="muted">0 completed vs 0 expected to date.</p>
-          </div>
-          <span id="dashboard-day-compliance-status" class="dashboard-pill-metric">On pace</span>
-        </div>
-        <div class="compliance-visual-grid">
-          <article class="compliance-ring-card">
-            <div id="dashboard-day-compliance-ring" class="compliance-ring" style="--ring-progress: 0; --ring-color: #1761ae;">
-              <div class="compliance-ring-center">
-                <span id="dashboard-day-compliance-percent">0%</span>
-                <small>completed</small>
-              </div>
-            </div>
+      <div id="dashboard-section-instruction-day-compliance" class="dashboard-section dashboard-section-compliance-detail required-hours-analytics required-days-analytics hidden" data-compliance-section="instructional-days">
+        <div class="required-hours-header">
+          <div class="student-performance-heading">
+            <span class="student-performance-heading-icon required-hours-heading-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg></span>
             <div>
-              <p class="dashboard-summary-label">Instructional Days Progress</p>
-              <p id="dashboard-day-compliance-forecast" class="compliance-gauge-forecast">Projected on track</p>
-              <p id="dashboard-day-compliance-detail" class="dashboard-summary-note muted">Projected days assume remaining planned instructional days are completed.</p>
+              <h3>Required Instructional Days</h3>
+              <p id="dashboard-day-compliance-note" class="muted">Track instructional day progress and year-end projection.</p>
             </div>
-          </article>
-          <div class="dashboard-pace-grid compliance-day-metric-grid">
-            <article class="dashboard-summary-card dashboard-summary-card-tight">
-              <p class="dashboard-summary-label">Required Days</p>
-              <p id="dashboard-day-required" class="dashboard-summary-value">0</p>
-            </article>
-            <article class="dashboard-summary-card dashboard-summary-card-tight">
-              <p class="dashboard-summary-label">Completed Days</p>
-              <p id="dashboard-day-completed" class="dashboard-summary-value">0</p>
-            </article>
-            <article class="dashboard-summary-card dashboard-summary-card-tight">
-              <p class="dashboard-summary-label">Expected to Date</p>
-              <p id="dashboard-day-expected" class="dashboard-summary-value">0</p>
-            </article>
-            <article class="dashboard-summary-card dashboard-summary-card-tight">
-              <p class="dashboard-summary-label">Projected Diff</p>
-              <p id="dashboard-day-projected-diff" class="dashboard-summary-value">0</p>
-            </article>
+          </div>
+          <div class="required-hours-controls">
+            <label>Student
+              <select id="dashboard-day-pace-student-filter">
+                <option value="all">All Students</option>
+              </select>
+            </label>
+            <span id="dashboard-day-compliance-status" class="dashboard-pill-metric">On pace</span>
+          </div>
+        </div>
+
+        <section id="dashboard-day-pace-outcome" class="required-hours-outcome">
+          <div class="required-hours-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 12 4 4 8-8"/></svg></div>
+          <div>
+            <p class="dashboard-summary-label">Projected Outcome</p>
+            <p id="dashboard-day-compliance-forecast" class="required-hours-outcome-title">On Track to Meet Required Days</p>
+            <p id="dashboard-day-compliance-detail" class="dashboard-summary-note">Projected days assume remaining planned instructional days are completed.</p>
+          </div>
+          <div class="required-hours-outcome-metrics">
+            <span><small>Projected Year-End Total</small><strong id="dashboard-day-projected">0 days</strong><em>Projected Days</em></span>
+            <span><small>Required Total</small><strong id="dashboard-day-required">0 days</strong><em>Required Days</em></span>
+          </div>
+          <div class="required-hours-shield" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 5 3 9 7 11 4-2 7-6 7-11V5z"/><path d="m12 8 1.2 2.4 2.8.4-2 1.9.5 2.8-2.5-1.3-2.5 1.3.5-2.8-2-1.9 2.8-.4z"/></svg></div>
+        </section>
+
+        <div class="required-hours-layout">
+          <div class="required-hours-main">
+            <section class="required-hours-card required-hours-pace-card">
+              <div class="required-hours-card-heading"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 5-5"/><path d="M12 14h.01"/></svg></span><h4>Current Pace <small>(Year to Date)</small></h4><em id="dashboard-day-current-pace-badge">On Pace</em></div>
+              <div id="dashboard-day-current-gauge" class="required-hours-speedometer" style="--gauge-needle: 0deg;">
+                <div class="required-hours-speedometer-arc"></div>
+                <div class="required-hours-speedometer-needle"></div>
+                <div class="required-hours-speedometer-center"><strong id="dashboard-day-compliance-percent">0%</strong><span>of expected pace</span></div>
+                <span class="required-hours-gauge-min">0%</span><span class="required-hours-gauge-mid">50%</span><span class="required-hours-gauge-max">100%</span>
+              </div>
+              <div class="required-hours-comparison">
+                <span><strong id="dashboard-day-completed">0 days</strong><small>Completed Days</small></span>
+                <span><strong id="dashboard-day-expected">0 days</strong><small>Expected by Today</small></span>
+              </div>
+              <p id="dashboard-day-current-alert" class="required-hours-alert">You are on pace.</p>
+            </section>
+
+            <section class="required-hours-card required-hours-projection-card">
+              <div class="required-hours-card-heading"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M8 19v-6"/><path d="M12 19V8"/><path d="M16 19v-9"/><path d="M20 19v-4"/></svg></span><h4>Year-End Projection</h4><em id="dashboard-day-projection-badge">Projected Compliant</em></div>
+              <div id="dashboard-day-projection-gauge" class="required-hours-arc-gauge" style="--projection-progress: 0%;">
+                <svg id="dashboard-day-projection-svg" class="required-hours-arc-svg" viewBox="0 0 360 190" aria-hidden="true">
+                  <path id="dashboard-day-projection-track" class="required-hours-arc-track-path"></path>
+                  <path id="dashboard-day-projection-fill" class="required-hours-arc-fill-path"></path>
+                  <line id="dashboard-day-required-marker-line" class="required-hours-required-line" x1="300" y1="154" x2="344" y2="154"></line>
+                  <text id="dashboard-day-required-marker-label" class="required-hours-required-label" x="292" y="140">Required</text>
+                </svg>
+                <div class="required-hours-arc-center"><strong id="dashboard-day-projected-percent">0%</strong><span>of required days</span></div>
+              </div>
+              <p class="required-hours-projected-total"><strong id="dashboard-day-projected-total-label">0 days</strong><span>Projected Year-End Total</span></p>
+              <p id="dashboard-day-projection-alert" class="required-hours-alert success">Projected to meet requirement.</p>
+            </section>
+
+            <section class="required-hours-card required-hours-progress-card">
+              <div class="required-hours-card-heading"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M5 15l4-4 4 3 6-7"/><path d="M15 7h4v4"/></svg></span><h4>Progress Over Time</h4></div>
+              <div id="dashboard-day-pace-progress-chart" class="required-hours-progress-chart"></div>
+              <p class="required-hours-footnote">Projections are calculated from completed days and remaining planned instructional days.</p>
+            </section>
+          </div>
+
+          <aside class="required-hours-key-card">
+            <h4>Key Numbers</h4>
+            <div class="required-hours-key-list">
+              <div><span class="required-hours-key-icon"><svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg></span><span>Required Days</span><strong id="dashboard-day-key-required">0 days</strong></div>
+              <div><span class="required-hours-key-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span>Completed Days (YTD)</span><strong id="dashboard-day-key-actual">0 days</strong></div>
+              <div><span class="required-hours-key-icon"><svg viewBox="0 0 24 24"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 5-5"/></svg></span><span>Expected Days (YTD)</span><strong id="dashboard-day-key-expected">0 days</strong></div>
+              <div><span class="required-hours-key-icon negative"><svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg></span><span>Current Difference</span><strong id="dashboard-day-key-current-diff">0 days</strong></div>
+              <div><span class="required-hours-key-icon positive"><svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M16 8h4v4"/></svg></span><span>Projected Days (Year-End)</span><strong id="dashboard-day-key-projected">0 days</strong></div>
+              <div><span class="required-hours-key-icon success"><svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/></svg></span><span>Projected Difference</span><strong id="dashboard-day-key-projected-diff">0 days</strong></div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="dashboard-detail-toggle-row">
+          <button id="dashboard-day-pace-toggle" type="button" class="secondary-btn dashboard-detail-toggle" aria-expanded="false" aria-controls="dashboard-day-pace-student-breakdown">Show Student Breakdown</button>
+        </div>
+        <div id="dashboard-day-pace-student-breakdown" class="dashboard-student-breakdown hidden">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Student</th><th>Required</th><th>Completed</th><th>Expected to Date</th><th>Current Diff</th><th>Projected</th><th>Projected Diff</th><th>Status</th></tr></thead>
+              <tbody id="dashboard-day-pace-student-table"></tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      <div id="dashboard-compliance-placeholder" class="dashboard-section dashboard-section-placeholder hidden">
-        <h3>Compliance Hidden</h3>
-        <p class="muted">All Compliance gauges are currently hidden. Re-enable them in Administration > Workspace Configuration if you want this tab to show pacing and record-keeping metrics.</p>
+      <div id="dashboard-compliance-placeholder" class="dashboard-section dashboard-section-placeholder hidden" data-compliance-section="other">
+        <h3>Other Compliance</h3>
+        <p class="muted">Additional compliance tools will live here.</p>
       </div>
 
       <div id="dashboard-section-student-performance" class="dashboard-section dashboard-section-student-performance">
@@ -602,7 +653,7 @@
         </div>
       </div>
 
-      <div id="dashboard-section-student-attendance" class="dashboard-section dashboard-section-student-attendance">
+      <div id="dashboard-section-student-attendance" class="dashboard-section dashboard-section-student-attendance dashboard-section-student-instructional-hours" data-compliance-section="instructional-days">
         <h3>Student Attendance</h3>
         <div class="table-wrap">
           <table>
@@ -612,7 +663,7 @@
         </div>
       </div>
 
-      <div id="dashboard-section-student-instructional-hours" class="dashboard-section dashboard-section-student-instructional-hours">
+      <div id="dashboard-section-student-instructional-hours" class="dashboard-section dashboard-section-student-instructional-hours" data-compliance-section="instructional-hours">
         <h3>Student Instructional Hours</h3>
         <p class="muted instructional-hours-notation">Notation: <strong>Actual / Projected</strong> instructional hours.</p>
         <form id="student-instructional-hours-filter-form" class="grid-form">
@@ -636,7 +687,7 @@
         </div>
       </div>
 
-      <div id="dashboard-section-compliance-hours-monthly" class="dashboard-section dashboard-section-compliance-detail dashboard-section-trending hidden">
+      <div id="dashboard-section-compliance-hours-monthly" class="dashboard-section dashboard-section-compliance-detail dashboard-section-trending hidden" data-compliance-section="instructional-hours">
         <div class="trend-section-heading">
           <span class="trend-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M5 15l4-4 4 3 6-7"/><path d="M15 7h4v4"/></svg></span>
           <div>
@@ -671,7 +722,7 @@
         <div id="compliance-hours-monthly-chart" class="chart-wrap"></div>
       </div>
 
-      <div id="dashboard-section-compliance-days-monthly" class="dashboard-section dashboard-section-compliance-detail dashboard-section-trending hidden">
+      <div id="dashboard-section-compliance-days-monthly" class="dashboard-section dashboard-section-compliance-detail dashboard-section-trending hidden" data-compliance-section="instructional-days">
         <div class="trend-section-heading">
           <span class="trend-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M5 15l4-4 4 3 6-7"/><path d="M15 7h4v4"/></svg></span>
           <div>
@@ -831,7 +882,7 @@
         <div id="gpa-trending-chart" class="chart-wrap"></div>
       </div>
 
-      <div id="dashboard-section-instructional-hours-trending" class="dashboard-section dashboard-section-instruction-hours-trending">
+      <div id="dashboard-section-instructional-hours-trending" class="dashboard-section dashboard-section-instruction-hours-trending" data-compliance-section="instructional-hours">
         <h3>Instruction Hours Trending</h3>
         <form id="instruction-hours-trend-filter-form" class="grid-form">
           <label class="trend-student-field">Student
@@ -858,6 +909,35 @@
           <button id="instruction-hours-trend-clear-filters-btn" type="button">Clear Filters</button>
         </form>
         <div id="instruction-hours-trending-chart" class="chart-wrap"></div>
+      </div>
+
+      <div id="dashboard-section-instructional-days-trending" class="dashboard-section dashboard-section-instruction-hours-trending" data-compliance-section="instructional-days">
+        <h3>Instruction Days Trending</h3>
+        <form id="instruction-days-trend-filter-form" class="grid-form">
+          <label class="trend-student-field">Student
+            <details id="instruction-days-trend-student-dropdown" class="multi-select-dropdown">
+              <summary id="instruction-days-trend-student-summary">Students (0 selected)</summary>
+              <div id="instruction-days-trend-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label>Quarter
+            <select id="instruction-days-trend-filter-quarter">
+              <option value="all">All Quarters</option>
+            </select>
+          </label>
+          <label>Subject
+            <select id="instruction-days-trend-filter-subject">
+              <option value="all">All Subjects</option>
+            </select>
+          </label>
+          <label>Instructor
+            <select id="instruction-days-trend-filter-instructor">
+              <option value="all">All Instructors</option>
+            </select>
+          </label>
+          <button id="instruction-days-trend-clear-filters-btn" type="button">Clear Filters</button>
+        </form>
+        <div id="instruction-days-trending-chart" class="chart-wrap"></div>
       </div>
 
       <div id="dashboard-section-grade-type-volume" class="dashboard-section dashboard-section-volume dashboard-section-student-performance">
@@ -1963,6 +2043,8 @@
                 <option value="all">All School Years</option>
               </select>
             </label>
+            <label>Start Date<input id="grades-filter-start-date" type="date"></label>
+            <label>End Date<input id="grades-filter-end-date" type="date"></label>
             <label>Subject
               <select id="grades-filter-subject">
                 <option value="all">All Subjects</option>
@@ -1988,7 +2070,23 @@
                 <option value="Final">Final</option>
               </select>
             </label>
-            <button id="grades-clear-filters-btn" type="button">Clear Filters</button>
+            <label>Grade %
+              <div class="grade-percent-filter">
+                <select id="grades-filter-grade-operator">
+                  <option value="all">Any</option>
+                  <option value="lt">&lt;</option>
+                  <option value="lte">&lt;=</option>
+                  <option value="eq">=</option>
+                  <option value="gte">&gt;=</option>
+                  <option value="gt">&gt;</option>
+                </select>
+                <input id="grades-filter-grade-value" type="number" min="0" max="100" step="0.1" placeholder="70">
+              </div>
+            </label>
+            <div class="grades-filter-actions">
+              <button id="grades-apply-filters-btn" type="submit">Apply</button>
+              <button id="grades-clear-filters-btn" type="button">Clear Filters</button>
+            </div>
           </form>
         </div>
         <div id="grades-search-records-host"></div>
@@ -2159,6 +2257,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605091712"></script>
+  <script src="app.js?v=202605092145"></script>
   </body>
   </html>

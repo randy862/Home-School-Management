@@ -1479,6 +1479,7 @@ const expandedStudentInstructionalHourRows = new Set();
 let dashboardExpandableRenderCache = null;
 let dashboardExpandableMetricsCache = null;
 let dashboardDirty = true;
+let currentComplianceTab = "instructional-hours";
 const studentPerformanceSelectedGradeMethods = new Set(STUDENT_PERFORMANCE_GRADE_METHODS);
 const trendSelectedStudentIds = new Set();
 let gradeTrendViewMode = "line";
@@ -1493,6 +1494,7 @@ let instructorGradeTrendViewMode = "line";
 let instructorGradeTrendShowDataPoints = true;
 const gpaTrendSelectedStudentIds = new Set();
 const instructionHoursTrendSelectedStudentIds = new Set();
+const instructionDaysTrendSelectedStudentIds = new Set();
 const complianceHoursSelectedStudentIds = new Set();
 const complianceDaysSelectedStudentIds = new Set();
 const volumeSelectedStudentIds = new Set();
@@ -1535,6 +1537,7 @@ let currentSchoolDayTab = "daily-schedule";
 let currentAdministrationTab = "workspace-configuration";
 let currentDashboardTab = "overview";
 let dashboardInstructionHourPaceExpanded = false;
+let dashboardInstructionDayPaceExpanded = false;
 let currentAttendanceTab = "enter";
 let currentGradesTab = "enter";
 let currentStudentDetailTab = "schedule";
@@ -5724,6 +5727,7 @@ function renderSelects() {
   renderInstructorGradeTrendStudentChecklist(Array.from(instructorGradeTrendSelectedStudentIds));
   renderGpaTrendStudentChecklist(Array.from(gpaTrendSelectedStudentIds));
   renderInstructionHoursTrendStudentChecklist(Array.from(instructionHoursTrendSelectedStudentIds));
+  renderInstructionDaysTrendStudentChecklist(Array.from(instructionDaysTrendSelectedStudentIds));
   renderComplianceHoursStudentChecklist(Array.from(complianceHoursSelectedStudentIds));
   renderComplianceDaysStudentChecklist(Array.from(complianceDaysSelectedStudentIds));
   renderVolumeStudentChecklist(Array.from(volumeSelectedStudentIds));
@@ -5801,6 +5805,7 @@ function renderSelects() {
     "trend-filter-instructor",
     "gpa-trend-filter-instructor",
     "instruction-hours-trend-filter-instructor",
+    "instruction-days-trend-filter-instructor",
     "compliance-hours-filter-instructor",
     "compliance-days-filter-instructor",
     "volume-filter-instructor",
@@ -5984,6 +5989,32 @@ function renderSelects() {
       instructionHoursTrendSubjectSelect.appendChild(option);
     });
     if (Array.from(instructionHoursTrendSubjectSelect.options).some((o) => o.value === current)) instructionHoursTrendSubjectSelect.value = current;
+  }
+
+  const instructionDaysTrendQuarterSelect = document.getElementById("instruction-days-trend-filter-quarter");
+  if (instructionDaysTrendQuarterSelect) {
+    const current = instructionDaysTrendQuarterSelect.value || "all";
+    instructionDaysTrendQuarterSelect.innerHTML = "<option value='all'>All Quarters</option>";
+    state.settings.quarters.forEach((q) => {
+      const option = document.createElement("option");
+      option.value = q.name;
+      option.textContent = q.name;
+      instructionDaysTrendQuarterSelect.appendChild(option);
+    });
+    if (Array.from(instructionDaysTrendQuarterSelect.options).some((o) => o.value === current)) instructionDaysTrendQuarterSelect.value = current;
+  }
+
+  const instructionDaysTrendSubjectSelect = document.getElementById("instruction-days-trend-filter-subject");
+  if (instructionDaysTrendSubjectSelect) {
+    const current = instructionDaysTrendSubjectSelect.value || "all";
+    instructionDaysTrendSubjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+    state.subjects.forEach((subject) => {
+      const option = document.createElement("option");
+      option.value = subject.id;
+      option.textContent = subject.name;
+      instructionDaysTrendSubjectSelect.appendChild(option);
+    });
+    if (Array.from(instructionDaysTrendSubjectSelect.options).some((o) => o.value === current)) instructionDaysTrendSubjectSelect.value = current;
   }
 
   const complianceHoursQuarterSelect = document.getElementById("compliance-hours-filter-quarter");
@@ -6178,7 +6209,8 @@ function getSelectedStudentInstructionalHoursInstructorIds() {
 function renderStudentInstructionalHoursStudentFilter(dashboardStudents) {
   const selects = [
     document.getElementById("student-instructional-hours-student-filter"),
-    document.getElementById("dashboard-hour-pace-student-filter")
+    document.getElementById("dashboard-hour-pace-student-filter"),
+    document.getElementById("dashboard-day-pace-student-filter")
   ].filter(Boolean);
   if (!selects.length) return;
   const students = Array.isArray(dashboardStudents) ? dashboardStudents : visibleStudents();
@@ -7265,6 +7297,31 @@ function getInstructionHoursTrendSelectedStudentIds() {
   return Array.from(document.querySelectorAll(".instruction-hours-trend-student-checkbox:checked")).map((el) => el.value);
 }
 
+function renderInstructionDaysTrendStudentChecklist(preselectedStudentIds = []) {
+  const container = document.getElementById("instruction-days-trend-student-dropdown");
+  const optionsWrap = document.getElementById("instruction-days-trend-student-options");
+  if (!container || !optionsWrap) return;
+  const selected = new Set(preselectedStudentIds);
+  const checkboxes = visibleStudents().map((s, idx) => {
+    const checked = selected.has(s.id) ? " checked" : "";
+    const inputId = `instruction-days-trend-student-${idx}-${s.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="instruction-days-trend-student-checkbox" value="${s.id}"${checked}><label for="${inputId}">${s.firstName} ${s.lastName}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No students available.</span>";
+  updateInstructionDaysTrendStudentSummary();
+}
+
+function updateInstructionDaysTrendStudentSummary() {
+  const summary = document.getElementById("instruction-days-trend-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".instruction-days-trend-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getInstructionDaysTrendSelectedStudentIds() {
+  return Array.from(document.querySelectorAll(".instruction-days-trend-student-checkbox:checked")).map((el) => el.value);
+}
+
 function renderComplianceHoursStudentChecklist(preselectedStudentIds = []) {
   const container = document.getElementById("compliance-hours-student-dropdown");
   const optionsWrap = document.getElementById("compliance-hours-student-options");
@@ -7757,7 +7814,8 @@ function renderDashboardSectionVisibility() {
       ["dashboard-section-compliance-days-monthly", config.dashboard.showComplianceDaysMonthly],
       ["dashboard-section-student-attendance", config.dashboard.showStudentAttendance],
       ["dashboard-section-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
-      ["dashboard-section-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending]
+      ["dashboard-section-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending],
+      ["dashboard-section-instructional-days-trending", config.dashboard.showInstructionalHoursTrending]
     ]
   };
   const allSections = [
@@ -7779,6 +7837,7 @@ function renderDashboardSectionVisibility() {
     "dashboard-section-instructor-grade-trending",
     "dashboard-section-gpa-trending",
     "dashboard-section-instructional-hours-trending",
+    "dashboard-section-instructional-days-trending",
     "dashboard-section-grade-type-volume",
     "dashboard-section-work-distribution"
   ];
@@ -7788,14 +7847,31 @@ function renderDashboardSectionVisibility() {
   } else if (visibleTab === "performance") {
     visibleSections.set("dashboard-performance-placeholder", !Array.from(visibleSections.values()).some(Boolean));
   } else if (visibleTab === "compliance") {
-    visibleSections.set("dashboard-compliance-placeholder", !Array.from(visibleSections.values()).some(Boolean));
+    const complianceTabs = ["instructional-hours", "instructional-days", "other"];
+    if (!complianceTabs.includes(currentComplianceTab)) currentComplianceTab = "instructional-hours";
+    visibleSections.forEach((isVisible, sectionId) => {
+      const section = document.getElementById(sectionId);
+      if (section?.dataset.complianceSection && section.dataset.complianceSection !== currentComplianceTab) {
+        visibleSections.set(sectionId, false);
+      }
+    });
+    const hasVisibleComplianceSection = Array.from(visibleSections.entries()).some(([sectionId, isVisible]) => {
+      const section = document.getElementById(sectionId);
+      return isVisible && section?.dataset.complianceSection === currentComplianceTab;
+    });
+    visibleSections.set("dashboard-compliance-placeholder", currentComplianceTab === "other" || !hasVisibleComplianceSection);
   }
   allSections.forEach((id) => {
     const node = document.getElementById(id);
     if (node) node.classList.toggle("hidden", !visibleSections.get(id));
   });
+  const complianceSubtabs = document.getElementById("dashboard-compliance-subtabs");
+  if (complianceSubtabs) complianceSubtabs.classList.toggle("hidden", visibleTab !== "compliance");
   document.querySelectorAll("[data-dashboard-tab]").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-dashboard-tab") === visibleTab);
+  });
+  document.querySelectorAll("[data-compliance-tab]").forEach((btn) => {
+    btn.classList.toggle("active", btn.getAttribute("data-compliance-tab") === currentComplianceTab);
   });
 }
 
@@ -9349,10 +9425,24 @@ function renderTests() {
   const instructorFilter = useSearchFilters ? document.getElementById("grades-filter-instructor")?.value || "all" : "all";
   const courseFilter = useSearchFilters ? document.getElementById("grades-filter-course")?.value || "all" : "all";
   const gradeTypeFilter = useSearchFilters ? document.getElementById("grades-filter-grade-type")?.value || "all" : "all";
+  const startDateFilter = useSearchFilters ? document.getElementById("grades-filter-start-date")?.value || "" : "";
+  const endDateFilter = useSearchFilters ? document.getElementById("grades-filter-end-date")?.value || "" : "";
+  const gradeOperatorFilter = useSearchFilters ? document.getElementById("grades-filter-grade-operator")?.value || "all" : "all";
+  const rawGradeValueFilter = useSearchFilters ? document.getElementById("grades-filter-grade-value")?.value || "" : "";
+  const gradeValueFilter = rawGradeValueFilter === "" ? null : Number(rawGradeValueFilter);
 
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
   const schoolYearStart = state.settings.schoolYear.startDate;
   const schoolYearEnd = state.settings.schoolYear.endDate;
+  const gradePercentMatches = (gradePercent) => {
+    if (gradeOperatorFilter === "all" || gradeValueFilter == null || Number.isNaN(gradeValueFilter)) return true;
+    if (gradeOperatorFilter === "lt") return gradePercent < gradeValueFilter;
+    if (gradeOperatorFilter === "lte") return gradePercent <= gradeValueFilter;
+    if (gradeOperatorFilter === "eq") return Math.abs(gradePercent - gradeValueFilter) < 0.05;
+    if (gradeOperatorFilter === "gte") return gradePercent >= gradeValueFilter;
+    if (gradeOperatorFilter === "gt") return gradePercent > gradeValueFilter;
+    return true;
+  };
 
   const filtered = state.tests.filter((t) => {
     if (studentFilter !== "all" && t.studentId !== studentFilter) return false;
@@ -9364,6 +9454,9 @@ function renderTests() {
     if (quarterFilter !== "all" && quarterRange && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if ((schoolYearFilter === "all" || schoolYearFilter === "current") && !inRange(t.date, schoolYearStart, schoolYearEnd)) return false;
     if (schoolYearFilter !== "all" && schoolYearFilter !== "current" && String(t.date).slice(0, 4) !== schoolYearFilter) return false;
+    if (startDateFilter && t.date < startDateFilter) return false;
+    if (endDateFilter && t.date > endDateFilter) return false;
+    if (!gradePercentMatches(pct(t.score, t.maxScore))) return false;
     return true;
   });
 
@@ -9904,10 +9997,14 @@ function openStudentGradeSearch(studentId) {
     "grades-filter-student": studentId,
     "grades-filter-quarter": "all",
     "grades-filter-school-year": "all",
+    "grades-filter-start-date": "",
+    "grades-filter-end-date": "",
     "grades-filter-subject": "all",
     "grades-filter-instructor": "all",
     "grades-filter-course": "all",
-    "grades-filter-grade-type": "all"
+    "grades-filter-grade-type": "all",
+    "grades-filter-grade-operator": "all",
+    "grades-filter-grade-value": ""
   };
   Object.entries(filterValues).forEach(([id, value]) => {
     const input = document.getElementById(id);
@@ -9915,6 +10012,49 @@ function openStudentGradeSearch(studentId) {
   });
   syncGradesFilterSubjectCourseOptions();
   renderTests();
+}
+
+function openSingleGradeRiskSearch() {
+  const alertConfig = workspaceConfig?.alerts || DEFAULT_WORKSPACE_CONFIG.alerts;
+  const weekRange = currentSchoolWeekRange(defaultReferenceDateForActiveYear());
+  currentGradesTab = "search";
+  activateTab("grades");
+  renderGradesSectionVisibility();
+  const filterValues = {
+    "grades-filter-student": "all",
+    "grades-filter-quarter": "all",
+    "grades-filter-school-year": "all",
+    "grades-filter-start-date": weekRange.startDate,
+    "grades-filter-end-date": weekRange.endDate,
+    "grades-filter-subject": "all",
+    "grades-filter-instructor": "all",
+    "grades-filter-course": "all",
+    "grades-filter-grade-type": "all",
+    "grades-filter-grade-operator": "lt",
+    "grades-filter-grade-value": String(alertConfig.singleGradeRiskThresholdPercent)
+  };
+  Object.entries(filterValues).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.value = value;
+  });
+  editingSearchGradeId = "";
+  syncGradesFilterSubjectCourseOptions();
+  renderTests();
+  renderSessionChrome();
+}
+
+function openAverageGradeRiskWatchlist() {
+  currentDashboardTab = "performance";
+  activateTab("dashboard");
+  renderDashboardSectionVisibility();
+  if (dashboardDirty || !dashboardExpandableMetricsCache) renderDashboard();
+  const watchlist = document.getElementById("dashboard-section-grade-risk-watchlist");
+  if (watchlist) {
+    watchlist.scrollIntoView({ behavior: "smooth", block: "start" });
+    watchlist.setAttribute("tabindex", "-1");
+    watchlist.focus({ preventScroll: true });
+  }
+  renderSessionChrome();
 }
 
 function openSearchResult(result) {
@@ -11426,6 +11566,88 @@ function renderInstructionHoursTrending() {
     ${legendHtml}`;
 }
 
+function renderInstructionDaysTrending() {
+  const chartHost = document.getElementById("instruction-days-trending-chart");
+  if (!chartHost) return;
+  const selectedStudentIds = getInstructionDaysTrendSelectedStudentIds();
+  const sy = state.settings.schoolYear;
+  const syStart = toDate(sy.startDate);
+  const today = toDate(todayISO());
+  const { months, series } = buildComplianceMonthlySeries(selectedStudentIds, {
+    quarterFilter: document.getElementById("instruction-days-trend-filter-quarter")?.value || "all",
+    subjectFilter: document.getElementById("instruction-days-trend-filter-subject")?.value || "all",
+    instructorFilter: document.getElementById("instruction-days-trend-filter-instructor")?.value || "all"
+  });
+  if (!months.length) {
+    chartHost.innerHTML = syStart > today ? "<p class='muted'>School year has not started yet.</p>" : "<p class='muted'>No school year range set.</p>";
+    return;
+  }
+  if (!series.length) {
+    chartHost.innerHTML = "<p class='muted'>No visible students for the current filter.</p>";
+    return;
+  }
+  const monthlyRows = months.map((monthEntry, monthIdx) => ({
+    label: new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0).toLocaleDateString(undefined, { month: "short" }),
+    values: series.map((studentSeries) => Number(studentSeries.monthly[monthIdx]?.days || 0))
+  }));
+  const plottedValues = monthlyRows.flatMap((row) => row.values);
+  const rawMax = plottedValues.length ? Math.max(...plottedValues) : 0;
+  const yTickStep = rawMax <= 10 ? 1 : (rawMax <= 30 ? 5 : 10);
+  const yMax = rawMax > 0 ? Math.ceil((rawMax + yTickStep) / yTickStep) * yTickStep : 10;
+  const yTicks = [];
+  for (let tick = 0; tick <= yMax; tick += yTickStep) yTicks.push(tick);
+  const width = 960;
+  const height = 260;
+  const margin = { top: 62, right: 20, bottom: 48, left: 52 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const xPad = 16;
+  const xSpan = Math.max(1, plotW - (xPad * 2));
+  const xStep = monthlyRows.length > 1 ? xSpan / (monthlyRows.length - 1) : 0;
+  const xFor = (idx) => margin.left + xPad + (xStep * idx);
+  const yFor = (value) => margin.top + ((yMax - clamp(Number(value || 0), 0, yMax)) / Math.max(yMax, 1)) * plotH;
+  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
+  const colors = series.map((studentSeries, idx) => studentSeries.color || palette[idx % palette.length]);
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${tick.toFixed(0)}</text></g>`;
+  }).join("");
+  const xTickSvg = monthlyRows.map((row, idx) => `<text x="${xFor(idx).toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${escapeHtml(row.label)}</text>`).join("");
+  const lineSvg = series.map((studentSeries, studentIdx) => {
+    let path = "";
+    monthlyRows.forEach((row, idx) => {
+      const value = Number(row.values[studentIdx] || 0);
+      const x = xFor(idx);
+      const y = yFor(value);
+      if (!path) path += `M ${x.toFixed(2)} ${y.toFixed(2)} `;
+      else path += `L ${x.toFixed(2)} ${y.toFixed(2)} `;
+    });
+    return `<path d="${path.trim()}" class="trend-line" style="stroke:${colors[studentIdx]}" fill="none"></path>`;
+  }).join("");
+  const pointSvg = series.flatMap((studentSeries, studentIdx) => monthlyRows.map((row, idx) => {
+    const value = Number(row.values[studentIdx] || 0);
+    const x = xFor(idx);
+    const y = yFor(value);
+    return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${colors[studentIdx]};stroke:${colors[studentIdx]}"><title>${escapeHtml(`${studentSeries.label} ${row.label}: ${value.toFixed(0)} days`)}</title></circle>`;
+  })).join("");
+  const legendHtml = `<div class="trend-legend">${series.map((studentSeries, idx) => `<span class="trend-legend-item"><span class="trend-legend-line" style="background:${colors[idx]}"></span><span>${escapeHtml(studentSeries.label)}</span></span>`).join("")}</div>`;
+  const hasData = monthlyRows.some((row) => row.values.some((value) => value > 0));
+  const noData = hasData ? "" : `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No instructional days for selected filters</text>`;
+  chartHost.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly instructional days trend line chart">
+      <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
+      ${yTickSvg}
+      ${xTickSvg}
+      ${lineSvg}
+      ${pointSvg}
+      ${noData}
+      <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
+      <text x="12" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 12 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Instruction Days</text>
+    </svg>
+    ${legendHtml}`;
+}
+
 function buildComplianceMonthlySeries(selectedStudentIds = [], options = {}) {
   const allowedStudentIds = visibleStudentIds();
   const sy = state.settings.schoolYear;
@@ -12769,11 +12991,12 @@ function renderDashboardExpandableTablesFast() {
 
   const studentAttendanceRows = attendanceMetrics.flatMap((entry) => {
     const expandedAttendance = expandedStudentAttendanceRows.has(entry.studentId);
-    const studentRow = `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${entry.studentId}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button> ${entry.studentName}</td><td>${entry.totalDays}</td><td>${entry.present}</td><td>${entry.absent}</td><td>${entry.totalDays > 0 ? `${entry.attendanceAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
+    const attendancePercent = entry.totalDays > 0 ? clamp(entry.attendanceAverage, 0, 100) : 0;
+    const studentRow = `<tr class="student-analytics-row"><td><div class="student-analytics-name"><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${entry.studentId}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button>${renderStudentInitialsBadge(entry.studentName)}<span>${escapeHtml(entry.studentName)}<small>${entry.totalDays > 0 ? `${entry.present} present, ${entry.absent} absent` : "No days yet"}</small></span></div></td><td>${entry.totalDays}</td><td>${entry.present}</td><td>${entry.absent}</td><td><div class="hours-analytics-cell attendance-analytics-cell"><span>${entry.totalDays > 0 ? `${entry.attendanceAverage.toFixed(1)}%` : "No days yet"}</span><i><b style="width: ${attendancePercent.toFixed(1)}%"></b></i></div></td></tr>`;
     if (!expandedAttendance) return [studentRow];
     const quarterRows = entry.quarters.map((quarter) => {
       const quarterAverage = quarter.totalDays > 0 ? (quarter.present / quarter.totalDays) * 100 : 0;
-      return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarter.totalDays}</td><td>${quarter.present}</td><td>${quarter.absent}</td><td>${quarter.totalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td><td></td></tr>`;
+      return `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${quarter.name}</td><td>${quarter.totalDays}</td><td>${quarter.present}</td><td>${quarter.absent}</td><td>${quarter.totalDays > 0 ? `${quarterAverage.toFixed(1)}%` : "No days yet"}</td></tr>`;
     });
     return [studentRow, ...quarterRows];
   });
@@ -13085,6 +13308,57 @@ function buildDashboardGradeRiskSnapshot(dashboardStudents) {
     count: rows.length,
     rows
   };
+}
+
+function currentSchoolWeekRange(referenceISO = defaultReferenceDateForActiveYear()) {
+  const reference = toDate(referenceISO);
+  const day = reference.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const fridayOffset = mondayOffset + 4;
+  const start = new Date(reference);
+  start.setDate(reference.getDate() + mondayOffset);
+  const end = new Date(reference);
+  end.setDate(reference.getDate() + fridayOffset);
+  const activeRange = activeSchoolYearRange();
+  return {
+    startDate: toISO(start) < activeRange.startDate ? activeRange.startDate : toISO(start),
+    endDate: toISO(end) > activeRange.endDate ? activeRange.endDate : toISO(end)
+  };
+}
+
+function buildDashboardWeeklyGradeRiskSnapshot(dashboardStudents, referenceISO = defaultReferenceDateForActiveYear()) {
+  const alertConfig = workspaceConfig?.alerts || DEFAULT_WORKSPACE_CONFIG.alerts;
+  const allowedStudentIds = new Set((dashboardStudents || []).map((student) => student.id));
+  const weekRange = currentSchoolWeekRange(referenceISO);
+  const weekTests = state.tests.filter((test) => (
+    allowedStudentIds.has(test.studentId)
+    && inRange(test.date, weekRange.startDate, weekRange.endDate)
+  ));
+  const averageRiskSnapshot = buildDashboardGradeRiskSnapshot(dashboardStudents);
+  const singleRows = weekTests.filter((test) => pct(test.score, test.maxScore) < alertConfig.singleGradeRiskThresholdPercent);
+  const averageCount = averageRiskSnapshot.count;
+  const singleCount = alertConfig.showSingleGradeRisk ? singleRows.length : 0;
+  return {
+    ...weekRange,
+    averageCount,
+    singleCount,
+    totalCount: averageCount + singleCount
+  };
+}
+
+function renderDashboardWeeklyGradeRiskSummary(snapshot) {
+  const totalNode = document.getElementById("dashboard-overview-grade-risk-value");
+  const averageNode = document.getElementById("dashboard-overview-average-grade-risk-count");
+  const singleNode = document.getElementById("dashboard-overview-single-grade-risk-count");
+  const noteNode = document.getElementById("dashboard-overview-grade-risk-note");
+  if (totalNode) totalNode.textContent = String(snapshot.totalCount);
+  if (averageNode) averageNode.textContent = String(snapshot.averageCount);
+  if (singleNode) singleNode.textContent = String(snapshot.singleCount);
+  if (noteNode) {
+    noteNode.textContent = snapshot.totalCount
+      ? `${snapshot.totalCount} grade risk${snapshot.totalCount === 1 ? "" : "s"} for ${formatDisplayDate(snapshot.startDate)} to ${formatDisplayDate(snapshot.endDate)}.`
+      : `No grade risks for ${formatDisplayDate(snapshot.startDate)} to ${formatDisplayDate(snapshot.endDate)}.`;
+  }
 }
 
 function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = snapshot) {
@@ -13660,6 +13934,34 @@ function buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, instr
     status = "Ahead of Pace";
     statusClass = "ahead";
   }
+  const statusForDayPace = (currentVariance, projectedVariance, expectedValue, requiredValue) => {
+    const rowTolerance = Math.max(1, Number(expectedValue || 0) * 0.02);
+    const rowProjectedTolerance = Math.max(1, Number(requiredValue || 0) * 0.01);
+    if (projectedVariance < -rowProjectedTolerance) return { status: "Projected Short", statusClass: "behind" };
+    if (currentVariance < -rowTolerance) return { status: "Behind Pace", statusClass: "behind" };
+    if (currentVariance > rowTolerance) return { status: "Ahead of Pace", statusClass: "ahead" };
+    return { status: "On Pace", statusClass: "on-pace" };
+  };
+  const studentRows = targetStudents.map((student) => {
+    const studentCompleted = datesThroughReference.filter((date) => presentKeys.has(`${student.id}||${date}`)).length;
+    const studentExpectedToDate = requiredPerStudent * progressPct;
+    const studentProjected = studentCompleted + futureDates.length;
+    const studentCurrentDiff = studentCompleted - studentExpectedToDate;
+    const studentProjectedDiff = studentProjected - requiredPerStudent;
+    const rowStatus = statusForDayPace(studentCurrentDiff, studentProjectedDiff, studentExpectedToDate, requiredPerStudent);
+    return {
+      studentId: student.id,
+      studentName: `${student.firstName} ${student.lastName}`.trim(),
+      requiredTotal: requiredPerStudent,
+      completed: studentCompleted,
+      expectedToDate: studentExpectedToDate,
+      currentDiff: studentCurrentDiff,
+      projected: studentProjected,
+      projectedDiff: studentProjectedDiff,
+      status: rowStatus.status,
+      statusClass: rowStatus.statusClass
+    };
+  });
   return {
     studentCount,
     requiredTotal,
@@ -13671,46 +13973,278 @@ function buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, instr
     completionPercent,
     status,
     statusClass,
-    datesThroughReference: datesThroughReference.length
+    datesThroughReference: datesThroughReference.length,
+    studentRows
   };
 }
 
+function renderRequiredDaysProgressChart(host, snapshot) {
+  if (!host) return;
+  const selectedStudentId = studentInstructionalHoursSelectedStudentId || "all";
+  const students = selectedStudentId === "all"
+    ? visibleStudents()
+    : visibleStudents().filter((student) => student.id === selectedStudentId);
+  const studentIds = new Set(students.map((student) => student.id));
+  const studentCount = students.length;
+  const dates = instructionalDates();
+  const sy = state.settings.schoolYear;
+  const referenceDate = defaultReferenceDateForActiveYear();
+  const months = schoolYearMonths(sy.startDate, sy.endDate);
+  if (!months.length || !studentCount) {
+    host.innerHTML = "<p class='muted'>No instructional day data available.</p>";
+    return;
+  }
+  const presentKeys = new Set(state.attendance
+    .filter((record) => studentIds.has(record.studentId) && record.present && recordDateInActiveYear(record))
+    .map((record) => `${record.studentId}||${record.date}`));
+  let actualCumulative = 0;
+  const rows = months.map((monthEntry) => {
+    const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
+    const monthEnd = new Date(monthEntry.year, monthEntry.month + 1, 0, 12, 0, 0);
+    const monthStartIso = toISO(monthStart);
+    const monthEndIso = toISO(monthEnd);
+    const monthDates = dates.filter((date) => inRange(date, monthStartIso, monthEndIso));
+    const completedThisMonth = monthDates
+      .filter((date) => date <= referenceDate)
+      .reduce((sum, date) => sum + students.filter((student) => presentKeys.has(`${student.id}||${date}`)).length, 0);
+    actualCumulative += completedThisMonth;
+    const expected = Number(snapshot.requiredTotal || 0) * (progress(sy.startDate, sy.endDate, monthEnd) / 100);
+    const projected = monthEndIso <= referenceDate
+      ? actualCumulative
+      : actualCumulative + dates.filter((date) => date > referenceDate && date <= monthEndIso).length * studentCount;
+    return {
+      label: monthStart.toLocaleDateString(undefined, { month: "short" }),
+      actual: monthStartIso <= referenceDate ? actualCumulative : null,
+      expected,
+      projected
+    };
+  });
+  const plottedValues = rows.flatMap((row) => [row.actual, row.expected, row.projected]).filter((value) => value !== null && Number.isFinite(Number(value)));
+  const maxValue = Math.max(Number(snapshot.requiredTotal || 0), ...plottedValues, 1);
+  const tickStep = maxValue <= 20 ? 5 : (maxValue <= 80 ? 10 : 25);
+  const yAxisMax = Math.ceil((maxValue + tickStep) / tickStep) * tickStep;
+  const yTicks = [];
+  for (let tick = 0; tick <= yAxisMax; tick += tickStep) yTicks.push(tick);
+  const width = 980;
+  const height = 260;
+  const margin = { top: 30, right: 54, bottom: 50, left: 58 };
+  const plotW = width - margin.left - margin.right;
+  const plotH = height - margin.top - margin.bottom;
+  const xStep = rows.length > 1 ? plotW / (rows.length - 1) : 0;
+  const xFor = (idx) => rows.length > 1 ? margin.left + (idx * xStep) : margin.left + (plotW / 2);
+  const yFor = (value) => margin.top + ((yAxisMax - Number(value || 0)) / yAxisMax) * plotH;
+  const pathFor = (key) => rows
+    .map((row, idx) => Number.isFinite(Number(row[key])) ? { x: xFor(idx), y: yFor(Number(row[key])) } : null)
+    .filter(Boolean)
+    .map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+    .join(" ");
+  const actualPath = pathFor("actual");
+  const expectedPath = pathFor("expected");
+  const projectedPath = pathFor("projected");
+  const requiredY = yFor(snapshot.requiredTotal);
+  const yTickSvg = yTicks.map((tick) => {
+    const y = yFor(tick);
+    return `<g><line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${y.toFixed(2)}" class="trend-grid"/><text x="${(margin.left - 10).toFixed(2)}" y="${(y + 4).toFixed(2)}" text-anchor="end" class="trend-axis-label">${tick.toFixed(0)}</text></g>`;
+  }).join("");
+  const xTickSvg = rows.map((row, idx) => `<text x="${xFor(idx).toFixed(2)}" y="${(height - margin.bottom + 18).toFixed(2)}" text-anchor="middle" class="trend-axis-label">${escapeHtml(row.label)}</text>`).join("");
+  const referenceMonthIndex = Math.max(0, rows.findIndex((row) => row.actual === null) - 1);
+  const markerX = xFor(referenceMonthIndex >= 0 ? referenceMonthIndex : rows.length - 1);
+  const pointSvg = rows.map((row, idx) => Number(row.actual) > 0
+    ? `<circle cx="${xFor(idx).toFixed(2)}" cy="${yFor(row.actual).toFixed(2)}" r="4" class="trend-point" style="fill:#2563eb;stroke:#2563eb"><title>${escapeHtml(`${row.label}: ${Number(row.actual).toFixed(0)} completed days`)}</title></circle>`
+    : "").join("");
+  host.innerHTML = `
+    <div class="required-hours-progress-legend">
+      <span><i style="background:#2563eb"></i>Completed Days</span>
+      <span><i class="dashed" style="background:#94a3b8"></i>Expected Pace</span>
+      <span><i class="dotted" style="background:#16a34a"></i>Projected (Year-End)</span>
+      <span><i style="background:#8b5cf6"></i>Required</span>
+    </div>
+    <svg viewBox="0 0 ${width} ${height}" class="trend-chart required-hours-chart" role="img" aria-label="Required instructional days progress over time">
+      <line x1="${margin.left}" y1="${yFor(0).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${yFor(0).toFixed(2)}" class="trend-axis"></line>
+      <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${yFor(0).toFixed(2)}" class="trend-axis"></line>
+      ${yTickSvg}
+      ${xTickSvg}
+      ${expectedPath ? `<path d="${expectedPath}" class="required-hours-expected-line" fill="none"></path>` : ""}
+      <line x1="${margin.left}" y1="${requiredY.toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${requiredY.toFixed(2)}" class="required-hours-required-line"></line>
+      ${actualPath ? `<path d="${actualPath}" class="trend-line required-hours-logged-line" fill="none"></path>` : ""}
+      ${projectedPath ? `<path d="${projectedPath}" class="required-hours-projected-line" fill="none"></path>` : ""}
+      <line x1="${markerX.toFixed(2)}" y1="${margin.top}" x2="${markerX.toFixed(2)}" y2="${yFor(0).toFixed(2)}" class="required-hours-today-line"></line>
+      ${pointSvg}
+      <text x="${markerX.toFixed(2)}" y="${(height - 10).toFixed(2)}" text-anchor="middle" class="required-hours-chart-badge">YTD</text>
+      <text x="${xFor(rows.length - 1).toFixed(2)}" y="${(yFor(snapshot.projected) - 8).toFixed(2)}" text-anchor="start" class="required-hours-chart-label projected">${Number(snapshot.projected || 0).toFixed(0)}</text>
+      <text x="${(width - margin.right).toFixed(2)}" y="${(requiredY + 18).toFixed(2)}" text-anchor="end" class="required-hours-chart-label required">${Number(snapshot.requiredTotal || 0).toFixed(0)}</text>
+      <text x="14" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 14 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Days</text>
+    </svg>`;
+}
+
 function renderDashboardInstructionDayComplianceSummary(snapshot) {
+  const selectedStudentId = studentInstructionalHoursSelectedStudentId || "all";
+  const studentFilter = document.getElementById("dashboard-day-pace-student-filter");
   const statusNode = document.getElementById("dashboard-day-compliance-status");
   const noteNode = document.getElementById("dashboard-day-compliance-note");
-  const ringNode = document.getElementById("dashboard-day-compliance-ring");
-  const percentNode = document.getElementById("dashboard-day-compliance-percent");
+  const outcomeNode = document.getElementById("dashboard-day-pace-outcome");
   const forecastNode = document.getElementById("dashboard-day-compliance-forecast");
   const detailNode = document.getElementById("dashboard-day-compliance-detail");
   const requiredNode = document.getElementById("dashboard-day-required");
+  const projectedNode = document.getElementById("dashboard-day-projected");
   const completedNode = document.getElementById("dashboard-day-completed");
   const expectedNode = document.getElementById("dashboard-day-expected");
-  const projectedDiffNode = document.getElementById("dashboard-day-projected-diff");
+  const currentPaceBadge = document.getElementById("dashboard-day-current-pace-badge");
+  const currentGauge = document.getElementById("dashboard-day-current-gauge");
+  const currentPercentNode = document.getElementById("dashboard-day-compliance-percent");
+  const currentAlert = document.getElementById("dashboard-day-current-alert");
+  const projectionBadge = document.getElementById("dashboard-day-projection-badge");
+  const projectionGauge = document.getElementById("dashboard-day-projection-gauge");
+  const projectionSvg = document.getElementById("dashboard-day-projection-svg");
+  const projectionTrackPath = document.getElementById("dashboard-day-projection-track");
+  const projectionFillPath = document.getElementById("dashboard-day-projection-fill");
+  const requiredMarkerLine = document.getElementById("dashboard-day-required-marker-line");
+  const requiredMarkerLabel = document.getElementById("dashboard-day-required-marker-label");
+  const projectedPercentNode = document.getElementById("dashboard-day-projected-percent");
+  const projectedTotalLabel = document.getElementById("dashboard-day-projected-total-label");
+  const projectionAlert = document.getElementById("dashboard-day-projection-alert");
+  const keyRequired = document.getElementById("dashboard-day-key-required");
+  const keyActual = document.getElementById("dashboard-day-key-actual");
+  const keyExpected = document.getElementById("dashboard-day-key-expected");
+  const keyCurrentDiff = document.getElementById("dashboard-day-key-current-diff");
+  const keyProjected = document.getElementById("dashboard-day-key-projected");
+  const keyProjectedDiff = document.getElementById("dashboard-day-key-projected-diff");
+  const progressChart = document.getElementById("dashboard-day-pace-progress-chart");
+  const toggleButton = document.getElementById("dashboard-day-pace-toggle");
+  const studentBreakdown = document.getElementById("dashboard-day-pace-student-breakdown");
   const metricClass = (value) => value < -0.01 ? "negative" : value > 0.01 ? "positive" : "";
-  const projectedDiffText = `${snapshot.projectedDiff >= 0 ? "+" : ""}${snapshot.projectedDiff.toFixed(1)}`;
-  const ringColor = snapshot.statusClass === "behind" ? "#a1462c" : snapshot.statusClass === "ahead" ? "#1f7a4f" : "#1761ae";
-
+  const currentTolerance = Math.max(1, Number(snapshot.expectedToDate || 0) * 0.02);
+  const projectedTolerance = Math.max(1, Number(snapshot.requiredTotal || 0) * 0.01);
+  const currentPaceStatus = snapshot.expectedToDate <= 0.01 && snapshot.completed <= 0.01
+    ? { label: "Not Started", className: "on-pace" }
+    : snapshot.currentDiff < -currentTolerance
+      ? { label: "Behind Pace", className: "behind" }
+      : snapshot.currentDiff > currentTolerance
+        ? { label: "Ahead of Pace", className: "ahead" }
+        : { label: "On Pace", className: "on-pace" };
+  const projectedCompliant = snapshot.projectedDiff >= -projectedTolerance;
+  const currentPercent = snapshot.expectedToDate > 0 ? (snapshot.completed / snapshot.expectedToDate) * 100 : 0;
+  const projectionPercent = snapshot.requiredTotal > 0 ? (snapshot.projected / snapshot.requiredTotal) * 100 : 0;
+  const currentGaugePercent = clamp(currentPercent, 0, 100);
+  const projectionGaugePercent = clamp(projectionPercent, 0, 108);
+  const daysText = (value, signed = false) => `${signed && value >= 0 ? "+" : ""}${Number(value || 0).toFixed(1)} days`;
+  if (studentFilter) studentFilter.value = selectedStudentId;
   if (statusNode) {
     statusNode.textContent = snapshot.status;
     statusNode.className = `dashboard-pill-metric ${snapshot.statusClass}`;
   }
-  if (noteNode) noteNode.textContent = `${snapshot.completed.toFixed(0)} completed vs ${snapshot.expectedToDate.toFixed(1)} expected to date across ${snapshot.studentCount} student${snapshot.studentCount === 1 ? "" : "s"}.`;
-  if (ringNode) {
-    ringNode.style.setProperty("--ring-progress", snapshot.completionPercent.toFixed(1));
-    ringNode.style.setProperty("--ring-color", ringColor);
+  if (noteNode) noteNode.textContent = `${snapshot.completed.toFixed(0)} completed vs ${snapshot.expectedToDate.toFixed(1)} expected through ${formatDisplayDate(defaultReferenceDateForActiveYear())}; ${snapshot.projected.toFixed(0)} projected against ${snapshot.requiredTotal.toFixed(0)} required.`;
+  if (forecastNode) forecastNode.textContent = projectedCompliant ? "On Track to Meet Required Days" : "Projected Below Required Days";
+  if (detailNode) detailNode.textContent = projectedCompliant
+    ? `You are projected to exceed the requirement by ${daysText(Math.abs(snapshot.projectedDiff))}.`
+    : `You are projected to finish ${daysText(Math.abs(snapshot.projectedDiff))} short of the requirement.`;
+  if (requiredNode) requiredNode.textContent = `${snapshot.requiredTotal.toFixed(0)} days`;
+  if (projectedNode) projectedNode.textContent = `${snapshot.projected.toFixed(0)} days`;
+  if (completedNode) completedNode.textContent = `${snapshot.completed.toFixed(0)} days`;
+  if (expectedNode) expectedNode.textContent = `${snapshot.expectedToDate.toFixed(1)} days`;
+  if (outcomeNode) outcomeNode.classList.toggle("short", !projectedCompliant);
+  if (currentPaceBadge) {
+    currentPaceBadge.textContent = currentPaceStatus.label;
+    currentPaceBadge.className = currentPaceStatus.className;
   }
-  if (percentNode) percentNode.textContent = `${snapshot.completionPercent.toFixed(0)}%`;
-  if (forecastNode) forecastNode.textContent = snapshot.projectedDiff < -0.01
-    ? `${Math.abs(snapshot.projectedDiff).toFixed(1)} days projected short`
-    : `${snapshot.projectedDiff.toFixed(1)} days projected over requirement`;
-  if (detailNode) detailNode.textContent = `${snapshot.projected.toFixed(0)} projected days against ${snapshot.requiredTotal.toFixed(0)} required.`;
-  if (requiredNode) requiredNode.textContent = snapshot.requiredTotal.toFixed(0);
-  if (completedNode) completedNode.textContent = snapshot.completed.toFixed(0);
-  if (expectedNode) expectedNode.textContent = snapshot.expectedToDate.toFixed(1);
-  if (projectedDiffNode) {
-    projectedDiffNode.textContent = projectedDiffText;
-    projectedDiffNode.className = `dashboard-summary-value ${metricClass(snapshot.projectedDiff)}`;
+  if (currentGauge) currentGauge.style.setProperty("--gauge-needle", `${((-180) + (currentGaugePercent * 1.8)).toFixed(2)}deg`);
+  if (currentPercentNode) currentPercentNode.textContent = `${Math.round(currentPercent)}%`;
+  if (currentAlert) {
+    currentAlert.textContent = currentPaceStatus.className === "behind"
+      ? `You are ${Math.abs(snapshot.currentDiff).toFixed(1)} days behind the expected pace.`
+      : currentPaceStatus.className === "ahead"
+        ? `You are ${Math.abs(snapshot.currentDiff).toFixed(1)} days ahead of the expected pace.`
+        : "You are on pace with expected progress.";
+    currentAlert.className = `required-hours-alert ${currentPaceStatus.className === "behind" ? "warning" : "success"}`;
   }
+  if (projectionBadge) {
+    projectionBadge.textContent = projectedCompliant ? "Projected Compliant" : "Projected Short";
+    projectionBadge.className = projectedCompliant ? "success" : "warning";
+  }
+  if (projectionGauge) projectionGauge.style.setProperty("--projection-progress", `${projectionGaugePercent.toFixed(2)}%`);
+  if (projectedPercentNode) projectedPercentNode.textContent = `${projectionPercent.toFixed(1)}%`;
+  if (projectedTotalLabel) projectedTotalLabel.textContent = `${snapshot.projected.toFixed(0)} days`;
+  if (projectionAlert) {
+    projectionAlert.textContent = projectedCompliant
+      ? `Projected to exceed requirement by ${daysText(Math.abs(snapshot.projectedDiff))}.`
+      : `Projected to finish ${daysText(Math.abs(snapshot.projectedDiff))} short.`;
+    projectionAlert.className = `required-hours-alert ${projectedCompliant ? "success" : "warning"}`;
+  }
+  if (projectionSvg && projectionTrackPath && projectionFillPath && requiredMarkerLine && requiredMarkerLabel) {
+    const hasProjection = snapshot.requiredTotal > 0.01 && snapshot.projected > 0.01;
+    const arcCenterX = 180;
+    const arcCenterY = 154;
+    const arcRadius = 132;
+    const pointOnProjectionArc = (ratio, radius = arcRadius) => {
+      const t = clamp(Number(ratio) || 0, 0, 1);
+      const angle = Math.PI - (t * Math.PI);
+      return { x: arcCenterX + (Math.cos(angle) * radius), y: arcCenterY - (Math.sin(angle) * radius) };
+    };
+    const buildProjectionArcPath = (startRatio, endRatio, radius = arcRadius) => {
+      const start = clamp(Number(startRatio) || 0, 0, 1);
+      const end = clamp(Number(endRatio) || 0, 0, 1);
+      if (end <= start) return "";
+      const steps = Math.max(2, Math.ceil((end - start) * 56));
+      const points = [];
+      for (let i = 0; i <= steps; i += 1) points.push(pointOnProjectionArc(start + ((end - start) * (i / steps)), radius));
+      return points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+    };
+    projectionTrackPath.setAttribute("d", buildProjectionArcPath(0, 1));
+    projectionSvg.classList.toggle("required-marker-hidden", !hasProjection);
+    if (hasProjection) {
+      const projectionScaleMax = Math.max(100, Number(projectionPercent || 0));
+      const projectedRatio = clamp(Number(projectionPercent || 0) / projectionScaleMax, 0, 1);
+      const requiredRatio = clamp(100 / projectionScaleMax, 0, 1);
+      projectionFillPath.setAttribute("d", buildProjectionArcPath(0, projectedRatio));
+      const innerPoint = pointOnProjectionArc(requiredRatio, arcRadius - 23);
+      const outerPoint = pointOnProjectionArc(requiredRatio, arcRadius + 23);
+      requiredMarkerLine.setAttribute("x1", innerPoint.x.toFixed(2));
+      requiredMarkerLine.setAttribute("y1", innerPoint.y.toFixed(2));
+      requiredMarkerLine.setAttribute("x2", outerPoint.x.toFixed(2));
+      requiredMarkerLine.setAttribute("y2", outerPoint.y.toFixed(2));
+      requiredMarkerLabel.textContent = "Required";
+      requiredMarkerLabel.setAttribute("x", (requiredRatio >= 0.5 ? outerPoint.x + 8 : outerPoint.x - 8).toFixed(2));
+      requiredMarkerLabel.setAttribute("y", outerPoint.y.toFixed(2));
+      requiredMarkerLabel.setAttribute("text-anchor", requiredRatio >= 0.5 ? "start" : "end");
+    } else {
+      projectionFillPath.setAttribute("d", "");
+    }
+  }
+  const setKeyMetric = (node, value, signed = false) => {
+    if (!node) return;
+    node.textContent = daysText(value, signed);
+    node.className = signed ? metricClass(value) : "";
+  };
+  setKeyMetric(keyRequired, snapshot.requiredTotal);
+  setKeyMetric(keyActual, snapshot.completed);
+  setKeyMetric(keyExpected, snapshot.expectedToDate);
+  setKeyMetric(keyCurrentDiff, snapshot.currentDiff, true);
+  setKeyMetric(keyProjected, snapshot.projected);
+  setKeyMetric(keyProjectedDiff, snapshot.projectedDiff, true);
+  renderRequiredDaysProgressChart(progressChart, snapshot);
+  const studentRows = (snapshot.studentRows || []).map((row) => `
+    <tr>
+      <td>${escapeHtml(row.studentName)}</td>
+      <td>${row.requiredTotal.toFixed(1)}</td>
+      <td>${row.completed.toFixed(0)}</td>
+      <td>${row.expectedToDate.toFixed(1)}</td>
+      <td>${row.currentDiff >= 0 ? "+" : ""}${row.currentDiff.toFixed(1)} days</td>
+      <td>${row.projected.toFixed(0)}</td>
+      <td>${row.projectedDiff >= 0 ? "+" : ""}${row.projectedDiff.toFixed(1)} days</td>
+      <td><span class="dashboard-pill-metric ${row.statusClass}">${escapeHtml(row.status)}</span></td>
+    </tr>`);
+  if (toggleButton) {
+    toggleButton.textContent = dashboardInstructionDayPaceExpanded ? "Hide Student Breakdown" : "Show Student Breakdown";
+    toggleButton.setAttribute("aria-expanded", dashboardInstructionDayPaceExpanded ? "true" : "false");
+    toggleButton.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dashboardInstructionDayPaceExpanded = !dashboardInstructionDayPaceExpanded;
+      renderDashboard();
+    };
+  }
+  if (studentBreakdown) studentBreakdown.classList.toggle("hidden", !dashboardInstructionDayPaceExpanded);
+  rowOrEmpty(document.getElementById("dashboard-day-pace-student-table"), studentRows, "No student pacing data available.", 8);
 }
 
 function renderDashboardMissingGradesSummary(snapshot) {
@@ -13764,21 +14298,21 @@ function renderDashboard() {
   renderDashboardSectionVisibility();
   const attendanceDialStatus = (value) => {
     const pct = Number(value || 0);
-    if (pct >= 98) return { status: "attendance-outstanding", label: "Outstanding Attendance", text: "Exceptional consistency and participation" };
-    if (pct >= 95) return { status: "attendance-excellent", label: "Excellent Attendance", text: "Consistently above target" };
-    if (pct >= 92) return { status: "attendance-strong", label: "Strong Attendance", text: "Meeting attendance expectations" };
-    if (pct >= 88) return { status: "attendance-watch", label: "Attendance Watch", text: "Slightly below recommended target" };
-    if (pct >= 80) return { status: "attendance-concern", label: "Attendance Concern", text: "Frequent absences may impact progress" };
-    return { status: "attendance-critical", label: "Critical Attendance Risk", text: "Immediate improvement needed" };
+    if (pct >= 98) return { status: "attendance-outstanding", label: "Outstanding", text: "Exceptional consistency and participation", threshold: "98%" };
+    if (pct >= 95) return { status: "attendance-excellent", label: "Excellent", text: "Consistently above target", threshold: "95%" };
+    if (pct >= 92) return { status: "attendance-strong", label: "Strong", text: "Meeting attendance expectations", threshold: "92%" };
+    if (pct >= 88) return { status: "attendance-watch", label: "Watch", text: "Slightly below recommended target", threshold: "88%" };
+    if (pct >= 80) return { status: "attendance-concern", label: "Concern", text: "Frequent absences may impact progress", threshold: "80%" };
+    return { status: "attendance-critical", label: "Critical", text: "Immediate improvement needed", threshold: "<80%" };
   };
   const performanceDialStatus = (value) => {
     const pct = Number(value || 0);
-    if (pct >= 95) return { status: "performance-exceptional", label: "Exceptional Performance", text: "Mastery-level academic progress" };
-    if (pct >= 90) return { status: "performance-strong", label: "Strong Performance", text: "Above the target threshold" };
-    if (pct >= 80) return { status: "performance-satisfactory", label: "Satisfactory Progress", text: "Maintaining expected performance" };
-    if (pct >= 70) return { status: "performance-watch", label: "Performance Watch", text: "Improvement recommended" };
-    if (pct >= 60) return { status: "performance-risk", label: "At Risk", text: "Falling below expectations" };
-    return { status: "performance-critical", label: "Critical Academic Risk", text: "Immediate intervention recommended" };
+    if (pct >= 95) return { status: "performance-exceptional", label: "Exceptional", text: "Mastery-level academic progress", threshold: "95%" };
+    if (pct >= 90) return { status: "performance-strong", label: "Strong", text: "Above the target threshold", threshold: "90%" };
+    if (pct >= 80) return { status: "performance-satisfactory", label: "Satisfactory", text: "Maintaining expected performance", threshold: "80%" };
+    if (pct >= 70) return { status: "performance-watch", label: "Watch", text: "Improvement recommended", threshold: "70%" };
+    if (pct >= 60) return { status: "performance-risk", label: "Risk", text: "Falling below expectations", threshold: "60%" };
+    return { status: "performance-critical", label: "Critical", text: "Immediate intervention recommended", threshold: "<60%" };
   };
   const calendarProgressStatus = (value) => {
     const pct = clamp(Number(value || 0), 0, 100);
@@ -13790,27 +14324,19 @@ function renderDashboard() {
     if (pct >= 10) return "Early Term";
     return "Just Started";
   };
-  const setOverviewDial = (arcId, value, mode = "risk") => {
-    const arc = document.getElementById(arcId);
-    const pct = clamp(Number(value || 0), 0, 100);
-    if (!arc) return;
-    arc.style.strokeDashoffset = `${(258 - ((pct / 100) * 258)).toFixed(1)}`;
-    arc.dataset.status = mode === "static"
-      ? "static"
-      : mode !== "risk"
-        ? mode
-        : pct < 70
-        ? "danger"
-        : pct < 80
-          ? "orange"
-          : pct < 90
-            ? "warning"
-            : "good";
-  };
-  const setDialStatusNote = (node, status) => {
-    if (!node || !status) return;
-    node.dataset.status = status.status;
-    node.innerHTML = `<strong>${status.label}</strong><small>${status.text}</small>`;
+  const setOverviewStatusCard = ({ cardId, iconId, statusId, noteId, levelId, levelLabel, valueId, value, status }) => {
+    const card = document.getElementById(cardId);
+    const icon = document.getElementById(iconId);
+    const statusNode = document.getElementById(statusId);
+    const noteNode = document.getElementById(noteId);
+    const levelNode = document.getElementById(levelId);
+    const valueNode = document.getElementById(valueId);
+    if (card) card.dataset.status = status.status;
+    if (icon) icon.className = `kpi-projected-hours-icon kpi-status-icon ${status.status}`;
+    if (statusNode) statusNode.textContent = status.label;
+    if (noteNode) noteNode.textContent = status.text;
+    if (levelNode) levelNode.textContent = `${levelLabel} = ${status.threshold}`;
+    if (valueNode) valueNode.textContent = `${Number(value || 0).toFixed(1)}%`;
   };
   const dashboardStudents = visibleStudents();
   const referenceDate = defaultReferenceDateForActiveYear();
@@ -13860,11 +14386,18 @@ function renderDashboard() {
   const runningAverage = isStudentUser() && dashboardStudents.length === 1
     ? studentOverallAverage(dashboardStudents[0].id)
     : g.running;
-  document.getElementById("kpi-running-avg").textContent = `${runningAverage.toFixed(1)}%`;
   const gradeDialStatus = performanceDialStatus(runningAverage);
-  setOverviewDial("kpi-grade-dial-arc", runningAverage, gradeDialStatus.status);
-  const gradeDialNote = document.getElementById("kpi-grade-dial-note");
-  setDialStatusNote(gradeDialNote, gradeDialStatus);
+  setOverviewStatusCard({
+    cardId: "kpi-grade-card",
+    iconId: "kpi-grade-icon",
+    statusId: "kpi-grade-status",
+    noteId: "kpi-grade-note",
+    levelId: "kpi-grade-level",
+    levelLabel: gradeDialStatus.label,
+    valueId: "kpi-running-avg",
+    value: runningAverage,
+    status: gradeDialStatus
+  });
 
   const attendanceDatesThroughToday = dates.filter((d) => d <= referenceDate);
   const totalAttendanceDays = attendanceDatesThroughToday.length;
@@ -13877,11 +14410,18 @@ function renderDashboard() {
   const overallAttendanceAverage = totalPossibleAttendance > 0
     ? (attendanceTotals.present / totalPossibleAttendance) * 100
     : 0;
-  document.getElementById("kpi-attendance-overall").textContent = `${overallAttendanceAverage.toFixed(1)}%`;
   const attendanceDialStatusValue = attendanceDialStatus(overallAttendanceAverage);
-  setOverviewDial("kpi-attendance-dial-arc", overallAttendanceAverage, attendanceDialStatusValue.status);
-  const attendanceDialNote = document.getElementById("kpi-attendance-dial-note");
-  setDialStatusNote(attendanceDialNote, attendanceDialStatusValue);
+  setOverviewStatusCard({
+    cardId: "kpi-attendance-card",
+    iconId: "kpi-attendance-icon",
+    statusId: "kpi-attendance-status",
+    noteId: "kpi-attendance-note",
+    levelId: "kpi-attendance-level",
+    levelLabel: attendanceDialStatusValue.label,
+    valueId: "kpi-attendance-overall",
+    value: overallAttendanceAverage,
+    status: attendanceDialStatusValue
+  });
 
   const q = currentQuarter(toDate(referenceDate));
   const qP = q ? progress(q.startDate, q.endDate, toDate(referenceDate)) : 0;
@@ -13909,6 +14449,7 @@ function renderDashboard() {
   });
   renderDashboardExecutionSummary(executionSnapshot, completionDetailSnapshot);
   renderDashboardInstructionHourPaceSummary(overviewHourPaceSnapshot);
+  renderDashboardWeeklyGradeRiskSummary(buildDashboardWeeklyGradeRiskSnapshot(dashboardStudents, referenceDate));
   renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
   renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
   renderDashboardGradeRiskSummary(buildDashboardGradeRiskSnapshot(dashboardStudents));
@@ -13989,6 +14530,7 @@ function renderDashboard() {
   renderComplianceDaysMonthlyChart();
   renderGpaTrending();
   renderInstructionHoursTrending();
+  renderInstructionDaysTrending();
   renderGradeTypeVolumeChart();
   renderWorkDistributionGradeTypeFilter();
   renderWorkDistributionChart();
@@ -18257,7 +18799,16 @@ function bindEvents() {
     document.getElementById("grade-entry-body").appendChild(buildGradeEntryRow());
     updateGradeEntryVisibility();
   });
-  ["grades-filter-student", "grades-filter-quarter", "grades-filter-school-year", "grades-filter-subject", "grades-filter-instructor", "grades-filter-course", "grades-filter-grade-type"]
+  const gradesFilterForm = document.getElementById("grades-filter-form");
+  if (gradesFilterForm) {
+    gradesFilterForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      editingSearchGradeId = "";
+      syncGradesFilterSubjectCourseOptions();
+      renderTests();
+    });
+  }
+  ["grades-filter-student", "grades-filter-quarter", "grades-filter-school-year", "grades-filter-start-date", "grades-filter-end-date", "grades-filter-subject", "grades-filter-instructor", "grades-filter-course", "grades-filter-grade-type", "grades-filter-grade-operator", "grades-filter-grade-value"]
     .forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("change", () => {
@@ -18275,14 +18826,21 @@ function bindEvents() {
         "grades-filter-student",
         "grades-filter-quarter",
         "grades-filter-school-year",
+        "grades-filter-start-date",
+        "grades-filter-end-date",
         "grades-filter-subject",
         "grades-filter-instructor",
         "grades-filter-course",
-        "grades-filter-grade-type"
+        "grades-filter-grade-type",
+        "grades-filter-grade-operator",
+        "grades-filter-grade-value"
       ];
       filterIds.forEach((id) => {
         const el = document.getElementById(id);
-        if (el) el.value = "all";
+        if (!el) return;
+        el.value = id === "grades-filter-start-date" || id === "grades-filter-end-date" || id === "grades-filter-grade-value"
+          ? ""
+          : "all";
       });
       editingSearchGradeId = "";
       syncGradesFilterSubjectCourseOptions();
@@ -18421,6 +18979,25 @@ function bindEvents() {
       document.querySelectorAll(".instruction-hours-trend-student-checkbox").forEach((el) => { el.checked = false; });
       updateInstructionHoursTrendStudentSummary();
       renderInstructionHoursTrending();
+    });
+  }
+  ["instruction-days-trend-filter-quarter", "instruction-days-trend-filter-subject", "instruction-days-trend-filter-instructor"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", () => renderInstructionDaysTrending());
+  });
+  const instructionDaysTrendClearFiltersBtn = document.getElementById("instruction-days-trend-clear-filters-btn");
+  if (instructionDaysTrendClearFiltersBtn) {
+    instructionDaysTrendClearFiltersBtn.addEventListener("click", () => {
+      const quarterFilter = document.getElementById("instruction-days-trend-filter-quarter");
+      const subjectFilter = document.getElementById("instruction-days-trend-filter-subject");
+      const instructorFilter = document.getElementById("instruction-days-trend-filter-instructor");
+      if (quarterFilter) quarterFilter.value = "all";
+      if (subjectFilter) subjectFilter.value = "all";
+      if (instructorFilter) instructorFilter.value = "all";
+      instructionDaysTrendSelectedStudentIds.clear();
+      document.querySelectorAll(".instruction-days-trend-student-checkbox").forEach((el) => { el.checked = false; });
+      updateInstructionDaysTrendStudentSummary();
+      renderInstructionDaysTrending();
     });
   }
   ["compliance-hours-filter-quarter", "compliance-hours-filter-subject", "compliance-hours-filter-instructor"].forEach((id) => {
@@ -18617,6 +19194,13 @@ function bindEvents() {
       renderInstructionHoursTrending();
       return;
     }
+    if (t.classList.contains("instruction-days-trend-student-checkbox")) {
+      instructionDaysTrendSelectedStudentIds.clear();
+      getInstructionDaysTrendSelectedStudentIds().forEach((id) => instructionDaysTrendSelectedStudentIds.add(id));
+      updateInstructionDaysTrendStudentSummary();
+      renderInstructionDaysTrending();
+      return;
+    }
     if (t.classList.contains("volume-student-checkbox")) {
       volumeSelectedStudentIds.clear();
       getVolumeSelectedStudentIds().forEach((id) => volumeSelectedStudentIds.add(id));
@@ -18652,7 +19236,7 @@ function bindEvents() {
       renderDashboard();
       return;
     }
-    if ((t.id === "student-instructional-hours-student-filter" || t.id === "dashboard-hour-pace-student-filter") && t instanceof HTMLSelectElement) {
+    if ((t.id === "student-instructional-hours-student-filter" || t.id === "dashboard-hour-pace-student-filter" || t.id === "dashboard-day-pace-student-filter") && t instanceof HTMLSelectElement) {
       studentInstructionalHoursSelectedStudentId = t.value || "all";
       renderDashboard();
       return;
@@ -18932,6 +19516,22 @@ function bindEvents() {
       renderDashboard();
       return;
     }
+    const toggleInstructionDayPaceTarget = t.closest("#dashboard-day-pace-toggle");
+    if (toggleInstructionDayPaceTarget instanceof HTMLElement) {
+      dashboardInstructionDayPaceExpanded = !dashboardInstructionDayPaceExpanded;
+      renderDashboard();
+      return;
+    }
+    const singleGradeRiskTarget = t.closest("#dashboard-overview-single-grade-risk-btn");
+    if (singleGradeRiskTarget instanceof HTMLElement) {
+      openSingleGradeRiskSearch();
+      return;
+    }
+    const averageGradeRiskTarget = t.closest("#dashboard-overview-average-grade-risk-btn");
+    if (averageGradeRiskTarget instanceof HTMLElement) {
+      openAverageGradeRiskWatchlist();
+      return;
+    }
     const openDayTarget = t.closest("[data-open-calendar-day]");
     if (openDayTarget instanceof HTMLElement) {
       const date = openDayTarget.getAttribute("data-date");
@@ -19093,10 +19693,21 @@ function bindEvents() {
     const dashboardTab = dashboardTabTarget?.getAttribute("data-dashboard-tab");
     if (dashboardTab) {
       currentDashboardTab = ["overview", "execution", "performance", "compliance"].includes(dashboardTab) ? dashboardTab : "overview";
+      const complianceTarget = dashboardTabTarget?.getAttribute("data-compliance-target");
+      if (currentDashboardTab === "compliance" && ["instructional-hours", "instructional-days", "other"].includes(complianceTarget || "")) {
+        currentComplianceTab = complianceTarget;
+      }
       renderDashboardSectionVisibility();
       if (currentTab === "dashboard" && (dashboardDirty || !dashboardExpandableMetricsCache)) {
         renderDashboard();
       }
+      return;
+    }
+    const complianceTabTarget = t.closest("[data-compliance-tab]");
+    const complianceTab = complianceTabTarget?.getAttribute("data-compliance-tab");
+    if (complianceTab) {
+      currentComplianceTab = ["instructional-hours", "instructional-days", "other"].includes(complianceTab) ? complianceTab : "instructional-hours";
+      renderDashboardSectionVisibility();
       return;
     }
     if (t.id === "administration-open-instructors-btn") {
