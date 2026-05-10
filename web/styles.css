@@ -9415,7 +9415,25 @@ tbody tr:hover {
   margin: 0.65rem 0 0;
 }
 
+#app-shell #subject-form {
+  grid-template-columns: minmax(220px, 48%) auto auto;
+  align-items: center;
+  justify-content: start;
+}
+
+#app-shell #subject-name {
+  width: 100%;
+}
+
+#app-shell #subject-form button {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: start;
+  width: auto;
+}
+
 #app-shell #subject-form input,
+#app-shell #subject-form .subject-required-field,
 #app-shell #grade-type-form input,
 #app-shell #course-form input,
 #app-shell #course-form select,
@@ -9430,6 +9448,50 @@ tbody tr:hover {
   border-radius: 12px;
   color: #17243d;
   font-weight: 400;
+}
+
+#app-shell #subject-form .subject-required-field {
+  align-items: center;
+  color: #40516b;
+  display: inline-flex;
+  font-size: 0.88rem;
+  font-weight: 600;
+  gap: 0.35rem;
+  min-height: 34px;
+  white-space: nowrap;
+}
+
+#app-shell #subject-form .subject-required-field input {
+  min-height: 0;
+}
+
+#app-shell .subject-required-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0.18rem 0.45rem;
+  border: 1px solid #9cc5a7;
+  border-radius: 999px;
+  background: #edf8f0;
+  color: #255d36;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+#app-shell .student-required-subject-missing td {
+  background: #fff8e6;
+  color: #6c4a00;
+}
+
+@media (max-width: 620px) {
+  #app-shell #subject-form {
+    grid-template-columns: 1fr auto;
+  }
+
+  #app-shell #subject-form button {
+    grid-column: 1 / -1;
+  }
 }
 
 #app-shell #grade-type-form label,

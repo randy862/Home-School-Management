@@ -25,7 +25,8 @@ CREATE TABLE dbo.students (
 
 CREATE TABLE dbo.subjects (
   id NVARCHAR(64) NOT NULL PRIMARY KEY,
-  name NVARCHAR(120) NOT NULL UNIQUE
+  name NVARCHAR(120) NOT NULL UNIQUE,
+  required BIT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE dbo.courses (

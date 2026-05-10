@@ -106,7 +106,7 @@ async function readState() {
     `;
   const queries = [
     "SELECT id, first_name, last_name, birthdate, grade, age_recorded, created_at FROM dbo.students ORDER BY last_name, first_name",
-    "SELECT id, name FROM dbo.subjects ORDER BY name",
+    "SELECT id, name, required FROM dbo.subjects ORDER BY name",
     `
       SELECT
         id,
@@ -234,7 +234,7 @@ async function readState() {
     createdAt: toIsoDate(r.created_at)
   }));
 
-  const subjects = subjectsR.recordset.map((r) => ({ id: r.id, name: r.name }));
+  const subjects = subjectsR.recordset.map((r) => ({ id: r.id, name: r.name, required: !!r.required }));
   const courses = coursesR.recordset.map((r) => ({
     id: r.id,
     name: r.name,
@@ -497,7 +497,8 @@ async function writeState(state) {
       await request()
         .input("id", sql.NVarChar(64), row.id)
         .input("name", sql.NVarChar(120), row.name || "")
-        .query("INSERT INTO dbo.subjects (id, name) VALUES (@id, @name)");
+        .input("required", sql.Bit, !!row.required)
+        .query("INSERT INTO dbo.subjects (id, name, required) VALUES (@id, @name, @required)");
     }
 
     const courses = uniqueById(state.courses);

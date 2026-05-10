@@ -140,12 +140,13 @@ function createCurriculumRepository(deps) {
     createSubject: async (subject) => {
       const pool = getPostgresPool();
       const result = await pool.query(`
-        INSERT INTO subjects (id, name)
-        VALUES ($1, $2)
+        INSERT INTO subjects (id, name, required)
+        VALUES ($1, $2, $3)
         RETURNING
           id,
-          name
-      `, [subject.id, subject.name]);
+          name,
+          required
+      `, [subject.id, subject.name, subject.required]);
       return result.rows[0];
     },
 
@@ -367,7 +368,8 @@ function createCurriculumRepository(deps) {
         const result = await pool.query(`
           SELECT DISTINCT
             s.id,
-            s.name
+            s.name,
+            s.required
           FROM subjects s
           JOIN courses c ON c.subject_id = s.id
           LEFT JOIN enrollments e ON e.course_id = c.id AND e.student_id = $1
@@ -382,7 +384,8 @@ function createCurriculumRepository(deps) {
       const result = await pool.query(`
         SELECT
           id,
-          name
+          name,
+          required
         FROM subjects
         ORDER BY lower(name)
       `);
@@ -548,12 +551,14 @@ function createCurriculumRepository(deps) {
       const pool = getPostgresPool();
       const result = await pool.query(`
         UPDATE subjects
-        SET name = $2
+        SET name = $2,
+            required = $3
         WHERE id = $1
         RETURNING
           id,
-          name
-      `, [id, subject.name]);
+          name,
+          required
+      `, [id, subject.name, subject.required]);
       return result.rows[0] || null;
     }
   };

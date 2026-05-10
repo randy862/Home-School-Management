@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605091519">
+  <link rel="stylesheet" href="styles.css?v=202605091712">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -596,7 +596,7 @@
         </div>
         <div class="table-wrap student-performance-table-wrap">
           <table class="student-performance-table">
-            <thead><tr><th>Student / Category</th><th><span class="quarter-dot total"></span>Total Average</th><th><span class="quarter-dot q1"></span>Q1 Average</th><th><span class="quarter-dot q2"></span>Q2 Average</th><th><span class="quarter-dot q3"></span>Q3 Average</th><th><span class="quarter-dot q4"></span>Q4 Average</th></tr></thead>
+            <thead><tr><th>Student / Category</th><th>Required</th><th><span class="quarter-dot total"></span>Total Average</th><th><span class="quarter-dot q1"></span>Q1 Average</th><th><span class="quarter-dot q2"></span>Q2 Average</th><th><span class="quarter-dot q3"></span>Q3 Average</th><th><span class="quarter-dot q4"></span>Q4 Average</th></tr></thead>
             <tbody id="student-avg-table"></tbody>
           </table>
         </div>
@@ -1297,7 +1297,7 @@
                 <h4>Current Schedule</h4>
                 <div class="table-wrap">
                   <table>
-                    <thead><tr><th>Scheduled Item</th><th>Type / Subject</th><th>Schedule Order</th><th>Current Avg Grade</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Scheduled Item</th><th>Type / Subject</th><th>Required</th><th>Schedule Order</th><th>Current Avg Grade</th><th>Actions</th></tr></thead>
                     <tbody id="student-enrollment-table"></tbody>
                   </table>
                 </div>
@@ -1412,12 +1412,13 @@
         <h3>Subjects</h3>
           <form id="subject-form" class="inline-form">
             <input id="subject-name" type="text" placeholder="Math" required>
+            <label class="checklist-row subject-required-field"><input id="subject-required" type="checkbox"> <span>Required</span></label>
             <button type="submit">Add Subject</button>
           </form>
           <h4>Configured Subjects</h4>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Subject</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Subject</th><th>Required</th><th>Actions</th></tr></thead>
               <tbody id="subject-table"></tbody>
             </table>
           </div>
@@ -2158,6 +2159,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605091519"></script>
+  <script src="app.js?v=202605091712"></script>
   </body>
   </html>

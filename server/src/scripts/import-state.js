@@ -58,7 +58,8 @@ async function run() {
       await new sql.Request(tx)
         .input("id", sql.NVarChar(64), row.id)
         .input("name", sql.NVarChar(120), row.name || "")
-        .query(`INSERT INTO dbo.subjects (id, name) VALUES (@id, @name)`);
+        .input("required", sql.Bit, !!row.required)
+        .query(`INSERT INTO dbo.subjects (id, name, required) VALUES (@id, @name, @required)`);
     }
 
     const courses = uniqueById(state.courses);

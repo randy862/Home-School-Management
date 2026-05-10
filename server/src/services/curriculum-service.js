@@ -34,12 +34,13 @@ function createCurriculumService(deps) {
 function normalizeSubjectPayload(input) {
   const id = String(input?.id || "").trim() || randomUUID();
   const name = String(input?.name || "").trim();
+  const required = !!input?.required;
   if (!name) {
     const error = new Error("Subject name is required.");
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), name };
+  return { ...(id ? { id } : {}), name, required };
 }
 
 function normalizeCoursePayload(input) {

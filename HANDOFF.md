@@ -38,11 +38,14 @@ Completed this session:
 - Required marker label now sits outside the projection arc.
 - Required Hours Progress Over Time now keeps actuals through YTD and starts projection from the current/YTD point.
 - Overview Instruction Days now matches the projected instruction card style with status, note, and required/projected metrics.
+- Subject Required flag was added and deployed: subjects now persist `required`, Curriculum > Subjects exposes the flag, student enrollment shows missing required subjects, and dashboard subject rows label required subjects.
+- PostgreSQL migration `026_subject_required_flag.sql` was applied on APP001 across tenant subject schemas.
+- Subject form layout was refined so the Subject input is about half width and Add Subject is on a second row aligned left.
 
 Current served preview cache key:
 
-- `styles.css?v=202605091519`
-- `app.js?v=202605091519`
+- `styles.css?v=202605091712`
+- `app.js?v=202605091712`
 
 ## Next Action
 

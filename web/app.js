@@ -528,6 +528,19 @@ function normalizeInstructorsShape(inputState) {
     .filter((instructor) => /^\d{4}-\d{2}-\d{2}$/.test(instructor.birthdate));
 }
 
+function normalizeSubjectsShape(inputState) {
+  const s = inputState;
+  s.subjects = Array.isArray(s.subjects)
+    ? s.subjects
+      .filter((subject) => subject && String(subject.name || "").trim())
+      .map((subject) => ({
+        id: subject.id || uid(),
+        name: String(subject.name || "").trim(),
+        required: !!subject.required
+      }))
+    : [];
+}
+
 function normalizeInstructionActualsShape(inputState) {
   const s = inputState;
   const validStudentIds = new Set((s.students || []).map((student) => student.id));
@@ -1316,6 +1329,7 @@ function normalizeSettingsShape(inputState) {
   };
 
   normalizeUsersShape(s);
+  normalizeSubjectsShape(s);
   normalizeInstructorsShape(s);
   normalizeCoursesShape(s);
   normalizeCourseSectionsShape(s);
@@ -2044,7 +2058,10 @@ async function refreshHostedSubjects() {
   if (!response.ok) throw new Error(`Subjects fetch failed (${response.status})`);
   const subjects = await response.json();
   if (Array.isArray(subjects)) {
-    state.subjects = subjects;
+    state.subjects = subjects.map((subject) => ({
+      ...subject,
+      required: !!subject.required
+    }));
   }
 }
 
@@ -2336,6 +2353,15 @@ async function createHostedSubject(payload) {
     body: JSON.stringify(payload)
   });
   return parseApiResponse(response, `Subject save failed (${response.status})`);
+}
+
+async function updateHostedSubject(id, payload) {
+  const response = await authFetch(`${API_SUBJECTS_ENDPOINT}/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  return parseApiResponse(response, `Subject update failed (${response.status})`);
 }
 
 async function createHostedStudent(payload) {
@@ -4626,6 +4652,15 @@ function instructionMatchesInstructorFilter(studentId, courseId, date, filterIns
 function getInstructorCategoryLabel(category) { return INSTRUCTOR_CATEGORY_LABELS[String(category || "").trim().toLowerCase()] || "Other"; }
 function getInstructorEducationLevelLabel(educationLevel) { return INSTRUCTOR_EDUCATION_LEVEL_LABELS[String(educationLevel || "").trim().toLowerCase()] || "Not recorded"; }
 function getSubjectName(id) { const s = state.subjects.find((x) => x.id === id); return s ? s.name : "Unknown Subject"; }
+function getSubject(id) { return state.subjects.find((x) => x.id === id) || null; }
+function isRequiredSubject(id) { return !!getSubject(id)?.required; }
+function requiredSubjectBadge(subjectId) {
+  return isRequiredSubject(subjectId) ? "<span class=\"subject-required-badge\">Required</span>" : "<span class=\"muted\">Optional</span>";
+}
+function subjectNameWithRequiredBadge(subjectId) {
+  const label = escapeHtml(getSubjectName(subjectId));
+  return isRequiredSubject(subjectId) ? `${label} <span class="subject-required-badge">Required</span>` : label;
+}
 function getCourse(id) { return state.courses.find((x) => x.id === id) || null; }
 function getCourseName(id) { const c = getCourse(id); return c ? c.name : "Unknown Course"; }
 function getSchoolYear(id) { return state.settings.schoolYears.find((x) => x.id === id) || null; }
@@ -7460,13 +7495,14 @@ function renderStudentEnrollmentCourseChecklist(preselectedCourseIds = [], stude
     const weekdays = (section.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
     const timeLabel = section.startTime ? formatClockTime(section.startTime) : "";
     const suffix = [course ? getSubjectName(course.subjectId) : "", timeLabel, weekdays].filter(Boolean).join(" | ");
-    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${escapeHtml(sectionDisplayName(section.id))}${suffix ? ` (${escapeHtml(suffix)})` : ""}</label></div>`;
+    const requiredBadge = course && isRequiredSubject(course.subjectId) ? " <span class=\"subject-required-badge\">Required</span>" : "";
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${escapeHtml(sectionDisplayName(section.id))}${suffix ? ` (${escapeHtml(suffix)})` : ""}${requiredBadge}</label></div>`;
   }).join("");
   const courseCheckboxes = eligibleCourses.map((course, idx) => {
     const key = `course:${course.id}`;
     const checked = selected.has(key) ? " checked" : "";
     const inputId = `student-enroll-course-${idx}-${course.id}`;
-    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${escapeHtml(course.name)} (${escapeHtml(getSubjectName(course.subjectId))})</label></div>`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${escapeHtml(course.name)} (${escapeHtml(getSubjectName(course.subjectId))})${isRequiredSubject(course.subjectId) ? " <span class=\"subject-required-badge\">Required</span>" : ""}</label></div>`;
   }).join("");
   const blockCheckboxes = eligibleBlocks.map((block, idx) => {
     const key = `scheduleBlock:${block.id}`;
@@ -7960,8 +7996,11 @@ function renderSubjects() {
   const tableBody = document.getElementById("subject-table");
   if (!tableBody) return;
   const rows = state.subjects
-    .map((s) => `<tr><td>${s.name}</td><td><button data-remove-subject='${s.id}' type='button'>Remove</button></td></tr>`);
-  rowOrEmpty(tableBody, rows, "No subjects added yet.", 2);
+    .map((s) => {
+      const inputId = `subject-required-${s.id}`;
+      return `<tr><td>${escapeHtml(s.name)}</td><td><input id="${inputId}" class="subject-required-toggle" data-subject-required-id="${s.id}" type="checkbox"${s.required ? " checked" : ""} aria-label="Required subject: ${escapeHtml(s.name)}"></td><td><button data-remove-subject='${s.id}' type='button'>Remove</button></td></tr>`;
+    });
+  rowOrEmpty(tableBody, rows, "No subjects added yet.", 3);
 }
 
 function renderManagementSectionVisibility() {
@@ -8452,14 +8491,26 @@ function renderStudentDetail() {
       const actions = studentEnrollmentEditMode
         ? `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button' disabled>Editing</button><button data-remove-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button'>Remove</button></div>`
         : `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button'>Edit</button></div>`;
-      return `<tr><td>${escapeHtml(studentScheduledEntryDisplayName(e))}</td><td>${escapeHtml(subject)}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
+      const requiredCell = course?.subjectId ? requiredSubjectBadge(course.subjectId) : "<span class=\"muted\">-</span>";
+      return `<tr><td>${escapeHtml(studentScheduledEntryDisplayName(e))}</td><td>${escapeHtml(subject)}</td><td>${requiredCell}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
+    });
+  const enrolledSubjectIds = new Set(
+    studentEnrollments
+      .map((entry) => getCourse(entryCourseId(entry))?.subjectId || "")
+      .filter(Boolean)
+  );
+  state.subjects
+    .filter((subject) => subject.required && !enrolledSubjectIds.has(subject.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach((subject) => {
+      enrollmentRows.push(`<tr class="student-required-subject-missing"><td>${escapeHtml(subject.name)}</td><td>Missing required subject</td><td>${requiredSubjectBadge(subject.id)}</td><td>-</td><td>-</td><td></td></tr>`);
     });
   if (enrollmentRows.length) {
     const overallAverage = gradeSummary.overallAverage;
     const averageDisplay = overallAverage > 0 ? `${overallAverage.toFixed(1)}%` : "No grades";
-    enrollmentRows.push(`<tr><td colspan="3"><strong>Average</strong></td><td><strong>${averageDisplay}</strong></td><td></td></tr>`);
+    enrollmentRows.push(`<tr><td colspan="4"><strong>Average</strong></td><td><strong>${averageDisplay}</strong></td><td></td></tr>`);
   }
-  rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 5);
+  rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 6);
 
   const summary = studentAttendanceSummaryByRange(student.id, rangeStart, rangeEnd);
   const requiredDaysDisplay = schoolYear.requiredInstructionalDays == null ? "-" : String(schoolYear.requiredInstructionalDays);
@@ -12422,7 +12473,7 @@ function renderDashboardExpandableTables() {
 
           const subjectKey = `${student.id}::${subjectId}`;
           const expandedSubject = expandedSubjectAverageRows.has(subjectKey);
-          const subjectRow = `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell"><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${renderDashboardToggleGlyph(expandedSubject)}</button>${subjectName}</td><td>${formatDashboardAverageCell(totalAvgBySubject, testsForSubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q1AvgBySubject, q1TestsBySubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q2AvgBySubject, q2TestsBySubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q3AvgBySubject, q3TestsBySubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q4AvgBySubject, q4TestsBySubject.length, selectedGradeMethods)}</td></tr>`;
+          const subjectRow = `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell"><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${renderDashboardToggleGlyph(expandedSubject)}</button>${escapeHtml(subjectName)}</td><td>${requiredSubjectBadge(subjectId)}</td><td>${formatDashboardAverageCell(totalAvgBySubject, testsForSubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q1AvgBySubject, q1TestsBySubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q2AvgBySubject, q2TestsBySubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q3AvgBySubject, q3TestsBySubject.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q4AvgBySubject, q4TestsBySubject.length, selectedGradeMethods)}</td></tr>`;
           if (!expandedSubject) return [subjectRow];
 
           const typeMap = new Map();
@@ -12449,13 +12500,13 @@ function renderDashboardExpandableTables() {
             const q3TypeAvg = weightedAverageForTests(q3TypeTests, { quarterScoped: true });
             const q4TypeAvg = weightedAverageForTests(q4TypeTests, { quarterScoped: true });
             const totalTypeAvg = weightedAverageForTests(typeTests);
-            return `<tr class="student-avg-type-row"><td class="student-avg-type-cell">${gradeType}</td><td>${formatDashboardAverageCell(totalTypeAvg, typeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q1TypeAvg, q1TypeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q2TypeAvg, q2TypeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q3TypeAvg, q3TypeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q4TypeAvg, q4TypeTests.length, selectedGradeMethods)}</td></tr>`;
+            return `<tr class="student-avg-type-row"><td class="student-avg-type-cell">${escapeHtml(gradeType)}</td><td></td><td>${formatDashboardAverageCell(totalTypeAvg, typeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q1TypeAvg, q1TypeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q2TypeAvg, q2TypeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q3TypeAvg, q3TypeTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q4TypeAvg, q4TypeTests.length, selectedGradeMethods)}</td></tr>`;
           });
           return [subjectRow, ...typeRows];
         })
         .join("");
       const expanded = expandedStudentAverageRows.has(student.id);
-      const detailRows = subjectRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No subject grades yet.</td></tr>";
+      const detailRows = subjectRows || "<tr class='student-avg-detail-row'><td colspan='7' class='muted student-avg-detail-empty'>No subject grades yet.</td></tr>";
       return {
         studentId: student.id,
         studentName: `${student.firstName} ${student.lastName}`,
@@ -12469,7 +12520,7 @@ function renderDashboardExpandableTables() {
         q2Value: q2Avg,
         q3Value: q3Avg,
         q4Value: q4Avg,
-        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${student.firstName} ${student.lastName}</td><td>${formatDashboardAverageCell(totalAvg, studentTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q1Avg, q1Tests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q2Avg, q2Tests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q3Avg, q3Tests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q4Avg, q4Tests.length, selectedGradeMethods)}</td></tr>`,
+        row: `<tr><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${student.id}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button> ${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</td><td></td><td>${formatDashboardAverageCell(totalAvg, studentTests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q1Avg, q1Tests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q2Avg, q2Tests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q3Avg, q3Tests.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(q4Avg, q4Tests.length, selectedGradeMethods)}</td></tr>`,
         detailRow: expanded ? detailRows : ""
       };
     })
@@ -12484,9 +12535,9 @@ function renderDashboardExpandableTables() {
       q3: studentMetrics.filter((entry) => entry.q3Count > 0).map((entry) => entry.q3Value),
       q4: studentMetrics.filter((entry) => entry.q4Count > 0).map((entry) => entry.q4Value)
     };
-    studentRows.push(`<tr><td><strong>Average</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.total), totals.total.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q1), totals.q1.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q2), totals.q2.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q3), totals.q3.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q4), totals.q4.length, selectedGradeMethods)}</strong></td></tr>`);
+    studentRows.push(`<tr><td><strong>Average</strong></td><td></td><td><strong>${formatDashboardAverageCell(avg(totals.total), totals.total.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q1), totals.q1.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q2), totals.q2.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q3), totals.q3.length, selectedGradeMethods)}</strong></td><td><strong>${formatDashboardAverageCell(avg(totals.q4), totals.q4.length, selectedGradeMethods)}</strong></td></tr>`);
   }
-  rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
+  rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 7);
 
   const studentAttendanceRows = dashboardStudents.flatMap((student) => {
     const summary = studentAttendanceSummary(student.id);
@@ -12695,13 +12746,13 @@ function renderDashboardExpandableTablesFast() {
     const subjectRows = entry.subjects.flatMap((subject) => {
       const subjectKey = `${entry.studentId}::${subject.subjectId}`;
       const expandedSubject = expandedSubjectAverageRows.has(subjectKey);
-      const subjectRow = `<tr class="student-performance-row student-performance-subject-row"><td class="student-avg-subject-cell"><span class="student-performance-branch" aria-hidden="true"></span><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${renderDashboardToggleGlyph(expandedSubject)}</button><span class="student-performance-row-title">${escapeHtml(subject.subjectName)}</span></td><td>${formatDashboardAverageCell(subject.totalAvg, subject.count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q1Avg, subject.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q2Avg, subject.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q3Avg, subject.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q4Avg, subject.q4Count, selectedGradeMethods)}</td></tr>`;
+      const subjectRow = `<tr class="student-performance-row student-performance-subject-row"><td class="student-avg-subject-cell"><span class="student-performance-branch" aria-hidden="true"></span><button type="button" class="student-avg-toggle student-avg-subtoggle" data-toggle-subject-avg="${subjectKey}" aria-expanded="${expandedSubject ? "true" : "false"}">${renderDashboardToggleGlyph(expandedSubject)}</button><span class="student-performance-row-title">${escapeHtml(subject.subjectName)}</span></td><td>${requiredSubjectBadge(subject.subjectId)}</td><td>${formatDashboardAverageCell(subject.totalAvg, subject.count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q1Avg, subject.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q2Avg, subject.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q3Avg, subject.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(subject.q4Avg, subject.q4Count, selectedGradeMethods)}</td></tr>`;
       if (!expandedSubject) return [subjectRow];
-      const typeRows = subject.types.map((type) => `<tr class="student-performance-row student-performance-type-row"><td class="student-avg-type-cell"><span class="student-performance-branch" aria-hidden="true"></span><span class="student-performance-type-icon">${dashboardGradeTypeIcon(type.gradeType)}</span><span class="student-performance-row-title">${escapeHtml(type.gradeType)}</span></td><td>${formatDashboardAverageCell(type.totalAvg, type.count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q1Avg, type.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q2Avg, type.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q3Avg, type.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q4Avg, type.q4Count, selectedGradeMethods)}</td></tr>`);
+      const typeRows = subject.types.map((type) => `<tr class="student-performance-row student-performance-type-row"><td class="student-avg-type-cell"><span class="student-performance-branch" aria-hidden="true"></span><span class="student-performance-type-icon">${dashboardGradeTypeIcon(type.gradeType)}</span><span class="student-performance-row-title">${escapeHtml(type.gradeType)}</span></td><td></td><td>${formatDashboardAverageCell(type.totalAvg, type.count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q1Avg, type.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q2Avg, type.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q3Avg, type.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(type.q4Avg, type.q4Count, selectedGradeMethods)}</td></tr>`);
       return [subjectRow, ...typeRows];
     }).join("");
-    const row = `<tr class="student-performance-row student-performance-student-row"><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button><span class="student-performance-row-title">${escapeHtml(entry.studentName)}</span></td><td>${formatDashboardAverageCell(entry.totalAvg, entry.totalCount, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q1Avg, entry.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q2Avg, entry.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q3Avg, entry.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q4Avg, entry.q4Count, selectedGradeMethods)}</td></tr>`;
-    const detailRow = expanded ? (subjectRows || "<tr class='student-avg-detail-row'><td colspan='6' class='muted student-avg-detail-empty'>No subject grades yet.</td></tr>") : "";
+    const row = `<tr class="student-performance-row student-performance-student-row"><td><button type="button" class="student-avg-toggle" data-toggle-student-avg="${entry.studentId}" aria-expanded="${expanded ? "true" : "false"}">${renderDashboardToggleGlyph(expanded)}</button><span class="student-performance-row-title">${escapeHtml(entry.studentName)}</span></td><td></td><td>${formatDashboardAverageCell(entry.totalAvg, entry.totalCount, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q1Avg, entry.q1Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q2Avg, entry.q2Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q3Avg, entry.q3Count, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(entry.q4Avg, entry.q4Count, selectedGradeMethods)}</td></tr>`;
+    const detailRow = expanded ? (subjectRows || "<tr class='student-avg-detail-row'><td colspan='7' class='muted student-avg-detail-empty'>No subject grades yet.</td></tr>") : "";
     return detailRow ? [row, detailRow] : [row];
   });
   if (performanceMetrics.length) {
@@ -12712,9 +12763,9 @@ function renderDashboardExpandableTablesFast() {
       q3: performanceMetrics.filter((entry) => entry.q3Count > 0).map((entry) => entry.q3Avg),
       q4: performanceMetrics.filter((entry) => entry.q4Count > 0).map((entry) => entry.q4Avg)
     };
-    studentRows.push(`<tr class="student-performance-row student-performance-average-row"><td><strong>Average</strong></td><td>${formatDashboardAverageCell(avg(totals.total), totals.total.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q1), totals.q1.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q2), totals.q2.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q3), totals.q3.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q4), totals.q4.length, selectedGradeMethods)}</td></tr>`);
+    studentRows.push(`<tr class="student-performance-row student-performance-average-row"><td><strong>Average</strong></td><td></td><td>${formatDashboardAverageCell(avg(totals.total), totals.total.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q1), totals.q1.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q2), totals.q2.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q3), totals.q3.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q4), totals.q4.length, selectedGradeMethods)}</td></tr>`);
   }
-  rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 6);
+  rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 7);
 
   const studentAttendanceRows = attendanceMetrics.flatMap((entry) => {
     const expandedAttendance = expandedStudentAttendanceRows.has(entry.studentId);
@@ -12734,7 +12785,7 @@ function renderDashboardExpandableTablesFast() {
     : instructionalHourMetrics.filter((entry) => entry.studentId === selectedInstructionalHoursStudentId);
   const instructionalHourRows = visibleInstructionalHourMetrics.flatMap((entry) => {
     const expanded = expandedStudentInstructionalHourRows.has(entry.studentId);
-    const detailRows = entry.subjects.map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${subjectSummary.subjectName}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}<td></td></tr>`).join("");
+    const detailRows = entry.subjects.map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${subjectNameWithRequiredBadge(subjectSummary.subjectId)}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}<td></td></tr>`).join("");
     const projectedTotal = Number(entry.buckets.total?.projected || 0);
     const earnedTotal = Number(entry.buckets.total?.earned || 0);
     const projectedDiff = projectedTotal - Number(state.settings.schoolYear.requiredInstructionalHours || 0);
@@ -16773,12 +16824,13 @@ function bindEvents() {
     e.preventDefault();
     if (!ensureAdminAction()) return;
     const name = document.getElementById("subject-name").value.trim();
+    const required = !!document.getElementById("subject-required")?.checked;
     if (!name) return;
     if (state.subjects.some((s)=>s.name.toLowerCase()===name.toLowerCase())) { alert("Subject already exists."); return; }
     if (hostedModeEnabled) {
       (async () => {
         try {
-          await createHostedSubject({ id: uid(), name });
+          await createHostedSubject({ id: uid(), name, required });
           e.target.reset();
           await refreshHostedSubjects();
           renderAll();
@@ -16788,7 +16840,7 @@ function bindEvents() {
       })();
       return;
     }
-    createLegacyLocalSubject({ name }); e.target.reset(); saveState(); renderAll();
+    createLegacyLocalSubject({ name, required }); e.target.reset(); saveState(); renderAll();
   });
 
   document.getElementById("course-form").addEventListener("submit", (e) => {
@@ -18644,6 +18696,33 @@ function bindEvents() {
     }
     if (t.classList.contains("student-enroll-course-checkbox")) {
       updateStudentEnrollmentCourseSummary();
+      return;
+    }
+    if (t.classList.contains("subject-required-toggle") && t instanceof HTMLInputElement) {
+      const subjectId = t.getAttribute("data-subject-required-id") || "";
+      const subject = getSubject(subjectId);
+      if (!subject) return;
+      if (!ensureAdminAction()) {
+        t.checked = !!subject.required;
+        return;
+      }
+      const required = t.checked;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await updateHostedSubject(subjectId, { ...subject, required });
+            await refreshHostedSubjects();
+            renderAll();
+          } catch (error) {
+            t.checked = !!subject.required;
+            alert(error.message || "Unable to update subject.");
+          }
+        })();
+        return;
+      }
+      subject.required = required;
+      saveState();
+      renderAll();
       return;
     }
     if (t.classList.contains("daily-break-student-checkbox")) {

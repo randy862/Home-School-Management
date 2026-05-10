@@ -19,7 +19,9 @@ Dashboard Performance alert and trend-chart polish in `/modern-preview/`.
 - Projection line now starts at the current/YTD point and continues to year end.
 - Required Hours preview files were deployed to WEB001 `/var/www/home-school-management/web/modern-preview/`.
 - Overview Instruction Days now matches the projected instruction card style.
-- Current served preview cache key is `202605091519`.
+- Subject Required flag was deployed to APP001/WEB001, including migration `026_subject_required_flag.sql`.
+- Subject form layout was refined after deployment.
+- Current served preview cache key is `202605091712`.
 
 ## Current Blockers
 
