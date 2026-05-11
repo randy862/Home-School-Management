@@ -10,7 +10,7 @@ Modern app preview refinement on branch:
 
 Preview URL:
 
-https://mitchell.navigrader.com/modern-preview/
+https://mitchell.navigrader.com/modern-design/
 
 The live tenant app has not been replaced.
 
@@ -33,21 +33,29 @@ Completed this session:
 - Added visible data values and month-wide hover popups to Instruction Days Trending.
 - Replaced Overview Completed/Awaiting Grades card with Missing Required Subjects.
 - Added Students table filters for Student, Grade, Status, and Required.
+- Restyled Student Performance grade method controls as plain tick boxes and removed the circular check indicator.
+- Widened Student Performance Student/Category column and constrained nested labels so student, subject, and grade type text stays inside its column.
+- Matched Grade Type Volume, GPA Trending, and Work Distribution chart styling to the modern dashboard look; centered the Work Distribution donut-center content.
+- Deployed current web assets to `/modern-design/` and `/modern-preview/`.
 
 Current local cache keys:
 
-- `styles.css?v=202605102145`
-- `app.js?v=202605102145`
+- `styles.css?v=202605101933`
+- `app.js?v=202605101933`
 
 ## Next Action
 
-Smoke-test Dashboard Overview Missing Required Subjects and Students table filters:
+Smoke-test Work Distribution donut-center alignment and donut/table layout, GPA Trending controls, Grade Type Volume filter fit, Student Performance table fit, and Students filters:
 
-`https://mitchell.navigrader.com/modern-preview/`
+`https://mitchell.navigrader.com/modern-design/`
 
 ## Risks
 
 - Final Required Instructional Days student breakdown change has been deployed to preview.
+- Student Performance grade method tick box styling has been deployed to `modern-design`.
+- Same tick box styling has also been deployed to `modern-preview` to avoid the older preview URL serving stale circular-chip controls.
+- Student Performance table column fit styling has been deployed to both preview paths.
+- Grade Type Volume, GPA Trending, and Work Distribution styling/functionality have been deployed to both preview paths.
 - Do not replace the live app unless explicitly approved.
 - Existing untracked `tmp/` and icon files remain intentionally untouched.
 
@@ -55,7 +63,8 @@ Smoke-test Dashboard Overview Missing Required Subjects and Students table filte
 
 - `node --check web/app.js`
 - `git diff --check`
-- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -Pattern "styles.css\?v=|app.js\?v="`
-- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -Pattern "dashboard-day-pace-toggle|dashboard-day-pace-student-breakdown|Required Instructional Days"`
-- `curl.exe -s https://mitchell.navigrader.com/modern-preview/app.js?v=202605100930 | Select-String -Pattern "monthHoverZoneSvg|valueLabelSvg|instruction-days-trending-chart"`
-- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -Pattern "styles.css\?v=202605102145|app.js\?v=202605102145|Missing Required Subjects|student-table-filter-required"`
+- `curl.exe -s https://mitchell.navigrader.com/modern-design/ | Select-String -Pattern "styles.css\?v=202605101933|app.js\?v=202605101933"`
+- `curl.exe -s https://mitchell.navigrader.com/modern-design/styles.css?v=202605101933 | Select-String -Pattern "work-dist-donut-center|align-content: center|box-sizing: border-box"`
+- `curl.exe -s https://mitchell.navigrader.com/modern-design/app.js?v=202605101929 | Select-String -Pattern "work-dist-chart-panel|work-dist-donut-chart|work-dist-breakdown-row|workDistributionSubjectIconPaths"`
+- `curl.exe -s https://mitchell.navigrader.com/modern-design/styles.css?v=202605101929 | Select-String -Pattern "work-distribution-heading|work-dist-chart-panel|work-dist-donut-chart|work-dist-breakdown-row|work-dist-donut-center"`
+- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -Pattern "styles.css\?v=202605101933|app.js\?v=202605101933"`

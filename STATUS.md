@@ -8,7 +8,7 @@ Modern app preview refinement.
 
 ## Current Focus
 
-Dashboard Overview and Students table polish in `/modern-preview/`.
+Modern preview polish in `/modern-design/`.
 
 ## Completed Recently
 
@@ -24,6 +24,10 @@ Dashboard Overview and Students table polish in `/modern-preview/`.
 - Instruction Days Trending now shows data values and month-wide hover popups.
 - Overview now has Missing Required Subjects instead of Completed/Awaiting Grades.
 - Students table now includes Required status and Student, Grade, Status, Required filters.
+- Student Performance grade method controls now render as plain tick boxes without circular indicators.
+- Student Performance nested labels now stay inside the Student/Category column.
+- Grade Type Volume, GPA Trending, and Work Distribution now match the modern dashboard styling, with Work Distribution donut-center content centered.
+- Current web assets were deployed to `https://mitchell.navigrader.com/modern-design/` and `https://mitchell.navigrader.com/modern-preview/`.
 
 ## Current Blockers
 
@@ -37,5 +41,5 @@ Dashboard Overview and Students table polish in `/modern-preview/`.
 
 ## Next Actions
 
-1. Smoke-test Dashboard Overview Missing Required Subjects and Students table filters.
+1. Smoke-test Work Distribution donut-center alignment and donut/table layout, GPA Trending controls, Grade Type Volume filter fit, Student Performance table fit, and Students filters.
 2. Keep live app unchanged unless replacement is explicitly approved.

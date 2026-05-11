@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605102145">
+  <link rel="stylesheet" href="styles.css?v=202605101933">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -841,8 +841,14 @@
         <div id="instructor-grade-trending-chart" class="chart-wrap"></div>
       </div>
 
-      <div id="dashboard-section-gpa-trending" class="dashboard-section dashboard-section-gpa-trending">
-        <h3>GPA Trending</h3>
+      <div id="dashboard-section-gpa-trending" class="dashboard-section dashboard-section-trending dashboard-section-gpa-trending">
+        <div class="trend-section-heading">
+          <span class="trend-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M5 15l4-4 4 3 6-7"/><path d="M15 7h4v4"/></svg></span>
+          <div>
+            <h3>GPA Trending</h3>
+            <p class="muted">Track grade point averages over time.</p>
+          </div>
+        </div>
         <form id="gpa-trend-filter-form" class="grid-form">
           <label class="trend-student-field">Student
             <details id="gpa-trend-student-dropdown" class="multi-select-dropdown">
@@ -875,7 +881,7 @@
               <option value="Final">Final</option>
             </select>
           </label>
-          <button id="gpa-trend-clear-filters-btn" type="button">Clear Filters</button>
+          <button id="gpa-trend-clear-filters-btn" type="button" class="secondary-button">Clear Filters</button>
         </form>
         <div id="gpa-trending-chart" class="chart-wrap"></div>
       </div>
@@ -988,8 +994,19 @@
       </div>
 
       <div id="dashboard-section-work-distribution" class="dashboard-section dashboard-section-work-distribution">
-        <h3>Work Distribution</h3>
-        <div class="chart-wrap">
+        <div class="work-distribution-heading">
+          <div class="student-performance-heading">
+            <span class="student-performance-heading-icon work-distribution-heading-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M21 12A9 9 0 0 0 12 3v9z"/></svg>
+            </span>
+            <div>
+              <h3>Work Distribution</h3>
+              <p class="muted">Breakdown of graded work by subject</p>
+            </div>
+          </div>
+          <button id="work-clear-filters-btn" type="button" class="secondary-button work-distribution-clear-btn"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg></span><span>Clear Filters</span></button>
+        </div>
+        <div class="work-distribution-body">
           <form id="work-filter-form" class="grid-form">
             <label class="work-student-field">Student
               <details id="work-student-dropdown" class="multi-select-dropdown">
@@ -1007,7 +1024,6 @@
                 <option value="all">All Instructors</option>
               </select>
             </label>
-            <button id="work-clear-filters-btn" type="button">Clear Filters</button>
           </form>
           <div id="work-distribution-grade-type-filter" class="work-dist-filter"></div>
           <div id="work-distribution-chart"></div>
@@ -2261,6 +2277,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605102145"></script>
+  <script src="app.js?v=202605101933"></script>
   </body>
   </html>

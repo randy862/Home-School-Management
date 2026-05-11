@@ -1497,6 +1497,8 @@ const instructorGradeTrendSelectedStudentIds = new Set();
 let instructorGradeTrendViewMode = "line";
 let instructorGradeTrendShowDataPoints = true;
 const gpaTrendSelectedStudentIds = new Set();
+let gpaTrendViewMode = "line";
+let gpaTrendShowDataPoints = true;
 const instructionHoursTrendSelectedStudentIds = new Set();
 const instructionDaysTrendSelectedStudentIds = new Set();
 const complianceHoursSelectedStudentIds = new Set();
@@ -7278,8 +7280,7 @@ function renderStudentPerformanceGradeMethodChecklist(preselectedMethods = []) {
   optionsWrap.innerHTML = STUDENT_PERFORMANCE_GRADE_METHODS.map((method, idx) => {
     const checked = selected.has(method) ? " checked" : "";
     const inputId = `student-performance-grade-method-${idx}`;
-    const icon = method === "Percentage" ? "%" : method === "Letter" ? "A+" : "*";
-    return `<label class="student-performance-grade-method-chip" for="${inputId}"><input id="${inputId}" type="checkbox" class="student-performance-grade-method-checkbox" value="${method}"${checked}><span class="student-performance-method-icon">${icon}</span><span>${method}</span><span class="student-performance-chip-check" aria-hidden="true"></span></label>`;
+    return `<label class="student-performance-grade-method-chip" for="${inputId}"><input id="${inputId}" type="checkbox" class="student-performance-grade-method-checkbox" value="${escapeHtml(method)}"${checked}><span>${escapeHtml(method)}</span></label>`;
   }).join("");
 }
 
@@ -7466,7 +7467,8 @@ function renderWorkDistributionGradeTypeFilter() {
       ${types.map((type, idx) => {
         const id = `work-dist-grade-type-${idx}`;
         const checked = workDistributionSelectedGradeTypes.has(type) ? " checked" : "";
-        return `<label for="${id}" class="work-dist-option"><input id="${id}" type="checkbox" class="work-dist-grade-type-checkbox" value="${type}"${checked}>${type}</label>`;
+        const label = type === "Quarterly Final" ? "Quarter Final" : type;
+        return `<label for="${id}" class="work-dist-option"><input id="${id}" type="checkbox" class="work-dist-grade-type-checkbox" value="${escapeHtml(type)}"${checked}><span class="work-dist-option-icon" aria-hidden="true">${gradeTypeIconMarkup(gradeTypeIconKeyForName(type), type, "work-dist-option-icon-img")}</span><span class="work-dist-option-label">${escapeHtml(label)}</span><span class="work-dist-option-check" aria-hidden="true"></span></label>`;
       }).join("")}
     </div>`;
 }
@@ -7494,6 +7496,32 @@ function updateWorkStudentSummary() {
 
 function getWorkSelectedStudentIds() {
   return Array.from(document.querySelectorAll(".work-student-checkbox:checked")).map((el) => el.value);
+}
+
+function workDistributionSubjectIconPaths(subjectName = "") {
+  const name = String(subjectName || "").toLowerCase();
+  if (name.includes("math")) {
+    return `<path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M8 7h8"/><path d="M8 11h2"/><path d="M14 11h2"/><path d="M8 15h2"/><path d="M14 15h2"/><path d="M8 18h2"/><path d="M14 18h2"/>`;
+  }
+  if (name.includes("bible") || name.includes("literature") || name.includes("reading")) {
+    return `<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H7a3 3 0 0 0-3 3z"/><path d="M4 5.5v15"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h6"/>`;
+  }
+  if (name.includes("science") || name.includes("lab")) {
+    return `<path d="M9 3h6"/><path d="M10 3v5l-5 9a3 3 0 0 0 2.6 4.5h8.8A3 3 0 0 0 19 17l-5-9V3"/><path d="M8 15h8"/>`;
+  }
+  if (name.includes("history") || name.includes("government")) {
+    return `<path d="M3 9h18"/><path d="M5 9l7-5 7 5"/><path d="M6 10v8"/><path d="M10 10v8"/><path d="M14 10v8"/><path d="M18 10v8"/><path d="M4 18h16"/><path d="M3 21h18"/>`;
+  }
+  if (name.includes("spell") || name.includes("grammar")) {
+    return `<path d="M4 16h5"/><path d="M6.5 8 3 16"/><path d="m6.5 8 3.5 8"/><path d="M14 8h2.5a2.5 2.5 0 0 1 0 5H14z"/><path d="M14 13h3a2.5 2.5 0 0 1 0 5h-3z"/>`;
+  }
+  if (name.includes("english") || name.includes("writing")) {
+    return `<path d="M21 12a8 8 0 0 1-8 8H7l-4 3 1.5-5A8 8 0 1 1 21 12z"/>`;
+  }
+  if (name.includes("music")) {
+    return `<path d="M9 18V5l10-2v13"/><circle cx="7" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>`;
+  }
+  return `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M8 7h8"/><path d="M8 11h8"/>`;
 }
 
 function getPlanEligibleCourses(studentId) {
@@ -11231,13 +11259,11 @@ function renderGpaTrending() {
   const chartHost = document.getElementById("gpa-trending-chart");
   if (!chartHost) return;
   const allowedStudentIds = visibleStudentIds();
-
   const sy = state.settings.schoolYear;
   const syStart = toDate(sy.startDate);
   const syEnd = toDate(sy.endDate);
   const today = toDate(todayISO());
   const effectiveEnd = syEnd < today ? syEnd : today;
-
   const quarterFilter = document.getElementById("gpa-trend-filter-quarter")?.value || "all";
   const subjectFilter = document.getElementById("gpa-trend-filter-subject")?.value || "all";
   const instructorFilter = document.getElementById("gpa-trend-filter-instructor")?.value || "all";
@@ -11278,7 +11304,7 @@ function renderGpaTrending() {
     : (isStudentUser()
       ? visibleStudents().map((student) => ({ id: student.id, label: getStudentName(student.id), tests: filteredTests.filter((t) => t.studentId === student.id) }))
       : [{ id: "all", label: "All Students", tests: filteredTests }]);
-  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
+  const palette = ["#f97316", "#20a65a", "#2563eb", "#8b5cf6", "#ef4444", "#0f766e", "#a16207", "#db2777"];
 
   const series = seriesBase.map((entry, idx) => {
     const monthly = months.map((monthEntry) => {
@@ -11290,16 +11316,16 @@ function renderGpaTrending() {
       const averageGrade = weightedAverageForTests(monthTests);
       return {
         label: monthStart.toLocaleDateString(undefined, { month: "short" }),
-        gpa: averageToGpa(averageGrade),
+        gpa: monthTests.length ? averageToGpa(averageGrade) : 0,
         count: monthTests.length
       };
     });
     return { ...entry, color: palette[idx % palette.length], monthly };
   });
 
-  const width = 960;
-  const height = 260;
-  const margin = { top: 62, right: 20, bottom: 48, left: 52 };
+  const width = 1120;
+  const height = 330;
+  const margin = { top: 40, right: 34, bottom: 58, left: 74 };
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
   const xPad = 16;
@@ -11314,6 +11340,7 @@ function renderGpaTrending() {
     const clamped = clamp(value, yMin, yMax);
     return margin.top + ((yMax - clamped) / (yMax - yMin)) * plotH;
   };
+  const baselineY = yFor(yMin);
 
   const yTickSvg = yTicks.map((tick) => {
     const y = yFor(tick);
@@ -11329,19 +11356,32 @@ function renderGpaTrending() {
   const lineSvg = series.map((lineSeries) => {
     let path = "";
     lineSeries.monthly.forEach((row, idx) => {
+      if (row.count <= 0) return;
       const x = xFor(idx);
       const y = yFor(row.gpa || 0);
       if (!path) path += `M ${x.toFixed(2)} ${y.toFixed(2)} `;
       else path += `L ${x.toFixed(2)} ${y.toFixed(2)} `;
     });
-    return `<path d="${path.trim()}" class="trend-line" style="stroke:${lineSeries.color}" fill="none"></path>`;
+    return path ? `<path d="${path.trim()}" class="trend-line" style="stroke:${lineSeries.color}" fill="none"></path>` : "";
   }).join("");
 
-  const pointSvg = series.flatMap((lineSeries) => lineSeries.monthly.map((row, idx) => {
+  const areaSvg = gpaTrendViewMode === "area" ? series.map((lineSeries) => {
+    const points = lineSeries.monthly
+      .map((row, idx) => row.count > 0 ? { x: xFor(idx), y: yFor(row.gpa || 0) } : null)
+      .filter(Boolean);
+    if (points.length < 2) return "";
+    const linePath = points.map((point, idx) => `${idx === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+    const first = points[0];
+    const last = points[points.length - 1];
+    return `<path d="${linePath} L ${last.x.toFixed(2)} ${baselineY.toFixed(2)} L ${first.x.toFixed(2)} ${baselineY.toFixed(2)} Z" class="trend-area" style="fill:${lineSeries.color}"></path>`;
+  }).join("") : "";
+
+  const pointSvg = gpaTrendShowDataPoints ? series.flatMap((lineSeries) => lineSeries.monthly.map((row, idx) => {
+    if (row.count <= 0) return "";
     const x = xFor(idx);
     const y = yFor(row.gpa || 0);
     return `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="4" class="trend-point" style="fill:${lineSeries.color};stroke:${lineSeries.color}"><title>${lineSeries.label} ${row.label}: ${row.gpa.toFixed(2)} GPA</title></circle>`;
-  })).join("");
+  })).join("") : "";
 
   const labelTop = margin.top + 10;
   const labelBottom = height - margin.bottom - 6;
@@ -11350,6 +11390,7 @@ function renderGpaTrending() {
   months.forEach((_, monthIdx) => {
     const monthLabels = series.map((lineSeries, lineIdx) => {
       const row = lineSeries.monthly[monthIdx];
+      if (row.count <= 0) return null;
       const x = xFor(monthIdx);
       const y = yFor(row.gpa || 0);
       const nearTop = y <= margin.top + 16;
@@ -11363,7 +11404,7 @@ function renderGpaTrending() {
         x,
         preferredY
       };
-    }).sort((a, b) => a.preferredY - b.preferredY);
+    }).filter(Boolean).sort((a, b) => a.preferredY - b.preferredY);
 
     for (let i = 1; i < monthLabels.length; i += 1) {
       if (monthLabels[i].preferredY - monthLabels[i - 1].preferredY < minLabelGap) {
@@ -11381,37 +11422,126 @@ function renderGpaTrending() {
     }
     monthLabels.forEach((label) => {
       label.preferredY = clamp(label.preferredY, labelTop, labelBottom);
-      valueLabelParts.push(`<text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text>`);
+      const labelWidth = 34;
+      valueLabelParts.push(`<g class="trend-value-pill"><rect x="${(label.x - labelWidth / 2).toFixed(2)}" y="${(label.preferredY - 12).toFixed(2)}" width="${labelWidth}" height="18" rx="6" style="fill:${label.color};stroke:${label.color}"></rect><text x="${label.x.toFixed(2)}" y="${label.preferredY.toFixed(2)}" text-anchor="middle" class="trend-value-label" style="fill:${label.color}">${label.text}</text></g>`);
     });
   });
-  const valueLabelSvg = valueLabelParts.join("");
+  const valueLabelSvg = gpaTrendShowDataPoints ? valueLabelParts.join("") : "";
+
+  const monthHoverZoneSvg = months.map((monthEntry, monthIdx) => {
+    const x = xFor(monthIdx);
+    const previousX = monthIdx > 0 ? xFor(monthIdx - 1) : margin.left;
+    const nextX = monthIdx < months.length - 1 ? xFor(monthIdx + 1) : width - margin.right;
+    const left = monthIdx > 0 ? (previousX + x) / 2 : margin.left;
+    const right = monthIdx < months.length - 1 ? (x + nextX) / 2 : width - margin.right;
+    const monthLabel = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0).toLocaleDateString(undefined, { month: "short" });
+    const monthTooltip = series.map((lineSeries) => {
+      const row = lineSeries.monthly[monthIdx];
+      if (!row || row.count <= 0) return "";
+      return `${lineSeries.label} ${monthLabel}: ${row.gpa.toFixed(2)} GPA`;
+    }).filter(Boolean).join("\n");
+    if (!monthTooltip) return "";
+    return `<rect x="${left.toFixed(2)}" y="${margin.top}" width="${Math.max(1, right - left).toFixed(2)}" height="${plotH.toFixed(2)}" fill="transparent" pointer-events="all"><title>${escapeHtml(monthTooltip)}</title></rect>`;
+  }).join("");
 
   const legendHtml = `
     <div class="trend-legend">
       ${series.map((lineSeries) => `
         <span class="trend-legend-item">
           <span class="trend-legend-line" style="background:${lineSeries.color}"></span>
-          <span>${lineSeries.label}</span>
+          <span>${escapeHtml(lineSeries.label)}</span>
         </span>`).join("")}
     </div>`;
 
   const hasData = series.some((lineSeries) => lineSeries.monthly.some((row) => row.count > 0));
   const noData = hasData ? "" : `<text x="${(margin.left + plotW / 2).toFixed(2)}" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" class="trend-empty">No grade data for selected filters</text>`;
 
+  const selectedStudentIdSet = new Set(selectedStudentIds);
+  const summaryMonthly = months.map((monthEntry) => {
+    const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
+    const monthEnd = new Date(monthEntry.year, monthEntry.month + 1, 0, 12, 0, 0);
+    const monthStartIso = toISO(monthStart);
+    const monthEndIso = toISO(monthEnd);
+    const monthTests = filteredTests.filter((t) => {
+      if (selectedStudentIdSet.size && !selectedStudentIdSet.has(t.studentId)) return false;
+      return inRange(t.date, monthStartIso, monthEndIso);
+    });
+    const averageGrade = weightedAverageForTests(monthTests);
+    return {
+      label: monthStart.toLocaleDateString(undefined, { month: "short" }),
+      gpa: monthTests.length ? averageToGpa(averageGrade) : 0,
+      count: monthTests.length
+    };
+  });
+  const summaryDataRows = summaryMonthly.filter((row) => row.count > 0);
+  const lastRow = summaryDataRows[summaryDataRows.length - 1];
+  const previousRow = summaryDataRows[summaryDataRows.length - 2];
+  const trendDelta = lastRow && previousRow ? lastRow.gpa - previousRow.gpa : null;
+  const highestPoint = series.flatMap((lineSeries) => lineSeries.monthly
+    .filter((row) => row.count > 0)
+    .map((row) => ({ label: lineSeries.label, month: row.label, value: row.gpa })))
+    .sort((a, b) => b.value - a.value)[0];
+  const lowestPoint = series.flatMap((lineSeries) => lineSeries.monthly
+    .filter((row) => row.count > 0)
+    .map((row) => ({ label: lineSeries.label, month: row.label, value: row.gpa })))
+    .sort((a, b) => a.value - b.value)[0];
+  const averageValue = summaryDataRows.length ? avg(summaryDataRows.map((row) => row.gpa)) : null;
+  const deltaLabel = trendDelta === null ? "No prior month" : `${trendDelta >= 0 ? "+" : ""}${trendDelta.toFixed(2)}`;
+  const deltaClass = trendDelta === null ? "neutral" : (trendDelta >= 0 ? "positive" : "negative");
+  const trendIconSvg = trendDelta === null
+    ? `<svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M15 8l4 4-4 4"/></svg>`
+    : (trendDelta >= 0
+      ? `<svg viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8"/><path d="M16 8h4v4"/></svg>`
+      : `<svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg>`);
+  const summaryHtml = `
+    <div class="trend-summary-strip">
+      <div class="trend-summary-card ${deltaClass}">
+        <span class="trend-summary-icon" aria-hidden="true">${trendIconSvg}</span>
+        <div><span>Overall Trend ${lastRow ? `(${escapeHtml(lastRow.label)})` : ""}</span><strong>${deltaLabel}</strong><small>${previousRow ? `vs. ${escapeHtml(previousRow.label)}` : "Need another month"}</small></div>
+      </div>
+      <div class="trend-summary-card positive">
+        <span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M5 5H3v2a4 4 0 0 0 4 4"/><path d="M19 5h2v2a4 4 0 0 1-4 4"/></svg></span>
+        <div><span>Highest GPA</span><strong>${highestPoint ? highestPoint.value.toFixed(2) : "-"}</strong><small>${highestPoint ? `${escapeHtml(highestPoint.label)} (${escapeHtml(highestPoint.month)})` : "No grades"}</small></div>
+      </div>
+      <div class="trend-summary-card negative">
+        <span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7l5 5 4-4 7 8"/><path d="M16 16h4v-4"/></svg></span>
+        <div><span>Lowest GPA</span><strong>${lowestPoint ? lowestPoint.value.toFixed(2) : "-"}</strong><small>${lowestPoint ? `${escapeHtml(lowestPoint.label)} (${escapeHtml(lowestPoint.month)})` : "No grades"}</small></div>
+      </div>
+      <div class="trend-summary-card neutral">
+        <span class="trend-summary-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V10"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span>
+        <div><span>${months.length}-Month Average</span><strong>${averageValue === null ? "-" : averageValue.toFixed(2)}</strong><small>${selectedStudentIds.length ? `${selectedStudentIds.length} selected students` : "All Students"}</small></div>
+      </div>
+    </div>`;
+
   chartHost.innerHTML = `
+    <div class="trend-chart-panel">
+      <div class="trend-chart-toolbar">
+        <div class="trend-view-toggle" aria-label="GPA trend chart view">
+          <button type="button" data-gpa-trend-view="line" class="${gpaTrendViewMode === "line" ? "active" : ""}">Line View</button>
+          <button type="button" data-gpa-trend-view="area" class="${gpaTrendViewMode === "area" ? "active" : ""}">Area View</button>
+        </div>
+        <label class="trend-data-toggle"><span>Show Data Points</span><input id="gpa-trend-data-points-toggle" type="checkbox"${gpaTrendShowDataPoints ? " checked" : ""}><span aria-hidden="true"></span></label>
+      </div>
     <svg viewBox="0 0 ${width} ${height}" class="trend-chart" role="img" aria-label="Monthly GPA trend line chart">
+      <defs>
+        <filter id="gradeTrendGlow" x="-15%" y="-40%" width="130%" height="180%"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
       <line x1="${margin.left}" y1="${(height - margin.bottom).toFixed(2)}" x2="${(width - margin.right).toFixed(2)}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
       <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${(height - margin.bottom).toFixed(2)}" class="trend-axis"></line>
       ${yTickSvg}
       ${xTickSvg}
+      ${areaSvg}
       ${lineSvg}
       ${pointSvg}
       ${valueLabelSvg}
+      ${monthHoverZoneSvg}
       ${noData}
       <text x="${(width / 2).toFixed(2)}" y="${(height - 8).toFixed(2)}" text-anchor="middle" class="trend-axis-title">Month</text>
       <text x="16" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 16 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">GPA (${currentGpaMax().toFixed(1)} scale)</text>
     </svg>
-    ${legendHtml}`;
+    ${legendHtml}
+    </div>
+    ${summaryHtml}`;
 }
 
 function renderInstructionHoursTrending() {
@@ -12659,11 +12789,12 @@ function renderWorkDistributionChart() {
     return;
   }
 
-  const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
-  const size = 560;
-  const cx = 280;
-  const cy = 280;
-  const radius = 215;
+  const palette = ["#a36122", "#2f7a43", "#245b8d", "#a6383c", "#b88709", "#6c3ba1", "#3a837f", "#f5660a"];
+  const size = 620;
+  const cx = 310;
+  const cy = 310;
+  const outerRadius = 260;
+  const innerRadius = 118;
 
   function polarToCartesian(centerX, centerY, r, angleDeg) {
     const angleRad = ((angleDeg - 90) * Math.PI) / 180;
@@ -12673,11 +12804,19 @@ function renderWorkDistributionChart() {
     };
   }
 
-  function arcPath(centerX, centerY, r, startAngle, endAngle) {
-    const start = polarToCartesian(centerX, centerY, r, endAngle);
-    const end = polarToCartesian(centerX, centerY, r, startAngle);
+  function donutArcPath(centerX, centerY, outerR, innerR, startAngle, endAngle) {
+    const outerStart = polarToCartesian(centerX, centerY, outerR, endAngle);
+    const outerEnd = polarToCartesian(centerX, centerY, outerR, startAngle);
+    const innerStart = polarToCartesian(centerX, centerY, innerR, startAngle);
+    const innerEnd = polarToCartesian(centerX, centerY, innerR, endAngle);
     const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-    return `M ${centerX} ${centerY} L ${start.x.toFixed(2)} ${start.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 0 ${end.x.toFixed(2)} ${end.y.toFixed(2)} Z`;
+    return [
+      `M ${outerStart.x.toFixed(2)} ${outerStart.y.toFixed(2)}`,
+      `A ${outerR} ${outerR} 0 ${largeArc} 0 ${outerEnd.x.toFixed(2)} ${outerEnd.y.toFixed(2)}`,
+      `L ${innerStart.x.toFixed(2)} ${innerStart.y.toFixed(2)}`,
+      `A ${innerR} ${innerR} 0 ${largeArc} 1 ${innerEnd.x.toFixed(2)} ${innerEnd.y.toFixed(2)}`,
+      "Z"
+    ].join(" ");
   }
 
   let currentAngle = 0;
@@ -12690,36 +12829,64 @@ function renderWorkDistributionChart() {
     return {
       subject,
       count,
+      pctValue,
       pctText: `${pctValue.toFixed(1)}%`,
       color,
       isFull: pctValue >= 99.999,
-      path: arcPath(cx, cy, radius, startAngle, endAngle)
+      startAngle,
+      endAngle,
+      path: donutArcPath(cx, cy, outerRadius, innerRadius, startAngle, endAngle)
     };
   });
 
   const sliceSvg = slices.map((slice) =>
     slice.isFull
-      ? `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="${slice.color}" stroke="#ffffff" stroke-width="1"><title>${slice.subject}: ${slice.count} (${slice.pctText})</title></circle>`
-      : `<path d="${slice.path}" fill="${slice.color}" stroke="#ffffff" stroke-width="1"><title>${slice.subject}: ${slice.count} (${slice.pctText})</title></path>`
+      ? `<circle cx="${cx}" cy="${cy}" r="${(outerRadius + innerRadius) / 2}" fill="none" stroke="${slice.color}" stroke-width="${outerRadius - innerRadius}" class="work-dist-donut-slice"><title>${slice.subject}: ${slice.count} (${slice.pctText})</title></circle>`
+      : `<path d="${slice.path}" fill="${slice.color}" stroke="#ffffff" stroke-width="3" class="work-dist-donut-slice"><title>${slice.subject}: ${slice.count} (${slice.pctText})</title></path>`
   ).join("");
 
-  const labelSvg = slices.map((slice, idx) => {
-    const startAngle = idx === 0 ? 0 : slices.slice(0, idx).reduce((sum, s) => sum + ((s.count / total) * 360), 0);
-    const endAngle = startAngle + ((slice.count / total) * 360);
-    const midAngle = (startAngle + endAngle) / 2;
-    const point = polarToCartesian(cx, cy, radius * 0.62, midAngle);
-    const textColor = "#1a1a1a";
-    return `<text x="${point.x.toFixed(2)}" y="${point.y.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" class="pie-slice-label" fill="${textColor}">${slice.subject} ${slice.pctText}</text>`;
+  const labelSvg = slices.map((slice) => {
+    if (slice.pctValue < 4) return "";
+    const midAngle = (slice.startAngle + slice.endAngle) / 2;
+    const point = polarToCartesian(cx, cy, (outerRadius + innerRadius) / 2, midAngle);
+    return `<g class="work-dist-donut-label"><svg x="${(point.x - 15).toFixed(2)}" y="${(point.y - 37).toFixed(2)}" width="30" height="30" viewBox="0 0 24 24" class="work-dist-slice-icon" aria-hidden="true">${workDistributionSubjectIconPaths(slice.subject)}</svg><text x="${point.x.toFixed(2)}" y="${(point.y + 16).toFixed(2)}" text-anchor="middle">${slice.pctText}</text></g>`;
   }).join("");
 
+  const maxPct = Math.max(...slices.map((slice) => slice.pctValue), 1);
+  const rowsHtml = slices.map((slice) => `
+    <article class="work-dist-breakdown-row" style="--work-color:${slice.color};--work-width:${((slice.pctValue / maxPct) * 100).toFixed(1)}%">
+      <span class="work-dist-breakdown-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${workDistributionSubjectIconPaths(slice.subject)}</svg></span>
+      <div class="work-dist-breakdown-main">
+        <span>${escapeHtml(slice.subject)}</span>
+        <i><b></b></i>
+      </div>
+      <strong>${slice.pctText}</strong>
+    </article>`).join("");
+
   chartHost.innerHTML = `
-    <div class="pie-wrap">
-      <svg viewBox="0 0 ${size} ${size}" class="pie-chart" role="img" aria-label="Work distribution by subject">
-        ${sliceSvg}
-        ${labelSvg}
-      </svg>
-      <div class="pie-total">Total Grades: ${total}</div>
-      <div class="muted">Grade Types: ${escapeHtml(selectedGradeTypeLabel)}</div>
+    <div class="work-dist-chart-panel">
+      <div class="work-dist-donut-stage">
+        <svg viewBox="0 0 ${size} ${size}" class="work-dist-donut-chart" role="img" aria-label="Work distribution by subject">
+          <defs>
+            <filter id="workDistributionGlow" x="-18%" y="-18%" width="136%" height="136%"><feDropShadow dx="0" dy="16" stdDeviation="12" flood-color="#17243d" flood-opacity="0.16"/></filter>
+          </defs>
+          <g filter="url(#workDistributionGlow)">
+            ${sliceSvg}
+          </g>
+          ${labelSvg}
+        </svg>
+        <div class="work-dist-donut-center" aria-hidden="true">
+          <span><svg viewBox="0 0 24 24"><path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/></svg></span>
+          <em>Total Work</em>
+          <strong>100%</strong>
+          <small>${total} grades</small>
+        </div>
+      </div>
+      <div class="work-dist-breakdown">
+        <div class="work-dist-breakdown-header"><span>Work Type</span><span>Percentage</span></div>
+        ${rowsHtml}
+        <div class="work-dist-breakdown-total"><span>Total</span><strong>100%</strong></div>
+      </div>
     </div>`;
 }
 
@@ -19141,6 +19308,26 @@ function bindEvents() {
       renderGpaTrending();
     });
   }
+  document.getElementById("gpa-trending-chart")?.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const viewButton = target.closest("[data-gpa-trend-view]");
+    if (viewButton instanceof HTMLElement) {
+      const view = viewButton.getAttribute("data-gpa-trend-view");
+      if (view === "line" || view === "area") {
+        gpaTrendViewMode = view;
+        renderGpaTrending();
+      }
+    }
+  });
+  document.getElementById("gpa-trending-chart")?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.id === "gpa-trend-data-points-toggle") {
+      gpaTrendShowDataPoints = target.checked;
+      renderGpaTrending();
+    }
+  });
   ["instruction-hours-trend-filter-quarter", "instruction-hours-trend-filter-subject", "instruction-hours-trend-filter-instructor"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => renderInstructionHoursTrending());
