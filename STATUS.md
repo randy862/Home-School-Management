@@ -31,6 +31,7 @@ Modern preview polish in `/modern-design/`.
 - Compliance > Required Subjects now includes Required Subject Compliance with course/class rows, distribution bars, active-student summary cards, Student multi-select and Compliance filters, and Students-page count links.
 - Administration > Workspace Configuration > Dashboard Visibility now mirrors Dashboard tabs/subtabs and exposes one configurable flag per current dashboard gauge/section.
 - Hosted workspace-config normalization now preserves unchecked split Dashboard Visibility flags after Save Configuration.
+- Printable Student and Instructor reports now use a branded Navigrader report frame with the header logo, generated timestamp, polished report tables/cards, and `https://www.navigrader.com` footer.
 - Current web assets were deployed to `https://mitchell.navigrader.com/modern-design/` and `https://mitchell.navigrader.com/modern-preview/`.
 
 ## Current Blockers
@@ -45,5 +46,5 @@ Modern preview polish in `/modern-design/`.
 
 ## Next Actions
 
-1. Smoke-test Administration > Workspace Configuration > Dashboard Visibility save/reload behavior after deselecting gauges.
+1. Smoke-test Reports by generating Student and Instructor reports and checking logo/URL/print layout.
 2. Keep live app unchanged unless replacement is explicitly approved.

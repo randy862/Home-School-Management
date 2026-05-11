@@ -40,16 +40,17 @@ Completed this session:
 - Added Required Subject Compliance analytic to Compliance > Required Subjects with subject rows, course/class lists, distribution bars, active-student summary cards, Student multi-select and Compliance filters, and Students-page count links.
 - Updated Administration > Workspace Configuration > Dashboard Visibility to mirror Overview, Execution, Performance, and Compliance subtabs with one configurable flag per current dashboard gauge/section.
 - Fixed hosted workspace-config normalization so newly split Dashboard Visibility flags persist when unchecked and are not re-applied after Save Configuration.
+- Restyled printable Student and Instructor reports with the Navigrader header logo, branded page frame, polished tables/cards, generated timestamp, and `https://www.navigrader.com` footer.
 - Deployed current web assets to `/modern-design/` and `/modern-preview/`.
 
 Current local cache keys:
 
-- `styles.css?v=202605110902`
-- `app.js?v=202605110902`
+- `styles.css?v=202605110941`
+- `app.js?v=202605110941`
 
 ## Next Action
 
-Smoke-test Administration > Workspace Configuration > Dashboard Visibility save/reload behavior after deselecting gauges:
+Smoke-test Reports by generating Student and Instructor reports and checking logo/URL/print layout:
 
 `https://mitchell.navigrader.com/modern-design/`
 
@@ -66,9 +67,7 @@ Smoke-test Administration > Workspace Configuration > Dashboard Visibility save/
 ## Validation
 
 - `node --check web/app.js`
-- `node --check server/src/services/workspace-config-service.js`
 - `git diff --check`
-- `curl.exe -s https://mitchell.navigrader.com/modern-design/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605110902','app.js?v=202605110902','Overview Tab','Compliance Tab / Instructional Hours','Compliance Tab / Instructional Days','Compliance Tab / Required Subjects','admin-config-dashboard-show-required-subject-compliance'`
-- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605110902','app.js?v=202605110902','Overview Tab','Compliance Tab / Instructional Hours','Compliance Tab / Instructional Days','Compliance Tab / Required Subjects','admin-config-dashboard-show-required-subject-compliance'`
-- `curl.exe -s "https://mitchell.navigrader.com/modern-design/app.js?v=202605110902" | Select-String -SimpleMatch -Pattern 'showOverviewInstructionDays','showStudentGradeTrending','showInstructorGradeTrending','showRequiredInstructionalDays','showInstructionDaysTrending','showRequiredSubjectCompliance'`
-- Deployed `server/src/services/workspace-config-service.js` to APP001 and restarted `hsm-api.service`; `curl.exe -k -s https://192.168.1.210/health` returned `{"ok":true}`.
+- `curl.exe -s https://mitchell.navigrader.com/modern-design/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605110941','app.js?v=202605110941'`
+- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605110941','app.js?v=202605110941'`
+- `curl.exe -s "https://mitchell.navigrader.com/modern-design/app.js?v=202605110941" | Select-String -SimpleMatch -Pattern 'REPORT_WEBSITE_URL = "https://www.navigrader.com"','REPORT_LOGO_PATH = "assets/Mitchell_Logo.png"','Student Academic Report','report-page-footer','Created with Navigrader'`

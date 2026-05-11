@@ -6851,6 +6851,194 @@ function reportInstructorOverviewRows(range, instructorId = "all") {
     .sort((a, b) => a.instructorName.localeCompare(b.instructorName));
 }
 
+const REPORT_WEBSITE_URL = "https://www.navigrader.com";
+const REPORT_LOGO_PATH = "assets/Mitchell_Logo.png";
+
+function reportAssetUrl(path) {
+  try {
+    return new URL(path, window.location.href).href;
+  } catch {
+    return path;
+  }
+}
+
+function reportGeneratedTimestamp() {
+  return new Date().toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+function reportInitials(name) {
+  return String(name || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "NG";
+}
+
+function reportAccentColor(index) {
+  const palette = ["#2563eb", "#7c3aed", "#16a34a", "#b45309", "#0f766e", "#dc2626", "#0f4c81"];
+  return palette[index % palette.length];
+}
+
+function reportPersonBadge(name, index = 0, extraClass = "") {
+  const color = reportAccentColor(index);
+  return `<span class="report-person-badge ${extraClass}" style="--badge-color:${color}"><span>${escapeHtml(reportInitials(name))}</span><strong>${escapeHtml(name)}</strong></span>`;
+}
+
+function reportSectionHeading(title, subtitle = "", icon = "book") {
+  const icons = {
+    book: `<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H7a3 3 0 0 0-3 3z"/><path d="M4 5.5V21"/><path d="M8 7h8"/><path d="M8 11h8"/>`,
+    chart: `<path d="M4 19V5"/><path d="M8 19v-7"/><path d="M12 19V8"/><path d="M16 19v-4"/><path d="M20 19v-9"/>`,
+    clock: `<circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/>`,
+    scales: `<path d="M12 3v18"/><path d="M5 7h14"/><path d="M6 7l-3 6h6z"/><path d="M18 7l-3 6h6z"/>`,
+    shield: `<path d="M12 3 5 6v5c0 4.7 2.8 8.4 7 10 4.2-1.6 7-5.3 7-10V6z"/><path d="m8.5 12 2.3 2.3 4.8-5"/>`,
+    user: `<path d="M18 20a6 6 0 0 0-12 0"/><circle cx="12" cy="8" r="4"/>`
+  };
+  return `<div class="report-section-heading">
+    <span class="report-section-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${icons[icon] || icons.book}</svg></span>
+    <div><h1>${escapeHtml(title)}</h1>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}</div>
+  </div>`;
+}
+
+function reportMetaList(items = []) {
+  return `<div class="report-meta-list">${items
+    .filter((item) => item && item.label)
+    .map((item) => `<span><strong>${escapeHtml(item.label)}</strong>${escapeHtml(item.value || "-")}</span>`)
+    .join("")}</div>`;
+}
+
+function buildReportPage({ title, subtitle = "", icon = "book", body = "", metaItems = [], pageNumber = 1, totalPages = 1, className = "" }) {
+  const logoUrl = reportAssetUrl(REPORT_LOGO_PATH);
+  const breakClass = pageNumber < totalPages ? " report-page-break" : "";
+  return `<section class="report-page${breakClass} ${className}">
+    <header class="report-page-header">
+      <img class="report-logo" src="${escapeHtml(logoUrl)}" alt="Navigrader">
+      <div class="report-generated"><span>Generated</span><strong>${escapeHtml(reportGeneratedTimestamp())}</strong></div>
+    </header>
+    ${reportSectionHeading(title, subtitle, icon)}
+    ${metaItems.length ? reportMetaList(metaItems) : ""}
+    <div class="report-page-body">${body}</div>
+    <footer class="report-page-footer">
+      <span>Created with Navigrader</span>
+      <a href="${REPORT_WEBSITE_URL}">${REPORT_WEBSITE_URL}</a>
+      <strong>Page ${pageNumber} of ${totalPages}</strong>
+    </footer>
+  </section>`;
+}
+
+function reportGradeBadge(letterGrade) {
+  const letter = String(letterGrade || "-").trim() || "-";
+  const gradeClass = letter === "A" ? "grade-a" : (letter === "B" ? "grade-b" : (letter === "C" ? "grade-c" : (letter === "D" || letter === "F" ? "grade-d" : "")));
+  return `<span class="report-grade-badge ${gradeClass}">${escapeHtml(letter)}</span>`;
+}
+
+function reportMetricCard(label, value, note, tone = "blue", icon = "chart") {
+  return `<article class="report-metric-card ${tone}">
+    <span class="report-metric-icon" aria-hidden="true">${reportSectionHeading("", "", icon).match(/<svg[\s\S]*<\/svg>/)?.[0] || ""}</span>
+    <div><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong><em>${escapeHtml(note)}</em></div>
+  </article>`;
+}
+
+function buildReportDocument({ title, toolbarTitle, toolbarSubtitle, pagesHtml }) {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { size: letter; margin: 0.35in; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #edf3f8; color: #061744; font-family: "Segoe UI", Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .report-shell { max-width: 1120px; margin: 0 auto; padding: 24px; }
+    .report-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 16px; padding: 12px 14px; border: 1px solid #d9e4f0; border-radius: 14px; background: #ffffff; box-shadow: 0 12px 26px rgba(15, 35, 72, 0.08); }
+    .report-toolbar strong { display: block; color: #061744; font-size: 1rem; }
+    .report-toolbar span { color: #4f6280; font-size: 0.86rem; }
+    .report-toolbar button { min-height: 38px; border: 0; border-radius: 10px; padding: 0 16px; background: #155bc3; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+    .report-page { position: relative; min-height: 10.25in; margin: 0 0 20px; padding: 28px 28px 54px; border: 1px solid #d8e2ee; border-radius: 4px; background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 34%), #ffffff; box-shadow: 0 12px 30px rgba(10, 28, 62, 0.08); overflow: hidden; }
+    .report-page-break { break-after: page; page-break-after: always; }
+    .report-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 20px; }
+    .report-logo { width: 150px; max-height: 42px; object-fit: contain; object-position: left center; }
+    .report-generated { color: #51637f; font-size: 0.72rem; line-height: 1.35; text-align: right; }
+    .report-generated span { display: block; text-transform: uppercase; letter-spacing: 0.08em; }
+    .report-generated strong { color: #061744; font-size: 0.78rem; }
+    .report-section-heading { display: flex; align-items: center; gap: 0.75rem; margin: 0 0 14px; }
+    .report-section-icon { display: inline-grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; border-radius: 12px; background: #eaf2ff; color: #155bc3; }
+    .report-section-icon svg, .report-metric-icon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .report-section-heading h1 { margin: 0; color: #061744; font-size: 1.85rem; line-height: 1.05; letter-spacing: 0; text-transform: uppercase; }
+    .report-section-heading p { margin: 0.24rem 0 0; color: #48607f; font-size: 0.86rem; }
+    .report-meta-list { display: flex; flex-wrap: wrap; gap: 0.55rem 1rem; margin: 0 0 18px; color: #061744; font-size: 0.84rem; }
+    .report-meta-list span { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .report-meta-list strong { color: #51637f; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .report-page-body { display: grid; gap: 18px; }
+    .report-subsection { margin-top: 0; }
+    .report-subsection-title { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 10px; color: #061744; font-size: 0.94rem; font-weight: 900; letter-spacing: 0.02em; text-transform: uppercase; }
+    .report-subsection-title::after { content: ""; height: 1px; flex: 1; background: #cfdae8; }
+    .report-student-chip-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.65rem; }
+    .report-person-badge { display: inline-flex; align-items: center; gap: 0.55rem; min-height: 40px; padding: 0.42rem 0.6rem; border: 1px solid #dce6f2; border-radius: 10px; background: rgba(255,255,255,0.82); color: #061744; font-size: 0.82rem; font-weight: 800; box-shadow: 0 8px 18px rgba(15, 35, 72, 0.05); }
+    .report-person-badge > span { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; background: var(--badge-color); color: #fff; font-size: 0.66rem; font-weight: 900; }
+    .report-metric-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.72rem; }
+    .report-metric-grid-compact { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .report-metric-card { min-height: 106px; padding: 0.78rem; border: 1px solid #dce6f2; border-radius: 10px; background: linear-gradient(180deg, #ffffff, #f8fbff); }
+    .report-metric-card .report-metric-icon { display: inline-grid; place-items: center; width: 34px; height: 34px; margin-bottom: 0.5rem; border-radius: 10px; background: #eef5ff; color: #155bc3; }
+    .report-metric-card.green .report-metric-icon { background: #eaf8f0; color: #15803d; }
+    .report-metric-card.gold .report-metric-icon { background: #fff7df; color: #b7791f; }
+    .report-metric-card small { display: block; color: #51637f; font-size: 0.62rem; font-weight: 900; text-transform: uppercase; }
+    .report-metric-card strong { display: block; margin-top: 0.32rem; color: #061744; font-size: 1.45rem; line-height: 1; }
+    .report-metric-card em { display: block; margin-top: 0.4rem; color: #48607f; font-size: 0.68rem; font-style: normal; font-weight: 700; }
+    .report-metric-card.green strong, .report-metric-card.green em { color: #15803d; }
+    .report-table-scroll { width: 100%; overflow: hidden; border: 1px solid #d9e4f0; border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; color: #061744; font-size: 0.76rem; table-layout: fixed; }
+    .report-table { table-layout: fixed; }
+    th, td { padding: 0.5rem 0.62rem; border-right: 1px solid #d9e4f0; border-bottom: 1px solid #d9e4f0; text-align: center; vertical-align: middle; overflow-wrap: anywhere; }
+    th:last-child, td:last-child { border-right: 0; }
+    tbody tr:last-child td { border-bottom: 0; }
+    th { background: #f5f8fc; color: #061744; font-size: 0.66rem; font-weight: 900; }
+    th:first-child, td:first-child { text-align: left; }
+    .report-grade-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; min-height: 22px; border-radius: 999px; background: #e8eef6; color: #3d506c; font-weight: 900; }
+    .report-grade-badge.grade-a { background: #dff5e5; color: #15803d; }
+    .report-grade-badge.grade-b { background: #ffe9b8; color: #a16207; }
+    .report-grade-badge.grade-c { background: #ffe0bf; color: #b45309; }
+    .report-grade-badge.grade-d { background: #ffd7d7; color: #b91c1c; }
+    .report-muted-box { display: grid; place-items: center; min-height: 70px; padding: 1rem; border: 1px solid #dce6f2; border-radius: 10px; background: #f8fbff; color: #51637f; text-align: center; }
+    .report-total-line { margin: -6px 0 0; padding: 0.72rem 0.9rem; border: 1px solid #d9e4f0; border-top: 0; border-radius: 0 0 10px 10px; color: #061744; font-size: 0.84rem; font-weight: 900; text-align: right; }
+    .report-note-box { display: flex; align-items: center; gap: 0.75rem; min-height: 76px; padding: 0.9rem; border: 1px solid #dce6f2; border-radius: 10px; background: #f8fbff; color: #48607f; font-size: 0.78rem; }
+    .report-page-footer { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr auto auto; gap: 1rem; align-items: center; min-height: 34px; padding: 0 22px; background: #0d376d; color: #ffffff; font-size: 0.72rem; }
+    .report-page-footer a { color: #ffffff; font-weight: 800; text-decoration: none; }
+    .report-page-footer strong { font-size: 0.72rem; }
+    @media (max-width: 900px) {
+      .report-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .report-section-heading h1 { font-size: 1.42rem; }
+    }
+    @media print {
+      body { background: #ffffff; }
+      .report-shell { max-width: none; padding: 0; }
+      .report-toolbar { display: none; }
+      .report-page { min-height: 10.25in; margin: 0; border: 1px solid #d8e2ee; box-shadow: none; page-break-inside: avoid; }
+      .report-page-break { break-after: page; page-break-after: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-shell">
+    <div class="report-toolbar">
+      <div>
+        <strong>${escapeHtml(toolbarTitle)}</strong>
+        <span>${escapeHtml(toolbarSubtitle)}</span>
+      </div>
+      <button type="button" onclick="window.print()">Print</button>
+    </div>
+    ${pagesHtml}
+  </div>
+</body>
+</html>`;
+}
+
 function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "all" }) {
   const titlePeriod = range.quarter ? `${range.schoolYear.label} | ${range.quarter.name}` : `${range.schoolYear.label} | All Quarters`;
   const selectedStudentsLabel = studentIds.map((studentId) => getStudentName(studentId)).join(", ");
@@ -6864,7 +7052,7 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
   const attendanceRows = reportAttendanceRows(studentIds, range);
   const instructionalHourRows = reportInstructionalHourRows(studentIds, range, { instructorId });
   const summaryTableRows = summaryRows.length
-    ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${escapeHtml(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td><td>${row.attended}</td><td>${row.absent}</td><td>${row.instructionalDaysCompleted}</td><td>${row.instructionalHoursCompleted.toFixed(2)}</td></tr>`).join("")
+    ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td><td>${row.attended}</td><td>${row.absent}</td><td>${row.instructionalDaysCompleted}</td><td>${row.instructionalHoursCompleted.toFixed(2)}</td></tr>`).join("")
     : "<tr><td colspan='8'>No student summary data found for the selected filters.</td></tr>";
   const gradeTableRows = gradeRows.length
     ? gradeRows.map((row) => `<tr><td>${escapeHtml(row.student)}</td><td>${escapeHtml(row.subject)}</td><td>${escapeHtml(row.course)}</td><td>${row.date}</td><td>${escapeHtml(row.gradeType)}</td><td>${escapeHtml(row.grade)}</td></tr>`).join("")
@@ -6878,23 +7066,27 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
       });
       return Array.from(groupedRows.entries()).map(([student, rows]) => {
         const tableRows = rows
-          .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${row.count ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${escapeHtml(row.letterGrade || "-")}</td><td>${row.count ? row.gpa.toFixed(2) : "-"}</td></tr>`)
+          .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${row.count ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.count ? row.gpa.toFixed(2) : "-"}</td></tr>`)
           .join("");
         return `
-          <h2>${escapeHtml(student)}</h2>
-          <table class="report-table report-table-course-summary">
-            <colgroup>
-              <col style="width:39%">
-              <col style="width:26%">
-              <col style="width:23%">
-              <col style="width:12%">
-            </colgroup>
-            <thead><tr><th>Course</th><th>Average Score</th><th>Letter Grade</th><th>GPA</th></tr></thead>
-            <tbody>${tableRows}</tbody>
-          </table>`;
+          <section class="report-subsection">
+            ${reportPersonBadge(student, Array.from(groupedRows.keys()).indexOf(student))}
+            <div class="report-table-scroll">
+              <table class="report-table report-table-course-summary">
+                <colgroup>
+                  <col style="width:39%">
+                  <col style="width:26%">
+                  <col style="width:23%">
+                  <col style="width:12%">
+                </colgroup>
+                <thead><tr><th>Course</th><th>Average Score</th><th>Letter Grade</th><th>GPA</th></tr></thead>
+                <tbody>${tableRows}</tbody>
+              </table>
+            </div>
+          </section>`;
       }).join("");
     })()
-    : "<p>No course summary data found for the selected filters.</p>";
+    : "<div class=\"report-muted-box\">No course summary data found for the selected filters.</div>";
   const studentCourseDetailSections = studentCourseDetailRows.length
     ? (() => {
       const groupedRows = new Map();
@@ -6907,22 +7099,26 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
           .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${escapeHtml(row.materialType)}</td><td>${escapeHtml(row.isbn)}</td><td>${escapeHtml(row.title)}</td><td>${escapeHtml(row.publisher)}</td><td>${escapeHtml(row.other)}</td></tr>`)
           .join("");
         return `
-          <h2>${escapeHtml(student)}</h2>
-          <table class="report-table report-table-course-details">
-            <colgroup>
-              <col style="width:24%">
-              <col style="width:16%">
-              <col style="width:16%">
-              <col style="width:20%">
-              <col style="width:14%">
-              <col style="width:10%">
-            </colgroup>
-            <thead><tr><th>Course</th><th>Material Type</th><th>ISBN</th><th>Title</th><th>Publisher</th><th>Other</th></tr></thead>
-            <tbody>${tableRows}</tbody>
-          </table>`;
+          <section class="report-subsection">
+            ${reportPersonBadge(student, Array.from(groupedRows.keys()).indexOf(student))}
+            <div class="report-table-scroll">
+              <table class="report-table report-table-course-details">
+                <colgroup>
+                  <col style="width:24%">
+                  <col style="width:16%">
+                  <col style="width:16%">
+                  <col style="width:20%">
+                  <col style="width:14%">
+                  <col style="width:10%">
+                </colgroup>
+                <thead><tr><th>Course</th><th>Material Type</th><th>ISBN</th><th>Title</th><th>Publisher</th><th>Other</th></tr></thead>
+                <tbody>${tableRows}</tbody>
+              </table>
+            </div>
+          </section>`;
       }).join("");
     })()
-    : "<p>No course material details found for the selected filters.</p>";
+    : "<div class=\"report-muted-box\">No course material details found for the selected filters.</div>";
   const gradeWeightingTableRows = configuredWeights.length
     ? configuredWeights.map((gradeType) => `<tr><td>${escapeHtml(gradeType.name)}</td><td>${gradeType.weight == null ? "Not set" : `${Number(gradeType.weight).toFixed(1)}%`}</td></tr>`).join("")
     : "<tr><td colspan='2'>No grade weighting configured.</td></tr>";
@@ -6942,145 +7138,158 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
           .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${row.instructionalHours.toFixed(2)}</td></tr>`)
           .join("");
         return `
-          <h2>${escapeHtml(student)}</h2>
-          <table class="report-table report-table-instruction-hours">
-            <colgroup>
-              <col style="width:74%">
-              <col style="width:26%">
-            </colgroup>
-            <thead><tr><th>Course</th><th>Instructional Hours</th></tr></thead>
-            <tbody>${tableRows}</tbody>
-          </table>
-          <p class="report-meta"><strong>${escapeHtml(student)} Total Instructional Hours:</strong> ${studentTotal.toFixed(2)}</p>`;
+          <section class="report-subsection">
+            ${reportPersonBadge(student, Array.from(groupedRows.keys()).indexOf(student))}
+            <div class="report-table-scroll">
+              <table class="report-table report-table-instruction-hours">
+                <colgroup>
+                  <col style="width:74%">
+                  <col style="width:26%">
+                </colgroup>
+                <thead><tr><th>Course</th><th>Instructional Hours</th></tr></thead>
+                <tbody>${tableRows}</tbody>
+              </table>
+            </div>
+            <p class="report-total-line">${escapeHtml(student)} Total Instructional Hours: ${studentTotal.toFixed(2)}</p>
+          </section>`;
       }).join("");
     })()
-    : "<p>No instructional hours found for the selected filters.</p>";
+    : "<div class=\"report-muted-box\">No instructional hours found for the selected filters.</div>";
   const totalInstructionalHours = instructionalHourRows.reduce((sum, row) => sum + row.instructionalHours, 0);
+  const gradedSummaryRows = summaryRows.filter((row) => row.gradeCount);
+  const averageScore = gradedSummaryRows.length
+    ? gradedSummaryRows.reduce((sum, row) => sum + row.averageScore, 0) / gradedSummaryRows.length
+    : 0;
+  const averageGpa = gradedSummaryRows.length
+    ? gradedSummaryRows.reduce((sum, row) => sum + row.gpa, 0) / gradedSummaryRows.length
+    : 0;
+  const attendedTotal = summaryRows.reduce((sum, row) => sum + row.attended, 0);
+  const absentTotal = summaryRows.reduce((sum, row) => sum + row.absent, 0);
+  const attendanceRate = attendedTotal + absentTotal ? (attendedTotal / (attendedTotal + absentTotal)) * 100 : 0;
+  const allRequiredSubjectsComplete = studentIds.every((studentId) => studentHasAllRequiredSubjects(studentId));
+  const reportMetaItems = [
+    { label: "School Year", value: range.schoolYear.label },
+    { label: "Quarter", value: range.quarter ? range.quarter.name : "All Quarters" },
+    { label: "Instructor", value: selectedInstructorLabel }
+  ];
+  const studentChipRows = `<div class="report-student-chip-row">${studentIds.map((studentId, index) => reportPersonBadge(getStudentName(studentId), index)).join("")}</div>`;
+  const executiveSummaryCards = `<div class="report-metric-grid">
+    ${reportMetricCard("Average GPA", gradedSummaryRows.length ? averageGpa.toFixed(2) : "-", `Across ${studentIds.length} student${studentIds.length === 1 ? "" : "s"}`, "blue", "chart")}
+    ${reportMetricCard("Average Score", gradedSummaryRows.length ? `${averageScore.toFixed(1)}%` : "-", `Across ${studentIds.length} student${studentIds.length === 1 ? "" : "s"}`, "green", "shield")}
+    ${reportMetricCard("Attendance Rate", attendedTotal + absentTotal ? `${attendanceRate.toFixed(1)}%` : "-", `${attendedTotal} present / ${absentTotal} absent`, "blue", "clock")}
+    ${reportMetricCard("Instructional Hours", totalInstructionalHours.toFixed(2), "Total completed", "gold", "clock")}
+    ${reportMetricCard("Compliance Status", allRequiredSubjectsComplete ? "On Track" : "Review", "Required subjects", allRequiredSubjectsComplete ? "green" : "gold", "shield")}
+  </div>`;
   const pageSections = [];
   const includesGradeContent = selectedContentIds.some((contentId) => ["studentSummary", "courseSummary", "detailedGrades"].includes(contentId));
 
   if (selectedContentIds.includes("studentSummary")) {
-    pageSections.push(`
-    <section class="report-page report-page-break">
-      <h1>Student Summary</h1>
-      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}<br>Instructor: ${escapeHtml(selectedInstructorLabel)}</p>
-      <table>
-        <thead><tr><th>Student Name</th><th>Average Scores</th><th>Letter Grade</th><th>GPA</th><th>Days Attended</th><th>Days Absent</th><th>Instructional Days Completed</th><th>Instructional Hours Completed</th></tr></thead>
-        <tbody>${summaryTableRows}</tbody>
-      </table>
-    </section>`);
+    pageSections.push({
+      title: "Student Academic Report",
+      subtitle: "Performance, attendance, and instructional summary",
+      icon: "book",
+      metaItems: reportMetaItems,
+      body: `
+        <section class="report-subsection">
+          <h2 class="report-subsection-title">Students Included</h2>
+          ${studentChipRows}
+        </section>
+        <section class="report-subsection">
+          <h2 class="report-subsection-title">Executive Summary</h2>
+          ${executiveSummaryCards}
+        </section>
+        <section class="report-subsection">
+          <h2 class="report-subsection-title">Student Summary</h2>
+          <div class="report-table-scroll">
+            <table>
+              <thead><tr><th>Student</th><th>Average Score</th><th>Letter Grade</th><th>GPA</th><th>Days Attended</th><th>Days Absent</th><th>Instructional Days Completed</th><th>Instructional Hours Completed</th></tr></thead>
+              <tbody>${summaryTableRows}</tbody>
+            </table>
+          </div>
+        </section>`,
+      className: "report-student-cover"
+    });
   }
 
   if (selectedContentIds.includes("courseSummary")) {
-    pageSections.push(`
-    <section class="report-page report-page-break">
-      <h1>Course Summary</h1>
-      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}<br>Instructor: ${escapeHtml(selectedInstructorLabel)}</p>
-      ${studentCourseSummarySections}
-    </section>`);
+    pageSections.push({
+      title: "Course Summary",
+      subtitle: "Course performance by student",
+      icon: "book",
+      metaItems: reportMetaItems,
+      body: studentCourseSummarySections
+    });
   }
 
   if (selectedContentIds.includes("courseDetails")) {
-    pageSections.push(`
-    <section class="report-page report-page-break">
-      <h1>Course Details</h1>
-      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}<br>Instructor: ${escapeHtml(selectedInstructorLabel)}</p>
-      ${studentCourseDetailSections}
-    </section>`);
+    pageSections.push({
+      title: "Course Details",
+      subtitle: "Course materials by student",
+      icon: "book",
+      metaItems: reportMetaItems,
+      body: studentCourseDetailSections
+    });
   }
 
   if (selectedContentIds.includes("detailedGrades")) {
-    pageSections.push(`
-    <section class="report-page report-page-break">
-      <h1>Detailed Grades</h1>
-      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}<br>Instructor: ${escapeHtml(selectedInstructorLabel)}</p>
-      <table>
+    pageSections.push({
+      title: "Detailed Grades",
+      subtitle: "Individual grade records",
+      icon: "chart",
+      metaItems: reportMetaItems,
+      body: `<div class="report-table-scroll"><table>
         <thead><tr><th>Student</th><th>Subject</th><th>Course</th><th>Date</th><th>Grade Type</th><th>Grade</th></tr></thead>
         <tbody>${gradeTableRows}</tbody>
-      </table>
-    </section>`);
+      </table></div>`
+    });
   }
 
   if (selectedContentIds.includes("detailedAttendance")) {
-    pageSections.push(`
-    <section class="report-page report-page-break">
-      <h1>Detailed Attendance</h1>
-      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}<br>Instructor: ${escapeHtml(selectedInstructorLabel)}</p>
-      <table>
+    pageSections.push({
+      title: "Detailed Attendance",
+      subtitle: "Attendance records by date",
+      icon: "clock",
+      metaItems: reportMetaItems,
+      body: `<div class="report-table-scroll"><table>
         <thead><tr><th>Student</th><th>Date</th><th>Attendance</th></tr></thead>
         <tbody>${attendanceTableRows}</tbody>
-      </table>
-    </section>`);
+      </table></div>`
+    });
   }
 
   if (selectedContentIds.includes("instructionalHours")) {
-    pageSections.push(`
-    <section class="report-page">
-      <h1>Instructional Hours</h1>
-      <p class="report-meta">Students: ${escapeHtml(selectedStudentsLabel)}<br>Period: ${escapeHtml(titlePeriod)}<br>Instructor: ${escapeHtml(selectedInstructorLabel)}</p>
-      ${instructionalHoursSections}
-      <p class="report-meta"><strong>Total Instructional Hours:</strong> ${totalInstructionalHours.toFixed(2)}</p>
-    </section>`);
+    pageSections.push({
+      title: "Instructional Hours",
+      subtitle: "Instructional hours completed by course",
+      icon: "clock",
+      metaItems: reportMetaItems,
+      body: `${instructionalHoursSections}<p class="report-total-line">Total Instructional Hours: ${totalInstructionalHours.toFixed(2)}</p>`
+    });
   }
 
   const gradeWeightingSection = `
       <section class="report-subsection report-subsection-grade-weighting">
-        <h2>Grade Weighting</h2>
-        <table>
-          <thead><tr><th>Grade Type</th><th>Weight</th></tr></thead>
-          <tbody>${gradeWeightingTableRows}</tbody>
-        </table>
+        <h2 class="report-subsection-title">Grade Weighting</h2>
+        <div class="report-table-scroll">
+          <table>
+            <thead><tr><th>Grade Type</th><th>Weight</th></tr></thead>
+            <tbody>${gradeWeightingTableRows}</tbody>
+          </table>
+        </div>
       </section>`;
   if (includesGradeContent && pageSections.length) {
-    pageSections[0] = pageSections[0].replace("</section>", `${gradeWeightingSection}
-    </section>`);
+    pageSections[0].body += gradeWeightingSection;
   }
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Student Report</title>
-  <style>
-    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #1f3551; margin: 0; background: #eef5fb; }
-    .report-shell { max-width: 1100px; margin: 0 auto; padding: 24px; }
-    .report-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .report-toolbar button { border: 0; border-radius: 8px; padding: 10px 16px; background: #1761ae; color: #fff; font: inherit; cursor: pointer; }
-    .report-page { background: #fff; border: 1px solid #c8d9ea; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(31, 47, 69, 0.08); }
-    .report-page.report-page-break { page-break-after: always; }
-    h1 { margin: 0 0 8px; font-size: 28px; }
-    h2 { margin: 20px 0 8px; font-size: 20px; }
-    .report-subsection-grade-weighting { margin-top: 20px; }
-    .report-meta { margin: 0 0 18px; color: #59718d; }
-    table { width: 100%; border-collapse: collapse; }
-    .report-page table + table { margin-top: 18px; }
-    .report-table { table-layout: fixed; }
-    th, td { border: 1px solid #c8d9ea; padding: 8px 10px; text-align: center; vertical-align: top; }
-    th:first-child, td:first-child { text-align: left; }
-    th { background: #f4f9ff; }
-    @media print {
-      body { background: #fff; }
-      .report-shell { max-width: none; padding: 0; }
-      .report-toolbar { display: none; }
-      .report-page { box-shadow: none; border: 0; border-radius: 0; margin: 0; padding: 0; }
-      .report-page.report-page-break { page-break-after: always; }
-    }
-  </style>
-</head>
-<body>
-  <div class="report-shell">
-    <div class="report-toolbar">
-      <div>
-        <strong>Student Report</strong><br>
-        <span>${escapeHtml(titlePeriod)}</span>
-      </div>
-      <button type="button" onclick="window.print()">Print</button>
-    </div>
-
-    ${pageSections.join("\n")}
-  </div>
-</body>
-</html>`;
+  const pagesHtml = pageSections
+    .map((section, index) => buildReportPage({ ...section, pageNumber: index + 1, totalPages: pageSections.length }))
+    .join("\n");
+  return buildReportDocument({
+    title: "Student Academic Report",
+    toolbarTitle: "Student Academic Report",
+    toolbarSubtitle: `${titlePeriod} | ${selectedInstructorLabel}`,
+    pagesHtml
+  });
 }
 
 function buildPrintableInstructorReportHtml({ range, instructorId = "all" }) {
@@ -7097,78 +7306,77 @@ function buildPrintableInstructorReportHtml({ range, instructorId = "all" }) {
   const detailTableRows = detailedRows.length
     ? detailedRows.map((row) => `<tr><td>${escapeHtml(row.instructorName)}</td><td>${escapeHtml(row.instructorCategory)}</td><td>${escapeHtml(row.courseName)}</td><td>${row.date}</td><td>${(row.minutes / 60).toFixed(2)}</td></tr>`).join("")
     : "<tr><td colspan='5'>No detailed instruction data found for the selected filters.</td></tr>";
+  const totalInstructionDays = overviewRows.reduce((sum, row) => sum + row.instructionDays, 0);
+  const totalInstructionHours = overviewRows.reduce((sum, row) => sum + row.instructionHours, 0);
+  const uniqueInstructorCount = overviewRows.length;
+  const averageHoursPerInstructor = uniqueInstructorCount ? totalInstructionHours / uniqueInstructorCount : 0;
+  const reportMetaItems = [
+    { label: "School Year", value: range.schoolYear.label },
+    { label: "Quarter", value: range.quarter ? range.quarter.name : "All Quarters" },
+    { label: "Instructor", value: selectedInstructorLabel }
+  ];
+  const instructorSummaryCards = `<div class="report-metric-grid report-metric-grid-compact">
+    ${reportMetricCard("Instructors", String(uniqueInstructorCount), "Included in report", "blue", "user")}
+    ${reportMetricCard("Instruction Days", String(totalInstructionDays), "Total taught days", "green", "clock")}
+    ${reportMetricCard("Instruction Hours", totalInstructionHours.toFixed(2), "Total taught hours", "gold", "chart")}
+    ${reportMetricCard("Average Hours", averageHoursPerInstructor.toFixed(2), "Per instructor", "blue", "clock")}
+  </div>`;
   const pageSections = [];
 
   if (selectedContentIds.includes("instructorSummary")) {
-    pageSections.push(`
-    <section class="report-page report-page-break">
-      <h1>Instructor Summary</h1>
-      <p class="report-meta">Instructors: ${escapeHtml(selectedInstructorLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
-      <table>
-        <thead><tr><th>Instructor Name</th><th>Age</th><th>Education Level</th><th>Instruction Days</th><th>Instruction Hours</th></tr></thead>
-        <tbody>${overviewTableRows}</tbody>
-      </table>
-      <table>
-        <thead><tr><th>Instructor Name</th><th>Instructor Category</th><th>Course</th><th>Instruction Days Taught</th><th>Instruction Hours Taught</th></tr></thead>
-        <tbody>${summaryTableRows}</tbody>
-      </table>
-    </section>`);
+    pageSections.push({
+      title: "Instructor Report",
+      subtitle: "Instructional activity and teaching summary",
+      icon: "user",
+      metaItems: reportMetaItems,
+      body: `
+        <section class="report-subsection">
+          <h2 class="report-subsection-title">Executive Summary</h2>
+          ${instructorSummaryCards}
+        </section>
+        <section class="report-subsection">
+          <h2 class="report-subsection-title">Instructor Overview</h2>
+          <div class="report-table-scroll">
+            <table>
+              <thead><tr><th>Instructor Name</th><th>Age</th><th>Education Level</th><th>Instruction Days</th><th>Instruction Hours</th></tr></thead>
+              <tbody>${overviewTableRows}</tbody>
+            </table>
+          </div>
+        </section>
+        <section class="report-subsection">
+          <h2 class="report-subsection-title">Course Summary</h2>
+          <div class="report-table-scroll">
+            <table>
+              <thead><tr><th>Instructor Name</th><th>Instructor Category</th><th>Course</th><th>Instruction Days Taught</th><th>Instruction Hours Taught</th></tr></thead>
+              <tbody>${summaryTableRows}</tbody>
+            </table>
+          </div>
+        </section>`
+    });
   }
 
   if (selectedContentIds.includes("detailedInstruction")) {
-    pageSections.push(`
-    <section class="report-page">
-      <h1>Detailed Instruction</h1>
-      <p class="report-meta">Instructors: ${escapeHtml(selectedInstructorLabel)}<br>Period: ${escapeHtml(titlePeriod)}</p>
-      <table>
+    pageSections.push({
+      title: "Detailed Instruction",
+      subtitle: "Instructional sessions by course and date",
+      icon: "clock",
+      metaItems: reportMetaItems,
+      body: `<div class="report-table-scroll"><table>
         <thead><tr><th>Instructor Name</th><th>Instructor Category</th><th>Course</th><th>Date</th><th>Hours Instructed</th></tr></thead>
         <tbody>${detailTableRows}</tbody>
-      </table>
-    </section>`);
+      </table></div>`
+    });
   }
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Instructor Report</title>
-  <style>
-    body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #1f3551; margin: 0; background: #eef5fb; }
-    .report-shell { max-width: 1100px; margin: 0 auto; padding: 24px; }
-    .report-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-    .report-toolbar button { border: 0; border-radius: 8px; padding: 10px 16px; background: #1761ae; color: #fff; font: inherit; cursor: pointer; }
-    .report-page { background: #fff; border: 1px solid #c8d9ea; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(31, 47, 69, 0.08); }
-    .report-page.report-page-break { page-break-after: always; }
-    h1 { margin: 0 0 8px; font-size: 28px; }
-    .report-meta { margin: 0 0 18px; color: #59718d; }
-    table { width: 100%; border-collapse: collapse; }
-    .report-page table + table { margin-top: 18px; }
-    th, td { border: 1px solid #c8d9ea; padding: 8px 10px; text-align: center; vertical-align: top; }
-    th:first-child, td:first-child { text-align: left; }
-    th { background: #f4f9ff; }
-    @media print {
-      body { background: #fff; }
-      .report-shell { max-width: none; padding: 0; }
-      .report-toolbar { display: none; }
-      .report-page { box-shadow: none; border: 0; border-radius: 0; margin: 0; padding: 0; }
-      .report-page.report-page-break { page-break-after: always; }
-    }
-  </style>
-</head>
-<body>
-  <div class="report-shell">
-    <div class="report-toolbar">
-      <div>
-        <strong>Instructor Report</strong><br>
-        <span>${escapeHtml(titlePeriod)}</span>
-      </div>
-      <button type="button" onclick="window.print()">Print</button>
-    </div>
-
-    ${pageSections.join("\n")}
-  </div>
-</body>
-</html>`;
+  const pagesHtml = pageSections
+    .map((section, index) => buildReportPage({ ...section, pageNumber: index + 1, totalPages: pageSections.length }))
+    .join("\n");
+  return buildReportDocument({
+    title: "Instructor Report",
+    toolbarTitle: "Instructor Report",
+    toolbarSubtitle: `${titlePeriod} | ${selectedInstructorLabel}`,
+    pagesHtml
+  });
 }
 
 function generatePrintableReport() {
