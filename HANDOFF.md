@@ -38,16 +38,18 @@ Completed this session:
 - Matched Grade Type Volume, GPA Trending, and Work Distribution chart styling to the modern dashboard look; centered the Work Distribution donut-center content.
 - Adjusted Required Instructional Hours and Days so Key Numbers aligns with the gauge cards, Progress Over Time spans the full analytics width, and Y-axis labels are less crowded.
 - Added Required Subject Compliance analytic to Compliance > Required Subjects with subject rows, course/class lists, distribution bars, active-student summary cards, Student multi-select and Compliance filters, and Students-page count links.
+- Updated Administration > Workspace Configuration > Dashboard Visibility to mirror Overview, Execution, Performance, and Compliance subtabs with one configurable flag per current dashboard gauge/section.
+- Fixed hosted workspace-config normalization so newly split Dashboard Visibility flags persist when unchecked and are not re-applied after Save Configuration.
 - Deployed current web assets to `/modern-design/` and `/modern-preview/`.
 
 Current local cache keys:
 
-- `styles.css?v=202605102158`
-- `app.js?v=202605102158`
+- `styles.css?v=202605110902`
+- `app.js?v=202605110902`
 
 ## Next Action
 
-Smoke-test Compliance > Required Subjects tab label, nested subtab styling, Student multi-select, Compliance filter, active-student summary cards, and count links:
+Smoke-test Administration > Workspace Configuration > Dashboard Visibility save/reload behavior after deselecting gauges:
 
 `https://mitchell.navigrader.com/modern-design/`
 
@@ -64,8 +66,9 @@ Smoke-test Compliance > Required Subjects tab label, nested subtab styling, Stud
 ## Validation
 
 - `node --check web/app.js`
+- `node --check server/src/services/workspace-config-service.js`
 - `git diff --check`
-- `curl.exe -s https://mitchell.navigrader.com/modern-design/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605102158','app.js?v=202605102158','data-compliance-tab="required-subjects"','Required Subjects','data-compliance-section="required-subjects"'`
-- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605102158','app.js?v=202605102158','data-compliance-tab="required-subjects"','Required Subjects','data-compliance-section="required-subjects"'`
-- `curl.exe -s "https://mitchell.navigrader.com/modern-design/app.js?v=202605102158" | Select-String -SimpleMatch -Pattern 'required-subjects','currentComplianceTab === "required-subjects"'`
-- `curl.exe -s "https://mitchell.navigrader.com/modern-design/styles.css?v=202605102158" | Select-String -Pattern "dashboard-compliance-subtabs::before|dashboard-compliance-subtabs .subtab-btn.active|border-left: 3px solid #2f6df6"`
+- `curl.exe -s https://mitchell.navigrader.com/modern-design/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605110902','app.js?v=202605110902','Overview Tab','Compliance Tab / Instructional Hours','Compliance Tab / Instructional Days','Compliance Tab / Required Subjects','admin-config-dashboard-show-required-subject-compliance'`
+- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605110902','app.js?v=202605110902','Overview Tab','Compliance Tab / Instructional Hours','Compliance Tab / Instructional Days','Compliance Tab / Required Subjects','admin-config-dashboard-show-required-subject-compliance'`
+- `curl.exe -s "https://mitchell.navigrader.com/modern-design/app.js?v=202605110902" | Select-String -SimpleMatch -Pattern 'showOverviewInstructionDays','showStudentGradeTrending','showInstructorGradeTrending','showRequiredInstructionalDays','showInstructionDaysTrending','showRequiredSubjectCompliance'`
+- Deployed `server/src/services/workspace-config-service.js` to APP001 and restarted `hsm-api.service`; `curl.exe -k -s https://192.168.1.210/health` returned `{"ok":true}`.

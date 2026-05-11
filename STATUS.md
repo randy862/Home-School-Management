@@ -29,6 +29,8 @@ Modern preview polish in `/modern-design/`.
 - Grade Type Volume, GPA Trending, and Work Distribution now match the modern dashboard styling, with Work Distribution donut-center content centered.
 - Required Instructional Hours and Days now place Key Numbers with the gauge cards, extend Progress Over Time across the analytics width, and reduce crowded Y-axis labels.
 - Compliance > Required Subjects now includes Required Subject Compliance with course/class rows, distribution bars, active-student summary cards, Student multi-select and Compliance filters, and Students-page count links.
+- Administration > Workspace Configuration > Dashboard Visibility now mirrors Dashboard tabs/subtabs and exposes one configurable flag per current dashboard gauge/section.
+- Hosted workspace-config normalization now preserves unchecked split Dashboard Visibility flags after Save Configuration.
 - Current web assets were deployed to `https://mitchell.navigrader.com/modern-design/` and `https://mitchell.navigrader.com/modern-preview/`.
 
 ## Current Blockers
@@ -43,5 +45,5 @@ Modern preview polish in `/modern-design/`.
 
 ## Next Actions
 
-1. Smoke-test Compliance > Required Subjects tab label, nested subtab styling, Student multi-select, Compliance filter, active-student summary cards, and count links.
+1. Smoke-test Administration > Workspace Configuration > Dashboard Visibility save/reload behavior after deselecting gauges.
 2. Keep live app unchanged unless replacement is explicitly approved.

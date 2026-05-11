@@ -140,21 +140,34 @@ const DEFAULT_WORKSPACE_CONFIG = {
     overviewDefault: "collapsed"
   },
   dashboard: {
-    showCompletionToday: true,
-    showNeedsAttentionToday: true,
-    showMissingGrades: true,
-    showGradeRiskWatchlist: true,
-    showInstructionHourPace: true,
-    showComplianceHoursMonthly: true,
-    showComplianceDaysMonthly: true,
+    showOverviewInstructionDays: true,
+    showOverviewInstructionHours: true,
+    showOverviewAttendance: true,
+    showOverviewRunningGradeAverage: true,
+    showOverviewSchoolYearProgress: true,
+    showOverviewQuarterProgress: true,
+    showOverviewCompletedToday: true,
+    showOverviewOpenItemsToday: true,
+    showOverviewGradesAtRisk: true,
+    showOverviewMissingRequiredSubjects: true,
+    showExecutionOpenItemsToday: true,
+    showExecutionCompletedToday: true,
+    showCourseWatchlist: true,
     showStudentPerformance: true,
+    showStudentGradeTrending: false,
+    showInstructorGradeTrending: false,
+    showGpaTrending: false,
+    showGradeTypeVolume: false,
+    showWorkDistribution: false,
+    showRequiredInstructionalHours: true,
+    showInstructionHoursPerMonth: true,
+    showRequiredInstructionalDays: true,
+    showInstructionDaysPerMonth: true,
     showStudentAttendance: true,
     showStudentInstructionalHours: true,
-    showGradeTrending: false,
-    showGpaTrending: false,
-    showInstructionalHoursTrending: false,
-    showGradeTypeVolume: false,
-    showWorkDistribution: false
+    showInstructionHoursTrending: false,
+    showInstructionDaysTrending: false,
+    showRequiredSubjectCompliance: true
   },
   alerts: {
     showOpenAttendance: true,
@@ -1826,6 +1839,23 @@ function normalizeWorkspaceConfig(raw) {
   });
   Object.keys(next.dashboard).forEach((key) => {
     if (typeof dashboard[key] === "boolean") next.dashboard[key] = dashboard[key];
+  });
+  [
+    ["showExecutionOpenItemsToday", "showNeedsAttentionToday"],
+    ["showExecutionCompletedToday", "showCompletionToday"],
+    ["showCourseWatchlist", "showGradeRiskWatchlist"],
+    ["showStudentGradeTrending", "showGradeTrending"],
+    ["showInstructorGradeTrending", "showGradeTrending"],
+    ["showRequiredInstructionalHours", "showInstructionHourPace"],
+    ["showRequiredInstructionalDays", "showInstructionHourPace"],
+    ["showInstructionHoursPerMonth", "showComplianceHoursMonthly"],
+    ["showInstructionDaysPerMonth", "showComplianceDaysMonthly"],
+    ["showInstructionHoursTrending", "showInstructionalHoursTrending"],
+    ["showInstructionDaysTrending", "showInstructionalHoursTrending"]
+  ].forEach(([nextKey, legacyKey]) => {
+    if (typeof dashboard[nextKey] !== "boolean" && typeof dashboard[legacyKey] === "boolean") {
+      next.dashboard[nextKey] = dashboard[legacyKey];
+    }
   });
   Object.keys(next.alerts).forEach((key) => {
     if (typeof next.alerts[key] === "boolean") {
@@ -7872,35 +7902,55 @@ function renderDashboardSectionVisibility() {
   const config = workspaceConfig || DEFAULT_WORKSPACE_CONFIG;
   const tabSectionMap = {
     overview: [
-      ["dashboard-section-overview", true]
+      ["dashboard-section-overview", true],
+      ["dashboard-overview-instruction-days-card", config.dashboard.showOverviewInstructionDays],
+      ["dashboard-overview-instruction-hours-card", config.dashboard.showOverviewInstructionHours],
+      ["kpi-attendance-card", config.dashboard.showOverviewAttendance],
+      ["kpi-grade-card", config.dashboard.showOverviewRunningGradeAverage],
+      ["dashboard-overview-school-year-progress-card", config.dashboard.showOverviewSchoolYearProgress],
+      ["dashboard-overview-quarter-progress-card", config.dashboard.showOverviewQuarterProgress],
+      ["dashboard-overview-completion-card", config.dashboard.showOverviewCompletedToday],
+      ["dashboard-overview-open-items-card", config.dashboard.showOverviewOpenItemsToday],
+      ["dashboard-overview-grade-risk-card", config.dashboard.showOverviewGradesAtRisk],
+      ["dashboard-overview-required-subject-card", config.dashboard.showOverviewMissingRequiredSubjects]
     ],
     execution: [
-      ["dashboard-section-needs-attention-today", config.dashboard.showNeedsAttentionToday],
-      ["dashboard-section-completion-today", config.dashboard.showCompletionToday]
+      ["dashboard-section-needs-attention-today", config.dashboard.showExecutionOpenItemsToday],
+      ["dashboard-section-completion-today", config.dashboard.showExecutionCompletedToday]
     ],
     performance: [
-      ["dashboard-section-grade-risk-watchlist", config.dashboard.showGradeRiskWatchlist],
+      ["dashboard-section-grade-risk-watchlist", config.dashboard.showCourseWatchlist],
       ["dashboard-section-student-performance", config.dashboard.showStudentPerformance],
-      ["dashboard-section-grade-trending", config.dashboard.showGradeTrending],
-      ["dashboard-section-instructor-grade-trending", config.dashboard.showGradeTrending],
+      ["dashboard-section-grade-trending", config.dashboard.showStudentGradeTrending],
+      ["dashboard-section-instructor-grade-trending", config.dashboard.showInstructorGradeTrending],
       ["dashboard-section-gpa-trending", config.dashboard.showGpaTrending],
       ["dashboard-section-grade-type-volume", config.dashboard.showGradeTypeVolume],
       ["dashboard-section-work-distribution", config.dashboard.showWorkDistribution]
     ],
     compliance: [
-      ["dashboard-section-instruction-hour-pace", config.dashboard.showInstructionHourPace],
-      ["dashboard-section-instruction-day-compliance", config.dashboard.showInstructionHourPace],
-      ["dashboard-section-compliance-hours-monthly", config.dashboard.showComplianceHoursMonthly],
-      ["dashboard-section-compliance-days-monthly", config.dashboard.showComplianceDaysMonthly],
+      ["dashboard-section-instruction-hour-pace", config.dashboard.showRequiredInstructionalHours],
+      ["dashboard-section-instruction-day-compliance", config.dashboard.showRequiredInstructionalDays],
+      ["dashboard-section-compliance-hours-monthly", config.dashboard.showInstructionHoursPerMonth],
+      ["dashboard-section-compliance-days-monthly", config.dashboard.showInstructionDaysPerMonth],
       ["dashboard-section-student-attendance", config.dashboard.showStudentAttendance],
       ["dashboard-section-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
-      ["dashboard-section-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending],
-      ["dashboard-section-instructional-days-trending", config.dashboard.showInstructionalHoursTrending],
-      ["dashboard-section-required-subject-compliance", true]
+      ["dashboard-section-instructional-hours-trending", config.dashboard.showInstructionHoursTrending],
+      ["dashboard-section-instructional-days-trending", config.dashboard.showInstructionDaysTrending],
+      ["dashboard-section-required-subject-compliance", config.dashboard.showRequiredSubjectCompliance]
     ]
   };
   const allSections = [
     "dashboard-section-overview",
+    "dashboard-overview-instruction-days-card",
+    "dashboard-overview-instruction-hours-card",
+    "kpi-attendance-card",
+    "kpi-grade-card",
+    "dashboard-overview-school-year-progress-card",
+    "dashboard-overview-quarter-progress-card",
+    "dashboard-overview-completion-card",
+    "dashboard-overview-open-items-card",
+    "dashboard-overview-grade-risk-card",
+    "dashboard-overview-required-subject-card",
     "dashboard-section-completion-today",
     "dashboard-section-needs-attention-today",
     "dashboard-execution-placeholder",
@@ -7936,11 +7986,7 @@ function renderDashboardSectionVisibility() {
         visibleSections.set(sectionId, false);
       }
     });
-    const hasVisibleComplianceSection = Array.from(visibleSections.entries()).some(([sectionId, isVisible]) => {
-      const section = document.getElementById(sectionId);
-      return isVisible && section?.dataset.complianceSection === currentComplianceTab;
-    });
-    visibleSections.set("dashboard-section-required-subject-compliance", currentComplianceTab === "required-subjects");
+    visibleSections.set("dashboard-section-required-subject-compliance", currentComplianceTab === "required-subjects" && !!config.dashboard.showRequiredSubjectCompliance);
   }
   allSections.forEach((id) => {
     const node = document.getElementById(id);
@@ -7991,20 +8037,34 @@ function renderAdministration() {
     ["admin-config-school-day-show-needs-grade", config.schoolDay.showNeedsGradeFilter],
     ["admin-config-school-day-show-completed", config.schoolDay.showCompletedFilter],
     ["admin-config-school-day-show-overridden", config.schoolDay.showOverriddenFilter],
-    ["admin-config-dashboard-show-completion-today", config.dashboard.showCompletionToday],
-    ["admin-config-dashboard-show-needs-attention-today", config.dashboard.showNeedsAttentionToday],
-    ["admin-config-dashboard-show-grade-risk-watchlist", config.dashboard.showGradeRiskWatchlist],
-    ["admin-config-dashboard-show-instruction-hour-pace", config.dashboard.showInstructionHourPace],
-    ["admin-config-dashboard-show-compliance-hours-monthly", config.dashboard.showComplianceHoursMonthly],
-    ["admin-config-dashboard-show-compliance-days-monthly", config.dashboard.showComplianceDaysMonthly],
+    ["admin-config-dashboard-show-overview-instruction-days", config.dashboard.showOverviewInstructionDays],
+    ["admin-config-dashboard-show-overview-instruction-hours", config.dashboard.showOverviewInstructionHours],
+    ["admin-config-dashboard-show-overview-attendance", config.dashboard.showOverviewAttendance],
+    ["admin-config-dashboard-show-overview-running-grade-average", config.dashboard.showOverviewRunningGradeAverage],
+    ["admin-config-dashboard-show-overview-school-year-progress", config.dashboard.showOverviewSchoolYearProgress],
+    ["admin-config-dashboard-show-overview-quarter-progress", config.dashboard.showOverviewQuarterProgress],
+    ["admin-config-dashboard-show-overview-completed-today", config.dashboard.showOverviewCompletedToday],
+    ["admin-config-dashboard-show-overview-open-items-today", config.dashboard.showOverviewOpenItemsToday],
+    ["admin-config-dashboard-show-overview-grades-at-risk", config.dashboard.showOverviewGradesAtRisk],
+    ["admin-config-dashboard-show-overview-missing-required-subjects", config.dashboard.showOverviewMissingRequiredSubjects],
+    ["admin-config-dashboard-show-execution-open-items-today", config.dashboard.showExecutionOpenItemsToday],
+    ["admin-config-dashboard-show-execution-completed-today", config.dashboard.showExecutionCompletedToday],
+    ["admin-config-dashboard-show-course-watchlist", config.dashboard.showCourseWatchlist],
     ["admin-config-dashboard-show-student-performance", config.dashboard.showStudentPerformance],
+    ["admin-config-dashboard-show-student-grade-trending", config.dashboard.showStudentGradeTrending],
+    ["admin-config-dashboard-show-instructor-grade-trending", config.dashboard.showInstructorGradeTrending],
+    ["admin-config-dashboard-show-gpa-trending", config.dashboard.showGpaTrending],
+    ["admin-config-dashboard-show-grade-type-volume", config.dashboard.showGradeTypeVolume],
+    ["admin-config-dashboard-show-work-distribution", config.dashboard.showWorkDistribution],
+    ["admin-config-dashboard-show-required-instructional-hours", config.dashboard.showRequiredInstructionalHours],
+    ["admin-config-dashboard-show-instruction-hours-per-month", config.dashboard.showInstructionHoursPerMonth],
+    ["admin-config-dashboard-show-required-instructional-days", config.dashboard.showRequiredInstructionalDays],
+    ["admin-config-dashboard-show-instruction-days-per-month", config.dashboard.showInstructionDaysPerMonth],
     ["admin-config-dashboard-show-student-attendance", config.dashboard.showStudentAttendance],
     ["admin-config-dashboard-show-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
-    ["admin-config-dashboard-show-grade-trending", config.dashboard.showGradeTrending],
-    ["admin-config-dashboard-show-gpa-trending", config.dashboard.showGpaTrending],
-    ["admin-config-dashboard-show-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending],
-    ["admin-config-dashboard-show-grade-type-volume", config.dashboard.showGradeTypeVolume],
-    ["admin-config-dashboard-show-work-distribution", config.dashboard.showWorkDistribution]
+    ["admin-config-dashboard-show-instruction-hours-trending", config.dashboard.showInstructionHoursTrending],
+    ["admin-config-dashboard-show-instruction-days-trending", config.dashboard.showInstructionDaysTrending],
+    ["admin-config-dashboard-show-required-subject-compliance", config.dashboard.showRequiredSubjectCompliance]
   ];
   mappings.forEach(([id, value]) => {
     const input = document.getElementById(id);
@@ -8073,21 +8133,34 @@ function buildWorkspaceConfigFromAdminForms(overrides = {}) {
       overviewDefault: document.getElementById("admin-config-school-day-overview-default")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.overviewDefault
     },
     dashboard: {
-      showCompletionToday: !!document.getElementById("admin-config-dashboard-show-completion-today")?.checked,
-      showNeedsAttentionToday: !!document.getElementById("admin-config-dashboard-show-needs-attention-today")?.checked,
-      showMissingGrades: false,
-      showGradeRiskWatchlist: !!document.getElementById("admin-config-dashboard-show-grade-risk-watchlist")?.checked,
-      showInstructionHourPace: !!document.getElementById("admin-config-dashboard-show-instruction-hour-pace")?.checked,
-      showComplianceHoursMonthly: !!document.getElementById("admin-config-dashboard-show-compliance-hours-monthly")?.checked,
-      showComplianceDaysMonthly: !!document.getElementById("admin-config-dashboard-show-compliance-days-monthly")?.checked,
+      showOverviewInstructionDays: !!document.getElementById("admin-config-dashboard-show-overview-instruction-days")?.checked,
+      showOverviewInstructionHours: !!document.getElementById("admin-config-dashboard-show-overview-instruction-hours")?.checked,
+      showOverviewAttendance: !!document.getElementById("admin-config-dashboard-show-overview-attendance")?.checked,
+      showOverviewRunningGradeAverage: !!document.getElementById("admin-config-dashboard-show-overview-running-grade-average")?.checked,
+      showOverviewSchoolYearProgress: !!document.getElementById("admin-config-dashboard-show-overview-school-year-progress")?.checked,
+      showOverviewQuarterProgress: !!document.getElementById("admin-config-dashboard-show-overview-quarter-progress")?.checked,
+      showOverviewCompletedToday: !!document.getElementById("admin-config-dashboard-show-overview-completed-today")?.checked,
+      showOverviewOpenItemsToday: !!document.getElementById("admin-config-dashboard-show-overview-open-items-today")?.checked,
+      showOverviewGradesAtRisk: !!document.getElementById("admin-config-dashboard-show-overview-grades-at-risk")?.checked,
+      showOverviewMissingRequiredSubjects: !!document.getElementById("admin-config-dashboard-show-overview-missing-required-subjects")?.checked,
+      showExecutionOpenItemsToday: !!document.getElementById("admin-config-dashboard-show-execution-open-items-today")?.checked,
+      showExecutionCompletedToday: !!document.getElementById("admin-config-dashboard-show-execution-completed-today")?.checked,
+      showCourseWatchlist: !!document.getElementById("admin-config-dashboard-show-course-watchlist")?.checked,
       showStudentPerformance: !!document.getElementById("admin-config-dashboard-show-student-performance")?.checked,
+      showStudentGradeTrending: !!document.getElementById("admin-config-dashboard-show-student-grade-trending")?.checked,
+      showInstructorGradeTrending: !!document.getElementById("admin-config-dashboard-show-instructor-grade-trending")?.checked,
+      showGpaTrending: !!document.getElementById("admin-config-dashboard-show-gpa-trending")?.checked,
+      showGradeTypeVolume: !!document.getElementById("admin-config-dashboard-show-grade-type-volume")?.checked,
+      showWorkDistribution: !!document.getElementById("admin-config-dashboard-show-work-distribution")?.checked,
+      showRequiredInstructionalHours: !!document.getElementById("admin-config-dashboard-show-required-instructional-hours")?.checked,
+      showInstructionHoursPerMonth: !!document.getElementById("admin-config-dashboard-show-instruction-hours-per-month")?.checked,
+      showRequiredInstructionalDays: !!document.getElementById("admin-config-dashboard-show-required-instructional-days")?.checked,
+      showInstructionDaysPerMonth: !!document.getElementById("admin-config-dashboard-show-instruction-days-per-month")?.checked,
       showStudentAttendance: !!document.getElementById("admin-config-dashboard-show-student-attendance")?.checked,
       showStudentInstructionalHours: !!document.getElementById("admin-config-dashboard-show-student-instructional-hours")?.checked,
-      showGradeTrending: !!document.getElementById("admin-config-dashboard-show-grade-trending")?.checked,
-      showGpaTrending: !!document.getElementById("admin-config-dashboard-show-gpa-trending")?.checked,
-      showInstructionalHoursTrending: !!document.getElementById("admin-config-dashboard-show-instructional-hours-trending")?.checked,
-      showGradeTypeVolume: !!document.getElementById("admin-config-dashboard-show-grade-type-volume")?.checked,
-      showWorkDistribution: !!document.getElementById("admin-config-dashboard-show-work-distribution")?.checked
+      showInstructionHoursTrending: !!document.getElementById("admin-config-dashboard-show-instruction-hours-trending")?.checked,
+      showInstructionDaysTrending: !!document.getElementById("admin-config-dashboard-show-instruction-days-trending")?.checked,
+      showRequiredSubjectCompliance: !!document.getElementById("admin-config-dashboard-show-required-subject-compliance")?.checked
     },
     alerts: {
       ...(workspaceConfig?.alerts || DEFAULT_WORKSPACE_CONFIG.alerts),

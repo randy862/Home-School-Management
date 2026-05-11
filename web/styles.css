@@ -11653,6 +11653,33 @@ tbody tr:hover {
   letter-spacing: 0.04em;
 }
 
+#app-shell .dashboard-visibility-group {
+  padding: 0.72rem;
+  border: 1px solid #e4edf7;
+  border-radius: 14px;
+  background: #fbfdff;
+}
+
+#app-shell .dashboard-visibility-group + .dashboard-visibility-group {
+  margin-top: 0.7rem;
+}
+
+#app-shell .dashboard-visibility-group h5 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.55rem;
+  color: #50637e;
+}
+
+#app-shell .dashboard-visibility-group h5::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #2f6df6;
+}
+
 #app-shell .administration-config-grid .checklist-row,
 #app-shell .reports-content-checklist .checklist-row {
   border: 1px solid #e2eaf4;

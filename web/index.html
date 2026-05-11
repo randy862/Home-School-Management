@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605102158">
+  <link rel="stylesheet" href="styles.css?v=202605110902">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -140,7 +140,7 @@
 
       <div id="dashboard-section-overview" class="dashboard-section dashboard-section-overview">
         <div class="kpi-grid">
-          <button type="button" class="kpi kpi-projected-hours-card kpi-instruction-days-card" data-dashboard-tab="compliance" data-compliance-target="instructional-days" aria-label="Open Compliance tab for instruction days">
+          <button id="dashboard-overview-instruction-days-card" type="button" class="kpi kpi-projected-hours-card kpi-instruction-days-card" data-dashboard-tab="compliance" data-compliance-target="instructional-days" aria-label="Open Compliance tab for instruction days">
             <div class="kpi-projected-hours-top">
               <p class="kpi-label">Instruction Days</p>
               <span class="kpi-info-icon" aria-hidden="true">i</span>
@@ -159,7 +159,7 @@
               <span><small>Projected Days</small><strong id="kpi-instruction-days-projected">0 days</strong></span>
             </div>
           </button>
-          <button type="button" class="kpi kpi-projected-hours-card kpi-instruction-hours-card" data-dashboard-tab="compliance" data-compliance-target="instructional-hours" aria-label="Open Compliance tab for projected instruction hours">
+          <button id="dashboard-overview-instruction-hours-card" type="button" class="kpi kpi-projected-hours-card kpi-instruction-hours-card" data-dashboard-tab="compliance" data-compliance-target="instructional-hours" aria-label="Open Compliance tab for projected instruction hours">
             <div class="kpi-projected-hours-top">
               <p class="kpi-label">Projected Instruction Hours</p>
               <span class="kpi-info-icon" aria-hidden="true">i</span>
@@ -219,7 +219,7 @@
         </div>
 
         <div class="progress-wrap progress-bullet-wrap">
-          <div class="progress-bullet-card">
+          <div id="dashboard-overview-school-year-progress-card" class="progress-bullet-card">
             <div class="progress-bullet-header">
               <div>
                 <p class="progress-title">School Year Progress</p>
@@ -231,7 +231,7 @@
             <div class="progress-bar progress-bullet-bar"><div id="year-progress-fill" class="progress-fill"></div></div>
             <div class="progress-bullet-status"><span class="progress-status-icon">✓</span><strong id="year-progress-status">In progress</strong></div>
           </div>
-          <div class="progress-bullet-card">
+          <div id="dashboard-overview-quarter-progress-card" class="progress-bullet-card">
             <div class="progress-bullet-header">
               <div>
                 <p class="progress-title">Current Quarter Progress</p>
@@ -246,7 +246,7 @@
         </div>
 
         <div class="dashboard-summary-grid dashboard-visual-summary-grid">
-          <article class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-completion">
+          <article id="dashboard-overview-completion-card" class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-completion">
             <div class="dashboard-visual-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><path d="M3 8.5 12 4l9 4.5-9 4.5-9-4.5Z"/><path d="M6.5 11.2v4.1c1.9 1.7 3.7 2.5 5.5 2.5s3.6-.8 5.5-2.5v-4.1"/><path d="M20 9v5"/></svg>
             </div>
@@ -255,7 +255,7 @@
             <div class="dashboard-visual-progress"><span id="dashboard-overview-completion-fill"></span></div>
             <p id="dashboard-overview-completion-note" class="dashboard-summary-note muted">0 of 0 classes completed today.</p>
           </article>
-          <article class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-open">
+          <article id="dashboard-overview-open-items-card" class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-open">
             <div class="dashboard-visual-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/></svg>
             </div>
@@ -1156,32 +1156,61 @@
           <section class="administration-config-card">
             <h4>Dashboard Visibility</h4>
             <div class="dashboard-visibility-group">
+              <h5>Overview Tab</h5>
+              <div class="administration-config-grid">
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-instruction-days"> <span>Show Instruction Days Status</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-instruction-hours"> <span>Show Projected Instruction Hours</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-attendance"> <span>Show Attendance Percentage</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-running-grade-average"> <span>Show Running Grade Average</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-school-year-progress"> <span>Show School Year Progress</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-quarter-progress"> <span>Show Current Quarter Progress</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-completed-today"> <span>Show Completed Today Summary</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-open-items-today"> <span>Show Open Items Today Summary</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-grades-at-risk"> <span>Show Grades at Risk</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-missing-required-subjects"> <span>Show Missing Required Subjects</span></label>
+              </div>
+            </div>
+            <div class="dashboard-visibility-group">
               <h5>Execution Tab</h5>
               <div class="administration-config-grid">
-                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-completion-today"> <span>Show Completed Today</span></label>
-                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-needs-attention-today"> <span>Show Open Items Today</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-execution-open-items-today"> <span>Show Open Items Today</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-execution-completed-today"> <span>Show Completed Today</span></label>
               </div>
             </div>
             <div class="dashboard-visibility-group">
               <h5>Performance Tab</h5>
               <div class="administration-config-grid">
-                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-grade-risk-watchlist"> <span>Show Course Watchlist</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-course-watchlist"> <span>Show Course Watchlist</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-performance"> <span>Show Student Performance</span></label>
-                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-grade-trending"> <span>Show Grade Trending</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-grade-trending"> <span>Show Student Grade Trending</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instructor-grade-trending"> <span>Show Instructor Grade Trending</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-gpa-trending"> <span>Show GPA Trending</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-grade-type-volume"> <span>Show Grade Type Volume</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-work-distribution"> <span>Show Work Distribution</span></label>
               </div>
             </div>
             <div class="dashboard-visibility-group">
-              <h5>Compliance Tab</h5>
+              <h5>Compliance Tab / Instructional Hours</h5>
               <div class="administration-config-grid">
-                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instruction-hour-pace"> <span>Show Instruction Hour Pace</span></label>
-                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-compliance-hours-monthly"> <span>Show Compliance Hours Per Month</span></label>
-                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-compliance-days-monthly"> <span>Show Instruction Days Per Month</span></label>
-                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-attendance"> <span>Show Student Attendance</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-required-instructional-hours"> <span>Show Required Instructional Hours</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instruction-hours-per-month"> <span>Show Instruction Hours Per Month</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-instructional-hours"> <span>Show Student Instructional Hours</span></label>
-                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instructional-hours-trending"> <span>Show Instructional Hours Trending</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instruction-hours-trending"> <span>Show Instruction Hours Trending</span></label>
+              </div>
+            </div>
+            <div class="dashboard-visibility-group">
+              <h5>Compliance Tab / Instructional Days</h5>
+              <div class="administration-config-grid">
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-required-instructional-days"> <span>Show Required Instructional Days</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instruction-days-per-month"> <span>Show Instruction Days Per Month</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-student-attendance"> <span>Show Student Attendance</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-instruction-days-trending"> <span>Show Instruction Days Trending</span></label>
+              </div>
+            </div>
+            <div class="dashboard-visibility-group">
+              <h5>Compliance Tab / Required Subjects</h5>
+              <div class="administration-config-grid">
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-required-subject-compliance"> <span>Show Required Subject Compliance</span></label>
               </div>
             </div>
           </section>
@@ -2336,6 +2365,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605102158"></script>
+  <script src="app.js?v=202605110902"></script>
   </body>
   </html>

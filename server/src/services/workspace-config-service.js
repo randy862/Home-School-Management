@@ -17,19 +17,34 @@ const DEFAULT_WORKSPACE_CONFIG = {
     overviewDefault: "collapsed"
   },
   dashboard: {
-    showCompletionToday: true,
-    showNeedsAttentionToday: true,
-    showMissingGrades: true,
-    showGradeRiskWatchlist: true,
-    showInstructionHourPace: true,
+    showOverviewInstructionDays: true,
+    showOverviewInstructionHours: true,
+    showOverviewAttendance: true,
+    showOverviewRunningGradeAverage: true,
+    showOverviewSchoolYearProgress: true,
+    showOverviewQuarterProgress: true,
+    showOverviewCompletedToday: true,
+    showOverviewOpenItemsToday: true,
+    showOverviewGradesAtRisk: true,
+    showOverviewMissingRequiredSubjects: true,
+    showExecutionOpenItemsToday: true,
+    showExecutionCompletedToday: true,
+    showCourseWatchlist: true,
     showStudentPerformance: true,
+    showStudentGradeTrending: false,
+    showInstructorGradeTrending: false,
+    showGpaTrending: false,
+    showGradeTypeVolume: false,
+    showWorkDistribution: false,
+    showRequiredInstructionalHours: true,
+    showInstructionHoursPerMonth: true,
+    showRequiredInstructionalDays: true,
+    showInstructionDaysPerMonth: true,
     showStudentAttendance: true,
     showStudentInstructionalHours: true,
-    showGradeTrending: false,
-    showGpaTrending: false,
-    showInstructionalHoursTrending: false,
-    showGradeTypeVolume: false,
-    showWorkDistribution: false
+    showInstructionHoursTrending: false,
+    showInstructionDaysTrending: false,
+    showRequiredSubjectCompliance: true
   },
   alerts: {
     showOpenAttendance: true,
@@ -98,19 +113,34 @@ function normalizeWorkspaceConfigPayload(input) {
       )
     },
     dashboard: {
-      showCompletionToday: normalizeBoolean(dashboard.showCompletionToday, DEFAULT_WORKSPACE_CONFIG.dashboard.showCompletionToday),
-      showNeedsAttentionToday: normalizeBoolean(dashboard.showNeedsAttentionToday, DEFAULT_WORKSPACE_CONFIG.dashboard.showNeedsAttentionToday),
-      showMissingGrades: normalizeBoolean(dashboard.showMissingGrades, DEFAULT_WORKSPACE_CONFIG.dashboard.showMissingGrades),
-      showGradeRiskWatchlist: normalizeBoolean(dashboard.showGradeRiskWatchlist, DEFAULT_WORKSPACE_CONFIG.dashboard.showGradeRiskWatchlist),
-      showInstructionHourPace: normalizeBoolean(dashboard.showInstructionHourPace, DEFAULT_WORKSPACE_CONFIG.dashboard.showInstructionHourPace),
+      showOverviewInstructionDays: normalizeBoolean(dashboard.showOverviewInstructionDays, DEFAULT_WORKSPACE_CONFIG.dashboard.showOverviewInstructionDays),
+      showOverviewInstructionHours: normalizeBoolean(dashboard.showOverviewInstructionHours, DEFAULT_WORKSPACE_CONFIG.dashboard.showOverviewInstructionHours),
+      showOverviewAttendance: normalizeBoolean(dashboard.showOverviewAttendance, DEFAULT_WORKSPACE_CONFIG.dashboard.showOverviewAttendance),
+      showOverviewRunningGradeAverage: normalizeBoolean(dashboard.showOverviewRunningGradeAverage, DEFAULT_WORKSPACE_CONFIG.dashboard.showOverviewRunningGradeAverage),
+      showOverviewSchoolYearProgress: normalizeBoolean(dashboard.showOverviewSchoolYearProgress, DEFAULT_WORKSPACE_CONFIG.dashboard.showOverviewSchoolYearProgress),
+      showOverviewQuarterProgress: normalizeBoolean(dashboard.showOverviewQuarterProgress, DEFAULT_WORKSPACE_CONFIG.dashboard.showOverviewQuarterProgress),
+      showOverviewCompletedToday: normalizeBoolean(dashboard.showOverviewCompletedToday, legacyBoolean(dashboard.showCompletionToday, DEFAULT_WORKSPACE_CONFIG.dashboard.showOverviewCompletedToday)),
+      showOverviewOpenItemsToday: normalizeBoolean(dashboard.showOverviewOpenItemsToday, legacyBoolean(dashboard.showNeedsAttentionToday, DEFAULT_WORKSPACE_CONFIG.dashboard.showOverviewOpenItemsToday)),
+      showOverviewGradesAtRisk: normalizeBoolean(dashboard.showOverviewGradesAtRisk, DEFAULT_WORKSPACE_CONFIG.dashboard.showOverviewGradesAtRisk),
+      showOverviewMissingRequiredSubjects: normalizeBoolean(dashboard.showOverviewMissingRequiredSubjects, DEFAULT_WORKSPACE_CONFIG.dashboard.showOverviewMissingRequiredSubjects),
+      showExecutionOpenItemsToday: normalizeBoolean(dashboard.showExecutionOpenItemsToday, legacyBoolean(dashboard.showNeedsAttentionToday, DEFAULT_WORKSPACE_CONFIG.dashboard.showExecutionOpenItemsToday)),
+      showExecutionCompletedToday: normalizeBoolean(dashboard.showExecutionCompletedToday, legacyBoolean(dashboard.showCompletionToday, DEFAULT_WORKSPACE_CONFIG.dashboard.showExecutionCompletedToday)),
+      showCourseWatchlist: normalizeBoolean(dashboard.showCourseWatchlist, legacyBoolean(dashboard.showGradeRiskWatchlist, DEFAULT_WORKSPACE_CONFIG.dashboard.showCourseWatchlist)),
       showStudentPerformance: normalizeBoolean(dashboard.showStudentPerformance, DEFAULT_WORKSPACE_CONFIG.dashboard.showStudentPerformance),
+      showStudentGradeTrending: normalizeBoolean(dashboard.showStudentGradeTrending, legacyBoolean(dashboard.showGradeTrending, DEFAULT_WORKSPACE_CONFIG.dashboard.showStudentGradeTrending)),
+      showInstructorGradeTrending: normalizeBoolean(dashboard.showInstructorGradeTrending, legacyBoolean(dashboard.showGradeTrending, DEFAULT_WORKSPACE_CONFIG.dashboard.showInstructorGradeTrending)),
+      showGpaTrending: normalizeBoolean(dashboard.showGpaTrending, DEFAULT_WORKSPACE_CONFIG.dashboard.showGpaTrending),
+      showGradeTypeVolume: normalizeBoolean(dashboard.showGradeTypeVolume, DEFAULT_WORKSPACE_CONFIG.dashboard.showGradeTypeVolume),
+      showWorkDistribution: normalizeBoolean(dashboard.showWorkDistribution, DEFAULT_WORKSPACE_CONFIG.dashboard.showWorkDistribution),
+      showRequiredInstructionalHours: normalizeBoolean(dashboard.showRequiredInstructionalHours, legacyBoolean(dashboard.showInstructionHourPace, DEFAULT_WORKSPACE_CONFIG.dashboard.showRequiredInstructionalHours)),
+      showInstructionHoursPerMonth: normalizeBoolean(dashboard.showInstructionHoursPerMonth, legacyBoolean(dashboard.showComplianceHoursMonthly, DEFAULT_WORKSPACE_CONFIG.dashboard.showInstructionHoursPerMonth)),
+      showRequiredInstructionalDays: normalizeBoolean(dashboard.showRequiredInstructionalDays, legacyBoolean(dashboard.showInstructionHourPace, DEFAULT_WORKSPACE_CONFIG.dashboard.showRequiredInstructionalDays)),
+      showInstructionDaysPerMonth: normalizeBoolean(dashboard.showInstructionDaysPerMonth, legacyBoolean(dashboard.showComplianceDaysMonthly, DEFAULT_WORKSPACE_CONFIG.dashboard.showInstructionDaysPerMonth)),
       showStudentAttendance: normalizeBoolean(dashboard.showStudentAttendance, DEFAULT_WORKSPACE_CONFIG.dashboard.showStudentAttendance),
       showStudentInstructionalHours: normalizeBoolean(dashboard.showStudentInstructionalHours, DEFAULT_WORKSPACE_CONFIG.dashboard.showStudentInstructionalHours),
-      showGradeTrending: normalizeBoolean(dashboard.showGradeTrending, DEFAULT_WORKSPACE_CONFIG.dashboard.showGradeTrending),
-      showGpaTrending: normalizeBoolean(dashboard.showGpaTrending, DEFAULT_WORKSPACE_CONFIG.dashboard.showGpaTrending),
-      showInstructionalHoursTrending: normalizeBoolean(dashboard.showInstructionalHoursTrending, DEFAULT_WORKSPACE_CONFIG.dashboard.showInstructionalHoursTrending),
-      showGradeTypeVolume: normalizeBoolean(dashboard.showGradeTypeVolume, DEFAULT_WORKSPACE_CONFIG.dashboard.showGradeTypeVolume),
-      showWorkDistribution: normalizeBoolean(dashboard.showWorkDistribution, DEFAULT_WORKSPACE_CONFIG.dashboard.showWorkDistribution)
+      showInstructionHoursTrending: normalizeBoolean(dashboard.showInstructionHoursTrending, legacyBoolean(dashboard.showInstructionalHoursTrending, DEFAULT_WORKSPACE_CONFIG.dashboard.showInstructionHoursTrending)),
+      showInstructionDaysTrending: normalizeBoolean(dashboard.showInstructionDaysTrending, legacyBoolean(dashboard.showInstructionalHoursTrending, DEFAULT_WORKSPACE_CONFIG.dashboard.showInstructionDaysTrending)),
+      showRequiredSubjectCompliance: normalizeBoolean(dashboard.showRequiredSubjectCompliance, DEFAULT_WORKSPACE_CONFIG.dashboard.showRequiredSubjectCompliance)
     },
     alerts: {
       showOpenAttendance: normalizeBoolean(alerts.showOpenAttendance, DEFAULT_WORKSPACE_CONFIG.alerts.showOpenAttendance),
@@ -129,6 +159,10 @@ function normalizeWorkspaceConfigPayload(input) {
 }
 
 function normalizeBoolean(value, fallback) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function legacyBoolean(value, fallback) {
   return typeof value === "boolean" ? value : fallback;
 }
 
