@@ -27,7 +27,7 @@ Completed this session:
 - Added Grade Search grade-value filtering for risk links.
 - Linked Average Grade Risk to Performance Course Watchlist.
 - Tightened Performance tables and dashboard chart sizing to avoid horizontal scrollbars.
-- Added Compliance subtabs: Instructional Hours, Instructional Days, Other.
+- Added Compliance subtabs: Instructional Hours, Instructional Days, Required Subjects, with nested secondary-tab styling.
 - Built Instructional Days compliance content to mirror Instructional Hours, including student breakdown wiring.
 - Tuned Completed Today filter placement and typography.
 - Added visible data values and month-wide hover popups to Instruction Days Trending.
@@ -36,16 +36,18 @@ Completed this session:
 - Restyled Student Performance grade method controls as plain tick boxes and removed the circular check indicator.
 - Widened Student Performance Student/Category column and constrained nested labels so student, subject, and grade type text stays inside its column.
 - Matched Grade Type Volume, GPA Trending, and Work Distribution chart styling to the modern dashboard look; centered the Work Distribution donut-center content.
+- Adjusted Required Instructional Hours and Days so Key Numbers aligns with the gauge cards, Progress Over Time spans the full analytics width, and Y-axis labels are less crowded.
+- Added Required Subject Compliance analytic to Compliance > Required Subjects with subject rows, course/class lists, distribution bars, active-student summary cards, Student multi-select and Compliance filters, and Students-page count links.
 - Deployed current web assets to `/modern-design/` and `/modern-preview/`.
 
 Current local cache keys:
 
-- `styles.css?v=202605101933`
-- `app.js?v=202605101933`
+- `styles.css?v=202605102158`
+- `app.js?v=202605102158`
 
 ## Next Action
 
-Smoke-test Work Distribution donut-center alignment and donut/table layout, GPA Trending controls, Grade Type Volume filter fit, Student Performance table fit, and Students filters:
+Smoke-test Compliance > Required Subjects tab label, nested subtab styling, Student multi-select, Compliance filter, active-student summary cards, and count links:
 
 `https://mitchell.navigrader.com/modern-design/`
 
@@ -63,8 +65,7 @@ Smoke-test Work Distribution donut-center alignment and donut/table layout, GPA 
 
 - `node --check web/app.js`
 - `git diff --check`
-- `curl.exe -s https://mitchell.navigrader.com/modern-design/ | Select-String -Pattern "styles.css\?v=202605101933|app.js\?v=202605101933"`
-- `curl.exe -s https://mitchell.navigrader.com/modern-design/styles.css?v=202605101933 | Select-String -Pattern "work-dist-donut-center|align-content: center|box-sizing: border-box"`
-- `curl.exe -s https://mitchell.navigrader.com/modern-design/app.js?v=202605101929 | Select-String -Pattern "work-dist-chart-panel|work-dist-donut-chart|work-dist-breakdown-row|workDistributionSubjectIconPaths"`
-- `curl.exe -s https://mitchell.navigrader.com/modern-design/styles.css?v=202605101929 | Select-String -Pattern "work-distribution-heading|work-dist-chart-panel|work-dist-donut-chart|work-dist-breakdown-row|work-dist-donut-center"`
-- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -Pattern "styles.css\?v=202605101933|app.js\?v=202605101933"`
+- `curl.exe -s https://mitchell.navigrader.com/modern-design/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605102158','app.js?v=202605102158','data-compliance-tab="required-subjects"','Required Subjects','data-compliance-section="required-subjects"'`
+- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605102158','app.js?v=202605102158','data-compliance-tab="required-subjects"','Required Subjects','data-compliance-section="required-subjects"'`
+- `curl.exe -s "https://mitchell.navigrader.com/modern-design/app.js?v=202605102158" | Select-String -SimpleMatch -Pattern 'required-subjects','currentComplianceTab === "required-subjects"'`
+- `curl.exe -s "https://mitchell.navigrader.com/modern-design/styles.css?v=202605102158" | Select-String -Pattern "dashboard-compliance-subtabs::before|dashboard-compliance-subtabs .subtab-btn.active|border-left: 3px solid #2f6df6"`

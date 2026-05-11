@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605101933">
+  <link rel="stylesheet" href="styles.css?v=202605102158">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -135,7 +135,7 @@
       <div id="dashboard-compliance-subtabs" class="subtabs dashboard-compliance-subtabs hidden" aria-label="Compliance sections">
         <button class="subtab-btn active" data-compliance-tab="instructional-hours" type="button">Instructional Hours</button>
         <button class="subtab-btn" data-compliance-tab="instructional-days" type="button">Instructional Days</button>
-        <button class="subtab-btn" data-compliance-tab="other" type="button">Other</button>
+        <button class="subtab-btn" data-compliance-tab="required-subjects" type="button">Required Subjects</button>
       </div>
 
       <div id="dashboard-section-overview" class="dashboard-section dashboard-section-overview">
@@ -614,9 +614,68 @@
         </div>
       </div>
 
-      <div id="dashboard-compliance-placeholder" class="dashboard-section dashboard-section-placeholder hidden" data-compliance-section="other">
-        <h3>Other Compliance</h3>
-        <p class="muted">Additional compliance tools will live here.</p>
+      <div id="dashboard-section-required-subject-compliance" class="dashboard-section required-subject-compliance hidden" data-compliance-section="required-subjects">
+        <div class="required-subject-compliance-heading">
+          <div class="student-performance-heading">
+            <span class="student-performance-heading-icon required-subject-compliance-heading-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M22 10 12 4 2 10l10 6 10-6z"/><path d="M6 12.4V17c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.6"/></svg>
+            </span>
+            <div>
+              <h3>Required Subject Compliance</h3>
+              <p class="muted">Overview of student compliance by required subject and course.</p>
+            </div>
+          </div>
+        </div>
+
+        <form id="required-subject-compliance-filter-form" class="required-subject-compliance-filters">
+          <label>Student
+            <details id="required-subject-compliance-student-dropdown" class="multi-select-dropdown">
+              <summary id="required-subject-compliance-student-summary">Students (0 selected)</summary>
+              <div id="required-subject-compliance-student-options" class="checklist-vertical"></div>
+            </details>
+          </label>
+          <label>Grade Level
+            <select id="required-subject-compliance-grade"></select>
+          </label>
+          <label>Compliance
+            <select id="required-subject-compliance-status">
+              <option value="all">All Compliance</option>
+              <option value="compliant">Compliant</option>
+              <option value="not-compliant">Not Compliant</option>
+            </select>
+          </label>
+        </form>
+
+        <div class="required-subject-compliance-summary" aria-label="Required subject compliance totals">
+          <article class="required-subject-compliance-stat total">
+            <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <div><strong id="required-subject-compliance-check-total">0</strong><em>Required Subjects</em><small id="required-subject-compliance-student-total">0 required courses</small></div>
+          </article>
+          <article class="required-subject-compliance-stat compliant">
+            <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.7 2.8 8.4 7 10 4.2-1.6 7-5.3 7-10V6z"/><path d="m8.5 12 2.3 2.3 4.8-5"/></svg></span>
+            <div><strong id="required-subject-compliance-compliant-total">0</strong><em>Compliant Students</em><small id="required-subject-compliance-compliant-percent">0%</small></div>
+          </article>
+          <article class="required-subject-compliance-stat not-compliant">
+            <span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m9 9 6 6"/><path d="m15 9-6 6"/></svg></span>
+            <div><strong id="required-subject-compliance-missing-total">0</strong><em>Non-Compliant Students</em><small id="required-subject-compliance-missing-percent">0%</small></div>
+          </article>
+        </div>
+
+        <div class="required-subject-compliance-table-panel">
+          <div class="required-subject-compliance-table-wrap">
+            <table class="required-subject-compliance-table">
+              <thead>
+                <tr><th>Required Subject</th><th>Courses / Classes</th><th>Compliance Distribution</th><th>Students</th></tr>
+              </thead>
+              <tbody id="required-subject-compliance-table"></tbody>
+            </table>
+          </div>
+          <div class="required-subject-compliance-footer">
+            <span id="required-subject-compliance-showing">Showing 0 subjects</span>
+            <span class="required-subject-compliance-legend compliant"><i aria-hidden="true"></i><strong>Compliant</strong><em>Meets this required subject.</em></span>
+            <span class="required-subject-compliance-legend not-compliant"><i aria-hidden="true"></i><strong>Not In Compliance</strong><em>Missing this required subject.</em></span>
+          </div>
+        </div>
       </div>
 
       <div id="dashboard-section-student-performance" class="dashboard-section dashboard-section-student-performance">
@@ -2277,6 +2336,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605101933"></script>
+  <script src="app.js?v=202605102158"></script>
   </body>
   </html>

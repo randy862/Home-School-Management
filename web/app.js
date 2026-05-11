@@ -1472,6 +1472,7 @@ let studentTableFilterStudent = "";
 let studentTableFilterGrade = "all";
 let studentTableFilterStatus = "all";
 let studentTableFilterRequired = "all";
+let studentTableRequiredSubjectFilterId = "";
 let studentEnrollmentDraftStudentId = "";
 let studentEnrollmentDraft = [];
 let studentEnrollmentDraftDirty = false;
@@ -1484,6 +1485,8 @@ let dashboardExpandableRenderCache = null;
 let dashboardExpandableMetricsCache = null;
 let dashboardDirty = true;
 let currentComplianceTab = "instructional-hours";
+let requiredSubjectComplianceGrade = "all";
+let requiredSubjectComplianceStatus = "all";
 const studentPerformanceSelectedGradeMethods = new Set(STUDENT_PERFORMANCE_GRADE_METHODS);
 const trendSelectedStudentIds = new Set();
 let gradeTrendViewMode = "line";
@@ -1503,6 +1506,7 @@ const instructionHoursTrendSelectedStudentIds = new Set();
 const instructionDaysTrendSelectedStudentIds = new Set();
 const complianceHoursSelectedStudentIds = new Set();
 const complianceDaysSelectedStudentIds = new Set();
+const requiredSubjectComplianceSelectedStudentIds = new Set();
 const volumeSelectedStudentIds = new Set();
 const workSelectedStudentIds = new Set();
 const workDistributionSelectedGradeTypes = new Set();
@@ -3356,6 +3360,7 @@ function openMissingRequiredStudent(studentId) {
   studentTableFilterGrade = "all";
   studentTableFilterStatus = "all";
   studentTableFilterRequired = "no";
+  studentTableRequiredSubjectFilterId = "";
   activateTab("students");
   beginStudentDetail(studentId);
   renderCurrentTabPanel();
@@ -5748,6 +5753,7 @@ function renderSelects() {
   renderInstructionDaysTrendStudentChecklist(Array.from(instructionDaysTrendSelectedStudentIds));
   renderComplianceHoursStudentChecklist(Array.from(complianceHoursSelectedStudentIds));
   renderComplianceDaysStudentChecklist(Array.from(complianceDaysSelectedStudentIds));
+  renderRequiredSubjectComplianceStudentChecklist(Array.from(requiredSubjectComplianceSelectedStudentIds));
   renderVolumeStudentChecklist(Array.from(volumeSelectedStudentIds));
   renderWorkStudentChecklist(Array.from(workSelectedStudentIds));
 
@@ -7389,6 +7395,36 @@ function getComplianceDaysSelectedStudentIds() {
   return Array.from(document.querySelectorAll(".compliance-days-student-checkbox:checked")).map((el) => el.value);
 }
 
+function renderRequiredSubjectComplianceStudentChecklist(preselectedStudentIds = []) {
+  const container = document.getElementById("required-subject-compliance-student-dropdown");
+  const optionsWrap = document.getElementById("required-subject-compliance-student-options");
+  if (!container || !optionsWrap) return;
+  const activeStudents = visibleStudents();
+  const validStudentIds = new Set(activeStudents.map((student) => student.id));
+  Array.from(requiredSubjectComplianceSelectedStudentIds).forEach((studentId) => {
+    if (!validStudentIds.has(studentId)) requiredSubjectComplianceSelectedStudentIds.delete(studentId);
+  });
+  const selected = new Set(preselectedStudentIds.filter((studentId) => validStudentIds.has(studentId)));
+  const checkboxes = activeStudents.map((student, idx) => {
+    const checked = selected.has(student.id) ? " checked" : "";
+    const inputId = `required-subject-compliance-student-${idx}-${student.id}`;
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="required-subject-compliance-student-checkbox" value="${student.id}"${checked}><label for="${inputId}">${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = checkboxes || "<span>No active students available.</span>";
+  updateRequiredSubjectComplianceStudentSummary();
+}
+
+function updateRequiredSubjectComplianceStudentSummary() {
+  const summary = document.getElementById("required-subject-compliance-student-summary");
+  if (!summary) return;
+  const selectedCount = document.querySelectorAll(".required-subject-compliance-student-checkbox:checked").length;
+  summary.textContent = `Students (${selectedCount} selected)`;
+}
+
+function getRequiredSubjectComplianceSelectedStudentIds() {
+  return Array.from(document.querySelectorAll(".required-subject-compliance-student-checkbox:checked")).map((el) => el.value);
+}
+
 function renderVolumeStudentChecklist(preselectedStudentIds = []) {
   const container = document.getElementById("volume-student-dropdown");
   const optionsWrap = document.getElementById("volume-student-options");
@@ -7859,7 +7895,8 @@ function renderDashboardSectionVisibility() {
       ["dashboard-section-student-attendance", config.dashboard.showStudentAttendance],
       ["dashboard-section-student-instructional-hours", config.dashboard.showStudentInstructionalHours],
       ["dashboard-section-instructional-hours-trending", config.dashboard.showInstructionalHoursTrending],
-      ["dashboard-section-instructional-days-trending", config.dashboard.showInstructionalHoursTrending]
+      ["dashboard-section-instructional-days-trending", config.dashboard.showInstructionalHoursTrending],
+      ["dashboard-section-required-subject-compliance", true]
     ]
   };
   const allSections = [
@@ -7873,7 +7910,7 @@ function renderDashboardSectionVisibility() {
     "dashboard-section-instruction-day-compliance",
     "dashboard-section-compliance-hours-monthly",
     "dashboard-section-compliance-days-monthly",
-    "dashboard-compliance-placeholder",
+    "dashboard-section-required-subject-compliance",
     "dashboard-section-student-performance",
     "dashboard-section-student-attendance",
     "dashboard-section-student-instructional-hours",
@@ -7891,7 +7928,7 @@ function renderDashboardSectionVisibility() {
   } else if (visibleTab === "performance") {
     visibleSections.set("dashboard-performance-placeholder", !Array.from(visibleSections.values()).some(Boolean));
   } else if (visibleTab === "compliance") {
-    const complianceTabs = ["instructional-hours", "instructional-days", "other"];
+    const complianceTabs = ["instructional-hours", "instructional-days", "required-subjects"];
     if (!complianceTabs.includes(currentComplianceTab)) currentComplianceTab = "instructional-hours";
     visibleSections.forEach((isVisible, sectionId) => {
       const section = document.getElementById(sectionId);
@@ -7903,7 +7940,7 @@ function renderDashboardSectionVisibility() {
       const section = document.getElementById(sectionId);
       return isVisible && section?.dataset.complianceSection === currentComplianceTab;
     });
-    visibleSections.set("dashboard-compliance-placeholder", currentComplianceTab === "other" || !hasVisibleComplianceSection);
+    visibleSections.set("dashboard-section-required-subject-compliance", currentComplianceTab === "required-subjects");
   }
   allSections.forEach((id) => {
     const node = document.getElementById(id);
@@ -8098,7 +8135,10 @@ function renderStudents() {
   if (statusFilter && statusFilter.value !== studentTableFilterStatus) statusFilter.value = studentTableFilterStatus;
   const requiredFilter = document.getElementById("student-table-filter-required");
   if (requiredFilter && requiredFilter.value !== studentTableFilterRequired) requiredFilter.value = studentTableFilterRequired;
-  const studentNeedle = (studentTableFilterStudent || "").trim().toLowerCase();
+  const studentNeedles = (studentTableFilterStudent || "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
   const rows = state.students
     .slice()
     .sort((a, b) => {
@@ -8108,9 +8148,11 @@ function renderStudents() {
     })
     .filter((student) => {
       const archived = studentIsArchived(student);
-      const requiredComplete = studentHasAllRequiredSubjects(student.id);
+      const requiredComplete = studentTableRequiredSubjectFilterId
+        ? studentHasRequiredSubject(student.id, studentTableRequiredSubjectFilterId)
+        : studentHasAllRequiredSubjects(student.id);
       const fullName = `${student.firstName || ""} ${student.lastName || ""}`.toLowerCase();
-      if (studentNeedle && !fullName.includes(studentNeedle)) return false;
+      if (studentNeedles.length && !studentNeedles.some((needle) => fullName.includes(needle))) return false;
       if (studentTableFilterGrade !== "all" && student.grade !== studentTableFilterGrade) return false;
       if (studentTableFilterStatus === "active" && archived) return false;
       if (studentTableFilterStatus === "archived" && !archived) return false;
@@ -8123,7 +8165,9 @@ function renderStudents() {
     const overallAvg = studentOverallAverage(s.id);
     const absences = studentAbsenceCount(s.id);
     const archived = studentIsArchived(s);
-    const missingRequiredSubjects = studentMissingRequiredSubjects(s.id);
+    const missingRequiredSubjects = studentTableRequiredSubjectFilterId
+      ? (studentHasRequiredSubject(s.id, studentTableRequiredSubjectFilterId) ? [] : [getSubject(studentTableRequiredSubjectFilterId)].filter(Boolean))
+      : studentMissingRequiredSubjects(s.id);
     const requiredComplete = missingRequiredSubjects.length === 0;
     const status = archived
       ? `<span class="student-status-pill archived">Archived</span>`
@@ -8226,6 +8270,29 @@ function studentMissingRequiredSubjects(studentId) {
 
 function studentHasAllRequiredSubjects(studentId) {
   return studentMissingRequiredSubjects(studentId).length === 0;
+}
+
+function studentHasRequiredSubject(studentId, subjectId) {
+  if (!studentId || !subjectId) return false;
+  const enrolledCourseIds = studentEnrolledCourseIds(studentId);
+  return Array.from(enrolledCourseIds).some((courseId) => getCourse(courseId)?.subjectId === subjectId);
+}
+
+function requiredSubjectComplianceStudents() {
+  const selectedStudentIds = new Set(requiredSubjectComplianceSelectedStudentIds);
+  const requiredSubjects = state.subjects.filter((subject) => subject.required);
+  return visibleStudents()
+    .filter((student) => {
+      if (selectedStudentIds.size && !selectedStudentIds.has(student.id)) return false;
+      if (requiredSubjectComplianceGrade !== "all" && student.grade !== requiredSubjectComplianceGrade) return false;
+      if (requiredSubjectComplianceStatus !== "all") {
+        const compliant = requiredSubjects.every((subject) => studentHasRequiredSubject(student.id, subject.id));
+        if (requiredSubjectComplianceStatus === "compliant" && !compliant) return false;
+        if (requiredSubjectComplianceStatus === "not-compliant" && compliant) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => `${a.lastName || ""} ${a.firstName || ""}`.localeCompare(`${b.lastName || ""} ${b.firstName || ""}`));
 }
 
 function isStudentEnrolledInCourse(studentId, courseId, sourceEnrollments = state.enrollments) {
@@ -13894,8 +13961,8 @@ function renderRequiredHoursProgressChart(host, view, context, selectedStudentId
     .filter(isChartValue)
     .map(Number);
   const maxValue = Math.max(1, ...plottedValues);
-  const tickStep = niceTickStep(maxValue, 5);
-  const yAxisMax = Math.ceil((maxValue + tickStep) / tickStep) * tickStep;
+  const tickStep = niceTickStep(maxValue, 6);
+  const yAxisMax = Math.ceil(maxValue / tickStep) * tickStep;
   const yTicks = [];
   for (let tick = 0; tick <= yAxisMax; tick += tickStep) yTicks.push(tick);
 
@@ -14354,8 +14421,8 @@ function renderRequiredDaysProgressChart(host, snapshot) {
   });
   const plottedValues = rows.flatMap((row) => [row.actual, row.expected, row.projected]).filter((value) => value !== null && Number.isFinite(Number(value)));
   const maxValue = Math.max(Number(snapshot.requiredTotal || 0), ...plottedValues, 1);
-  const tickStep = maxValue <= 20 ? 5 : (maxValue <= 80 ? 10 : 25);
-  const yAxisMax = Math.ceil((maxValue + tickStep) / tickStep) * tickStep;
+  const tickStep = niceTickStep(maxValue, 6);
+  const yAxisMax = Math.ceil(maxValue / tickStep) * tickStep;
   const yTicks = [];
   for (let tick = 0; tick <= yAxisMax; tick += tickStep) yTicks.push(tick);
   const width = 980;
@@ -14627,6 +14694,177 @@ function renderDashboardGradeRiskSummary(snapshot) {
   rowOrEmpty(document.getElementById("dashboard-grade-risk-table"), riskRows, "No at-risk courses right now.", 7);
 }
 
+function requiredSubjectComplianceColor(index) {
+  const palette = ["#1761ae", "#1f8f46", "#7c3bb6", "#f97316", "#0ea5b7", "#b45309", "#db2777", "#2563eb"];
+  return palette[index % palette.length];
+}
+
+function buildRequiredSubjectComplianceSnapshot() {
+  const subjects = state.subjects
+    .filter((subject) => subject.required)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const requiredSubjectIds = new Set(subjects.map((subject) => subject.id));
+  const requiredCourseTotal = state.courses.filter((course) => requiredSubjectIds.has(course.subjectId)).length;
+  const students = requiredSubjectComplianceStudents();
+  const rows = subjects.map((subject, index) => {
+    const courses = state.courses
+      .filter((course) => course.subjectId === subject.id)
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const courseItems = courses.map((course) => ({
+      id: course.id,
+      name: course.name,
+      sections: sortedCourseSections(course.id).map((section) => section.label)
+    }));
+    const compliantStudents = [];
+    const missingStudents = [];
+    students.forEach((student) => {
+      if (studentHasRequiredSubject(student.id, subject.id)) compliantStudents.push(student);
+      else missingStudents.push(student);
+    });
+    const total = students.length;
+    const compliantPercent = total ? (compliantStudents.length / total) * 100 : 0;
+    const missingPercent = total ? (missingStudents.length / total) * 100 : 0;
+    return {
+      subject,
+      color: requiredSubjectComplianceColor(index),
+      courseItems,
+      compliantStudents,
+      missingStudents,
+      compliantPercent,
+      missingPercent,
+      total
+    };
+  });
+  const compliantTotal = rows.reduce((sum, row) => sum + row.compliantStudents.length, 0);
+  const missingTotal = rows.reduce((sum, row) => sum + row.missingStudents.length, 0);
+  const checkTotal = compliantTotal + missingTotal;
+  const compliantStudentTotal = students.filter((student) =>
+    subjects.every((subject) => studentHasRequiredSubject(student.id, subject.id))
+  ).length;
+  const nonCompliantStudentTotal = students.length - compliantStudentTotal;
+  return {
+    subjects,
+    students,
+    rows,
+    requiredCourseTotal,
+    compliantTotal,
+    missingTotal,
+    checkTotal,
+    compliantPercent: checkTotal ? (compliantTotal / checkTotal) * 100 : 0,
+    missingPercent: checkTotal ? (missingTotal / checkTotal) * 100 : 0,
+    compliantStudentTotal,
+    nonCompliantStudentTotal,
+    compliantStudentPercent: students.length ? (compliantStudentTotal / students.length) * 100 : 0,
+    nonCompliantStudentPercent: students.length ? (nonCompliantStudentTotal / students.length) * 100 : 0
+  };
+}
+
+function renderRequiredSubjectComplianceFilterOptions() {
+  renderRequiredSubjectComplianceStudentChecklist(Array.from(requiredSubjectComplianceSelectedStudentIds));
+
+  const gradeSelect = document.getElementById("required-subject-compliance-grade");
+  if (gradeSelect) {
+    const current = requiredSubjectComplianceGrade || "all";
+    const grades = Array.from(new Set(visibleStudents().map((student) => student.grade || "").filter(Boolean)))
+      .sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+    gradeSelect.innerHTML = "<option value='all'>All Grades</option>";
+    grades.forEach((grade) => {
+      const option = document.createElement("option");
+      option.value = grade;
+      option.textContent = grade;
+      gradeSelect.appendChild(option);
+    });
+    requiredSubjectComplianceGrade = grades.includes(current) ? current : "all";
+    gradeSelect.value = requiredSubjectComplianceGrade;
+  }
+
+  const statusSelect = document.getElementById("required-subject-compliance-status");
+  if (statusSelect) {
+    if (!["all", "compliant", "not-compliant"].includes(requiredSubjectComplianceStatus)) requiredSubjectComplianceStatus = "all";
+    statusSelect.value = requiredSubjectComplianceStatus;
+  }
+}
+
+function renderRequiredSubjectComplianceCourseList(row) {
+  if (!row.courseItems.length) return "<span class=\"muted\">No courses or classes added.</span>";
+  return `<ul class="required-subject-compliance-course-list">
+    ${row.courseItems.map((course) => {
+      const classes = course.sections.length ? course.sections.join(", ") : "No classes";
+      return `<li><i style="background:${row.color}" aria-hidden="true"></i><span><strong>${escapeHtml(course.name)}</strong><small>${escapeHtml(classes)}</small></span></li>`;
+    }).join("")}
+  </ul>`;
+}
+
+function renderRequiredSubjectCompliance() {
+  renderRequiredSubjectComplianceFilterOptions();
+  const snapshot = buildRequiredSubjectComplianceSnapshot();
+  const compliantTotalNode = document.getElementById("required-subject-compliance-compliant-total");
+  const compliantPercentNode = document.getElementById("required-subject-compliance-compliant-percent");
+  const missingTotalNode = document.getElementById("required-subject-compliance-missing-total");
+  const missingPercentNode = document.getElementById("required-subject-compliance-missing-percent");
+  const checkTotalNode = document.getElementById("required-subject-compliance-check-total");
+  const studentTotalNode = document.getElementById("required-subject-compliance-student-total");
+  const showingNode = document.getElementById("required-subject-compliance-showing");
+  if (compliantTotalNode) compliantTotalNode.textContent = snapshot.compliantStudentTotal.toLocaleString();
+  if (compliantPercentNode) compliantPercentNode.textContent = `${snapshot.compliantStudentPercent.toFixed(1)}%`;
+  if (missingTotalNode) missingTotalNode.textContent = snapshot.nonCompliantStudentTotal.toLocaleString();
+  if (missingPercentNode) missingPercentNode.textContent = `${snapshot.nonCompliantStudentPercent.toFixed(1)}%`;
+  if (checkTotalNode) checkTotalNode.textContent = snapshot.subjects.length.toLocaleString();
+  if (studentTotalNode) {
+    studentTotalNode.textContent = `${snapshot.requiredCourseTotal.toLocaleString()} required course${snapshot.requiredCourseTotal === 1 ? "" : "s"}`;
+  }
+  if (showingNode) showingNode.textContent = snapshot.rows.length
+    ? `Showing 1 to ${snapshot.rows.length} of ${snapshot.rows.length} required subject${snapshot.rows.length === 1 ? "" : "s"}`
+    : "No required subjects configured.";
+
+  const rows = snapshot.rows.map((row) => {
+    const courseCount = row.courseItems.length;
+    const compliantWidth = clamp(row.compliantPercent, 0, 100).toFixed(1);
+    const missingWidth = clamp(row.missingPercent, 0, 100).toFixed(1);
+    const subjectId = escapeHtml(row.subject.id);
+    return `<tr>
+      <td>
+        <div class="required-subject-compliance-subject">
+          <span class="required-subject-compliance-subject-icon" style="--subject-color:${row.color}" aria-hidden="true"><svg viewBox="0 0 24 24">${workDistributionSubjectIconPaths(row.subject.name)}</svg></span>
+          <span><strong>${escapeHtml(row.subject.name)}</strong><small>${courseCount} course${courseCount === 1 ? "" : "s"}</small></span>
+        </div>
+      </td>
+      <td>${renderRequiredSubjectComplianceCourseList(row)}</td>
+      <td>
+        <div class="required-subject-compliance-distribution" style="--compliant-width:${compliantWidth}%;--missing-width:${missingWidth}%">
+          <div><span></span><span></span></div>
+          <p><strong>${row.compliantPercent.toFixed(0)}%</strong><em>${row.missingPercent.toFixed(0)}%</em></p>
+        </div>
+      </td>
+      <td>
+        <div class="required-subject-compliance-students">
+          <button type="button" class="required-subject-compliance-link compliant" data-required-subject-compliance-subject="${subjectId}" data-required-subject-compliance-status="compliant"${row.compliantStudents.length ? "" : " disabled"}><span aria-hidden="true"></span><strong>${row.compliantStudents.length.toLocaleString()}</strong><em>Compliant</em></button>
+          <button type="button" class="required-subject-compliance-link not-compliant" data-required-subject-compliance-subject="${subjectId}" data-required-subject-compliance-status="not-compliant"${row.missingStudents.length ? "" : " disabled"}><span aria-hidden="true"></span><strong>${row.missingStudents.length.toLocaleString()}</strong><em>Not In Compliance</em></button>
+          <p><strong>${row.total.toLocaleString()}</strong><span>Total</span></p>
+        </div>
+      </td>
+    </tr>`;
+  });
+  rowOrEmpty(document.getElementById("required-subject-compliance-table"), rows, "No required subjects are configured yet.", 4);
+}
+
+function openRequiredSubjectComplianceStudents(subjectId, status) {
+  const snapshot = buildRequiredSubjectComplianceSnapshot();
+  const row = snapshot.rows.find((entry) => entry.subject.id === subjectId);
+  if (!row) return;
+  const students = status === "not-compliant" ? row.missingStudents : row.compliantStudents;
+  studentTableFilterStudent = students.map((student) => `${student.firstName || ""} ${student.lastName || ""}`.trim()).filter(Boolean).join(", ");
+  studentTableFilterGrade = "all";
+  studentTableFilterStatus = "all";
+  studentTableFilterRequired = status === "not-compliant" ? "no" : "yes";
+  studentTableRequiredSubjectFilterId = subjectId;
+  selectedStudentId = "";
+  setStudentViewMode("list");
+  activateTab("students");
+}
+
 function renderDashboard() {
   renderDashboardSectionVisibility();
   const attendanceDialStatus = (value) => {
@@ -14787,6 +15025,7 @@ function renderDashboard() {
   renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
   renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
   renderDashboardGradeRiskSummary(buildDashboardGradeRiskSnapshot(dashboardStudents));
+  renderRequiredSubjectCompliance();
 
   const validStudentIds = new Set(dashboardStudents.map((student) => student.id));
   Array.from(expandedStudentAverageRows).forEach((studentId) => {
@@ -19107,6 +19346,7 @@ function bindEvents() {
       studentTableFilterGrade = document.getElementById("student-table-filter-grade")?.value || "all";
       studentTableFilterStatus = document.getElementById("student-table-filter-status")?.value || "all";
       studentTableFilterRequired = document.getElementById("student-table-filter-required")?.value || "all";
+      studentTableRequiredSubjectFilterId = "";
       renderStudents();
     });
   });
@@ -19424,6 +19664,15 @@ function bindEvents() {
       renderComplianceDaysMonthlyChart();
     });
   }
+  ["required-subject-compliance-grade", "required-subject-compliance-status"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("change", () => {
+      requiredSubjectComplianceGrade = document.getElementById("required-subject-compliance-grade")?.value || "all";
+      requiredSubjectComplianceStatus = document.getElementById("required-subject-compliance-status")?.value || "all";
+      renderRequiredSubjectCompliance();
+    });
+  });
   document.getElementById("compliance-days-monthly-chart")?.addEventListener("click", (event) => {
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (!target) return;
@@ -19551,6 +19800,13 @@ function bindEvents() {
       getComplianceDaysSelectedStudentIds().forEach((id) => complianceDaysSelectedStudentIds.add(id));
       updateComplianceDaysStudentSummary();
       renderComplianceDaysMonthlyChart();
+      return;
+    }
+    if (t.classList.contains("required-subject-compliance-student-checkbox")) {
+      requiredSubjectComplianceSelectedStudentIds.clear();
+      getRequiredSubjectComplianceSelectedStudentIds().forEach((id) => requiredSubjectComplianceSelectedStudentIds.add(id));
+      updateRequiredSubjectComplianceStudentSummary();
+      renderRequiredSubjectCompliance();
       return;
     }
     if (t.classList.contains("instruction-hours-trend-student-checkbox")) {
@@ -19903,6 +20159,13 @@ function bindEvents() {
       openMissingRequiredStudent(missingRequiredStudentTarget.getAttribute("data-open-missing-required-student") || "");
       return;
     }
+    const requiredSubjectComplianceTarget = t.closest("[data-required-subject-compliance-subject]");
+    if (requiredSubjectComplianceTarget instanceof HTMLElement) {
+      const subjectId = requiredSubjectComplianceTarget.getAttribute("data-required-subject-compliance-subject") || "";
+      const status = requiredSubjectComplianceTarget.getAttribute("data-required-subject-compliance-status") || "compliant";
+      openRequiredSubjectComplianceStudents(subjectId, status);
+      return;
+    }
     const openDayTarget = t.closest("[data-open-calendar-day]");
     if (openDayTarget instanceof HTMLElement) {
       const date = openDayTarget.getAttribute("data-date");
@@ -20065,7 +20328,7 @@ function bindEvents() {
     if (dashboardTab) {
       currentDashboardTab = ["overview", "execution", "performance", "compliance"].includes(dashboardTab) ? dashboardTab : "overview";
       const complianceTarget = dashboardTabTarget?.getAttribute("data-compliance-target");
-      if (currentDashboardTab === "compliance" && ["instructional-hours", "instructional-days", "other"].includes(complianceTarget || "")) {
+      if (currentDashboardTab === "compliance" && ["instructional-hours", "instructional-days", "required-subjects"].includes(complianceTarget || "")) {
         currentComplianceTab = complianceTarget;
       }
       renderDashboardSectionVisibility();
@@ -20077,7 +20340,7 @@ function bindEvents() {
     const complianceTabTarget = t.closest("[data-compliance-tab]");
     const complianceTab = complianceTabTarget?.getAttribute("data-compliance-tab");
     if (complianceTab) {
-      currentComplianceTab = ["instructional-hours", "instructional-days", "other"].includes(complianceTab) ? complianceTab : "instructional-hours";
+      currentComplianceTab = ["instructional-hours", "instructional-days", "required-subjects"].includes(complianceTab) ? complianceTab : "instructional-hours";
       renderDashboardSectionVisibility();
       return;
     }

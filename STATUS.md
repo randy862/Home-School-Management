@@ -17,7 +17,7 @@ Modern preview polish in `/modern-design/`.
 - Overview Grades at Risk replaced School Year-to-Date Pace.
 - Grade Search supports grade-value filtering for Single Grade Risk workflows.
 - Performance tables were tightened to fit without internal horizontal scrolling.
-- Compliance now has Instructional Hours, Instructional Days, and Other subtabs.
+- Compliance now has Instructional Hours, Instructional Days, and Required Subjects subtabs with distinct nested styling.
 - Instructional Days now mirrors the Required Instructional Hours panel, including progress chart and student breakdown wiring.
 - Completed Today filter layout and compliance chart sizing were tuned.
 - Required Instructional Days student breakdown was deployed to the modern preview.
@@ -27,6 +27,8 @@ Modern preview polish in `/modern-design/`.
 - Student Performance grade method controls now render as plain tick boxes without circular indicators.
 - Student Performance nested labels now stay inside the Student/Category column.
 - Grade Type Volume, GPA Trending, and Work Distribution now match the modern dashboard styling, with Work Distribution donut-center content centered.
+- Required Instructional Hours and Days now place Key Numbers with the gauge cards, extend Progress Over Time across the analytics width, and reduce crowded Y-axis labels.
+- Compliance > Required Subjects now includes Required Subject Compliance with course/class rows, distribution bars, active-student summary cards, Student multi-select and Compliance filters, and Students-page count links.
 - Current web assets were deployed to `https://mitchell.navigrader.com/modern-design/` and `https://mitchell.navigrader.com/modern-preview/`.
 
 ## Current Blockers
@@ -41,5 +43,5 @@ Modern preview polish in `/modern-design/`.
 
 ## Next Actions
 
-1. Smoke-test Work Distribution donut-center alignment and donut/table layout, GPA Trending controls, Grade Type Volume filter fit, Student Performance table fit, and Students filters.
+1. Smoke-test Compliance > Required Subjects tab label, nested subtab styling, Student multi-select, Compliance filter, active-student summary cards, and count links.
 2. Keep live app unchanged unless replacement is explicitly approved.
