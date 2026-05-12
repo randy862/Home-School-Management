@@ -1,29 +1,24 @@
 function registerStateRoutes(app, deps) {
   const {
+    allowLegacyStateSync,
     isPostgresMode,
     readLegacyBridgeState,
     writeLegacyBridgeState
   } = deps;
 
   app.get("/api/state", async (_req, res) => {
-    if (isPostgresMode) {
-      res.status(410).json({ error: "Legacy full-state sync is disabled in postgres mode." });
-      return;
-    }
+    if (!ensureLegacyStateSyncAllowed(res, isPostgresMode, allowLegacyStateSync)) return;
 
     try {
       const state = await readLegacyBridgeState();
       res.json(state);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendStateRouteError(res, error);
     }
   });
 
   app.put("/api/state", async (req, res) => {
-    if (isPostgresMode) {
-      res.status(410).json({ error: "Legacy full-state sync is disabled in postgres mode." });
-      return;
-    }
+    if (!ensureLegacyStateSyncAllowed(res, isPostgresMode, allowLegacyStateSync)) return;
 
     try {
       const payload = req.body || {};
@@ -35,9 +30,21 @@ function registerStateRoutes(app, deps) {
       await writeLegacyBridgeState(payload);
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendStateRouteError(res, error);
     }
   });
+}
+
+function ensureLegacyStateSyncAllowed(res, isPostgresMode, allowLegacyStateSync) {
+  if (isPostgresMode) {
+    res.status(410).json({ error: "Legacy full-state sync is disabled in postgres mode." });
+    return false;
+  }
+  if (!allowLegacyStateSync) {
+    res.status(410).json({ error: "Legacy full-state sync is disabled." });
+    return false;
+  }
+  return true;
 }
 
 function isValidStatePayload(payload) {
@@ -50,6 +57,19 @@ function isValidStatePayload(payload) {
     && Array.isArray(payload.tests)
     && Array.isArray(payload.users)
     && !!payload.settings;
+}
+
+function sendStateRouteError(res, error) {
+  const statusCode = Number(error.statusCode || error.status || 500);
+  const safeStatusCode = statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+  const isProduction = String(process.env.APP_ENV || "").toLowerCase() === "production";
+  const message = safeStatusCode >= 500 && isProduction
+    ? "Unexpected error."
+    : (error.message || "Unexpected error.");
+  if (safeStatusCode >= 500) {
+    console.error(error);
+  }
+  res.status(safeStatusCode).json({ error: message });
 }
 
 module.exports = {

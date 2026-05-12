@@ -49,6 +49,7 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - `GET /api/account` now withholds hosted subscription, upgrade, billing-event, and export-request details from non-admin users.
 - Account routes now sanitize production 5xx responses instead of returning raw internal error messages.
 - Records routes now sanitize production 5xx responses and retained student read scoping/admin-only writes under route-level checks.
+- Legacy `/api/state` full-state sync now fails closed in production unless `LEGACY_STATE_SYNC_ENABLED=true` is explicitly set.
 
 ## Current Blockers
 

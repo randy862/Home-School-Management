@@ -32,7 +32,7 @@ Completed this batch:
 - Remediated npm audit finding in `server/package-lock.json`.
 - Added `control-api/package-lock.json`; both npm audits now pass.
 - Added `CHECKLISTS/security-hardening-deployment.md` for service-user, secret-file, Apache, DB, and post-deploy validation prerequisites.
-- Tightened tenant runtime resolution so hosted PostgreSQL requests fail closed without a resolved tenant schema; fallback runtime is host-bound when `TENANT_APP_BASE_URL` is configured.
+- Tightened tenant runtime resolution so hosted PostgreSQL requests fail closed without a resolved tenant schema; fallback runtime is host-bound and legacy state sync fails closed in production.
 - Tightened control-plane environment job routes so queued jobs use the environment's server-side tenant ID and reject mismatched body tenant IDs.
 - Scoped student instructor reads to assigned instructors and redacted instructor birthdate/background fields from student responses.
 - Aligned tenant user creation and tenant account password changes to a 10-character minimum password policy.
@@ -60,13 +60,13 @@ Use `CHECKLISTS/security-hardening-deployment.md` to prepare production prerequi
 
 ## Validation
 
-- `node --check server\src\app.js; node --check server\src\middleware\security.js; node --check server\src\middleware\auth-context.js; node --check server\src\middleware\error-handler.js; node --check server\src\routes\auth-routes.js; node --check server\src\routes\setup-routes.js; node --check server\src\config.js`
+- `node --check server\src\app.js; node --check server\src\middleware\security.js; node --check server\src\middleware\auth-context.js; node --check server\src\middleware\error-handler.js; node --check server\src\routes\auth-routes.js; node --check server\src\routes\setup-routes.js; node --check server\src\routes\state-routes.js; node --check server\src\config.js`
 - `node --check control-api\src\app.js; node --check control-api\src\middleware\security.js; node --check control-api\src\middleware\auth-context.js; node --check control-api\src\middleware\error-handler.js; node --check control-api\src\routes\operator-auth-routes.js; node --check control-api\src\routes\public-saas-routes.js; node --check control-api\src\tenant-runtime-automation.js; node --check control-api\src\config.js`
 - `npm.cmd audit --omit=dev` in `server/`
 - `npm.cmd audit --omit=dev` in `control-api/`
 - `git diff --check`
 - `node --check server\src\middleware\tenant-runtime-context.js`
-- Inline tenant runtime fail-closed check via `node -`
+- Inline tenant runtime and legacy state fail-closed checks via `node -`
 - Inline control-plane environment tenant/job binding check via `node -`
 - Inline scoped instructor route check via `node -`
 - Inline tenant admin user password-minimum check via `node -`

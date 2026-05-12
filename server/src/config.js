@@ -19,7 +19,8 @@ module.exports = {
     env: appEnv,
     port: Number(process.env.APP_PORT || 3000),
     corsOrigin: process.env.APP_CORS_ORIGIN || "*",
-    dbClient: String(process.env.DB_CLIENT || "mssql").toLowerCase()
+    dbClient: String(process.env.DB_CLIENT || "mssql").toLowerCase(),
+    allowLegacyStateSync: toBool(process.env.LEGACY_STATE_SYNC_ENABLED, !isProductionEnv(appEnv))
   },
   internal: {
     controlPlaneBaseUrl: String(process.env.CONTROL_PLANE_BASE_URL || "http://127.0.0.1:3100").trim() || "http://127.0.0.1:3100",

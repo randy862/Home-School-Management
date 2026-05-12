@@ -10,6 +10,7 @@ Group=hsm-api
 WorkingDirectory=/home/debian/apps/home-school-management/server
 Environment=APP_ENV=production
 Environment=DB_CLIENT=postgres
+Environment=LEGACY_STATE_SYNC_ENABLED=false
 Environment=APP_PORT=3000
 Environment=APP_CORS_ORIGIN=https://www.navigrader.com,https://navigrader.com
 Environment=SESSION_COOKIE_NAME=hsm_session

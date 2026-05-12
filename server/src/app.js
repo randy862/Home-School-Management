@@ -160,6 +160,7 @@ const recordsRouteDeps = {
   })
 };
 const stateRouteDeps = {
+  allowLegacyStateSync: appConfig.allowLegacyStateSync,
   isPostgresMode,
   readLegacyBridgeState,
   writeLegacyBridgeState
