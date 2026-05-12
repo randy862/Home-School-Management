@@ -42,6 +42,7 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
   - Systemd templates now use secure cookies, external secret env files, dedicated users, and hardening directives.
   - `server/package-lock.json` updated to remediate `path-to-regexp`; `control-api/package-lock.json` added.
 - Added `CHECKLISTS/security-hardening-deployment.md` for APP001/WEB001/SQL001 hardening prerequisites and validation.
+- Tenant runtime middleware now fails closed for unresolved PostgreSQL tenant contexts and only allows fallback runtime when the request matches the configured tenant app host.
 
 ## Current Blockers
 
@@ -59,4 +60,4 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 
 1. Use `CHECKLISTS/security-hardening-deployment.md` to prepare service users, secret files, Apache syntax, and validation.
 2. Run hosted release gate against target environment after deploy.
-3. Continue PostgreSQL least-privilege, backup/restore, and tenant isolation testing.
+3. Continue route-by-route IDOR testing, then PostgreSQL least-privilege and backup/restore hardening.

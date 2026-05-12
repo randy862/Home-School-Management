@@ -18,13 +18,14 @@ function createTenantRuntimeContextMiddleware(options) {
     }
 
     try {
-      const runtime = await resolveTenantRuntimeForRequest(req, controlSchema) || fallbackRuntime;
+      const runtime = await resolveTenantRuntimeForRequest(req, controlSchema) || getFallbackRuntimeForRequest(req, fallbackRuntime);
       req.tenantRuntime = runtime || null;
       if (!runtime?.databaseSchema) {
-        runWithRequestContext({
-          pgClient: null,
-          tenantRuntime: runtime || null
-        }, () => next());
+        if (isTenantRuntimeOptionalRequest(req)) {
+          next();
+          return;
+        }
+        res.status(421).json({ error: "Tenant runtime could not be resolved." });
         return;
       }
 
@@ -149,6 +150,25 @@ function buildFallbackRuntimeContext(commercialConfig) {
   };
 }
 
+function getFallbackRuntimeForRequest(req, fallbackRuntime) {
+  if (!fallbackRuntime) return null;
+  const configuredHost = normalizeHostFromUrl(fallbackRuntime.appBaseUrl);
+  if (!configuredHost) return fallbackRuntime;
+
+  const requestHost = normalizeHost(req.headers["x-forwarded-host"] || req.headers.host || "");
+  return requestHost === configuredHost ? fallbackRuntime : null;
+}
+
+function normalizeHostFromUrl(value) {
+  const source = String(value || "").trim();
+  if (!source) return "";
+  try {
+    return normalizeHost(new URL(source).host);
+  } catch (_error) {
+    return normalizeHost(source);
+  }
+}
+
 function parseSchemaFromSearchPath(value) {
   const source = String(value || "");
   const match = source.match(/search_path\s*=\s*("?)([a-zA-Z_][a-zA-Z0-9_]*)\1/i);
@@ -169,6 +189,10 @@ function quoteIdent(value) {
     throw new Error(`Invalid PostgreSQL identifier: ${value}`);
   }
   return `"${normalized}"`;
+}
+
+function isTenantRuntimeOptionalRequest(req) {
+  return req.path === "/health";
 }
 
 module.exports = {
