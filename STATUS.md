@@ -1,40 +1,26 @@
 # Current Status
 
-Date: 2026-05-12
+Date: 2026-05-11
 
 ## Active Workstream
 
-Modern app preview refinement.
+SaaS landing page redesign preview.
 
 ## Current Focus
 
-Modern interface is live in production at `https://mitchell.navigrader.com/`.
+Preview the redesigned SaaS page at `https://www.navigrader.com/saas-preview.html` while keeping the live public page unchanged.
 
 ## Completed Recently
 
-- Required Subjects were added to Curriculum, enrollment checks, dashboard subject rows, and database persistence.
-- Overview Attendance and Running Grade Average cards now match instruction status-card styling.
-- Overview Grades at Risk replaced School Year-to-Date Pace.
-- Grade Search supports grade-value filtering for Single Grade Risk workflows.
-- Performance tables were tightened to fit without internal horizontal scrolling.
-- Compliance now has Instructional Hours, Instructional Days, and Required Subjects subtabs with distinct nested styling.
-- Instructional Days now mirrors the Required Instructional Hours panel, including progress chart and student breakdown wiring.
-- Completed Today filter layout and compliance chart sizing were tuned.
-- Required Instructional Days student breakdown was deployed to the modern preview.
-- Instruction Days Trending now shows data values and month-wide hover popups.
-- Overview now has Missing Required Subjects instead of Completed/Awaiting Grades.
-- Students table now includes Required status and Student, Grade, Status, Required filters.
-- Student Performance grade method controls now render as plain tick boxes without circular indicators.
-- Student Performance nested labels now stay inside the Student/Category column.
-- Grade Type Volume, GPA Trending, and Work Distribution now match the modern dashboard styling, with Work Distribution donut-center content centered.
-- Required Instructional Hours and Days now place Key Numbers with the gauge cards, extend Progress Over Time across the analytics width, and reduce crowded Y-axis labels.
-- Compliance > Required Subjects now includes Required Subject Compliance with course/class rows, distribution bars, active-student summary cards, Student multi-select and Compliance filters, and Students-page count links.
-- Administration > Workspace Configuration > Dashboard Visibility now mirrors Dashboard tabs/subtabs and exposes one configurable flag per current dashboard gauge/section.
-- Hosted workspace-config normalization now preserves unchecked split Dashboard Visibility flags after Save Configuration.
-- Printable Student and Instructor reports now use a branded Navigrader report frame with Subject/Grade Report Criteria filters, configurable Student Executive Summary/Required Subjects content, split Instructor Executive Summary/Overview/Course Summary sections, Instructor performance summaries by subject, student, and grade, polished report tables/cards, `https://www.navigrader.com` footer, compact print summary cards, and tighter Reports status-message spacing.
-- School Day now has a persisted Scheduled/Completed/Excused status model, a Status filter, correct Excused schedule behavior, and Flex Block actions aligned under Actions.
-- Dashboard Execution now has Class Status and Past Due gauges, and Overview tracks Open Classes from 05/12/2026 forward.
-- Modern web assets were promoted to production from commit `322d6f1`; `/modern-preview/` remains as the reference copy.
+- Modern app interface was promoted to production at `https://mitchell.navigrader.com/`.
+- SaaS redesign branch `saas-modern-redesign` was fast-forwarded to the modern production baseline.
+- Preview-only files `web/saas-preview.html` and `web/saas-preview.css` were added.
+- Existing `web/saas.js` checkout and public plan-loading behavior is reused.
+- The preview page was deployed to `https://www.navigrader.com/saas-preview.html`.
+- The preview hero now uses `web/assets/saas-hero-family.png` with a soft fade/overlap.
+- Hero and final CTA product imagery now use `web/assets/ModernScreenshot1.png`.
+- Live `https://www.navigrader.com/saas.html` still points to `saas.css?v=202605051430`.
+- Latest pushed commits: `75533f1`, `781fffd`.
 
 ## Current Blockers
 
@@ -42,11 +28,11 @@ Modern interface is live in production at `https://mitchell.navigrader.com/`.
 
 ## Current Risks
 
-- Production backup before cutover: `/var/backups/home-school-management/web-production-20260512-002946.tar.gz`.
-- Untracked `tmp/` and icon files remain outside the current commit unless explicitly requested.
+- Live SaaS page has not been replaced yet.
+- Untracked `tmp/`, unused ModernScreenshot variants, and icon scratch files remain outside the current commit unless explicitly requested.
 - Continue avoiding archive/ and NOTES/ unless the task requires them.
 
 ## Next Actions
 
-1. Monitor production after the modern interface cutover.
-2. Use the production backup above for rollback if a blocking live issue appears.
+1. Review SaaS preview visuals and collect polish notes.
+2. After approval, back up live `saas.html`/`saas.css` and promote preview files to production.
