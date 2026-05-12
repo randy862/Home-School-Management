@@ -31,7 +31,7 @@ Completed this batch:
 - Hardened systemd templates with dedicated users, external secret env files, and baseline sandboxing directives.
 - Remediated npm audit finding in `server/package-lock.json`.
 - Added `control-api/package-lock.json`; both npm audits now pass.
-- Added security deployment and operational checklists for service users, secrets, Apache, DB roles, backup/restore, AWS security groups, monitoring, incident response, and validation.
+- Added security deployment, operational, and lab checklists for service users, secrets, Apache, DB roles, backup/restore, AWS-deferred controls, monitoring, incident response, and validation.
 - Tightened tenant runtime resolution so hosted PostgreSQL requests fail closed without a resolved tenant schema; fallback runtime is host-bound and legacy state sync fails closed in production.
 - Tightened control-plane environment job routes so queued jobs use the environment's server-side tenant ID and reject mismatched body tenant IDs.
 - Scoped student instructor reads to assigned instructors and redacted instructor birthdate/background fields from student responses.
@@ -47,7 +47,7 @@ Current security commits:
 
 ## Next Action
 
-Use `CHECKLISTS/security-hardening-deployment.md` to prepare production prerequisites, then run the hosted release gate against the target environment after deploy.
+Use `CHECKLISTS/security-lab-hardening.md` to complete lab signoff, then keep AWS-only controls deferred until hosted infrastructure exists.
 
 ## Risks
 
@@ -55,7 +55,7 @@ Use `CHECKLISTS/security-hardening-deployment.md` to prepare production prerequi
 - Scratch assets remain intentionally untouched.
 - Checkout uses live public plans and checkout endpoints through existing `saas.js`.
 - In-memory rate limits are not a final distributed SaaS limiter.
-- PostgreSQL least privilege, encrypted backup/restore, AWS security groups, incident checklist, and cross-tenant abuse tests remain open.
+- Lab PostgreSQL least privilege, encrypted backup/restore, incident checklist, and cross-tenant abuse tests remain open; AWS security groups are deferred until AWS exists.
 - Route-by-route IDOR testing is started but not complete.
 
 ## Validation

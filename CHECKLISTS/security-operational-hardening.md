@@ -7,6 +7,8 @@ Owner: QA & Release Agent
 
 Use this before public SaaS launch and before any production AWS cutover.
 
+If the environment is still a lab, use `CHECKLISTS/security-lab-hardening.md` for the signoff path. Keep AWS/network items in this checklist deferred until AWS hosts and security groups exist.
+
 Applies to:
 
 - `WEB001` public web and Apache reverse proxy

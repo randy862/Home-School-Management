@@ -54,6 +54,7 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Curriculum/calendar/grading routes now sanitize production 5xx responses; student schedule-block reads are scoped to assigned blocks.
 - Control API routes now share production-safe route error handling across tenant, environment, job, operator, audit, runtime, and commercial endpoints.
 - Added `CHECKLISTS/security-operational-hardening.md` for PostgreSQL roles, encrypted backup/restore, AWS security groups, monitoring, and incident response.
+- Added `CHECKLISTS/security-lab-hardening.md` so lab hardening can be signed off while AWS-only controls remain deferred.
 - Broad tenant/control route raw-error scan, syntax checks, and production npm audits are clean.
 
 ## Current Blockers
@@ -66,10 +67,10 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Untracked scratch assets remain outside the current commit unless explicitly requested.
 - Continue avoiding archive/ and NOTES/ unless the task requires them.
 - In-memory rate limits are a first hardening step, not the final distributed SaaS abuse-control design.
-- PostgreSQL role/backup hardening, AWS security groups, incident runbooks, and cross-tenant abuse tests remain open.
+- Lab PostgreSQL role/backup hardening and cross-tenant abuse tests remain open; AWS security groups remain deferred until AWS exists.
 
 ## Next Actions
 
-1. Use `CHECKLISTS/security-hardening-deployment.md` to prepare service users, secret files, Apache syntax, and validation.
-2. Run hosted release gate against target environment after deploy.
-3. Continue route-by-route IDOR testing, then PostgreSQL least-privilege and backup/restore hardening.
+1. Complete `CHECKLISTS/security-lab-hardening.md` against the lab environment.
+2. Run lab smoke validation for tenant/admin/control flows after deploy.
+3. Keep AWS-only controls deferred until the hosted platform exists.

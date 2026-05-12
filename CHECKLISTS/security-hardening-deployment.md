@@ -7,6 +7,8 @@ Owner: QA & Release Agent
 
 Use this checklist before deploying the current security hardening baseline.
 
+For the current lab environment, complete `CHECKLISTS/security-lab-hardening.md` first. AWS-only production controls may be deferred there until the hosted platform exists.
+
 Applies to:
 
 - `APP001` tenant API and control API services
