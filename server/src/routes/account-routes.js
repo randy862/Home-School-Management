@@ -69,7 +69,7 @@ function registerAccountRoutes(app, deps) {
         }
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAccountRouteError(res, error);
     }
   });
 
@@ -104,7 +104,7 @@ function registerAccountRoutes(app, deps) {
         }
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAccountRouteError(res, error);
     }
   });
 
@@ -158,7 +158,7 @@ function registerAccountRoutes(app, deps) {
 
       res.json({ ok: true });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAccountRouteError(res, error);
     }
   });
 
@@ -202,7 +202,7 @@ function registerAccountRoutes(app, deps) {
         targetPlan: payload?.targetPlan ? mapUpgradePlan(payload.targetPlan) : null
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAccountRouteError(res, error);
     }
   });
 
@@ -237,7 +237,7 @@ function registerAccountRoutes(app, deps) {
         subscription: payload?.subscription ? mapSubscriptionSummary(payload.subscription) : null
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAccountRouteError(res, error);
     }
   });
 
@@ -272,7 +272,7 @@ function registerAccountRoutes(app, deps) {
         subscription: payload?.subscription ? mapSubscriptionSummary(payload.subscription) : null
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAccountRouteError(res, error);
     }
   });
 
@@ -307,7 +307,7 @@ function registerAccountRoutes(app, deps) {
         exportRequest: payload?.exportRequest ? mapExportRequest(payload.exportRequest) : null
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAccountRouteError(res, error);
     }
   });
 }
@@ -419,6 +419,19 @@ function ensureAdminUser(req, res, message) {
   if (req.auth?.user?.role === "admin") return true;
   res.status(403).json({ error: message || "Administrator access required." });
   return false;
+}
+
+function sendAccountRouteError(res, error) {
+  const statusCode = Number(error.statusCode || error.status || 500);
+  const safeStatusCode = statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+  const isProduction = String(process.env.APP_ENV || "").toLowerCase() === "production";
+  const message = safeStatusCode >= 500 && isProduction
+    ? "Unexpected error."
+    : (error.message || "Unexpected error.");
+  if (safeStatusCode >= 500) {
+    console.error(error);
+  }
+  res.status(safeStatusCode).json({ error: message });
 }
 
 function normalizeProfilePhotoDataUrl(value) {

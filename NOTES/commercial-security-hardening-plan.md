@@ -442,7 +442,7 @@ Implemented:
 - Control-plane environment job routes now bind tenant identity from the server-side environment record and reject mismatched request body tenant IDs.
 - Student instructor reads are scoped to assigned instructors and redact instructor birthdate/background metadata.
 - Tenant user creation and tenant account password changes now enforce a 10-character minimum password length.
-- Account subscription, upgrade, billing-event, and export-request details are returned only to tenant administrators.
+- Account subscription, upgrade, billing-event, and export-request details are returned only to tenant administrators; account route 5xx responses are sanitized in production.
 - Production Apache SSL template with redirect, HSTS, security headers, no directory indexes, request body limit, proxy timeouts, dotfile denial, and separated logs.
 - Systemd templates updated for dedicated service users, secure cookies, external secret env files, and baseline hardening directives.
 - Dependency audit remediation for `server`; `control-api` now has a lockfile and audits clean.
