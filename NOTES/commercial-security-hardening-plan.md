@@ -439,6 +439,7 @@ Implemented:
 - Minimum password length for setup/bootstrap account creation.
 - Tenant schema identifier validation before provisioning-generated `PGOPTIONS` and search paths are written.
 - Tenant runtime resolution now fails closed when a PostgreSQL request has no resolved schema; fallback runtime is host-bound when `TENANT_APP_BASE_URL` is configured.
+- Control-plane environment job routes now bind tenant identity from the server-side environment record and reject mismatched request body tenant IDs.
 - Production Apache SSL template with redirect, HSTS, security headers, no directory indexes, request body limit, proxy timeouts, dotfile denial, and separated logs.
 - Systemd templates updated for dedicated service users, secure cookies, external secret env files, and baseline hardening directives.
 - Dependency audit remediation for `server`; `control-api` now has a lockfile and audits clean.

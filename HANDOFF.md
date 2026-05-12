@@ -33,6 +33,7 @@ Completed this batch:
 - Added `control-api/package-lock.json`; both npm audits now pass.
 - Added `CHECKLISTS/security-hardening-deployment.md` for service-user, secret-file, Apache, DB, and post-deploy validation prerequisites.
 - Tightened tenant runtime resolution so hosted PostgreSQL requests fail closed without a resolved tenant schema; fallback runtime is host-bound when `TENANT_APP_BASE_URL` is configured.
+- Tightened control-plane environment job routes so queued jobs use the environment's server-side tenant ID and reject mismatched body tenant IDs.
 
 Prior live SaaS polish remains deployed at `https://www.navigrader.com/`; see previous history if that workstream is reopened.
 
@@ -63,3 +64,4 @@ Use `CHECKLISTS/security-hardening-deployment.md` to prepare production prerequi
 - `git diff --check`
 - `node --check server\src\middleware\tenant-runtime-context.js`
 - Inline tenant runtime fail-closed check via `node -`
+- Inline control-plane environment tenant/job binding check via `node -`

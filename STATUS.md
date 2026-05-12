@@ -43,6 +43,7 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
   - `server/package-lock.json` updated to remediate `path-to-regexp`; `control-api/package-lock.json` added.
 - Added `CHECKLISTS/security-hardening-deployment.md` for APP001/WEB001/SQL001 hardening prerequisites and validation.
 - Tenant runtime middleware now fails closed for unresolved PostgreSQL tenant contexts and only allows fallback runtime when the request matches the configured tenant app host.
+- Control-plane environment job routes now derive tenant identity from the server-loaded environment and reject mismatched body tenant IDs.
 
 ## Current Blockers
 

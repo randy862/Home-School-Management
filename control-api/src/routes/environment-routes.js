@@ -52,7 +52,9 @@ function registerEnvironmentRoutes(app, deps) {
     if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
-      const job = await queueProvisioningJob(normalizeProvisionJobPayload(req.body, req.params.id), {
+      const environment = await requireEnvironment(getTenantEnvironmentById, req.params.id, res);
+      if (!environment) return;
+      const job = await queueProvisioningJob(normalizeProvisionJobPayload(req.body, environment), {
         operatorUserId: req.auth.user.id
       });
       res.status(201).json(job);
@@ -65,7 +67,9 @@ function registerEnvironmentRoutes(app, deps) {
     if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
-      const job = await queueProvisioningJob(normalizeDeployReleaseJobPayload(req.body, req.params.id), {
+      const environment = await requireEnvironment(getTenantEnvironmentById, req.params.id, res);
+      if (!environment) return;
+      const job = await queueProvisioningJob(normalizeDeployReleaseJobPayload(req.body, environment), {
         operatorUserId: req.auth.user.id
       });
       res.status(201).json(job);
@@ -78,7 +82,9 @@ function registerEnvironmentRoutes(app, deps) {
     if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
-      const job = await queueProvisioningJob(normalizeSetupTokenJobPayload(req.body, req.params.id), {
+      const environment = await requireEnvironment(getTenantEnvironmentById, req.params.id, res);
+      if (!environment) return;
+      const job = await queueProvisioningJob(normalizeSetupTokenJobPayload(req.body, environment), {
         operatorUserId: req.auth.user.id
       });
       res.status(201).json(job);
@@ -91,7 +97,9 @@ function registerEnvironmentRoutes(app, deps) {
     if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
-      const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, req.params.id, "suspend_tenant", "Suspend tenant queued"), {
+      const environment = await requireEnvironment(getTenantEnvironmentById, req.params.id, res);
+      if (!environment) return;
+      const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, environment, "suspend_tenant", "Suspend tenant queued"), {
         operatorUserId: req.auth.user.id
       });
       res.status(201).json(job);
@@ -104,7 +112,9 @@ function registerEnvironmentRoutes(app, deps) {
     if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
-      const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, req.params.id, "resume_tenant", "Resume tenant queued"), {
+      const environment = await requireEnvironment(getTenantEnvironmentById, req.params.id, res);
+      if (!environment) return;
+      const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, environment, "resume_tenant", "Resume tenant queued"), {
         operatorUserId: req.auth.user.id
       });
       res.status(201).json(job);
@@ -117,7 +127,9 @@ function registerEnvironmentRoutes(app, deps) {
     if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
-      const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, req.params.id, "decommission_tenant", "Decommission tenant queued"), {
+      const environment = await requireEnvironment(getTenantEnvironmentById, req.params.id, res);
+      if (!environment) return;
+      const job = await queueProvisioningJob(normalizeLifecycleJobPayload(req.body, environment, "decommission_tenant", "Decommission tenant queued"), {
         operatorUserId: req.auth.user.id
       });
       res.status(201).json(job);
@@ -130,7 +142,9 @@ function registerEnvironmentRoutes(app, deps) {
     if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
 
     try {
-      const job = await queueProvisioningJob(normalizeArchiveJobPayload(req.body, req.params.id), {
+      const environment = await requireEnvironment(getTenantEnvironmentById, req.params.id, res);
+      if (!environment) return;
+      const job = await queueProvisioningJob(normalizeArchiveJobPayload(req.body, environment), {
         operatorUserId: req.auth.user.id
       });
       res.status(201).json(job);
@@ -155,6 +169,13 @@ function registerEnvironmentRoutes(app, deps) {
       res.status(error.statusCode || 500).json({ error: error.message });
     }
   });
+}
+
+async function requireEnvironment(getTenantEnvironmentById, id, res) {
+  const environment = await getTenantEnvironmentById(id);
+  if (environment) return environment;
+  res.status(404).json({ error: "Environment not found." });
+  return null;
 }
 
 function normalizeCreateEnvironmentPayload(input, tenantId) {
@@ -199,8 +220,9 @@ function normalizeCreateEnvironmentPayload(input, tenantId) {
   };
 }
 
-function normalizeProvisionJobPayload(input, tenantEnvironmentId) {
-  const tenantId = String(input?.tenantId || "").trim() || null;
+function normalizeProvisionJobPayload(input, environment) {
+  const tenantEnvironmentId = environment?.id;
+  const tenantId = resolveEnvironmentTenantId(input, environment);
   const releaseVersion = String(input?.releaseVersion || "").trim();
   const appBaseUrl = String(input?.appBaseUrl || "").trim();
   const appHost = String(input?.appHost || "").trim();
@@ -237,8 +259,9 @@ function normalizeProvisionJobPayload(input, tenantEnvironmentId) {
   };
 }
 
-function normalizeSetupTokenJobPayload(input, tenantEnvironmentId) {
-  const tenantId = String(input?.tenantId || "").trim() || null;
+function normalizeSetupTokenJobPayload(input, environment) {
+  const tenantEnvironmentId = environment?.id;
+  const tenantId = resolveEnvironmentTenantId(input, environment);
   const ttlHoursRaw = input?.ttlHours;
   const ttlHours = ttlHoursRaw == null || ttlHoursRaw === "" ? 2 : Number(ttlHoursRaw);
   const deliveredVia = String(input?.deliveredVia || "operator_console").trim() || "operator_console";
@@ -276,8 +299,9 @@ function normalizeSetupTokenJobPayload(input, tenantEnvironmentId) {
   };
 }
 
-function normalizeDeployReleaseJobPayload(input, tenantEnvironmentId) {
-  const tenantId = String(input?.tenantId || "").trim() || null;
+function normalizeDeployReleaseJobPayload(input, environment) {
+  const tenantEnvironmentId = environment?.id;
+  const tenantId = resolveEnvironmentTenantId(input, environment);
   const releaseVersion = String(input?.releaseVersion || "").trim();
   const appBaseUrl = String(input?.appBaseUrl || "").trim();
   const appHost = String(input?.appHost || "").trim();
@@ -313,8 +337,9 @@ function normalizeDeployReleaseJobPayload(input, tenantEnvironmentId) {
   };
 }
 
-function normalizeLifecycleJobPayload(input, tenantEnvironmentId, jobType, message) {
-  const tenantId = String(input?.tenantId || "").trim() || null;
+function normalizeLifecycleJobPayload(input, environment, jobType, message) {
+  const tenantEnvironmentId = environment?.id;
+  const tenantId = resolveEnvironmentTenantId(input, environment);
   const idempotencyKey = String(input?.idempotencyKey || "").trim();
   const maxAttempts = normalizeMaxAttempts(input?.maxAttempts);
   const notes = String(input?.notes || "").trim();
@@ -339,8 +364,9 @@ function normalizeLifecycleJobPayload(input, tenantEnvironmentId, jobType, messa
   };
 }
 
-function normalizeArchiveJobPayload(input, tenantEnvironmentId) {
-  const tenantId = String(input?.tenantId || "").trim() || null;
+function normalizeArchiveJobPayload(input, environment) {
+  const tenantEnvironmentId = environment?.id;
+  const tenantId = resolveEnvironmentTenantId(input, environment);
   const idempotencyKey = String(input?.idempotencyKey || "").trim();
   const maxAttempts = normalizeMaxAttempts(input?.maxAttempts);
   const notes = String(input?.notes || "").trim();
@@ -369,6 +395,22 @@ function normalizeMaxAttempts(value) {
   const parsed = Number(value || 3);
   if (!Number.isFinite(parsed) || parsed < 1 || parsed > 10) return 3;
   return Math.floor(parsed);
+}
+
+function resolveEnvironmentTenantId(input, environment) {
+  const tenantId = String(environment?.tenantId || "").trim();
+  const requestedTenantId = String(input?.tenantId || "").trim();
+  if (!tenantId) {
+    const error = new Error("Environment tenant id is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (requestedTenantId && requestedTenantId !== tenantId) {
+    const error = new Error("Tenant id does not match environment.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return tenantId;
 }
 
 module.exports = {
