@@ -445,6 +445,7 @@ Implemented:
 - Account subscription, upgrade, billing-event, and export-request details are returned only to tenant administrators; account route 5xx responses are sanitized in production.
 - Admin and records routes retain server-side student read scoping/admin-only writes and now sanitize production 5xx responses.
 - Curriculum/calendar/grading routes sanitize production 5xx responses; student schedule-block reads are scoped to assigned blocks.
+- Control API route catches now use shared production-safe error handling across tenant, environment, job, operator, audit, runtime, and commercial endpoints.
 - Legacy `/api/state` full-state sync now fails closed in production unless `LEGACY_STATE_SYNC_ENABLED=true` is explicitly configured.
 - Production Apache SSL template with redirect, HSTS, security headers, no directory indexes, request body limit, proxy timeouts, dotfile denial, and separated logs.
 - Systemd templates updated for dedicated service users, secure cookies, external secret env files, and baseline hardening directives.

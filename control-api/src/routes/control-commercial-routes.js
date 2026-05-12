@@ -1,5 +1,5 @@
 const { randomUUID } = require("crypto");
-const { ensurePermission } = require("./route-auth");
+const { ensurePermission, sendRouteError } = require("./route-auth");
 const { parseBearerToken, verifyInternalServiceToken } = require("../internal-service-auth");
 
 function registerControlCommercialRoutes(app, deps) {
@@ -109,7 +109,7 @@ function registerControlCommercialRoutes(app, deps) {
         targetPlan
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -178,7 +178,7 @@ function registerControlCommercialRoutes(app, deps) {
         lifecycleJob
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -264,7 +264,7 @@ function registerControlCommercialRoutes(app, deps) {
         lifecycleJob
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -329,7 +329,7 @@ function registerControlCommercialRoutes(app, deps) {
         subscription: buildControlSubscriptionResponse(updated, overview, currentPlan)
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -369,7 +369,7 @@ function registerControlCommercialRoutes(app, deps) {
         exportRequest
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -379,7 +379,7 @@ function registerControlCommercialRoutes(app, deps) {
     try {
       res.json(await listCommercialOverview());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -407,7 +407,7 @@ function registerControlCommercialRoutes(app, deps) {
         auditEntries
       });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -464,7 +464,7 @@ function registerControlCommercialRoutes(app, deps) {
         lifecycleJob
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -516,7 +516,7 @@ function registerControlCommercialRoutes(app, deps) {
         lifecycleJob
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -551,7 +551,7 @@ function registerControlCommercialRoutes(app, deps) {
       });
       res.status(201).json(exportRequest);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 }

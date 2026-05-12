@@ -1,4 +1,5 @@
 const { parseBearerToken, verifyInternalServiceToken } = require("../internal-service-auth");
+const { sendRouteError } = require("./route-auth");
 
 function registerRuntimeRoutes(app, deps) {
   const {
@@ -36,7 +37,7 @@ function registerRuntimeRoutes(app, deps) {
         resolvedBy: runtime.domainType
       });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -60,7 +61,7 @@ function registerRuntimeRoutes(app, deps) {
 
       res.json(runtime);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 }

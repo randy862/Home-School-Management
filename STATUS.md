@@ -52,6 +52,7 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Legacy `/api/state` full-state sync now fails closed in production unless `LEGACY_STATE_SYNC_ENABLED=true` is explicitly set.
 - Admin routes now sanitize production 5xx responses and retain route-level checks for student scoping/admin-only writes.
 - Curriculum/calendar/grading routes now sanitize production 5xx responses; student schedule-block reads are scoped to assigned blocks.
+- Control API routes now share production-safe route error handling across tenant, environment, job, operator, audit, runtime, and commercial endpoints.
 
 ## Current Blockers
 

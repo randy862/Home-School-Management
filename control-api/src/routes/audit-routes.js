@@ -1,4 +1,4 @@
-const { ensureAuthenticated } = require("./route-auth");
+const { ensureAuthenticated, sendRouteError } = require("./route-auth");
 
 function registerAuditRoutes(app, deps) {
   const { listOperatorAuditLog } = deps;
@@ -16,7 +16,7 @@ function registerAuditRoutes(app, deps) {
       });
       res.json(entries);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 }

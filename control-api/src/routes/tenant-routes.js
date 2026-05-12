@@ -1,5 +1,5 @@
 const { randomUUID } = require("crypto");
-const { ensureAuthenticated, ensurePermission } = require("./route-auth");
+const { ensureAuthenticated, ensurePermission, sendRouteError } = require("./route-auth");
 
 function registerTenantRoutes(app, deps) {
   const {
@@ -15,7 +15,7 @@ function registerTenantRoutes(app, deps) {
     try {
       res.json(await listTenants());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -28,7 +28,7 @@ function registerTenantRoutes(app, deps) {
       });
       res.status(201).json(tenant);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -43,7 +43,7 @@ function registerTenantRoutes(app, deps) {
       }
       res.json(tenant);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -60,7 +60,7 @@ function registerTenantRoutes(app, deps) {
       }
       res.json(tenant);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 }

@@ -1,4 +1,4 @@
-const { ensureAuthenticated, ensurePermission } = require("./route-auth");
+const { ensureAuthenticated, ensurePermission, sendRouteError } = require("./route-auth");
 
 function registerJobRoutes(app, deps) {
   const { getProvisioningJobById, listProvisioningJobEvents, listProvisioningJobs, retryProvisioningJob } = deps;
@@ -9,7 +9,7 @@ function registerJobRoutes(app, deps) {
     try {
       res.json(await listProvisioningJobs());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -27,7 +27,7 @@ function registerJobRoutes(app, deps) {
         events: await listProvisioningJobEvents(job.id)
       });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -43,7 +43,7 @@ function registerJobRoutes(app, deps) {
       });
       res.status(201).json(job);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 }

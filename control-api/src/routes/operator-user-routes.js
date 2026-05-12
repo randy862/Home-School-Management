@@ -1,6 +1,6 @@
 const { randomUUID } = require("crypto");
 const { hashPassword } = require("../auth-service");
-const { ensurePermission } = require("./route-auth");
+const { ensurePermission, sendRouteError } = require("./route-auth");
 
 function registerOperatorUserRoutes(app, deps) {
   const {
@@ -16,7 +16,7 @@ function registerOperatorUserRoutes(app, deps) {
     try {
       res.json(await listOperators());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -31,7 +31,7 @@ function registerOperatorUserRoutes(app, deps) {
       }
       res.json(operator);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -45,7 +45,7 @@ function registerOperatorUserRoutes(app, deps) {
       });
       res.status(201).json(created);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -63,7 +63,7 @@ function registerOperatorUserRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 }

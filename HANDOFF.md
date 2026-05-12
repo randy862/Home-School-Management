@@ -37,6 +37,7 @@ Completed this batch:
 - Scoped student instructor reads to assigned instructors and redacted instructor birthdate/background fields from student responses.
 - Aligned tenant user creation and tenant account password changes to a 10-character minimum password policy.
 - Restricted account subscription, upgrade, billing-event, and export-request data to tenant administrators and sanitized tenant app route 5xx responses.
+- Control API routes now share production-safe route error handling across tenant, environment, job, operator, audit, runtime, and commercial endpoints.
 
 Prior live SaaS polish remains deployed at `https://www.navigrader.com/`; see previous history if that workstream is reopened.
 
@@ -67,7 +68,7 @@ Use `CHECKLISTS/security-hardening-deployment.md` to prepare production prerequi
 - `git diff --check`
 - `node --check server\src\middleware\tenant-runtime-context.js`
 - Inline tenant runtime and legacy state fail-closed checks via `node -`
-- Inline control-plane environment tenant/job binding check via `node -`
+- Inline control-plane environment tenant/job binding and control API permission/error-sanitization checks via `node -`
 - Inline scoped instructor route check via `node -`
 - Inline tenant admin user password-minimum check via `node -`
 - `node --check server\src\routes\account-routes.js; node --check server\src\routes\records-routes.js`

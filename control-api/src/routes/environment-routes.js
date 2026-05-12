@@ -1,5 +1,5 @@
 const { randomUUID } = require("crypto");
-const { ensureAuthenticated, ensurePermission } = require("./route-auth");
+const { ensureAuthenticated, ensurePermission, sendRouteError } = require("./route-auth");
 
 function registerEnvironmentRoutes(app, deps) {
   const {
@@ -16,7 +16,7 @@ function registerEnvironmentRoutes(app, deps) {
     try {
       res.json(await listTenantEnvironments());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -31,7 +31,7 @@ function registerEnvironmentRoutes(app, deps) {
       }
       res.json(environment);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -44,7 +44,7 @@ function registerEnvironmentRoutes(app, deps) {
       });
       res.status(201).json(environment);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -59,7 +59,7 @@ function registerEnvironmentRoutes(app, deps) {
       });
       res.status(201).json(job);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -74,7 +74,7 @@ function registerEnvironmentRoutes(app, deps) {
       });
       res.status(201).json(job);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -89,7 +89,7 @@ function registerEnvironmentRoutes(app, deps) {
       });
       res.status(201).json(job);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -104,7 +104,7 @@ function registerEnvironmentRoutes(app, deps) {
       });
       res.status(201).json(job);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -119,7 +119,7 @@ function registerEnvironmentRoutes(app, deps) {
       });
       res.status(201).json(job);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -134,7 +134,7 @@ function registerEnvironmentRoutes(app, deps) {
       });
       res.status(201).json(job);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -149,7 +149,7 @@ function registerEnvironmentRoutes(app, deps) {
       });
       res.status(201).json(job);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -166,7 +166,7 @@ function registerEnvironmentRoutes(app, deps) {
       const result = await syncTenantEnvironmentSetup(environment);
       res.json(result);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 }
