@@ -36,6 +36,7 @@ Completed this batch:
 - Tightened control-plane environment job routes so queued jobs use the environment's server-side tenant ID and reject mismatched body tenant IDs.
 - Scoped student instructor reads to assigned instructors and redacted instructor birthdate/background fields from student responses.
 - Aligned tenant user creation and tenant account password changes to a 10-character minimum password policy.
+- Restricted account subscription, upgrade, billing-event, and export-request data to tenant administrators.
 
 Prior live SaaS polish remains deployed at `https://www.navigrader.com/`; see previous history if that workstream is reopened.
 
@@ -69,3 +70,5 @@ Use `CHECKLISTS/security-hardening-deployment.md` to prepare production prerequi
 - Inline control-plane environment tenant/job binding check via `node -`
 - Inline scoped instructor route check via `node -`
 - Inline tenant admin user password-minimum check via `node -`
+- `node --check server\src\routes\account-routes.js`
+- Inline account role-scoping check via `node -`

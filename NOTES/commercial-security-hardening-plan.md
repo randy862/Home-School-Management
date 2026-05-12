@@ -442,6 +442,7 @@ Implemented:
 - Control-plane environment job routes now bind tenant identity from the server-side environment record and reject mismatched request body tenant IDs.
 - Student instructor reads are scoped to assigned instructors and redact instructor birthdate/background metadata.
 - Tenant user creation and tenant account password changes now enforce a 10-character minimum password length.
+- Account subscription, upgrade, billing-event, and export-request details are returned only to tenant administrators.
 - Production Apache SSL template with redirect, HSTS, security headers, no directory indexes, request body limit, proxy timeouts, dotfile denial, and separated logs.
 - Systemd templates updated for dedicated service users, secure cookies, external secret env files, and baseline hardening directives.
 - Dependency audit remediation for `server`; `control-api` now has a lockfile and audits clean.
@@ -451,7 +452,7 @@ Remaining gaps:
 - In-memory rate limits should be replaced with shared/distributed limits before multi-instance deployment.
 - CSP should be tested against live checkout and any future third-party assets before enforcing broader pages.
 - CSRF tokens remain a future decision for authenticated state-changing browser flows.
-- Tenant isolation still needs route-by-route IDOR testing and cross-tenant abuse tests; runtime-context fail-closed behavior has begun.
+- Tenant isolation still needs route-by-route IDOR testing and cross-tenant abuse tests; runtime-context fail-closed behavior and account/instructor role scoping have begun.
 - PostgreSQL roles, encrypted backups, restore testing, OS patch cadence, AWS security groups, monitoring, and incident procedures remain operational hardening tasks.
 
 ## Recommended Next Prompt

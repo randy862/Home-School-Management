@@ -16,46 +16,52 @@ function registerAccountRoutes(app, deps) {
 
     try {
       const user = req.auth.user;
-      const commercialSummary = commercialPolicyService
+      const canManageAccount = user.role === "admin";
+      const runtime = req.tenantRuntime || {};
+      const commercialSummary = canManageAccount && commercialPolicyService
         ? await commercialPolicyService.getTenantCommercialSummary()
         : null;
-      const upgradeOptions = commercialPolicyService
+      const upgradeOptions = canManageAccount && commercialPolicyService
         ? await commercialPolicyService.listEligibleUpgradePlans()
         : [];
-      const recentBillingEvents = commercialPolicyService
+      const recentBillingEvents = canManageAccount && commercialPolicyService
         ? await commercialPolicyService.listRecentBillingEvents(6)
         : [];
-      const recentExportRequests = commercialPolicyService
+      const recentExportRequests = canManageAccount && commercialPolicyService
         ? await commercialPolicyService.listRecentExportRequests(4)
         : [];
+      const tenantId = commercialSummary?.tenantId || runtime.tenantId || "";
+      const tenantEnvironmentId = commercialSummary?.tenantEnvironmentId || runtime.tenantEnvironmentId || "";
+      const siteId = commercialSummary?.siteId || tenantId;
+      const accountName = commercialSummary?.accountName || runtime.tenantDisplayName || "";
       res.json({
         user: {
           id: user.id,
           username: user.username,
           role: user.role,
           studentId: user.studentId || "",
-          firstName: user.firstName || commercialSummary?.ownerFirstName || "",
-          lastName: user.lastName || commercialSummary?.ownerLastName || "",
-          email: user.email || commercialSummary?.ownerEmail || "",
-          phone: user.phone || commercialSummary?.ownerPhone || "",
+          firstName: user.firstName || (canManageAccount ? commercialSummary?.ownerFirstName : "") || "",
+          lastName: user.lastName || (canManageAccount ? commercialSummary?.ownerLastName : "") || "",
+          email: user.email || (canManageAccount ? commercialSummary?.ownerEmail : "") || "",
+          phone: user.phone || (canManageAccount ? commercialSummary?.ownerPhone : "") || "",
           profilePhotoDataUrl: user.profilePhotoDataUrl || "",
           mustChangePassword: !!user.mustChangePassword
         },
         tenant: {
-          siteId: buildFriendlySiteId(commercialSummary?.siteId || commercialSummary?.tenantId || ""),
-          internalSiteId: commercialSummary?.siteId || commercialSummary?.tenantId || "",
-          tenantId: commercialSummary?.tenantId || "",
-          tenantEnvironmentId: commercialSummary?.tenantEnvironmentId || "",
-          accountName: commercialSummary?.accountName || ""
+          siteId: buildFriendlySiteId(siteId),
+          internalSiteId: siteId,
+          tenantId,
+          tenantEnvironmentId,
+          accountName
         },
         permissions: {
           canChangePassword: true,
-          canManageSubscription: user.role === "admin",
-          canRequestDormant: user.role === "admin",
-          canReactivate: user.role === "admin",
-          canRequestExport: user.role === "admin"
+          canManageSubscription: canManageAccount,
+          canRequestDormant: canManageAccount,
+          canReactivate: canManageAccount,
+          canRequestExport: canManageAccount
         },
-        subscription: commercialSummary ? mapSubscriptionSummary(commercialSummary) : null,
+        subscription: canManageAccount && commercialSummary ? mapSubscriptionSummary(commercialSummary) : null,
         upgradeOptions: upgradeOptions.map(mapUpgradePlan),
         activity: {
           billingEvents: recentBillingEvents.map(mapBillingEvent),
