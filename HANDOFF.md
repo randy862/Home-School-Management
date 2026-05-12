@@ -31,7 +31,7 @@ Completed this batch:
 - Hardened systemd templates with dedicated users, external secret env files, and baseline sandboxing directives.
 - Remediated npm audit finding in `server/package-lock.json`.
 - Added `control-api/package-lock.json`; both npm audits now pass.
-- Added `CHECKLISTS/security-hardening-deployment.md` for service-user, secret-file, Apache, DB, and post-deploy validation prerequisites.
+- Added security deployment and operational checklists for service users, secrets, Apache, DB roles, backup/restore, AWS security groups, monitoring, incident response, and validation.
 - Tightened tenant runtime resolution so hosted PostgreSQL requests fail closed without a resolved tenant schema; fallback runtime is host-bound and legacy state sync fails closed in production.
 - Tightened control-plane environment job routes so queued jobs use the environment's server-side tenant ID and reject mismatched body tenant IDs.
 - Scoped student instructor reads to assigned instructors and redacted instructor birthdate/background fields from student responses.

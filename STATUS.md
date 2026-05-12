@@ -53,6 +53,7 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Admin routes now sanitize production 5xx responses and retain route-level checks for student scoping/admin-only writes.
 - Curriculum/calendar/grading routes now sanitize production 5xx responses; student schedule-block reads are scoped to assigned blocks.
 - Control API routes now share production-safe route error handling across tenant, environment, job, operator, audit, runtime, and commercial endpoints.
+- Added `CHECKLISTS/security-operational-hardening.md` for PostgreSQL roles, encrypted backup/restore, AWS security groups, monitoring, and incident response.
 
 ## Current Blockers
 

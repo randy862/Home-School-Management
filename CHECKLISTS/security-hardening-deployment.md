@@ -5,7 +5,7 @@ Owner: QA & Release Agent
 
 ## Scope
 
-Use this checklist before deploying the security hardening baseline from commit `2607377`.
+Use this checklist before deploying the current security hardening baseline.
 
 Applies to:
 
@@ -93,6 +93,7 @@ sudo apachectl configtest
 - [ ] Confirm `pg_hba.conf` allows only expected APP001/control connections.
 - [ ] Confirm tenant API and control API use non-superuser DB roles.
 - [ ] Confirm backup encryption and restore-test owner are known before cutover.
+- [ ] Complete `CHECKLISTS/security-operational-hardening.md` for PostgreSQL roles, encrypted backup/restore, AWS security groups, monitoring, and incident response.
 
 ## Post-Deploy Validation
 
@@ -103,6 +104,9 @@ sudo apachectl configtest
 - [ ] Cross-origin requests from an unlisted origin are rejected.
 - [ ] Login throttling returns `429` after repeated failed attempts.
 - [ ] Stripe webhook signature validation still rejects unsigned payloads.
+- [ ] Student users cannot read another student's account, instructor, records, curriculum, schedule-block, or plan data.
+- [ ] Non-admin tenant users receive `403` for tenant admin writes.
+- [ ] Under-permissioned control operators receive `403` for tenant, environment, job retry, operator, and commercial mutations.
 - [ ] Apache response headers include HSTS, nosniff, referrer policy, permissions policy, and frame protection.
 - [ ] Current service journals show no unresolved startup, permission, or module errors.
 
