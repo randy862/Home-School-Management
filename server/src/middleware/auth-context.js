@@ -4,6 +4,14 @@ function applyCors(app, appConfig) {
   app.use((req, res, next) => {
     const requestOrigin = String(req.headers.origin || "").trim();
     const corsOrigin = resolveCorsOrigin(requestOrigin, appConfig.corsOrigin);
+    if (!corsOrigin && requestOrigin) {
+      res.status(403).end();
+      return;
+    }
+    if (!corsOrigin) {
+      next();
+      return;
+    }
     res.setHeader("Access-Control-Allow-Origin", corsOrigin);
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
@@ -57,8 +65,14 @@ function createAuthContextMiddleware(options) {
 }
 
 function resolveCorsOrigin(requestOrigin, configuredOrigin) {
-  if (requestOrigin) return requestOrigin;
-  return configuredOrigin || "*";
+  const configured = String(configuredOrigin || "").trim();
+  if (!requestOrigin) return configured || "*";
+  if (!configured || configured === "*") return "*";
+  const allowed = configured
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return allowed.includes(requestOrigin) ? requestOrigin : "";
 }
 
 module.exports = {

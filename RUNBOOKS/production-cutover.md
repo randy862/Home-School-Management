@@ -74,11 +74,15 @@ This cutover plan assumes:
 - at least one primary and one backup operator can access the required hosts/services
 - `APP001 -> WEB001` SSH trust remains valid for deployment automation
 - Apache site config and proxy routes are confirmed for the intended public hostname(s)
+- production Apache config is based on `infra/apache/home-school-management-production-ssl.conf` or has equivalent TLS, redirect, HSTS, header, request-size, dotfile, and log-separation controls
+- tenant/control systemd units load secrets from `/etc/home-school-management/*.env` or an approved secret manager, not inline unit-file secrets
+- tenant/control systemd units use dedicated non-login service users and baseline hardening directives
 - backup/restore expectations for PostgreSQL are known before cutover
 
 ### Operational Readiness
 - `scripts\Invoke-HostedReleaseGate.ps1` passes against the target environment
 - `scripts\Test-HostedWorkflow.ps1` passes against the target environment
+- `npm audit --omit=dev` passes in both `server/` and `control-api/`
 - a rollback owner is identified
 - a go/no-go authority is identified
 - a communications owner is identified

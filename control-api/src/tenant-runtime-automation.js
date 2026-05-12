@@ -91,7 +91,7 @@ function buildTenantDbConfig(config, environment) {
     user: config.tenantDbUser,
     password: config.tenantDbPassword,
     ssl: config.tenantDbSslMode === "disable" ? false : { rejectUnauthorized: config.tenantDbSslMode === "verify-full" },
-    schema: environment.databaseSchema
+    schema: normalizeSchemaName(environment.databaseSchema)
   };
 }
 
@@ -456,7 +456,15 @@ function parseSetupTokenOutput(stdout) {
 }
 
 function escapeIdentifier(value) {
-  return `"${String(value || "").replace(/"/g, "\"\"")}"`;
+  return `"${normalizeSchemaName(value).replace(/"/g, "\"\"")}"`;
+}
+
+function normalizeSchemaName(value) {
+  const normalized = String(value || "").trim();
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(normalized)) {
+    throw new Error(`Invalid PostgreSQL schema name: ${value}`);
+  }
+  return normalized;
 }
 
 function quoteShellArg(value) {

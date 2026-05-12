@@ -86,6 +86,7 @@ const {
 } = require("./postgres-commercial-store");
 const { applyCors, createOperatorAuthContextMiddleware } = require("./middleware/auth-context");
 const { errorHandler } = require("./middleware/error-handler");
+const { applySecurityHeaders, createRateLimiter } = require("./middleware/security");
 const { registerAuditRoutes } = require("./routes/audit-routes");
 const { registerControlCommercialRoutes } = require("./routes/control-commercial-routes");
 const { registerEnvironmentRoutes } = require("./routes/environment-routes");
@@ -137,7 +138,13 @@ const setupSyncService = createSetupSyncService({
   timeoutMs: automationConfig.setupSyncRequestTimeoutMs
 });
 
+app.set("trust proxy", 1);
+applySecurityHeaders(app);
 applyCors(app, appConfig);
+app.use("/api/operator/auth/login", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 }));
+app.use("/api/operator/setup/bootstrap", createRateLimiter({ windowMs: 60 * 60 * 1000, max: 5 }));
+app.use("/api/public/checkout/session", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20 }));
+app.use("/api/public/billing/webhook", createRateLimiter({ windowMs: 60 * 1000, max: 120 }));
 app.use("/api/public/billing/webhook", express.raw({
   type: "application/json",
   limit: "1mb",

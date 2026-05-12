@@ -8,6 +8,10 @@ function toBool(value, fallback) {
   return String(value).toLowerCase() === "true";
 }
 
+function isProductionEnv(value) {
+  return String(value || "").trim().toLowerCase() === "production";
+}
+
 function normalizeServiceScope(value, fallback = "system") {
   const normalized = String(value || fallback).trim().toLowerCase();
   return normalized === "user" ? "user" : "system";
@@ -36,9 +40,11 @@ function parseList(value) {
     .filter(Boolean);
 }
 
+const appEnv = process.env.CONTROL_APP_ENV || process.env.APP_ENV || "development";
+
 module.exports = {
   app: {
-    env: process.env.CONTROL_APP_ENV || process.env.APP_ENV || "development",
+    env: appEnv,
     port: Number(process.env.CONTROL_APP_PORT || 3100),
     corsOrigin: process.env.CONTROL_APP_CORS_ORIGIN || "*"
   },
@@ -91,7 +97,7 @@ module.exports = {
   },
   session: {
     cookieName: process.env.CONTROL_SESSION_COOKIE_NAME || "hsm_operator_session",
-    cookieSecure: toBool(process.env.CONTROL_SESSION_COOKIE_SECURE, false),
+    cookieSecure: toBool(process.env.CONTROL_SESSION_COOKIE_SECURE, isProductionEnv(appEnv)),
     cookieSameSite: process.env.CONTROL_SESSION_COOKIE_SAMESITE || "Lax",
     ttlHours: Number(process.env.CONTROL_SESSION_TTL_HOURS || 12),
     idleTimeoutHours: Number(process.env.CONTROL_SESSION_IDLE_TIMEOUT_HOURS || 2),

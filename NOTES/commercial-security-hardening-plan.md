@@ -1,7 +1,7 @@
 # Commercial Security Hardening Plan
 
 Date: 2026-04-29
-Status: Planning / pre-production security backlog
+Status: In progress / first hardening pass applied 2026-05-12
 Owner: Product Architect
 
 ## Objective
@@ -415,15 +415,40 @@ Acceptance criteria:
 ## Initial Priority List
 
 1. Add a formal static code/security audit pass before public launch.
-2. Add a production Apache/TLS/security-header template.
+2. Add a production Apache/TLS/security-header template. `DONE 2026-05-12: infra/apache/home-school-management-production-ssl.conf`
 3. Define AWS security group and private-network topology.
-4. Confirm production cookie settings and session behavior.
-5. Add login rate limiting.
-6. Audit tenant resolution/search-path handling for cross-tenant risk.
-7. Create a dependency and OS patch cadence.
-8. Define production secrets management.
+4. Confirm production cookie settings and session behavior. `PARTIAL 2026-05-12: production defaults now secure cookies; templates set secure cookies true`
+5. Add login rate limiting. `DONE 2026-05-12: in-memory limits added for tenant login/setup and control login/bootstrap; checkout/webhook limits added`
+6. Audit tenant resolution/search-path handling for cross-tenant risk. `PARTIAL 2026-05-12: runtime provisioning now validates schema identifiers before PGOPTIONS/search_path generation`
+7. Create a dependency and OS patch cadence. `PARTIAL 2026-05-12: npm audits added to validation, server lock updated, control-api lockfile created`
+8. Define production secrets management. `PARTIAL 2026-05-12: systemd templates now load /etc/home-school-management/*.env instead of embedding CHANGEME secrets`
 9. Add PostgreSQL least-privilege and backup/restore hardening.
 10. Add a security incident checklist.
+
+## 2026-05-12 Plan Review And Hardening Pass
+
+Assessment: the plan remains accurate and covers the right major commercial SaaS risks. It was incomplete as an execution artifact because it did not yet encode production-safe defaults, dependency audit evidence, or deployable Apache/systemd hardening templates.
+
+Implemented:
+
+- API security headers for tenant API and control API.
+- CORS allowlist support instead of reflecting every request origin when configured.
+- Rate limiting for tenant login/setup, operator login/bootstrap, public checkout, and Stripe webhook ingress.
+- Production-safe 5xx error messages with server-side logging.
+- Production cookie defaults now infer `Secure=true` from production environment when not explicitly set.
+- Minimum password length for setup/bootstrap account creation.
+- Tenant schema identifier validation before provisioning-generated `PGOPTIONS` and search paths are written.
+- Production Apache SSL template with redirect, HSTS, security headers, no directory indexes, request body limit, proxy timeouts, dotfile denial, and separated logs.
+- Systemd templates updated for dedicated service users, secure cookies, external secret env files, and baseline hardening directives.
+- Dependency audit remediation for `server`; `control-api` now has a lockfile and audits clean.
+
+Remaining gaps:
+
+- In-memory rate limits should be replaced with shared/distributed limits before multi-instance deployment.
+- CSP should be tested against live checkout and any future third-party assets before enforcing broader pages.
+- CSRF tokens remain a future decision for authenticated state-changing browser flows.
+- Tenant isolation still needs route-by-route IDOR testing and cross-tenant abuse tests.
+- PostgreSQL roles, encrypted backups, restore testing, OS patch cadence, AWS security groups, monitoring, and incident procedures remain operational hardening tasks.
 
 ## Recommended Next Prompt
 

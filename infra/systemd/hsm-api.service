@@ -5,19 +5,17 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=debian
-Group=debian
+User=hsm-api
+Group=hsm-api
 WorkingDirectory=/home/debian/apps/home-school-management/server
 Environment=APP_ENV=production
 Environment=DB_CLIENT=postgres
 Environment=APP_PORT=3000
-Environment=APP_CORS_ORIGIN=http://192.168.1.210
+Environment=APP_CORS_ORIGIN=https://www.navigrader.com,https://navigrader.com
 Environment=SESSION_COOKIE_NAME=hsm_session
-Environment=SESSION_COOKIE_SECURE=false
+Environment=SESSION_COOKIE_SECURE=true
 Environment=SESSION_COOKIE_SAMESITE=Lax
 Environment=SESSION_TTL_HOURS=168
-Environment=CONTROL_PLANE_INTERNAL_KEY=CHANGEME
-Environment=CONTROL_PLANE_INTERNAL_AUTH_SECRET=CHANGEME
 Environment=CONTROL_PLANE_INTERNAL_AUTH_ISSUER=control-plane
 Environment=CONTROL_PLANE_INTERNAL_AUTH_AUDIENCE=tenant-runtime-internal
 Environment=CONTROL_PLANE_INTERNAL_AUTH_CLOCK_SKEW_SECONDS=30
@@ -25,12 +23,19 @@ Environment=CONTROL_PLANE_ALLOW_LEGACY_INTERNAL_KEY=false
 Environment=PGHOST=192.168.1.202
 Environment=PGPORT=5432
 Environment=PGDATABASE=appdb
-Environment=PGUSER=CHANGEME
-Environment=PGPASSWORD=CHANGEME
 EnvironmentFile=-/home/debian/apps/home-school-management/server/.env.runtime
+EnvironmentFile=-/etc/home-school-management/hsm-api.env
 ExecStart=/usr/bin/node src/app.js
 Restart=always
 RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/debian/apps/home-school-management/server
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+LockPersonality=true
 
 [Install]
 WantedBy=multi-user.target

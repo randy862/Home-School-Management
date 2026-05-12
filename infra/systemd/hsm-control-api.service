@@ -5,18 +5,16 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=debian
-Group=debian
+User=hsm-control-api
+Group=hsm-control-api
 WorkingDirectory=/home/debian/apps/home-school-management/control-api
 Environment=CONTROL_APP_ENV=production
 Environment=CONTROL_APP_PORT=3100
-Environment=CONTROL_APP_CORS_ORIGIN=http://192.168.1.210
+Environment=CONTROL_APP_CORS_ORIGIN=https://www.navigrader.com,https://navigrader.com
 Environment=CONTROL_SESSION_COOKIE_NAME=hsm_operator_session
-Environment=CONTROL_SESSION_COOKIE_SECURE=false
+Environment=CONTROL_SESSION_COOKIE_SECURE=true
 Environment=CONTROL_SESSION_COOKIE_SAMESITE=Lax
 Environment=CONTROL_SESSION_TTL_HOURS=12
-Environment=CONTROL_INTERNAL_API_KEY=CHANGEME
-Environment=CONTROL_INTERNAL_AUTH_SECRET=CHANGEME
 Environment=CONTROL_INTERNAL_AUTH_ISSUER=control-plane
 Environment=CONTROL_INTERNAL_TENANT_RUNTIME_AUDIENCE=tenant-runtime-internal
 Environment=CONTROL_INTERNAL_RUNTIME_RESOLVE_AUDIENCE=control-plane-internal
@@ -26,8 +24,6 @@ Environment=CONTROL_INTERNAL_ALLOW_LEGACY_API_KEY=false
 Environment=CONTROL_PGHOST=192.168.1.202
 Environment=CONTROL_PGPORT=5432
 Environment=CONTROL_PGDATABASE=appdb
-Environment=CONTROL_PGUSER=CHANGEME
-Environment=CONTROL_PGPASSWORD=CHANGEME
 Environment="PGOPTIONS=-c search_path=hsm_control_staging"
 Environment=CONTROL_DEPLOYMENT_ENABLED=true
 Environment=CONTROL_DEPLOY_LOCAL_HOSTS=APP001,192.168.1.200,127.0.0.1,localhost
@@ -37,9 +33,18 @@ Environment=CONTROL_COMMERCIAL_DEFAULT_APP_HOST=APP001
 Environment=CONTROL_COMMERCIAL_DEFAULT_WEB_HOST=WEB001
 Environment=CONTROL_COMMERCIAL_DEFAULT_DATABASE_HOST=192.168.1.202
 Environment=CONTROL_COMMERCIAL_DEFAULT_DATABASE_NAME=appdb
+EnvironmentFile=-/etc/home-school-management/hsm-control-api.env
 ExecStart=/usr/bin/node src/app.js
 Restart=always
 RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/debian/apps/home-school-management/control-api /home/debian/apps/home-school-management/runtime-bundles
+CapabilityBoundingSet=
+RestrictSUIDSGID=true
+LockPersonality=true
 
 [Install]
 WantedBy=multi-user.target

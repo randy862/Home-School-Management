@@ -18,7 +18,7 @@ function registerPublicSaasRoutes(app, deps) {
       const plans = await listPublicCommercialPlans();
       res.json({ plans });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -87,7 +87,7 @@ function registerPublicSaasRoutes(app, deps) {
         publishableKeyConfigured: !!publicConfig.publishableKey
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -107,7 +107,7 @@ function registerPublicSaasRoutes(app, deps) {
 
       res.json(status);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -128,7 +128,7 @@ function registerPublicSaasRoutes(app, deps) {
         processingStatus: result.processingStatus || "processed"
       });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 }
@@ -225,6 +225,17 @@ function joinUrl(base, path) {
 function buildCheckoutUrl(baseUrl, token) {
   const separator = baseUrl.includes("?") ? "&" : "?";
   return `${baseUrl}${separator}token=${encodeURIComponent(token)}`;
+}
+
+function sendRouteError(res, error) {
+  const statusCode = Number(error.statusCode || error.status || 500);
+  const safeStatusCode = statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+  const isProduction = String(process.env.CONTROL_APP_ENV || process.env.APP_ENV || "").toLowerCase() === "production";
+  const message = safeStatusCode >= 500 && isProduction
+    ? "Unexpected error."
+    : (error.message || "Unexpected error.");
+  if (safeStatusCode >= 500) console.error(error);
+  res.status(safeStatusCode).json({ error: message });
 }
 
 module.exports = {

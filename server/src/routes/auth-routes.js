@@ -48,7 +48,7 @@ function registerAuthRoutes(app, deps) {
       }));
       res.json({ user: mapUserSummary(user) });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -67,7 +67,7 @@ function registerAuthRoutes(app, deps) {
       }));
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -90,6 +90,17 @@ function ensurePostgresMode(res, isPostgresMode) {
 function sessionCookieMaxAgeSeconds(sessionConfig) {
   const hours = Number(sessionConfig.absoluteTtlHours || sessionConfig.ttlHours || 0);
   return Math.max(1, hours) * 60 * 60;
+}
+
+function sendRouteError(res, error) {
+  const statusCode = Number(error.statusCode || error.status || 500);
+  const safeStatusCode = statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+  const isProduction = String(process.env.APP_ENV || "").toLowerCase() === "production";
+  const message = safeStatusCode >= 500 && isProduction
+    ? "Unexpected error."
+    : (error.message || "Unexpected error.");
+  if (safeStatusCode >= 500) console.error(error);
+  res.status(safeStatusCode).json({ error: message });
 }
 
 module.exports = {

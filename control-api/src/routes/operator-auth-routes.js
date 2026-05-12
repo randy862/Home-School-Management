@@ -28,7 +28,7 @@ function registerOperatorAuthRoutes(app, deps) {
       const totalOperators = await countOperators();
       res.json({ initialized: totalOperators > 0 });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -49,7 +49,7 @@ function registerOperatorAuthRoutes(app, deps) {
       }));
       res.status(201).json({ user: mapOperatorSummary(createdUser) });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -81,7 +81,7 @@ function registerOperatorAuthRoutes(app, deps) {
       }));
       res.json({ user: mapOperatorSummary(user) });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -98,7 +98,7 @@ function registerOperatorAuthRoutes(app, deps) {
       }));
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 
@@ -158,7 +158,7 @@ function registerOperatorAuthRoutes(app, deps) {
 
       res.json({ ok: true, user: mapOperatorSummary(updated) });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRouteError(res, error);
     }
   });
 }
@@ -168,11 +168,27 @@ function sessionCookieMaxAgeSeconds(sessionConfig) {
   return Math.max(1, hours) * 60 * 60;
 }
 
+function sendRouteError(res, error) {
+  const statusCode = Number(error.statusCode || error.status || 500);
+  const safeStatusCode = statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+  const isProduction = String(process.env.CONTROL_APP_ENV || process.env.APP_ENV || "").toLowerCase() === "production";
+  const message = safeStatusCode >= 500 && isProduction
+    ? "Unexpected error."
+    : (error.message || "Unexpected error.");
+  if (safeStatusCode >= 500) console.error(error);
+  res.status(safeStatusCode).json({ error: message });
+}
+
 async function normalizeBootstrapPayload(input) {
   const username = String(input?.username || "").trim();
   const password = String(input?.password || "");
   if (!username || !password) {
     const error = new Error("Username and password are required.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (password.length < 10) {
+    const error = new Error("Password must be at least 10 characters.");
     error.statusCode = 400;
     throw error;
   }

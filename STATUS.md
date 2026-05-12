@@ -4,11 +4,11 @@ Date: 2026-05-12
 
 ## Active Workstream
 
-Production SaaS landing refinements plus separate redesign preview.
+Production backend/platform security hardening.
 
 ## Current Focus
 
-Live SaaS landing page polish is deployed at `https://www.navigrader.com/`.
+First repo-level commercial hardening pass from `NOTES/commercial-security-hardening-plan.md`.
 
 ## Completed Recently
 
@@ -29,6 +29,18 @@ Live SaaS landing page polish is deployed at `https://www.navigrader.com/`.
 - Live `saas.html` backup exists on WEB001:
   `/var/www/home-school-management/web/saas.html.bak-20260512-saas-polish`
 - Latest pushed commits before this production polish: `75533f1`, `781fffd`.
+- Security hardening pass applied:
+  - API security headers for tenant API and control API.
+  - CORS allowlist behavior instead of origin reflection when configured.
+  - Rate limits on tenant login/setup, operator login/bootstrap, public checkout, and Stripe webhook ingress.
+  - Production-safe 5xx error responses with server-side logging.
+  - Production cookie defaults infer secure cookies in production.
+  - Setup/bootstrap password minimum length added.
+  - Tenant schema identifiers validated before provisioning-generated search paths.
+  - Production Apache SSL template added.
+  - Existing Apache templates disable directory indexes and deny dotfiles.
+  - Systemd templates now use secure cookies, external secret env files, dedicated users, and hardening directives.
+  - `server/package-lock.json` updated to remediate `path-to-regexp`; `control-api/package-lock.json` added.
 
 ## Current Blockers
 
@@ -39,8 +51,11 @@ Live SaaS landing page polish is deployed at `https://www.navigrader.com/`.
 - Apex `https://navigrader.com/` DNS currently resolves away from WEB001.
 - Untracked scratch assets remain outside the current commit unless explicitly requested.
 - Continue avoiding archive/ and NOTES/ unless the task requires them.
+- In-memory rate limits are a first hardening step, not the final distributed SaaS abuse-control design.
+- PostgreSQL role/backup hardening, AWS security groups, incident runbooks, and cross-tenant abuse tests remain open.
 
 ## Next Actions
 
-1. Monitor live `https://www.navigrader.com/`.
-2. Continue separate SaaS redesign preview work as a later branch/workstream.
+1. Review hardening diff and deploy only after production secret/user prerequisites are ready.
+2. Run hosted release gate against target environment after deploy.
+3. Continue PostgreSQL least-privilege, backup/restore, and tenant isolation testing.

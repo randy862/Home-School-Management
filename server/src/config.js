@@ -8,9 +8,15 @@ function toBool(value, fallback) {
   return String(value).toLowerCase() === "true";
 }
 
+function isProductionEnv(value) {
+  return String(value || "").trim().toLowerCase() === "production";
+}
+
+const appEnv = process.env.APP_ENV || "development";
+
 module.exports = {
   app: {
-    env: process.env.APP_ENV || "development",
+    env: appEnv,
     port: Number(process.env.APP_PORT || 3000),
     corsOrigin: process.env.APP_CORS_ORIGIN || "*",
     dbClient: String(process.env.DB_CLIENT || "mssql").toLowerCase()
@@ -26,7 +32,7 @@ module.exports = {
   },
   session: {
     cookieName: process.env.SESSION_COOKIE_NAME || "hsm_session",
-    cookieSecure: toBool(process.env.SESSION_COOKIE_SECURE, false),
+    cookieSecure: toBool(process.env.SESSION_COOKIE_SECURE, isProductionEnv(appEnv)),
     cookieSameSite: process.env.SESSION_COOKIE_SAMESITE || "Lax",
     ttlHours: Number(process.env.SESSION_TTL_HOURS || 168),
     idleTimeoutHours: Number(process.env.SESSION_IDLE_TIMEOUT_HOURS || 4),
