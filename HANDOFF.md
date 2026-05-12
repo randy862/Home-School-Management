@@ -1,6 +1,6 @@
 # Session Handoff
 
-Date: 2026-05-11
+Date: 2026-05-12
 
 ## Current Work
 
@@ -12,11 +12,11 @@ Preview URL:
 
 https://mitchell.navigrader.com/modern-preview/
 
-The live tenant app has not been replaced.
+Production URL: https://mitchell.navigrader.com/
 
 ## Current State
 
-Dashboard, reports, and School Day refinements are implemented locally and deployed to preview.
+Dashboard, reports, and School Day refinements are live in production from commit `322d6f1`.
 
 Completed this session:
 
@@ -42,24 +42,24 @@ Completed this session:
 - Fixed hosted workspace-config normalization so newly split Dashboard Visibility flags persist when unchecked and are not re-applied after Save Configuration.
 - Restyled printable Student and Instructor reports with the Navigrader header logo, branded page frame, polished tables/cards, generated timestamp, `https://www.navigrader.com` footer, Subject/Grade Report Criteria filters, configurable Student Executive Summary/Required Subjects content, split Instructor Executive Summary/Overview/Course Summary sections, Instructor performance summaries by subject, student, and grade, compact print summary cards, and tighter Reports status-message spacing.
 - Added a current-day-only School Day Past Due quick filter, Dashboard > Execution Class Status and Past Due gauges, Overview Open Classes tracking from 05/12/2026 forward, School Day Status filtering, and persisted Scheduled/Completed/Excused status.
-- Deployed current web assets to `/modern-preview/`; `/modern-design/` currently contains an identical duplicate but should not be used as the source-of-truth preview.
+- Promoted current web assets to production root; backup is `/var/backups/home-school-management/web-production-20260512-002946.tar.gz`.
 
 Current local cache keys:
 
-- `styles.css?v=202605112000`
-- `app.js?v=202605112000`
+- `styles.css?v=202605112035`
+- `app.js?v=202605112035`
 
 ## Next Action
 
-Smoke-test School Day status dropdowns, especially Excused moving later flexible classes up:
+Monitor production after modern interface cutover:
 
-`https://mitchell.navigrader.com/modern-preview/`
+`https://mitchell.navigrader.com/`
 
 ## Risks
 
 - Final Required Instructional Days student breakdown change has been deployed to preview.
-- Recent dashboard/report/school-day preview changes are deployed to `modern-preview`; keep production promotion aligned to this path.
-- Do not replace the live app unless explicitly approved.
+- Production now serves the modern app; keep `/modern-preview/` as the reference copy.
+- Roll back with the production backup above if a blocking live issue appears.
 - Existing untracked `tmp/` and icon files remain intentionally untouched.
 
 ## Validation
@@ -69,5 +69,5 @@ Smoke-test School Day status dropdowns, especially Excused moving later flexible
 - `node --check server/src/services/records-service.js`
 - `node --check server/src/repositories/postgres/records-repository.js`
 - `npm run db:migrate:pg` on APP001 with `.env.runtime`; `027_instruction_actual_status.sql` applied
-- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605112000','app.js?v=202605112000','school-day-status-filter'`
-- `curl.exe -s "https://mitchell.navigrader.com/modern-preview/app.js?v=202605112000" | Select-String -SimpleMatch -Pattern 'INSTRUCTION_STATUS_EXCUSED','data-school-day-status','renderSchoolDayStatusControl'`
+- `curl.exe -s https://mitchell.navigrader.com/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605112035','app.js?v=202605112035','school-day-status-filter'`
+- `curl.exe -s "https://mitchell.navigrader.com/app.js?v=202605112035" | Select-String -SimpleMatch -Pattern 'INSTRUCTION_STATUS_EXCUSED','data-school-day-status','renderSchoolDayStatusControl'`

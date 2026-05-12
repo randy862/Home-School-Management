@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-11
+Date: 2026-05-12
 
 ## Active Workstream
 
@@ -8,7 +8,7 @@ Modern app preview refinement.
 
 ## Current Focus
 
-Modern preview polish in `/modern-preview/`.
+Modern interface is live in production at `https://mitchell.navigrader.com/`.
 
 ## Completed Recently
 
@@ -34,7 +34,7 @@ Modern preview polish in `/modern-preview/`.
 - Printable Student and Instructor reports now use a branded Navigrader report frame with Subject/Grade Report Criteria filters, configurable Student Executive Summary/Required Subjects content, split Instructor Executive Summary/Overview/Course Summary sections, Instructor performance summaries by subject, student, and grade, polished report tables/cards, `https://www.navigrader.com` footer, compact print summary cards, and tighter Reports status-message spacing.
 - School Day now has a persisted Scheduled/Completed/Excused status model, a Status filter, correct Excused schedule behavior, and Flex Block actions aligned under Actions.
 - Dashboard Execution now has Class Status and Past Due gauges, and Overview tracks Open Classes from 05/12/2026 forward.
-- Current web assets were deployed to `https://mitchell.navigrader.com/modern-preview/`. The duplicate `modern-design` URL currently matches `modern-preview`; keep `modern-preview` as source of truth.
+- Modern web assets were promoted to production from commit `322d6f1`; `/modern-preview/` remains as the reference copy.
 
 ## Current Blockers
 
@@ -42,11 +42,11 @@ Modern preview polish in `/modern-preview/`.
 
 ## Current Risks
 
-- Live app has not been replaced.
+- Production backup before cutover: `/var/backups/home-school-management/web-production-20260512-002946.tar.gz`.
 - Untracked `tmp/` and icon files remain outside the current commit unless explicitly requested.
 - Continue avoiding archive/ and NOTES/ unless the task requires them.
 
 ## Next Actions
 
-1. Smoke-test School Day status dropdowns, especially Excused moving later flexible classes up.
-2. Keep live app unchanged unless replacement is explicitly approved.
+1. Monitor production after the modern interface cutover.
+2. Use the production backup above for rollback if a blocking live issue appears.
