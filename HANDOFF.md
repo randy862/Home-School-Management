@@ -1,6 +1,6 @@
 # Session Handoff
 
-Date: 2026-05-10
+Date: 2026-05-11
 
 ## Current Work
 
@@ -10,13 +10,13 @@ Modern app preview refinement on branch:
 
 Preview URL:
 
-https://mitchell.navigrader.com/modern-design/
+https://mitchell.navigrader.com/modern-preview/
 
 The live tenant app has not been replaced.
 
 ## Current State
 
-Dashboard and Curriculum refinements are implemented locally.
+Dashboard, reports, and School Day refinements are implemented locally and deployed to preview.
 
 Completed this session:
 
@@ -40,27 +40,25 @@ Completed this session:
 - Added Required Subject Compliance analytic to Compliance > Required Subjects with subject rows, course/class lists, distribution bars, active-student summary cards, Student multi-select and Compliance filters, and Students-page count links.
 - Updated Administration > Workspace Configuration > Dashboard Visibility to mirror Overview, Execution, Performance, and Compliance subtabs with one configurable flag per current dashboard gauge/section.
 - Fixed hosted workspace-config normalization so newly split Dashboard Visibility flags persist when unchecked and are not re-applied after Save Configuration.
-- Restyled printable Student and Instructor reports with the Navigrader header logo, branded page frame, polished tables/cards, generated timestamp, and `https://www.navigrader.com` footer.
-- Deployed current web assets to `/modern-design/` and `/modern-preview/`.
+- Restyled printable Student and Instructor reports with the Navigrader header logo, branded page frame, polished tables/cards, generated timestamp, `https://www.navigrader.com` footer, Subject/Grade Report Criteria filters, configurable Student Executive Summary/Required Subjects content, split Instructor Executive Summary/Overview/Course Summary sections, Instructor performance summaries by subject, student, and grade, compact print summary cards, and tighter Reports status-message spacing.
+- Added a current-day-only School Day Past Due quick filter, Dashboard > Execution Class Status and Past Due gauges, Overview Open Classes tracking from 05/12/2026 forward, School Day Status filtering, and persisted Scheduled/Completed/Excused status.
+- Deployed current web assets to `/modern-preview/`; `/modern-design/` currently contains an identical duplicate but should not be used as the source-of-truth preview.
 
 Current local cache keys:
 
-- `styles.css?v=202605110941`
-- `app.js?v=202605110941`
+- `styles.css?v=202605112000`
+- `app.js?v=202605112000`
 
 ## Next Action
 
-Smoke-test Reports by generating Student and Instructor reports and checking logo/URL/print layout:
+Smoke-test School Day status dropdowns, especially Excused moving later flexible classes up:
 
-`https://mitchell.navigrader.com/modern-design/`
+`https://mitchell.navigrader.com/modern-preview/`
 
 ## Risks
 
 - Final Required Instructional Days student breakdown change has been deployed to preview.
-- Student Performance grade method tick box styling has been deployed to `modern-design`.
-- Same tick box styling has also been deployed to `modern-preview` to avoid the older preview URL serving stale circular-chip controls.
-- Student Performance table column fit styling has been deployed to both preview paths.
-- Grade Type Volume, GPA Trending, and Work Distribution styling/functionality have been deployed to both preview paths.
+- Recent dashboard/report/school-day preview changes are deployed to `modern-preview`; keep production promotion aligned to this path.
 - Do not replace the live app unless explicitly approved.
 - Existing untracked `tmp/` and icon files remain intentionally untouched.
 
@@ -68,6 +66,8 @@ Smoke-test Reports by generating Student and Instructor reports and checking log
 
 - `node --check web/app.js`
 - `git diff --check`
-- `curl.exe -s https://mitchell.navigrader.com/modern-design/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605110941','app.js?v=202605110941'`
-- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605110941','app.js?v=202605110941'`
-- `curl.exe -s "https://mitchell.navigrader.com/modern-design/app.js?v=202605110941" | Select-String -SimpleMatch -Pattern 'REPORT_WEBSITE_URL = "https://www.navigrader.com"','REPORT_LOGO_PATH = "assets/Mitchell_Logo.png"','Student Academic Report','report-page-footer','Created with Navigrader'`
+- `node --check server/src/services/records-service.js`
+- `node --check server/src/repositories/postgres/records-repository.js`
+- `npm run db:migrate:pg` on APP001 with `.env.runtime`; `027_instruction_actual_status.sql` applied
+- `curl.exe -s https://mitchell.navigrader.com/modern-preview/ | Select-String -SimpleMatch -Pattern 'styles.css?v=202605112000','app.js?v=202605112000','school-day-status-filter'`
+- `curl.exe -s "https://mitchell.navigrader.com/modern-preview/app.js?v=202605112000" | Select-String -SimpleMatch -Pattern 'INSTRUCTION_STATUS_EXCUSED','data-school-day-status','renderSchoolDayStatusControl'`

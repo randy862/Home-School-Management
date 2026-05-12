@@ -3232,6 +3232,8 @@ td {
 #school-day-table tr.school-day-row-needs-attendance td:first-child,
 #school-day-table tr.school-day-row-needs-grade td:first-child,
 #school-day-table tr.school-day-row-needs-completion td:first-child,
+#school-day-table tr.school-day-row-past-due td:first-child,
+#school-day-table tr.school-day-row-excused td:first-child,
 #school-day-table tr.school-day-row-completed td:first-child {
   position: relative;
 }
@@ -3239,6 +3241,8 @@ td {
 #school-day-table tr.school-day-row-needs-attendance td:first-child::before,
 #school-day-table tr.school-day-row-needs-grade td:first-child::before,
 #school-day-table tr.school-day-row-needs-completion td:first-child::before,
+#school-day-table tr.school-day-row-past-due td:first-child::before,
+#school-day-table tr.school-day-row-excused td:first-child::before,
 #school-day-table tr.school-day-row-completed td:first-child::before {
   content: "";
   position: absolute;
@@ -3255,6 +3259,14 @@ td {
   background: #1761ae;
 }
 
+#school-day-table tr.school-day-row-past-due td:first-child::before {
+  background: #d23b3b;
+}
+
+#school-day-table tr.school-day-row-excused td:first-child::before {
+  background: #d97706;
+}
+
 #school-day-table tr.school-day-row-completed td:first-child::before {
   background: #3f8a63;
 }
@@ -3263,6 +3275,14 @@ td {
 #school-day-table tr.school-day-row-needs-grade td,
 #school-day-table tr.school-day-row-needs-completion td {
   background: #f7fbff;
+}
+
+#school-day-table tr.school-day-row-past-due td {
+  background: #fff8f8;
+}
+
+#school-day-table tr.school-day-row-excused td {
+  background: #fffaf2;
 }
 
 #school-day-table tr.school-day-row-completed td {
@@ -3292,9 +3312,19 @@ td {
   color: #1761ae;
 }
 
+.school-day-status-badge.danger {
+  background: #ffe5e5;
+  color: #a92626;
+}
+
 .school-day-status-badge.complete {
   background: #e8f6ee;
   color: #2f6a4a;
+}
+
+.school-day-status-badge.excused {
+  background: #fff1dc;
+  color: #b65a06;
 }
 
 .school-day-status-badge.info {
@@ -3313,13 +3343,74 @@ td {
   justify-items: start;
 }
 
-.school-day-complete-toggle {
+.school-day-status-control,
+.school-day-status-readonly {
+  --status-accent: #1761ae;
+  --status-soft: #eef5ff;
+  min-width: 9.2rem;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.45rem;
+  padding: 0.34rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--status-accent) 28%, #d7e3f4);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--status-soft) 72%, white);
+  color: var(--status-accent);
   font-size: 0.82rem;
   font-weight: 700;
-  color: #516b89;
+}
+
+.school-day-status-control.completed,
+.school-day-status-readonly.completed {
+  --status-accent: #15803d;
+  --status-soft: #e8f6ee;
+}
+
+.school-day-status-control.excused,
+.school-day-status-readonly.excused {
+  --status-accent: #d97706;
+  --status-soft: #fff2de;
+}
+
+.school-day-status-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--status-accent);
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.school-day-status-control.scheduled .school-day-status-icon::before {
+  content: "\25F7";
+}
+
+.school-day-status-control.completed .school-day-status-icon::before {
+  content: "\2713";
+}
+
+.school-day-status-control.excused .school-day-status-icon::before {
+  content: "\2298";
+}
+
+.school-day-status-select {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: 0;
+}
+
+.school-day-status-readonly {
+  justify-content: center;
 }
 
 .school-day-inline-grade-row td {
@@ -3377,27 +3468,31 @@ td {
 }
 
 #school-day-table .school-day-hour-column {
-  width: 19%;
+  width: 15%;
 }
 
 #school-day-table .school-day-student-column {
-  width: 14%;
+  width: 13%;
 }
 
 #school-day-table .school-day-planned-column {
-  width: 31%;
+  width: 30%;
 }
 
 #school-day-table .school-day-instructor-column {
-  width: 14%;
+  width: 13%;
 }
 
 #school-day-table .school-day-minutes-column {
-  width: 10%;
+  width: 8%;
+}
+
+#school-day-table .school-day-status-column {
+  width: 12%;
 }
 
 #school-day-table .school-day-actions-column {
-  width: 12%;
+  width: 9%;
 }
 
 .school-day-planned-copy {
@@ -3435,6 +3530,7 @@ td {
   #school-day-table .school-day-planned-column,
   #school-day-table .school-day-instructor-column,
   #school-day-table .school-day-minutes-column,
+  #school-day-table .school-day-status-column,
   #school-day-table .school-day-actions-column {
     width: auto;
   }
@@ -3667,6 +3763,16 @@ td {
 .school-day-overview-status.needs-grade {
   background: #ffe7bf;
   color: #8f4e00;
+}
+
+.school-day-overview-status.past-due {
+  background: #ffe5e5;
+  color: #a92626;
+}
+
+.school-day-overview-status.excused {
+  background: #fff1dc;
+  color: #b65a06;
 }
 
 .school-day-overview-status.open {
@@ -5048,7 +5154,7 @@ h4 {
 }
 
 .dashboard-visual-summary-grid {
-  grid-template-columns: repeat(4, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   align-items: stretch;
 }
 
@@ -5129,6 +5235,12 @@ h4 {
   --card-accent-soft: rgba(217, 75, 75, 0.12);
 }
 
+.dashboard-visual-card-open-classes {
+  --card-accent: #e8751a;
+  --card-accent-dark: #bd5608;
+  --card-accent-soft: rgba(232, 117, 26, 0.12);
+}
+
 .dashboard-visual-icon {
   width: 4.25rem;
   height: 4.25rem;
@@ -5176,6 +5288,7 @@ h4 {
 
 .dashboard-visual-card-completion .dashboard-summary-value,
 .dashboard-visual-card-open .dashboard-summary-value,
+.dashboard-visual-card-open-classes .dashboard-summary-value,
 .dashboard-visual-card-grade-risk .dashboard-summary-value,
 .dashboard-visual-card-required-subjects .dashboard-summary-value,
 .dashboard-visual-card-grades .dashboard-summary-value {
@@ -5327,6 +5440,10 @@ h4 {
   font-size: 0.68rem;
   font-weight: 750;
   white-space: nowrap;
+}
+
+.dashboard-open-class-list button b {
+  font-size: 0.78rem;
 }
 
 .dashboard-pace-arc {
@@ -7637,10 +7754,62 @@ tbody tr:hover {
   --open-gauge-soft: #eaf8f0;
 }
 
+#app-shell .dashboard-open-gauge-class-status {
+  --open-gauge: #2a9d68;
+  --open-gauge-dark: #1f7a4f;
+  --open-gauge-soft: #eaf8f0;
+}
+
+#app-shell .dashboard-class-status-actions {
+  display: grid;
+  gap: 0.42rem;
+}
+
+#app-shell .dashboard-class-status-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.42rem 0.5rem;
+  border: 1px solid #dfe7f1;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.74);
+  color: #14233b;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+#app-shell .dashboard-class-status-actions button:hover,
+#app-shell .dashboard-class-status-actions button:focus-visible {
+  border-color: color-mix(in srgb, var(--open-gauge) 36%, #dfe7f1);
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+#app-shell .dashboard-class-status-actions b {
+  color: var(--open-gauge-dark);
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+#app-shell .dashboard-class-status-actions small {
+  color: #5f6f86;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 #app-shell .dashboard-open-gauge-grades {
   --open-gauge: #8b4ae8;
   --open-gauge-dark: #5f2ab5;
   --open-gauge-soft: #f1eaff;
+}
+
+#app-shell .dashboard-open-gauge-past-due {
+  --open-gauge: #e13d3d;
+  --open-gauge-dark: #aa2525;
+  --open-gauge-soft: #ffe8e8;
 }
 
 #app-shell .dashboard-open-gauge-overrides {
@@ -10588,6 +10757,14 @@ tbody tr:hover {
   background: #f8fbff;
 }
 
+#app-shell #school-day-table tr.school-day-row-past-due td {
+  background: #fff8f8;
+}
+
+#app-shell #school-day-table tr.school-day-row-excused td {
+  background: #fffaf2;
+}
+
 #app-shell #school-day-table tr.school-day-row-completed td {
   background: #fbfefc;
 }
@@ -10613,9 +10790,10 @@ tbody tr:hover {
   font-size: 0.84rem;
 }
 
-#app-shell .school-day-complete-toggle {
-  color: #526179;
-  font-weight: 500;
+#app-shell .school-day-status-control,
+#app-shell .school-day-status-readonly {
+  min-height: 36px;
+  box-shadow: 0 10px 18px rgba(31, 47, 69, 0.04);
 }
 
 #app-shell .school-day-inline-grade-row td,
@@ -11712,6 +11890,17 @@ tbody tr:hover {
   gap: 0.65rem;
 }
 
+#app-shell #reports-form + #reports-message {
+  margin-top: 0.65rem;
+}
+
+#app-shell #reports-message.status-text {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+}
+
 #app-shell .reports-filter-group {
   border: 1px solid #e2eaf4;
   border-radius: 14px;
@@ -11727,8 +11916,12 @@ tbody tr:hover {
 }
 
 #app-shell .reports-criteria-grid {
-  grid-template-columns: minmax(190px, 0.85fr) minmax(260px, 1.4fr) repeat(3, minmax(160px, 0.85fr));
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
   gap: 0.55rem;
+}
+
+#app-shell .reports-student-field {
+  grid-column: span 2;
 }
 
 #app-shell #tab-attendance.active {
@@ -12404,6 +12597,10 @@ tbody tr:hover {
   #app-shell #calendar-form,
   #app-shell .reports-criteria-grid {
     grid-template-columns: 1fr;
+  }
+
+  #app-shell .reports-student-field {
+    grid-column: span 1;
   }
 }
 

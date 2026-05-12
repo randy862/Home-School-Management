@@ -120,12 +120,38 @@ const SCHEDULE_BLOCK_TYPE_LABELS = {
   recess: "Recess",
   other_break: "Other Break"
 };
+const INSTRUCTION_STATUS_SCHEDULED = "scheduled";
+const INSTRUCTION_STATUS_COMPLETED = "completed";
+const INSTRUCTION_STATUS_EXCUSED = "excused";
+const INSTRUCTION_STATUS_OPTIONS = [
+  { value: INSTRUCTION_STATUS_SCHEDULED, label: "Scheduled" },
+  { value: INSTRUCTION_STATUS_COMPLETED, label: "Completed" },
+  { value: INSTRUCTION_STATUS_EXCUSED, label: "Excused" }
+];
+const OPEN_CLASSES_TRACKING_START_DATE = "2026-05-12";
+
+function normalizeInstructionStatus(value, completed = false) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === INSTRUCTION_STATUS_COMPLETED) return INSTRUCTION_STATUS_COMPLETED;
+  if (normalized === INSTRUCTION_STATUS_EXCUSED) return INSTRUCTION_STATUS_EXCUSED;
+  return completed ? INSTRUCTION_STATUS_COMPLETED : INSTRUCTION_STATUS_SCHEDULED;
+}
+
+function instructionStatusCompleted(status) {
+  return normalizeInstructionStatus(status) === INSTRUCTION_STATUS_COMPLETED;
+}
+
+function instructionStatusLabel(status) {
+  const normalized = normalizeInstructionStatus(status);
+  return INSTRUCTION_STATUS_OPTIONS.find((option) => option.value === normalized)?.label || "Scheduled";
+}
 const DEFAULT_WORKSPACE_CONFIG = {
   schoolDay: {
     showReferenceDateFilter: true,
     showStudentFilter: true,
     showSubjectFilter: true,
     showCourseFilter: true,
+    showStatusFilter: true,
     showStudentSummaries: true,
     showSideBySideOverview: true,
     showResetStudentDayButton: true,
@@ -134,6 +160,7 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showNeedsCompletionFilter: true,
     showNeedsGradeFilter: true,
     showCompletedFilter: true,
+    showPastDueFilter: true,
     showOverriddenFilter: true,
     defaultTab: "daily-schedule",
     studentSummariesDefault: "adaptive",
@@ -148,6 +175,7 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showOverviewQuarterProgress: true,
     showOverviewCompletedToday: true,
     showOverviewOpenItemsToday: true,
+    showOverviewOpenClasses: true,
     showOverviewGradesAtRisk: true,
     showOverviewMissingRequiredSubjects: true,
     showExecutionOpenItemsToday: true,
@@ -565,21 +593,25 @@ function normalizeInstructionActualsShape(inputState) {
   const seen = new Set();
   s.instructionActuals = s.instructionActuals
     .filter((entry) => entry)
-    .map((entry) => ({
-      id: entry.id || uid(),
-      studentId: String(entry.studentId || "").trim(),
-      courseId: String(entry.courseId || "").trim(),
-      instructorId: String(entry.instructorId || "").trim(),
-      completed: !!entry.completed,
-      date: String(entry.date || "").trim(),
-      actualMinutes: Number(entry.actualMinutes),
-      startMinutes: entry.startMinutes == null || entry.startMinutes === ""
-        ? null
-        : Number(entry.startMinutes),
-      orderIndex: entry.orderIndex == null || entry.orderIndex === ""
-        ? null
-        : Number(entry.orderIndex)
-    }))
+    .map((entry) => {
+      const status = normalizeInstructionStatus(entry.status, entry.completed);
+      return {
+        id: entry.id || uid(),
+        studentId: String(entry.studentId || "").trim(),
+        courseId: String(entry.courseId || "").trim(),
+        instructorId: String(entry.instructorId || "").trim(),
+        status,
+        completed: status === INSTRUCTION_STATUS_COMPLETED,
+        date: String(entry.date || "").trim(),
+        actualMinutes: Number(entry.actualMinutes),
+        startMinutes: entry.startMinutes == null || entry.startMinutes === ""
+          ? null
+          : Number(entry.startMinutes),
+        orderIndex: entry.orderIndex == null || entry.orderIndex === ""
+          ? null
+          : Number(entry.orderIndex)
+      };
+    })
     .filter((entry) =>
       validStudentIds.has(entry.studentId)
       && validCourseIds.has(entry.courseId)
@@ -1573,6 +1605,7 @@ let schoolDayQuickFilters = {
   needsCompletion: false,
   needsGrade: false,
   completed: false,
+  pastDue: false,
   overridden: false
 };
 let calendarBackToWeekContext = null;
@@ -1593,15 +1626,24 @@ let administrationAlertsConfigMessageState = { kind: "", text: "" };
 let reportType = "student";
 let reportSelectedStudentIds = new Set();
 const STUDENT_REPORT_CONTENT_OPTIONS = [
+  { id: "executiveSummary", label: "Executive Summary" },
   { id: "studentSummary", label: "Student Summary" },
   { id: "courseSummary", label: "Course Summary" },
   { id: "courseDetails", label: "Course Details" },
+  { id: "requiredSubjects", label: "Required Subjects" },
   { id: "detailedGrades", label: "Detailed Grades" },
   { id: "detailedAttendance", label: "Detailed Attendance" },
   { id: "instructionalHours", label: "Instructional Hours" }
 ];
 const INSTRUCTOR_REPORT_CONTENT_OPTIONS = [
-  { id: "instructorSummary", label: "Summary" },
+  { id: "instructorExecutiveSummary", label: "Executive Summary" },
+  { id: "instructorOverview", label: "Instructor Overview" },
+  { id: "instructorSubjectPerformanceSummary", label: "Performance Summary by Subject" },
+  { id: "instructorStudentPerformanceSummary", label: "Performance Summary by Student" },
+  { id: "instructorGradePerformanceSummary", label: "Performance Summary by Grade" },
+  { id: "instructorCourseSummary", label: "Course Summary" },
+  { id: "instructorPerformanceByCourse", label: "Performance by Course/Class" },
+  { id: "instructorStudentPerformance", label: "Student Performance" },
   { id: "detailedInstruction", label: "Detailed Instruction" }
 ];
 let reportSelectedContentIds = new Set(STUDENT_REPORT_CONTENT_OPTIONS.map((option) => option.id));
@@ -2891,10 +2933,12 @@ function normalizeHostedAttendanceRecord(row) {
 }
 
 function normalizeHostedInstructionActualRecord(row) {
+  const status = normalizeInstructionStatus(row.status, row.completed);
   return {
     ...row,
     instructorId: row.instructorId || "",
-    completed: !!row.completed,
+    status,
+    completed: status === INSTRUCTION_STATUS_COMPLETED,
     date: normalizeApiDate(row.date),
     actualMinutes: Number(row.actualMinutes || 0),
     startMinutes: row.startMinutes == null || row.startMinutes === "" ? null : Number(row.startMinutes),
@@ -5867,6 +5911,7 @@ function renderSelects() {
     "grades-filter-instructor",
     "reports-instructor"
   ].forEach((selectId) => populateInstructorFilterSelect(selectId));
+  syncReportsCriteriaFilterOptions();
   syncReportsQuarterOptions();
 
   const planFilterStudent = document.getElementById("plan-filter-student");
@@ -6382,6 +6427,39 @@ function renderReportsFormMode() {
   if (studentWrap) studentWrap.classList.toggle("hidden", reportType !== "student");
 }
 
+function syncReportsCriteriaFilterOptions() {
+  const subjectSelect = document.getElementById("reports-subject");
+  if (subjectSelect) {
+    const current = subjectSelect.value || "all";
+    subjectSelect.innerHTML = "<option value='all'>All Subjects</option>";
+    state.subjects
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((subject) => {
+        const option = document.createElement("option");
+        option.value = subject.id;
+        option.textContent = subject.name;
+        subjectSelect.appendChild(option);
+      });
+    subjectSelect.value = Array.from(subjectSelect.options).some((option) => option.value === current) ? current : "all";
+  }
+
+  const gradeSelect = document.getElementById("reports-grade");
+  if (gradeSelect) {
+    const current = gradeSelect.value || "all";
+    const grades = Array.from(new Set(visibleStudents(true).map((student) => String(student.grade || "").trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    gradeSelect.innerHTML = "<option value='all'>All Grades</option>";
+    grades.forEach((grade) => {
+      const option = document.createElement("option");
+      option.value = grade;
+      option.textContent = grade;
+      gradeSelect.appendChild(option);
+    });
+    gradeSelect.value = grades.includes(current) ? current : "all";
+  }
+}
+
 function renderReportContentChecklist(preselectedContentIds = []) {
   const optionsWrap = document.getElementById("reports-content-options");
   if (!optionsWrap) return;
@@ -6486,9 +6564,26 @@ function instructionalDatesByRangeForSchoolYear(schoolYear, startDate, endDate) 
   return dates;
 }
 
+function reportStudentMatchesGrade(studentId, gradeLevel = "all") {
+  if (!gradeLevel || gradeLevel === "all") return true;
+  const student = state.students.find((entry) => entry.id === studentId);
+  return String(student?.grade || "").trim() === gradeLevel;
+}
+
+function reportCourseMatchesSubject(courseId, subjectId = "all") {
+  if (!subjectId || subjectId === "all") return true;
+  return getCourse(courseId)?.subjectId === subjectId;
+}
+
+function reportTestMatchesSubject(test, subjectId = "all") {
+  if (!subjectId || subjectId === "all") return true;
+  return (getCourse(test.courseId)?.subjectId || test.subjectId || "") === subjectId;
+}
+
 function reportInstructionalHoursByStudent(studentIds, schoolYearId, range, options = {}) {
   const schoolYear = getSchoolYear(schoolYearId);
   const instructorId = options.instructorId || "all";
+  const subjectId = options.subjectId || "all";
   const results = new Map(studentIds.map((studentId) => [studentId, { earned: 0, projected: 0 }]));
   if (!schoolYear) return results;
   const reportDates = instructionalDatesByRangeForSchoolYear(schoolYear, range.startDate, range.endDate);
@@ -6506,6 +6601,7 @@ function reportInstructionalHoursByStudent(studentIds, schoolYearId, range, opti
     const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction" || !studentIds.includes(block.studentId)) return;
+      if (!reportCourseMatchesSubject(block.courseId, subjectId)) return;
       if (!instructionMatchesInstructorFilter(block.studentId, block.courseId, dateKey, instructorId)) return;
       const metrics = results.get(block.studentId);
       if (!metrics) return;
@@ -6527,6 +6623,7 @@ function reportInstructionalHoursByStudent(studentIds, schoolYearId, range, opti
 function reportInstructionalHourRows(studentIds, range, options = {}) {
   const schoolYear = getSchoolYear(range.schoolYear.id);
   const instructorId = options.instructorId || "all";
+  const subjectId = options.subjectId || "all";
   if (!schoolYear) return [];
   const reportDates = instructionalDatesByRangeForSchoolYear(schoolYear, range.startDate, range.endDate);
   const reportDateSet = new Set(reportDates);
@@ -6544,6 +6641,7 @@ function reportInstructionalHourRows(studentIds, range, options = {}) {
     const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction" || !studentIds.includes(block.studentId)) return;
+      if (!reportCourseMatchesSubject(block.courseId, subjectId)) return;
       if (!instructionMatchesInstructorFilter(block.studentId, block.courseId, dateKey, instructorId)) return;
       if (!(dateKey <= today && attendanceByStudentDate.get(`${block.studentId}||${dateKey}`) === true)) return;
       if (!instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)) return;
@@ -6575,12 +6673,14 @@ function reportInstructionalDaysCompleted(startDate, endDate) {
 
 function reportSummaryRows(studentIds, range, options = {}) {
   const instructorId = options.instructorId || "all";
-  const instructionalHoursByStudent = reportInstructionalHoursByStudent(studentIds, range.schoolYear.id, range, { instructorId });
+  const subjectId = options.subjectId || "all";
+  const instructionalHoursByStudent = reportInstructionalHoursByStudent(studentIds, range.schoolYear.id, range, { instructorId, subjectId });
   return studentIds.map((studentId) => {
     const student = state.students.find((entry) => entry.id === studentId);
     const filteredTests = state.tests.filter((test) =>
       test.studentId === studentId
       && testMatchesInstructorFilter(test, instructorId)
+      && reportTestMatchesSubject(test, subjectId)
       && inRange(test.date, range.startDate, range.endDate));
     const averageScore = weightedAverageForTests(filteredTests, { quarterScoped: range.quarterScoped });
     const attendanceSummary = studentAttendanceSummaryByRange(studentId, range.startDate, range.endDate);
@@ -6601,12 +6701,14 @@ function reportSummaryRows(studentIds, range, options = {}) {
 
 function reportStudentCourseSummaryRows(studentIds, range, options = {}) {
   const instructorId = options.instructorId || "all";
+  const subjectId = options.subjectId || "all";
   const studentOrder = new Map(studentIds.map((studentId, index) => [studentId, index]));
   const rows = [];
   studentIds.forEach((studentId) => {
     const tests = state.tests.filter((test) =>
       test.studentId === studentId
       && testMatchesInstructorFilter(test, instructorId)
+      && reportTestMatchesSubject(test, subjectId)
       && inRange(test.date, range.startDate, range.endDate));
     const courseMap = new Map();
     tests.forEach((test) => {
@@ -6634,6 +6736,7 @@ function reportStudentCourseSummaryRows(studentIds, range, options = {}) {
 
 function reportStudentCourseDetailRows(studentIds, options = {}) {
   const instructorId = options.instructorId || "all";
+  const subjectId = options.subjectId || "all";
   const rows = [];
   studentIds.forEach((studentId) => {
     const seenCourseIds = new Set();
@@ -6642,6 +6745,7 @@ function reportStudentCourseDetailRows(studentIds, options = {}) {
       seenCourseIds.add(enrollment.courseId);
       const course = getCourse(enrollment.courseId);
       if (!course || !matchesInstructorFilter(assignedInstructorIdForCourse(course.id), instructorId)) return;
+      if (!reportCourseMatchesSubject(course.id, subjectId)) return;
       const materials = normalizeCourseMaterials(course.materials || course.material);
       materials.forEach((material) => {
         rows.push({
@@ -6660,13 +6764,44 @@ function reportStudentCourseDetailRows(studentIds, options = {}) {
   return rows;
 }
 
+function reportRequiredSubjectRows(studentIds, options = {}) {
+  const subjectId = options.subjectId || "all";
+  const students = studentIds
+    .map((studentId) => state.students.find((student) => student.id === studentId))
+    .filter(Boolean);
+  return state.subjects
+    .filter((subject) => subject.required && (!subjectId || subjectId === "all" || subject.id === subjectId))
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((subject) => {
+      const courseItems = state.courses
+        .filter((course) => course.subjectId === subject.id)
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((course) => ({
+          id: course.id,
+          name: course.name,
+          sections: sortedCourseSections(course.id).map((section) => section.label)
+        }));
+      const missingStudents = students.filter((student) => !studentHasRequiredSubject(student.id, subject.id));
+      return {
+        subject,
+        courseItems,
+        missingStudents,
+        status: missingStudents.length ? "Not Compliant" : "Compliant"
+      };
+    });
+}
+
 function reportGradeRows(studentIds, range, options = {}) {
   const instructorId = options.instructorId || "all";
+  const subjectId = options.subjectId || "all";
   const studentOrder = new Map(studentIds.map((studentId, index) => [studentId, index]));
   return state.tests
     .filter((test) =>
       studentIds.includes(test.studentId)
       && testMatchesInstructorFilter(test, instructorId)
+      && reportTestMatchesSubject(test, subjectId)
       && inRange(test.date, range.startDate, range.endDate))
     .sort((a, b) =>
       (studentOrder.get(a.studentId) ?? Number.MAX_SAFE_INTEGER) - (studentOrder.get(b.studentId) ?? Number.MAX_SAFE_INTEGER)
@@ -6699,8 +6834,10 @@ function reportAttendanceRows(studentIds, range) {
     }));
 }
 
-function reportInstructorSessionRows(range, instructorId = "all") {
+function reportInstructorSessionRows(range, instructorId = "all", options = {}) {
   const schoolYear = getSchoolYear(range.schoolYear.id);
+  const subjectId = options.subjectId || "all";
+  const gradeLevel = options.gradeLevel || "all";
   if (!schoolYear) return [];
   const today = todayISO();
   const reportDates = instructionalDatesByRangeForSchoolYear(schoolYear, range.startDate, range.endDate)
@@ -6712,6 +6849,8 @@ function reportInstructorSessionRows(range, instructorId = "all") {
     const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction") return;
+      if (!reportStudentMatchesGrade(block.studentId, gradeLevel)) return;
+      if (!reportCourseMatchesSubject(block.courseId, subjectId)) return;
       if (!instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)) return;
       const effectiveInstructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
       if (!effectiveInstructorId) return;
@@ -6740,8 +6879,8 @@ function reportInstructorSessionRows(range, instructorId = "all") {
     || a.date.localeCompare(b.date));
 }
 
-function reportInstructorSummaryRows(range, instructorId = "all") {
-  const sessionRows = reportInstructorSessionRows(range, instructorId);
+function reportInstructorSummaryRows(range, instructorId = "all", options = {}) {
+  const sessionRows = reportInstructorSessionRows(range, instructorId, options);
   const summaryMap = new Map();
   sessionRows.forEach((row) => {
     const key = `${row.instructorId}||${row.courseId}`;
@@ -6774,14 +6913,15 @@ function reportInstructorSummaryRows(range, instructorId = "all") {
       || a.courseName.localeCompare(b.courseName));
 }
 
-function reportInstructorOverviewRows(range, instructorId = "all") {
-  const sessionRows = reportInstructorSessionRows(range, instructorId);
+function reportInstructorOverviewRows(range, instructorId = "all", options = {}) {
+  const sessionRows = reportInstructorSessionRows(range, instructorId, options);
   if (!sessionRows.length) {
     if (instructorId === "all") {
       return state.instructors
         .slice()
         .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`))
         .map((instructor) => ({
+          instructorId: instructor.id,
           instructorName: `${instructor.firstName} ${instructor.lastName}`,
           age: instructor.birthdate ? String(calculateAge(instructor.birthdate)) : "-",
           educationLevel: getInstructorEducationLevelLabel(instructor.educationLevel || ""),
@@ -6790,6 +6930,7 @@ function reportInstructorOverviewRows(range, instructorId = "all") {
         }));
     }
     return [{
+      instructorId,
       instructorName: getInstructorName(instructorId),
       age: "-",
       educationLevel: "Not recorded",
@@ -6801,6 +6942,7 @@ function reportInstructorOverviewRows(range, instructorId = "all") {
   if (instructorId !== "all") {
     const instructor = state.instructors.find((entry) => entry.id === instructorId);
     return [{
+      instructorId,
       instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : getInstructorName(instructorId),
       age: instructor?.birthdate ? String(calculateAge(instructor.birthdate)) : "-",
       educationLevel: getInstructorEducationLevelLabel(instructor?.educationLevel || ""),
@@ -6816,6 +6958,7 @@ function reportInstructorOverviewRows(range, instructorId = "all") {
 
   sourceInstructors.forEach((instructor) => {
     overviewMap.set(instructor.id, {
+      instructorId: instructor.id,
       instructorName: `${instructor.firstName} ${instructor.lastName}`,
       age: instructor.birthdate ? String(calculateAge(instructor.birthdate)) : "-",
       educationLevel: getInstructorEducationLevelLabel(instructor.educationLevel || ""),
@@ -6828,6 +6971,7 @@ function reportInstructorOverviewRows(range, instructorId = "all") {
     if (!row.instructorId) return;
     if (!overviewMap.has(row.instructorId)) {
       overviewMap.set(row.instructorId, {
+        instructorId: row.instructorId,
         instructorName: row.instructorName,
         age: "-",
         educationLevel: "Not recorded",
@@ -6842,6 +6986,7 @@ function reportInstructorOverviewRows(range, instructorId = "all") {
 
   return Array.from(overviewMap.values())
     .map((row) => ({
+      instructorId: row.instructorId,
       instructorName: row.instructorName,
       age: row.age,
       educationLevel: row.educationLevel,
@@ -6849,6 +6994,328 @@ function reportInstructorOverviewRows(range, instructorId = "all") {
       instructionHours: row.instructionHours
     }))
     .sort((a, b) => a.instructorName.localeCompare(b.instructorName));
+}
+
+function reportInstructorPerformanceSourceTests(range, instructorId = "all", options = {}) {
+  const subjectId = options.subjectId || "all";
+  const gradeLevel = options.gradeLevel || "all";
+  return state.tests.filter((test) =>
+    testMatchesInstructorFilter(test, instructorId)
+    && reportStudentMatchesGrade(test.studentId, gradeLevel)
+    && reportTestMatchesSubject(test, subjectId)
+    && inRange(test.date, range.startDate, range.endDate));
+}
+
+function reportInstructorOverviewPerformanceMap(range, instructorId = "all", options = {}) {
+  const testsByInstructor = new Map();
+  reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
+    const resolvedInstructorId = testInstructorId(test);
+    if (!resolvedInstructorId) return;
+    if (!testsByInstructor.has(resolvedInstructorId)) testsByInstructor.set(resolvedInstructorId, []);
+    testsByInstructor.get(resolvedInstructorId).push(test);
+  });
+  const performanceByInstructor = new Map();
+  testsByInstructor.forEach((tests, resolvedInstructorId) => {
+    const averageScore = weightedAverageForTests(tests, { quarterScoped: range.quarterScoped });
+    performanceByInstructor.set(resolvedInstructorId, {
+      gradeCount: tests.length,
+      averageScore,
+      letterGrade: scoreToLetterGrade(averageScore),
+      gpa: averageToGpa(averageScore)
+    });
+  });
+  return performanceByInstructor;
+}
+
+function reportInstructorInstructionBlockRows(range, instructorId = "all", options = {}) {
+  const schoolYear = getSchoolYear(range.schoolYear.id);
+  const reportSubjectId = options.subjectId || "all";
+  const gradeLevel = options.gradeLevel || "all";
+  if (!schoolYear) return [];
+  const today = todayISO();
+  const reportDates = instructionalDatesByRangeForSchoolYear(schoolYear, range.startDate, range.endDate)
+    .filter((dateKey) => dateKey <= today);
+  const studentIds = state.students.map((student) => student.id);
+  const rows = [];
+  reportDates.forEach((dateKey) => {
+    const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
+    Array.from(blocksByStudent.values()).flat().forEach((block) => {
+      if (block.type !== "instruction") return;
+      if (!reportStudentMatchesGrade(block.studentId, gradeLevel)) return;
+      if (!reportCourseMatchesSubject(block.courseId, reportSubjectId)) return;
+      if (!instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)) return;
+      const effectiveInstructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
+      if (!effectiveInstructorId || !matchesInstructorFilter(effectiveInstructorId, instructorId)) return;
+      const minutes = Number(block.actualMinutes || 0);
+      if (!(minutes > 0)) return;
+      const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+      const course = getCourse(block.courseId);
+      const subjectId = course?.subjectId || "";
+      rows.push({
+        instructorId: effectiveInstructorId,
+        instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : getInstructorName(effectiveInstructorId),
+        studentId: block.studentId,
+        studentName: getStudentName(block.studentId),
+        subjectId,
+        subjectName: subjectId ? getSubjectName(subjectId) : "Unknown Subject",
+        courseId: block.courseId,
+        courseName: course?.name || getCourseName(block.courseId),
+        date: dateKey,
+        minutes
+      });
+    });
+  });
+  return rows;
+}
+
+function reportInstructorSubjectPerformanceSummaryRows(range, instructorId = "all", options = {}) {
+  const groups = new Map();
+  const ensureGroup = ({ instructorId: rowInstructorId, instructorName, subjectId, subjectName }) => {
+    const key = `${rowInstructorId || "unknown"}||${subjectId || "unknown"}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        instructorId: rowInstructorId || "",
+        instructorName: instructorName || "Unknown Instructor",
+        subjectId: subjectId || "",
+        subjectName: subjectName || "Unknown Subject",
+        studentIds: new Set(),
+        minutes: 0,
+        tests: []
+      });
+    }
+    return groups.get(key);
+  };
+  reportInstructorInstructionBlockRows(range, instructorId, options).forEach((row) => {
+    const group = ensureGroup(row);
+    group.studentIds.add(row.studentId);
+    group.minutes += row.minutes;
+  });
+  reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
+    const effectiveInstructorId = testInstructorId(test);
+    const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+    const course = getCourse(test.courseId);
+    const subjectId = course?.subjectId || test.subjectId || "";
+    const group = ensureGroup({
+      instructorId: effectiveInstructorId,
+      instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : (effectiveInstructorId ? getInstructorName(effectiveInstructorId) : "Unknown Instructor"),
+      subjectId,
+      subjectName: subjectId ? getSubjectName(subjectId) : "Unknown Subject"
+    });
+    group.studentIds.add(test.studentId);
+    group.tests.push(test);
+  });
+  return Array.from(groups.values())
+    .map((row) => {
+      const averageScore = row.tests.length ? weightedAverageForTests(row.tests, { quarterScoped: range.quarterScoped }) : 0;
+      return {
+        instructorName: row.instructorName,
+        subjectName: row.subjectName,
+        studentCount: row.studentIds.size,
+        hours: row.minutes / 60,
+        gradeCount: row.tests.length,
+        averageScore,
+        letterGrade: row.tests.length ? scoreToLetterGrade(averageScore) : "",
+        gpa: row.tests.length ? averageToGpa(averageScore) : 0
+      };
+    })
+    .sort((a, b) =>
+      a.instructorName.localeCompare(b.instructorName)
+      || a.subjectName.localeCompare(b.subjectName));
+}
+
+function reportInstructorStudentPerformanceSummaryRows(range, instructorId = "all", options = {}) {
+  const groups = new Map();
+  const ensureGroup = ({ instructorId: rowInstructorId, instructorName, studentId, studentName }) => {
+    const key = `${rowInstructorId || "unknown"}||${studentId || "unknown"}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        instructorId: rowInstructorId || "",
+        instructorName: instructorName || "Unknown Instructor",
+        studentId: studentId || "",
+        studentName: studentName || "Unknown Student",
+        courseIds: new Set(),
+        minutes: 0,
+        tests: []
+      });
+    }
+    return groups.get(key);
+  };
+  reportInstructorInstructionBlockRows(range, instructorId, options).forEach((row) => {
+    const group = ensureGroup(row);
+    group.courseIds.add(row.courseId);
+    group.minutes += row.minutes;
+  });
+  reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
+    const effectiveInstructorId = testInstructorId(test);
+    const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+    const group = ensureGroup({
+      instructorId: effectiveInstructorId,
+      instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : (effectiveInstructorId ? getInstructorName(effectiveInstructorId) : "Unknown Instructor"),
+      studentId: test.studentId,
+      studentName: getStudentName(test.studentId)
+    });
+    if (test.courseId) group.courseIds.add(test.courseId);
+    group.tests.push(test);
+  });
+  return Array.from(groups.values())
+    .map((row) => {
+      const averageScore = row.tests.length ? weightedAverageForTests(row.tests, { quarterScoped: range.quarterScoped }) : 0;
+      return {
+        instructorName: row.instructorName,
+        studentName: row.studentName,
+        courseCount: row.courseIds.size,
+        hours: row.minutes / 60,
+        gradeCount: row.tests.length,
+        averageScore,
+        letterGrade: row.tests.length ? scoreToLetterGrade(averageScore) : "",
+        gpa: row.tests.length ? averageToGpa(averageScore) : 0
+      };
+    })
+    .sort((a, b) =>
+      a.instructorName.localeCompare(b.instructorName)
+      || a.studentName.localeCompare(b.studentName));
+}
+
+function reportInstructorGradePerformanceSummaryRows(range, instructorId = "all", options = {}) {
+  const groups = new Map();
+  const gradeLabelForStudent = (studentId) => {
+    const student = state.students.find((entry) => entry.id === studentId);
+    return String(student?.grade || "").trim() || "Not Recorded";
+  };
+  const ensureGroup = ({ instructorId: rowInstructorId, instructorName, grade }) => {
+    const gradeLabel = grade || "Not Recorded";
+    const key = `${rowInstructorId || "unknown"}||${gradeLabel.toLowerCase()}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        instructorId: rowInstructorId || "",
+        instructorName: instructorName || "Unknown Instructor",
+        grade: gradeLabel,
+        studentIds: new Set(),
+        tests: []
+      });
+    }
+    return groups.get(key);
+  };
+  reportInstructorInstructionBlockRows(range, instructorId, options).forEach((row) => {
+    const group = ensureGroup({
+      instructorId: row.instructorId,
+      instructorName: row.instructorName,
+      grade: gradeLabelForStudent(row.studentId)
+    });
+    group.studentIds.add(row.studentId);
+  });
+  reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
+    const effectiveInstructorId = testInstructorId(test);
+    const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+    const group = ensureGroup({
+      instructorId: effectiveInstructorId,
+      instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : (effectiveInstructorId ? getInstructorName(effectiveInstructorId) : "Unknown Instructor"),
+      grade: gradeLabelForStudent(test.studentId)
+    });
+    group.studentIds.add(test.studentId);
+    group.tests.push(test);
+  });
+  return Array.from(groups.values())
+    .map((row) => {
+      const averageScore = row.tests.length ? weightedAverageForTests(row.tests, { quarterScoped: range.quarterScoped }) : 0;
+      return {
+        instructorName: row.instructorName,
+        grade: row.grade,
+        studentCount: row.studentIds.size,
+        gradeCount: row.tests.length,
+        averageScore,
+        letterGrade: row.tests.length ? scoreToLetterGrade(averageScore) : "",
+        gpa: row.tests.length ? averageToGpa(averageScore) : 0
+      };
+    })
+    .sort((a, b) =>
+      a.instructorName.localeCompare(b.instructorName)
+      || a.grade.localeCompare(b.grade, undefined, { numeric: true }));
+}
+
+function reportInstructorPerformanceByCourseRows(range, instructorId = "all", options = {}) {
+  const groups = new Map();
+  reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
+    const effectiveInstructorId = testInstructorId(test);
+    const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+    const course = getCourse(test.courseId);
+    const subjectId = course?.subjectId || test.subjectId || "";
+    const section = courseSectionForStudentCourse(test.studentId, test.courseId);
+    const sectionId = section?.id || "";
+    const key = `${effectiveInstructorId || "unknown"}||${subjectId || "unknown"}||${test.courseId || "unknown"}||${sectionId || "course"}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : (effectiveInstructorId ? getInstructorName(effectiveInstructorId) : "Unknown Instructor"),
+        subjectName: subjectId ? getSubjectName(subjectId) : "Unknown Subject",
+        courseClass: `${course?.name || getCourseName(test.courseId)}${section?.label ? ` - ${section.label}` : ""}`,
+        studentIds: new Set(),
+        tests: []
+      });
+    }
+    const group = groups.get(key);
+    group.studentIds.add(test.studentId);
+    group.tests.push(test);
+  });
+  return Array.from(groups.values())
+    .map((row) => {
+      const averageScore = weightedAverageForTests(row.tests, { quarterScoped: range.quarterScoped });
+      return {
+        instructorName: row.instructorName,
+        subjectName: row.subjectName,
+        courseClass: row.courseClass,
+        studentCount: row.studentIds.size,
+        gradeCount: row.tests.length,
+        averageScore,
+        letterGrade: scoreToLetterGrade(averageScore),
+        gpa: averageToGpa(averageScore)
+      };
+    })
+    .sort((a, b) =>
+      a.instructorName.localeCompare(b.instructorName)
+      || a.subjectName.localeCompare(b.subjectName)
+      || a.courseClass.localeCompare(b.courseClass));
+}
+
+function reportInstructorStudentPerformanceRows(range, instructorId = "all", options = {}) {
+  const groups = new Map();
+  reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
+    const effectiveInstructorId = testInstructorId(test);
+    const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+    const course = getCourse(test.courseId);
+    const subjectId = course?.subjectId || test.subjectId || "";
+    const section = courseSectionForStudentCourse(test.studentId, test.courseId);
+    const sectionId = section?.id || "";
+    const key = `${effectiveInstructorId || "unknown"}||${test.studentId || "unknown"}||${subjectId || "unknown"}||${test.courseId || "unknown"}||${sectionId || "course"}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : (effectiveInstructorId ? getInstructorName(effectiveInstructorId) : "Unknown Instructor"),
+        studentName: getStudentName(test.studentId),
+        subjectName: subjectId ? getSubjectName(subjectId) : "Unknown Subject",
+        courseClass: `${course?.name || getCourseName(test.courseId)}${section?.label ? ` - ${section.label}` : ""}`,
+        tests: []
+      });
+    }
+    groups.get(key).tests.push(test);
+  });
+  return Array.from(groups.values())
+    .map((row) => {
+      const averageScore = weightedAverageForTests(row.tests, { quarterScoped: range.quarterScoped });
+      return {
+        instructorName: row.instructorName,
+        studentName: row.studentName,
+        subjectName: row.subjectName,
+        courseClass: row.courseClass,
+        gradeCount: row.tests.length,
+        averageScore,
+        letterGrade: scoreToLetterGrade(averageScore),
+        gpa: averageToGpa(averageScore)
+      };
+    })
+    .sort((a, b) =>
+      a.instructorName.localeCompare(b.instructorName)
+      || a.studentName.localeCompare(b.studentName)
+      || a.subjectName.localeCompare(b.subjectName)
+      || a.courseClass.localeCompare(b.courseClass));
 }
 
 const REPORT_WEBSITE_URL = "https://www.navigrader.com";
@@ -7005,13 +7472,23 @@ function buildReportDocument({ title, toolbarTitle, toolbarSubtitle, pagesHtml }
     .report-grade-badge.grade-b { background: #ffe9b8; color: #a16207; }
     .report-grade-badge.grade-c { background: #ffe0bf; color: #b45309; }
     .report-grade-badge.grade-d { background: #ffd7d7; color: #b91c1c; }
+    .report-status-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 24px; min-width: 96px; padding: 0.18rem 0.5rem; border-radius: 999px; font-size: 0.66rem; font-weight: 900; }
+    .report-status-pill.compliant { background: #dff5e5; color: #15803d; }
+    .report-status-pill.not-compliant { background: #ffe1e1; color: #dc2626; }
+    .report-course-class-list { display: grid; gap: 0.34rem; margin: 0; padding: 0; list-style: none; text-align: left; }
+    .report-course-class-list li { display: grid; gap: 0.08rem; }
+    .report-course-class-list strong { color: #061744; font-size: 0.74rem; }
+    .report-course-class-list small { color: #51637f; font-size: 0.66rem; line-height: 1.28; }
+    .report-student-count { display: block; color: #061744; font-size: 0.82rem; font-weight: 900; }
+    .report-student-names { display: block; margin-top: 0.18rem; color: #51637f; font-size: 0.66rem; line-height: 1.28; }
+    .report-muted-inline { color: #51637f; font-size: 0.7rem; font-weight: 700; }
     .report-muted-box { display: grid; place-items: center; min-height: 70px; padding: 1rem; border: 1px solid #dce6f2; border-radius: 10px; background: #f8fbff; color: #51637f; text-align: center; }
     .report-total-line { margin: -6px 0 0; padding: 0.72rem 0.9rem; border: 1px solid #d9e4f0; border-top: 0; border-radius: 0 0 10px 10px; color: #061744; font-size: 0.84rem; font-weight: 900; text-align: right; }
     .report-note-box { display: flex; align-items: center; gap: 0.75rem; min-height: 76px; padding: 0.9rem; border: 1px solid #dce6f2; border-radius: 10px; background: #f8fbff; color: #48607f; font-size: 0.78rem; }
     .report-page-footer { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: 1fr auto auto; gap: 1rem; align-items: center; min-height: 34px; padding: 0 22px; background: #0d376d; color: #ffffff; font-size: 0.72rem; }
     .report-page-footer a { color: #ffffff; font-weight: 800; text-decoration: none; }
     .report-page-footer strong { font-size: 0.72rem; }
-    @media (max-width: 900px) {
+    @media screen and (max-width: 900px) {
       .report-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .report-section-heading h1 { font-size: 1.42rem; }
     }
@@ -7020,6 +7497,15 @@ function buildReportDocument({ title, toolbarTitle, toolbarSubtitle, pagesHtml }
       .report-shell { max-width: none; padding: 0; }
       .report-toolbar { display: none; }
       .report-page { min-height: 10.25in; margin: 0; border: 1px solid #d8e2ee; box-shadow: none; page-break-inside: avoid; }
+      .report-page-body { gap: 13px; }
+      .report-metric-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.46rem; }
+      .report-metric-grid-compact { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .report-metric-card { min-height: 74px; padding: 0.5rem 0.48rem; border-radius: 8px; }
+      .report-metric-card .report-metric-icon { width: 25px; height: 25px; margin-bottom: 0.34rem; border-radius: 7px; }
+      .report-metric-icon svg { width: 16px; height: 16px; }
+      .report-metric-card small { font-size: 0.5rem; line-height: 1.1; }
+      .report-metric-card strong { margin-top: 0.22rem; font-size: 1rem; }
+      .report-metric-card em { margin-top: 0.24rem; font-size: 0.52rem; line-height: 1.15; }
       .report-page-break { break-after: page; page-break-after: always; }
     }
   </style>
@@ -7039,18 +7525,22 @@ function buildReportDocument({ title, toolbarTitle, toolbarSubtitle, pagesHtml }
 </html>`;
 }
 
-function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "all" }) {
+function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "all", subjectId = "all", gradeLevel = "all" }) {
   const titlePeriod = range.quarter ? `${range.schoolYear.label} | ${range.quarter.name}` : `${range.schoolYear.label} | All Quarters`;
   const selectedStudentsLabel = studentIds.map((studentId) => getStudentName(studentId)).join(", ");
   const selectedInstructorLabel = instructorId === "all" ? "All Instructors" : getInstructorName(instructorId);
+  const selectedSubjectLabel = subjectId === "all" ? "All Subjects" : getSubjectName(subjectId);
+  const selectedGradeLabel = gradeLevel === "all" ? "All Grades" : gradeLevel;
   const selectedContentIds = Array.from(reportSelectedContentIds);
   const configuredWeights = configuredGradeTypes();
-  const summaryRows = reportSummaryRows(studentIds, range, { instructorId });
-  const studentCourseSummaryRows = reportStudentCourseSummaryRows(studentIds, range, { instructorId });
-  const studentCourseDetailRows = reportStudentCourseDetailRows(studentIds, { instructorId });
-  const gradeRows = reportGradeRows(studentIds, range, { instructorId });
+  const reportFilters = { instructorId, subjectId, gradeLevel };
+  const summaryRows = reportSummaryRows(studentIds, range, reportFilters);
+  const studentCourseSummaryRows = reportStudentCourseSummaryRows(studentIds, range, reportFilters);
+  const studentCourseDetailRows = reportStudentCourseDetailRows(studentIds, reportFilters);
+  const gradeRows = reportGradeRows(studentIds, range, reportFilters);
   const attendanceRows = reportAttendanceRows(studentIds, range);
-  const instructionalHourRows = reportInstructionalHourRows(studentIds, range, { instructorId });
+  const instructionalHourRows = reportInstructionalHourRows(studentIds, range, reportFilters);
+  const requiredSubjectRows = reportRequiredSubjectRows(studentIds, { subjectId });
   const summaryTableRows = summaryRows.length
     ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td><td>${row.attended}</td><td>${row.absent}</td><td>${row.instructionalDaysCompleted}</td><td>${row.instructionalHoursCompleted.toFixed(2)}</td></tr>`).join("")
     : "<tr><td colspan='8'>No student summary data found for the selected filters.</td></tr>";
@@ -7156,6 +7646,28 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
     })()
     : "<div class=\"report-muted-box\">No instructional hours found for the selected filters.</div>";
   const totalInstructionalHours = instructionalHourRows.reduce((sum, row) => sum + row.instructionalHours, 0);
+  const requiredSubjectTableRows = requiredSubjectRows.length
+    ? requiredSubjectRows.map((row) => {
+      const courseList = row.courseItems.length
+        ? `<ul class="report-course-class-list">${row.courseItems.map((course) => {
+          const classes = course.sections.length ? course.sections.join(", ") : "No classes";
+          return `<li><strong>${escapeHtml(course.name)}</strong><small>${escapeHtml(classes)}</small></li>`;
+        }).join("")}</ul>`
+        : "<span class=\"report-muted-inline\">No required courses configured.</span>";
+      const missingNames = row.missingStudents
+        .map((student) => `${student.firstName || ""} ${student.lastName || ""}`.trim())
+        .filter(Boolean)
+        .join(", ");
+      const missingLabel = `${row.missingStudents.length} student${row.missingStudents.length === 1 ? "" : "s"}`;
+      const statusClass = row.status === "Compliant" ? "compliant" : "not-compliant";
+      return `<tr>
+        <td>${escapeHtml(row.subject.name)}</td>
+        <td>${courseList}</td>
+        <td><span class="report-status-pill ${statusClass}">${escapeHtml(row.status)}</span></td>
+        <td><span class="report-student-count">${escapeHtml(missingLabel)}</span><span class="report-student-names">${missingNames ? escapeHtml(missingNames) : "None"}</span></td>
+      </tr>`;
+    }).join("")
+    : "<tr><td colspan='4'>No required subjects are configured.</td></tr>";
   const gradedSummaryRows = summaryRows.filter((row) => row.gradeCount);
   const averageScore = gradedSummaryRows.length
     ? gradedSummaryRows.reduce((sum, row) => sum + row.averageScore, 0) / gradedSummaryRows.length
@@ -7166,11 +7678,17 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
   const attendedTotal = summaryRows.reduce((sum, row) => sum + row.attended, 0);
   const absentTotal = summaryRows.reduce((sum, row) => sum + row.absent, 0);
   const attendanceRate = attendedTotal + absentTotal ? (attendedTotal / (attendedTotal + absentTotal)) * 100 : 0;
-  const allRequiredSubjectsComplete = studentIds.every((studentId) => studentHasAllRequiredSubjects(studentId));
+  const requiredSubjectsForCompliance = state.subjects.filter((subject) =>
+    subject.required && (!subjectId || subjectId === "all" || subject.id === subjectId));
+  const allRequiredSubjectsComplete = requiredSubjectsForCompliance.length
+    ? studentIds.every((studentId) => requiredSubjectsForCompliance.every((subject) => studentHasRequiredSubject(studentId, subject.id)))
+    : studentIds.every((studentId) => studentHasAllRequiredSubjects(studentId));
   const reportMetaItems = [
     { label: "School Year", value: range.schoolYear.label },
     { label: "Quarter", value: range.quarter ? range.quarter.name : "All Quarters" },
-    { label: "Instructor", value: selectedInstructorLabel }
+    { label: "Instructor", value: selectedInstructorLabel },
+    { label: "Subject", value: selectedSubjectLabel },
+    { label: "Grade", value: selectedGradeLabel }
   ];
   const studentChipRows = `<div class="report-student-chip-row">${studentIds.map((studentId, index) => reportPersonBadge(getStudentName(studentId), index)).join("")}</div>`;
   const executiveSummaryCards = `<div class="report-metric-grid">
@@ -7183,22 +7701,20 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
   const pageSections = [];
   const includesGradeContent = selectedContentIds.some((contentId) => ["studentSummary", "courseSummary", "detailedGrades"].includes(contentId));
 
-  if (selectedContentIds.includes("studentSummary")) {
-    pageSections.push({
-      title: "Student Academic Report",
-      subtitle: "Performance, attendance, and instructional summary",
-      icon: "book",
-      metaItems: reportMetaItems,
-      body: `
+  const includeExecutiveSummary = selectedContentIds.includes("executiveSummary");
+  const includeStudentSummary = selectedContentIds.includes("studentSummary");
+
+  if (includeExecutiveSummary || includeStudentSummary) {
+    const overviewSections = `
         <section class="report-subsection">
           <h2 class="report-subsection-title">Students Included</h2>
           ${studentChipRows}
         </section>
-        <section class="report-subsection">
+        ${includeExecutiveSummary ? `<section class="report-subsection">
           <h2 class="report-subsection-title">Executive Summary</h2>
           ${executiveSummaryCards}
-        </section>
-        <section class="report-subsection">
+        </section>` : ""}
+        ${includeStudentSummary ? `<section class="report-subsection">
           <h2 class="report-subsection-title">Student Summary</h2>
           <div class="report-table-scroll">
             <table>
@@ -7206,8 +7722,15 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
               <tbody>${summaryTableRows}</tbody>
             </table>
           </div>
-        </section>`,
-      className: "report-student-cover"
+        </section>` : ""}`;
+    pageSections.push({
+      title: "Student Academic Report",
+      subtitle: "Performance, attendance, and instructional summary",
+      icon: "book",
+      metaItems: reportMetaItems,
+      body: overviewSections,
+      className: "report-student-cover",
+      includeGradeWeighting: includeStudentSummary
     });
   }
 
@@ -7217,7 +7740,8 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
       subtitle: "Course performance by student",
       icon: "book",
       metaItems: reportMetaItems,
-      body: studentCourseSummarySections
+      body: studentCourseSummarySections,
+      includeGradeWeighting: true
     });
   }
 
@@ -7231,6 +7755,27 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
     });
   }
 
+  if (selectedContentIds.includes("requiredSubjects")) {
+    pageSections.push({
+      title: "Required Subjects",
+      subtitle: "Required subject compliance by course and student",
+      icon: "shield",
+      metaItems: reportMetaItems,
+      body: `<div class="report-table-scroll">
+        <table class="report-table report-table-required-subjects">
+          <colgroup>
+            <col style="width:20%">
+            <col style="width:38%">
+            <col style="width:18%">
+            <col style="width:24%">
+          </colgroup>
+          <thead><tr><th>Required Subject</th><th>Course/Classes</th><th>Status</th><th>Students Not Compliant</th></tr></thead>
+          <tbody>${requiredSubjectTableRows}</tbody>
+        </table>
+      </div>`
+    });
+  }
+
   if (selectedContentIds.includes("detailedGrades")) {
     pageSections.push({
       title: "Detailed Grades",
@@ -7240,7 +7785,8 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
       body: `<div class="report-table-scroll"><table>
         <thead><tr><th>Student</th><th>Subject</th><th>Course</th><th>Date</th><th>Grade Type</th><th>Grade</th></tr></thead>
         <tbody>${gradeTableRows}</tbody>
-      </table></div>`
+      </table></div>`,
+      includeGradeWeighting: true
     });
   }
 
@@ -7278,7 +7824,8 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
         </div>
       </section>`;
   if (includesGradeContent && pageSections.length) {
-    pageSections[0].body += gradeWeightingSection;
+    const gradeWeightingTarget = pageSections.find((section) => section.includeGradeWeighting) || pageSections[0];
+    gradeWeightingTarget.body += gradeWeightingSection;
   }
 
   const pagesHtml = pageSections
@@ -7292,66 +7839,256 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
   });
 }
 
-function buildPrintableInstructorReportHtml({ range, instructorId = "all" }) {
+function buildPrintableInstructorReportHtml({ range, instructorId = "all", subjectId = "all", gradeLevel = "all" }) {
   const titlePeriod = range.quarter ? `${range.schoolYear.label} | ${range.quarter.name}` : `${range.schoolYear.label} | All Quarters`;
   const selectedInstructorLabel = instructorId === "all" ? "All Instructors" : getInstructorName(instructorId);
+  const selectedSubjectLabel = subjectId === "all" ? "All Subjects" : getSubjectName(subjectId);
+  const selectedGradeLabel = gradeLevel === "all" ? "All Grades" : gradeLevel;
   const selectedContentIds = Array.from(reportSelectedContentIds);
-  const overviewRows = reportInstructorOverviewRows(range, instructorId);
-  const summaryRows = reportInstructorSummaryRows(range, instructorId);
-  const detailedRows = reportInstructorSessionRows(range, instructorId);
-  const overviewTableRows = overviewRows.map((row) => `<tr><td>${escapeHtml(row.instructorName)}</td><td>${escapeHtml(row.age)}</td><td>${escapeHtml(row.educationLevel)}</td><td>${row.instructionDays}</td><td>${row.instructionHours.toFixed(2)}</td></tr>`).join("");
+  const reportFilters = { subjectId, gradeLevel };
+  const overviewRows = reportInstructorOverviewRows(range, instructorId, reportFilters);
+  const summaryRows = reportInstructorSummaryRows(range, instructorId, reportFilters);
+  const detailedRows = reportInstructorSessionRows(range, instructorId, reportFilters);
+  const subjectPerformanceSummaryRows = reportInstructorSubjectPerformanceSummaryRows(range, instructorId, reportFilters);
+  const studentPerformanceSummaryRows = reportInstructorStudentPerformanceSummaryRows(range, instructorId, reportFilters);
+  const gradePerformanceSummaryRows = reportInstructorGradePerformanceSummaryRows(range, instructorId, reportFilters);
+  const performanceByCourseRows = reportInstructorPerformanceByCourseRows(range, instructorId, reportFilters);
+  const studentPerformanceRows = reportInstructorStudentPerformanceRows(range, instructorId, reportFilters);
+  const overviewPerformanceByInstructor = reportInstructorOverviewPerformanceMap(range, instructorId, reportFilters);
+  const overviewTableRows = overviewRows.map((row) => {
+    const performance = overviewPerformanceByInstructor.get(row.instructorId) || null;
+    return `<tr><td>${escapeHtml(row.instructorName)}</td><td>${escapeHtml(row.age)}</td><td>${escapeHtml(row.educationLevel)}</td><td>${row.instructionDays}</td><td>${row.instructionHours.toFixed(2)}</td><td>${performance ? `${performance.averageScore.toFixed(1)}%` : "-"}</td><td>${reportGradeBadge(performance?.letterGrade || "-")}</td><td>${performance ? performance.gpa.toFixed(2) : "-"}</td></tr>`;
+  }).join("");
   const summaryTableRows = summaryRows.length
     ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.instructorName)}</td><td>${escapeHtml(row.instructorCategory)}</td><td>${escapeHtml(row.courseName)}</td><td>${row.instructionDays}</td><td>${row.instructionHours.toFixed(2)}</td></tr>`).join("")
     : "<tr><td colspan='5'>No instructor summary data found for the selected filters.</td></tr>";
   const detailTableRows = detailedRows.length
     ? detailedRows.map((row) => `<tr><td>${escapeHtml(row.instructorName)}</td><td>${escapeHtml(row.instructorCategory)}</td><td>${escapeHtml(row.courseName)}</td><td>${row.date}</td><td>${(row.minutes / 60).toFixed(2)}</td></tr>`).join("")
     : "<tr><td colspan='5'>No detailed instruction data found for the selected filters.</td></tr>";
+  const instructorGroupedTableSections = (rows, tableClass, emptyMessage, colgroupHtml, headerHtml, renderRow) => {
+    if (!rows.length) return `<div class="report-muted-box">${escapeHtml(emptyMessage)}</div>`;
+    const groupedRows = new Map();
+    rows.forEach((row) => {
+      const instructorName = row.instructorName || "Unknown Instructor";
+      if (!groupedRows.has(instructorName)) groupedRows.set(instructorName, []);
+      groupedRows.get(instructorName).push(row);
+    });
+    return Array.from(groupedRows.entries()).map(([instructorName, instructorRows], index) => `
+      <section class="report-subsection">
+        ${reportPersonBadge(instructorName, index)}
+        <div class="report-table-scroll">
+          <table class="report-table ${tableClass}">
+            ${colgroupHtml}
+            <thead>${headerHtml}</thead>
+            <tbody>${instructorRows.map(renderRow).join("")}</tbody>
+          </table>
+        </div>
+      </section>`).join("");
+  };
+  const subjectPerformanceSummarySections = instructorGroupedTableSections(
+    subjectPerformanceSummaryRows,
+    "report-table-instructor-subject-summary",
+    "No subject performance summary data found for the selected filters.",
+    `<colgroup>
+      <col style="width:28%">
+      <col style="width:12%">
+      <col style="width:12%">
+      <col style="width:12%">
+      <col style="width:16%">
+      <col style="width:10%">
+      <col style="width:10%">
+    </colgroup>`,
+    "<tr><th>Subject</th><th>Students</th><th>Hours</th><th>Grades</th><th>Average Score</th><th>Letter</th><th>GPA</th></tr>",
+    (row) => `<tr><td>${escapeHtml(row.subjectName)}</td><td>${row.studentCount}</td><td>${row.hours.toFixed(2)}</td><td>${row.gradeCount}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "-"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td></tr>`
+  );
+  const studentPerformanceSummarySections = instructorGroupedTableSections(
+    studentPerformanceSummaryRows,
+    "report-table-instructor-student-summary",
+    "No student performance summary data found for the selected filters.",
+    `<colgroup>
+      <col style="width:30%">
+      <col style="width:12%">
+      <col style="width:12%">
+      <col style="width:12%">
+      <col style="width:16%">
+      <col style="width:9%">
+      <col style="width:9%">
+    </colgroup>`,
+    "<tr><th>Student</th><th>Courses</th><th>Hours</th><th>Grades</th><th>Average Score</th><th>Letter</th><th>GPA</th></tr>",
+    (row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${row.courseCount}</td><td>${row.hours.toFixed(2)}</td><td>${row.gradeCount}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "-"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td></tr>`
+  );
+  const gradePerformanceSummarySections = instructorGroupedTableSections(
+    gradePerformanceSummaryRows,
+    "report-table-instructor-grade-summary",
+    "No grade-level performance summary data found for the selected filters.",
+    `<colgroup>
+      <col style="width:32%">
+      <col style="width:14%">
+      <col style="width:14%">
+      <col style="width:18%">
+      <col style="width:11%">
+      <col style="width:11%">
+    </colgroup>`,
+    "<tr><th>Grade</th><th>Students</th><th>Grades</th><th>Average Score</th><th>Letter</th><th>GPA</th></tr>",
+    (row) => `<tr><td>${escapeHtml(row.grade)}</td><td>${row.studentCount}</td><td>${row.gradeCount}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "-"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td></tr>`
+  );
+  const performanceByCourseTableRows = performanceByCourseRows.length
+    ? performanceByCourseRows.map((row) => `<tr><td>${escapeHtml(row.instructorName)}</td><td>${escapeHtml(row.subjectName)}</td><td>${escapeHtml(row.courseClass)}</td><td>${row.studentCount}</td><td>${row.gradeCount}</td><td>${row.averageScore.toFixed(1)}%</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.gpa.toFixed(2)}</td></tr>`).join("")
+    : "<tr><td colspan='8'>No instructor grade performance data found for the selected filters.</td></tr>";
+  const studentPerformanceTableRows = studentPerformanceRows.length
+    ? studentPerformanceRows.map((row) => `<tr><td>${escapeHtml(row.instructorName)}</td><td>${escapeHtml(row.studentName)}</td><td>${escapeHtml(row.subjectName)}</td><td>${escapeHtml(row.courseClass)}</td><td>${row.gradeCount}</td><td>${row.averageScore.toFixed(1)}%</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.gpa.toFixed(2)}</td></tr>`).join("")
+    : "<tr><td colspan='8'>No student performance data found for the selected filters.</td></tr>";
   const totalInstructionDays = overviewRows.reduce((sum, row) => sum + row.instructionDays, 0);
   const totalInstructionHours = overviewRows.reduce((sum, row) => sum + row.instructionHours, 0);
   const uniqueInstructorCount = overviewRows.length;
   const averageHoursPerInstructor = uniqueInstructorCount ? totalInstructionHours / uniqueInstructorCount : 0;
+  const averageInstructorScore = performanceByCourseRows.length
+    ? performanceByCourseRows.reduce((sum, row) => sum + row.averageScore, 0) / performanceByCourseRows.length
+    : 0;
   const reportMetaItems = [
     { label: "School Year", value: range.schoolYear.label },
     { label: "Quarter", value: range.quarter ? range.quarter.name : "All Quarters" },
-    { label: "Instructor", value: selectedInstructorLabel }
+    { label: "Instructor", value: selectedInstructorLabel },
+    { label: "Subject", value: selectedSubjectLabel },
+    { label: "Grade", value: selectedGradeLabel }
   ];
   const instructorSummaryCards = `<div class="report-metric-grid report-metric-grid-compact">
     ${reportMetricCard("Instructors", String(uniqueInstructorCount), "Included in report", "blue", "user")}
     ${reportMetricCard("Instruction Days", String(totalInstructionDays), "Total taught days", "green", "clock")}
     ${reportMetricCard("Instruction Hours", totalInstructionHours.toFixed(2), "Total taught hours", "gold", "chart")}
-    ${reportMetricCard("Average Hours", averageHoursPerInstructor.toFixed(2), "Per instructor", "blue", "clock")}
+    ${reportMetricCard(performanceByCourseRows.length ? "Average Score" : "Average Hours", performanceByCourseRows.length ? `${averageInstructorScore.toFixed(1)}%` : averageHoursPerInstructor.toFixed(2), performanceByCourseRows.length ? `${performanceByCourseRows.length} course/class result${performanceByCourseRows.length === 1 ? "" : "s"}` : "Per instructor", performanceByCourseRows.length ? "green" : "blue", performanceByCourseRows.length ? "shield" : "clock")}
   </div>`;
   const pageSections = [];
+  const includeLegacyInstructorSummary = selectedContentIds.includes("instructorSummary");
+  const includeInstructorExecutiveSummary = includeLegacyInstructorSummary || selectedContentIds.includes("instructorExecutiveSummary");
+  const includeInstructorOverview = includeLegacyInstructorSummary || selectedContentIds.includes("instructorOverview");
+  const includeInstructorCourseSummary = includeLegacyInstructorSummary || selectedContentIds.includes("instructorCourseSummary");
 
-  if (selectedContentIds.includes("instructorSummary")) {
+  if (includeInstructorExecutiveSummary || includeInstructorOverview) {
     pageSections.push({
       title: "Instructor Report",
       subtitle: "Instructional activity and teaching summary",
       icon: "user",
       metaItems: reportMetaItems,
       body: `
-        <section class="report-subsection">
+        ${includeInstructorExecutiveSummary ? `<section class="report-subsection">
           <h2 class="report-subsection-title">Executive Summary</h2>
           ${instructorSummaryCards}
-        </section>
-        <section class="report-subsection">
+        </section>` : ""}
+        ${includeInstructorOverview ? `<section class="report-subsection">
           <h2 class="report-subsection-title">Instructor Overview</h2>
           <div class="report-table-scroll">
-            <table>
-              <thead><tr><th>Instructor Name</th><th>Age</th><th>Education Level</th><th>Instruction Days</th><th>Instruction Hours</th></tr></thead>
+            <table class="report-table report-table-instructor-overview">
+              <colgroup>
+                <col style="width:18%">
+                <col style="width:7%">
+                <col style="width:21%">
+                <col style="width:12%">
+                <col style="width:13%">
+                <col style="width:13%">
+                <col style="width:8%">
+                <col style="width:8%">
+              </colgroup>
+              <thead><tr><th>Instructor Name</th><th>Age</th><th>Education Level</th><th>Instruction Days</th><th>Instruction Hours</th><th>Average Score</th><th>Letter</th><th>GPA</th></tr></thead>
               <tbody>${overviewTableRows}</tbody>
             </table>
           </div>
-        </section>
-        <section class="report-subsection">
-          <h2 class="report-subsection-title">Course Summary</h2>
-          <div class="report-table-scroll">
-            <table>
-              <thead><tr><th>Instructor Name</th><th>Instructor Category</th><th>Course</th><th>Instruction Days Taught</th><th>Instruction Hours Taught</th></tr></thead>
-              <tbody>${summaryTableRows}</tbody>
-            </table>
-          </div>
-        </section>`
+        </section>` : ""}`
+    });
+  }
+
+  if (selectedContentIds.includes("instructorSubjectPerformanceSummary")) {
+    pageSections.push({
+      title: "Performance Summary By Subject",
+      subtitle: "Subject-level hours and grade outcomes by instructor",
+      icon: "chart",
+      metaItems: reportMetaItems,
+      body: subjectPerformanceSummarySections
+    });
+  }
+
+  if (selectedContentIds.includes("instructorStudentPerformanceSummary")) {
+    pageSections.push({
+      title: "Performance Summary By Student",
+      subtitle: "Student-level hours and grade outcomes by instructor",
+      icon: "user",
+      metaItems: reportMetaItems,
+      body: studentPerformanceSummarySections
+    });
+  }
+
+  if (selectedContentIds.includes("instructorGradePerformanceSummary")) {
+    pageSections.push({
+      title: "Performance Summary By Grade",
+      subtitle: "Grade-level student counts and outcomes by instructor",
+      icon: "chart",
+      metaItems: reportMetaItems,
+      body: gradePerformanceSummarySections
+    });
+  }
+
+  if (includeInstructorCourseSummary) {
+    pageSections.push({
+      title: "Course Summary",
+      subtitle: "Instructional days and hours by instructor course",
+      icon: "book",
+      metaItems: reportMetaItems,
+      body: `<div class="report-table-scroll">
+        <table class="report-table report-table-instructor-course-summary">
+          <thead><tr><th>Instructor Name</th><th>Instructor Category</th><th>Course</th><th>Instruction Days Taught</th><th>Instruction Hours Taught</th></tr></thead>
+          <tbody>${summaryTableRows}</tbody>
+        </table>
+      </div>`
+    });
+  }
+
+  if (selectedContentIds.includes("instructorPerformanceByCourse")) {
+    pageSections.push({
+      title: "Performance By Course/Class",
+      subtitle: "Average grades for subjects, courses, and classes taught",
+      icon: "chart",
+      metaItems: reportMetaItems,
+      body: `<div class="report-table-scroll">
+        <table class="report-table report-table-instructor-performance">
+          <colgroup>
+            <col style="width:16%">
+            <col style="width:15%">
+            <col style="width:25%">
+            <col style="width:9%">
+            <col style="width:9%">
+            <col style="width:11%">
+            <col style="width:8%">
+            <col style="width:7%">
+          </colgroup>
+          <thead><tr><th>Instructor</th><th>Subject</th><th>Course/Class</th><th>Students</th><th>Grades</th><th>Average Score</th><th>Letter</th><th>GPA</th></tr></thead>
+          <tbody>${performanceByCourseTableRows}</tbody>
+        </table>
+      </div>`
+    });
+  }
+
+  if (selectedContentIds.includes("instructorStudentPerformance")) {
+    pageSections.push({
+      title: "Student Performance",
+      subtitle: "Student outcomes by instructor, subject, and course/class",
+      icon: "shield",
+      metaItems: reportMetaItems,
+      body: `<div class="report-table-scroll">
+        <table class="report-table report-table-instructor-student-performance">
+          <colgroup>
+            <col style="width:15%">
+            <col style="width:15%">
+            <col style="width:14%">
+            <col style="width:24%">
+            <col style="width:8%">
+            <col style="width:11%">
+            <col style="width:7%">
+            <col style="width:6%">
+          </colgroup>
+          <thead><tr><th>Instructor</th><th>Student</th><th>Subject</th><th>Course/Class</th><th>Grades</th><th>Average Score</th><th>Letter</th><th>GPA</th></tr></thead>
+          <tbody>${studentPerformanceTableRows}</tbody>
+        </table>
+      </div>`
     });
   }
 
@@ -7384,7 +8121,9 @@ function generatePrintableReport() {
   const schoolYearId = document.getElementById("reports-school-year")?.value || "";
   const quarterName = document.getElementById("reports-quarter")?.value || "";
   const instructorId = document.getElementById("reports-instructor")?.value || "all";
-  const studentIds = Array.from(reportSelectedStudentIds);
+  const subjectId = document.getElementById("reports-subject")?.value || "all";
+  const gradeLevel = document.getElementById("reports-grade")?.value || "all";
+  const studentIds = Array.from(reportSelectedStudentIds).filter((studentId) => reportStudentMatchesGrade(studentId, gradeLevel));
   if (!schoolYearId || !quarterName) {
     setReportsMessage("error", "School Year and Quarter are required.");
     return;
@@ -7398,8 +8137,12 @@ function generatePrintableReport() {
     setReportsMessage("error", "The selected School Year or Quarter is not valid.");
     return;
   }
-  if (reportType === "student" && !studentIds.length) {
+  if (reportType === "student" && !Array.from(reportSelectedStudentIds).length) {
     setReportsMessage("error", "Select at least one student for a Student report.");
+    return;
+  }
+  if (reportType === "student" && !studentIds.length) {
+    setReportsMessage("error", "No selected students match the Grade filter.");
     return;
   }
   const reportWindow = window.open("", "_blank");
@@ -7411,8 +8154,8 @@ function generatePrintableReport() {
   reportWindow.document.open();
   reportWindow.document.write(
     reportType === "instructor"
-      ? buildPrintableInstructorReportHtml({ range, instructorId })
-      : buildPrintableStudentReportHtml({ studentIds, range, instructorId })
+      ? buildPrintableInstructorReportHtml({ range, instructorId, subjectId, gradeLevel })
+      : buildPrintableStudentReportHtml({ studentIds, range, instructorId, subjectId, gradeLevel })
   );
   reportWindow.document.close();
   setReportsMessage("success", "Report opened in a new tab.");
@@ -8119,6 +8862,7 @@ function renderDashboardSectionVisibility() {
       ["dashboard-overview-quarter-progress-card", config.dashboard.showOverviewQuarterProgress],
       ["dashboard-overview-completion-card", config.dashboard.showOverviewCompletedToday],
       ["dashboard-overview-open-items-card", config.dashboard.showOverviewOpenItemsToday],
+      ["dashboard-overview-open-classes-card", config.dashboard.showOverviewOpenClasses],
       ["dashboard-overview-grade-risk-card", config.dashboard.showOverviewGradesAtRisk],
       ["dashboard-overview-required-subject-card", config.dashboard.showOverviewMissingRequiredSubjects]
     ],
@@ -8157,6 +8901,7 @@ function renderDashboardSectionVisibility() {
     "dashboard-overview-quarter-progress-card",
     "dashboard-overview-completion-card",
     "dashboard-overview-open-items-card",
+    "dashboard-overview-open-classes-card",
     "dashboard-overview-grade-risk-card",
     "dashboard-overview-required-subject-card",
     "dashboard-section-completion-today",
@@ -8236,6 +8981,7 @@ function renderAdministration() {
     ["admin-config-school-day-show-student-filter", config.schoolDay.showStudentFilter],
     ["admin-config-school-day-show-subject-filter", config.schoolDay.showSubjectFilter],
     ["admin-config-school-day-show-course-filter", config.schoolDay.showCourseFilter],
+    ["admin-config-school-day-show-status-filter", config.schoolDay.showStatusFilter],
     ["admin-config-school-day-show-student-summaries", config.schoolDay.showStudentSummaries],
     ["admin-config-school-day-show-side-by-side-overview", config.schoolDay.showSideBySideOverview],
     ["admin-config-school-day-show-reset-student-day", config.schoolDay.showResetStudentDayButton],
@@ -8244,6 +8990,7 @@ function renderAdministration() {
     ["admin-config-school-day-show-needs-completion", config.schoolDay.showNeedsCompletionFilter],
     ["admin-config-school-day-show-needs-grade", config.schoolDay.showNeedsGradeFilter],
     ["admin-config-school-day-show-completed", config.schoolDay.showCompletedFilter],
+    ["admin-config-school-day-show-past-due", config.schoolDay.showPastDueFilter],
     ["admin-config-school-day-show-overridden", config.schoolDay.showOverriddenFilter],
     ["admin-config-dashboard-show-overview-instruction-days", config.dashboard.showOverviewInstructionDays],
     ["admin-config-dashboard-show-overview-instruction-hours", config.dashboard.showOverviewInstructionHours],
@@ -8253,6 +9000,7 @@ function renderAdministration() {
     ["admin-config-dashboard-show-overview-quarter-progress", config.dashboard.showOverviewQuarterProgress],
     ["admin-config-dashboard-show-overview-completed-today", config.dashboard.showOverviewCompletedToday],
     ["admin-config-dashboard-show-overview-open-items-today", config.dashboard.showOverviewOpenItemsToday],
+    ["admin-config-dashboard-show-overview-open-classes", config.dashboard.showOverviewOpenClasses],
     ["admin-config-dashboard-show-overview-grades-at-risk", config.dashboard.showOverviewGradesAtRisk],
     ["admin-config-dashboard-show-overview-missing-required-subjects", config.dashboard.showOverviewMissingRequiredSubjects],
     ["admin-config-dashboard-show-execution-open-items-today", config.dashboard.showExecutionOpenItemsToday],
@@ -8327,6 +9075,7 @@ function buildWorkspaceConfigFromAdminForms(overrides = {}) {
       showStudentFilter: !!document.getElementById("admin-config-school-day-show-student-filter")?.checked,
       showSubjectFilter: !!document.getElementById("admin-config-school-day-show-subject-filter")?.checked,
       showCourseFilter: !!document.getElementById("admin-config-school-day-show-course-filter")?.checked,
+      showStatusFilter: !!document.getElementById("admin-config-school-day-show-status-filter")?.checked,
       showStudentSummaries: !!document.getElementById("admin-config-school-day-show-student-summaries")?.checked,
       showSideBySideOverview: !!document.getElementById("admin-config-school-day-show-side-by-side-overview")?.checked,
       showResetStudentDayButton: !!document.getElementById("admin-config-school-day-show-reset-student-day")?.checked,
@@ -8335,6 +9084,7 @@ function buildWorkspaceConfigFromAdminForms(overrides = {}) {
       showNeedsCompletionFilter: !!document.getElementById("admin-config-school-day-show-needs-completion")?.checked,
       showNeedsGradeFilter: !!document.getElementById("admin-config-school-day-show-needs-grade")?.checked,
       showCompletedFilter: !!document.getElementById("admin-config-school-day-show-completed")?.checked,
+      showPastDueFilter: !!document.getElementById("admin-config-school-day-show-past-due")?.checked,
       showOverriddenFilter: !!document.getElementById("admin-config-school-day-show-overridden")?.checked,
       defaultTab: document.getElementById("admin-config-school-day-default-tab")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.defaultTab,
       studentSummariesDefault: document.getElementById("admin-config-school-day-student-summaries-default")?.value || DEFAULT_WORKSPACE_CONFIG.schoolDay.studentSummariesDefault,
@@ -8349,6 +9099,7 @@ function buildWorkspaceConfigFromAdminForms(overrides = {}) {
       showOverviewQuarterProgress: !!document.getElementById("admin-config-dashboard-show-overview-quarter-progress")?.checked,
       showOverviewCompletedToday: !!document.getElementById("admin-config-dashboard-show-overview-completed-today")?.checked,
       showOverviewOpenItemsToday: !!document.getElementById("admin-config-dashboard-show-overview-open-items-today")?.checked,
+      showOverviewOpenClasses: !!document.getElementById("admin-config-dashboard-show-overview-open-classes")?.checked,
       showOverviewGradesAtRisk: !!document.getElementById("admin-config-dashboard-show-overview-grades-at-risk")?.checked,
       showOverviewMissingRequiredSubjects: !!document.getElementById("admin-config-dashboard-show-overview-missing-required-subjects")?.checked,
       showExecutionOpenItemsToday: !!document.getElementById("admin-config-dashboard-show-execution-open-items-today")?.checked,
@@ -9436,8 +10187,10 @@ function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], su
         .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds));
       if (!instructionBlocks.length) return "";
       const attendance = attendanceRecordForStudentDate(student.id, referenceISO);
-      const completedCount = instructionBlocks.filter((block) => effectiveInstructionCompleted(student.id, block.courseId, referenceISO)).length;
-      const needsGradeCount = instructionBlocks.filter((block) => gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length === 0).length;
+      const activeInstructionBlocks = instructionBlocks.filter((block) => !effectiveInstructionExcused(student.id, block.courseId, referenceISO));
+      const excusedCount = instructionBlocks.length - activeInstructionBlocks.length;
+      const completedCount = activeInstructionBlocks.filter((block) => effectiveInstructionCompleted(student.id, block.courseId, referenceISO)).length;
+      const needsGradeCount = activeInstructionBlocks.filter((block) => gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length === 0).length;
       const plannedMinutes = instructionBlocks.reduce((sum, block) => sum + plannedInstructionMinutesForCourse(block.courseId), 0);
       const completedMinutes = instructionBlocks.reduce((sum, block) => (
         effectiveInstructionCompleted(student.id, block.courseId, referenceISO)
@@ -9457,7 +10210,8 @@ function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], su
             <span class="school-day-status-badge ${attendanceClass}">${attendanceText}</span>
           </div>
           <div class="school-day-student-summary-stats">
-            <span><strong>${completedCount}/${instructionBlocks.length}</strong> completed</span>
+            <span><strong>${completedCount}/${activeInstructionBlocks.length}</strong> completed</span>
+            ${excusedCount ? `<span><strong>${excusedCount}</strong> excused</span>` : ""}
             <span><strong>${needsGradeCount}</strong> need${needsGradeCount === 1 ? "s" : ""} grade</span>
             <span><strong>${(completedMinutes / 60).toFixed(2)}</strong> / ${(plannedMinutes / 60).toFixed(2)} hrs</span>
           </div>
@@ -9485,6 +10239,26 @@ function schoolDayOverviewBlockLabel(block) {
   return block.label || SCHEDULE_BLOCK_TYPE_LABELS[block.type] || "Scheduled Break";
 }
 
+function currentClockMinutes() {
+  const now = new Date();
+  return (now.getHours() * 60) + now.getMinutes();
+}
+
+function schoolDayPlannedEndHasPassed(block, referenceISO) {
+  if (!block || !referenceISO) return false;
+  const today = todayISO();
+  if (referenceISO !== today) return false;
+  const plannedEnd = Number.isFinite(block.plannedEnd) ? block.plannedEnd : Number(block.end || 0);
+  return plannedEnd <= currentClockMinutes();
+}
+
+function schoolDayInstructionPastDue(block, referenceISO) {
+  return !!block
+    && block.type === "instruction"
+    && schoolDayPlannedEndHasPassed(block, referenceISO)
+    && effectiveInstructionStatus(block.studentId, block.courseId, referenceISO) === INSTRUCTION_STATUS_SCHEDULED;
+}
+
 function schoolDayOverviewBlockStatus(block, referenceISO) {
   if (!block) return { className: "open", label: "Open" };
   if (block.type !== "instruction") {
@@ -9492,10 +10266,12 @@ function schoolDayOverviewBlockStatus(block, referenceISO) {
     return { className: "break", label: block.scheduleBlockId ? "Schedule" : "Break" };
   }
   const isCompleted = effectiveInstructionCompleted(block.studentId, block.courseId, referenceISO);
+  const isExcused = effectiveInstructionExcused(block.studentId, block.courseId, referenceISO);
+  const isPastDue = schoolDayInstructionPastDue(block, referenceISO);
   const needsGrade = gradeRecordsForStudentCourseDate(block.studentId, block.courseId, referenceISO).length === 0;
   return {
-    className: isCompleted ? "complete" : (needsGrade ? "needs-grade" : "open"),
-    label: isCompleted ? "Completed" : (needsGrade ? "Needs Grade" : "Open")
+    className: isCompleted ? "complete" : isExcused ? "excused" : isPastDue ? "past-due" : (needsGrade ? "needs-grade" : "open"),
+    label: isCompleted ? "Completed" : isExcused ? "Excused" : isPastDue ? "Past Due" : (needsGrade ? "Needs Grade" : "Open")
   };
 }
 
@@ -9579,7 +10355,8 @@ function applyWorkspaceConfiguration() {
     ["school-day-reference-date-field", config.schoolDay.showReferenceDateFilter],
     ["school-day-student-filter-field", config.schoolDay.showStudentFilter],
     ["school-day-subject-filter-field", config.schoolDay.showSubjectFilter],
-    ["school-day-course-filter-field", config.schoolDay.showCourseFilter]
+    ["school-day-course-filter-field", config.schoolDay.showCourseFilter],
+    ["school-day-status-filter-field", config.schoolDay.showStatusFilter]
   ];
   schoolDayFieldVisibility.forEach(([id, visible]) => {
     const node = document.getElementById(id);
@@ -9593,6 +10370,7 @@ function applyWorkspaceConfiguration() {
       (filterName === "needs-completion" && config.schoolDay.showNeedsCompletionFilter) ||
       (filterName === "needs-grade" && config.schoolDay.showNeedsGradeFilter) ||
       (filterName === "completed" && config.schoolDay.showCompletedFilter) ||
+      (filterName === "past-due" && config.schoolDay.showPastDueFilter) ||
       (filterName === "overridden" && config.schoolDay.showOverriddenFilter);
     btn.classList.toggle("hidden", !visible);
   });
@@ -10141,15 +10919,38 @@ function getSchoolDaySelectedCourseIds() {
   return Array.from(document.querySelectorAll(".school-day-course-checkbox:checked")).map((el) => el.value);
 }
 
+function getSchoolDaySelectedStatus() {
+  const value = String(document.getElementById("school-day-status-filter")?.value || "all").trim().toLowerCase();
+  if (value === INSTRUCTION_STATUS_SCHEDULED || value === INSTRUCTION_STATUS_COMPLETED || value === INSTRUCTION_STATUS_EXCUSED) return value;
+  return "all";
+}
+
+function setSchoolDaySelectedStatus(status = "all") {
+  const select = document.getElementById("school-day-status-filter");
+  if (!select) return;
+  const normalized = status === "all" ? "all" : normalizeInstructionStatus(status);
+  select.value = ["all", INSTRUCTION_STATUS_SCHEDULED, INSTRUCTION_STATUS_COMPLETED, INSTRUCTION_STATUS_EXCUSED].includes(normalized)
+    ? normalized
+    : "all";
+}
+
+function schoolDayBlockMatchesStatusFilter(block, dateKey, statusFilter = "all") {
+  const normalizedFilter = statusFilter === "all" ? "all" : normalizeInstructionStatus(statusFilter);
+  if (normalizedFilter === "all") return true;
+  return block?.type === "instruction"
+    && effectiveInstructionStatus(block.studentId, block.courseId, dateKey) === normalizedFilter;
+}
+
 function schoolDayActiveQuickFilterCount() {
   return Object.values(schoolDayQuickFilters).filter(Boolean).length;
 }
 
-function rowMatchesSchoolDayQuickFilters({ needsAttendance = false, needsCompletion = false, needsGrade = false, completed = false, overridden = false } = {}) {
+function rowMatchesSchoolDayQuickFilters({ needsAttendance = false, needsCompletion = false, needsGrade = false, completed = false, pastDue = false, overridden = false } = {}) {
   if (schoolDayQuickFilters.needsAttendance && !needsAttendance) return false;
   if (schoolDayQuickFilters.needsCompletion && !needsCompletion) return false;
   if (schoolDayQuickFilters.needsGrade && !needsGrade) return false;
   if (schoolDayQuickFilters.completed && !completed) return false;
+  if (schoolDayQuickFilters.pastDue && !pastDue) return false;
   if (schoolDayQuickFilters.overridden && !overridden) return false;
   return true;
 }
@@ -10159,6 +10960,7 @@ function setSchoolDayQuickFilterState(key, active) {
   if (key === "needs-completion") schoolDayQuickFilters.needsCompletion = active;
   if (key === "needs-grade") schoolDayQuickFilters.needsGrade = active;
   if (key === "completed") schoolDayQuickFilters.completed = active;
+  if (key === "past-due") schoolDayQuickFilters.pastDue = active;
   if (key === "overridden") schoolDayQuickFilters.overridden = active;
 }
 
@@ -10173,6 +10975,8 @@ function renderSchoolDayQuickFilterState() {
         ? schoolDayQuickFilters.needsGrade
       : key === "completed"
         ? schoolDayQuickFilters.completed
+      : key === "past-due"
+        ? schoolDayQuickFilters.pastDue
         : key === "overridden"
           ? schoolDayQuickFilters.overridden
           : false;
@@ -10702,6 +11506,7 @@ function resetSchoolDayQuickFilters() {
   schoolDayQuickFilters.needsCompletion = false;
   schoolDayQuickFilters.needsGrade = false;
   schoolDayQuickFilters.completed = false;
+  schoolDayQuickFilters.pastDue = false;
   schoolDayQuickFilters.overridden = false;
 }
 
@@ -10712,11 +11517,13 @@ function openSchoolDayFromDashboard({
   subjectIds = [],
   courseIds = [],
   quickFilter = "",
+  statusFilter = "all",
   contextLabel = ""
 } = {}) {
   const dateInput = document.getElementById("school-day-date");
   if (dateInput) dateInput.value = date || todayISO();
   resetSchoolDayQuickFilters();
+  setSchoolDaySelectedStatus(statusFilter);
   String(quickFilter || "").split(",").map((key) => key.trim()).filter(Boolean).forEach((key) => {
     setSchoolDayQuickFilterState(key, true);
   });
@@ -13688,8 +14495,11 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filter
       .filter((block) => subjectId === "all" || getCourse(block.courseId)?.subjectId === subjectId)
       .filter((block) => !instructorIds.length || instructorIds.some((instructorId) => instructionMatchesInstructorFilter(student.id, block.courseId, referenceISO, instructorId)));
     if (!instructionBlocks.length) return null;
-    const completedCount = instructionBlocks.filter((block) => effectiveInstructionCompleted(student.id, block.courseId, referenceISO)).length;
-    const needsGradeCount = instructionBlocks.filter((block) => gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length === 0).length;
+    const activeInstructionBlocks = instructionBlocks.filter((block) => !effectiveInstructionExcused(student.id, block.courseId, referenceISO));
+    const excusedCount = instructionBlocks.length - activeInstructionBlocks.length;
+    const completedCount = activeInstructionBlocks.filter((block) => effectiveInstructionCompleted(student.id, block.courseId, referenceISO)).length;
+    const needsGradeCount = activeInstructionBlocks.filter((block) => gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length === 0).length;
+    const pastDueCount = instructionBlocks.filter((block) => schoolDayInstructionPastDue(block, referenceISO)).length;
     const overrideCount = instructionBlocks.filter((block) => hasInstructionExecutionOverride(student.id, block.courseId, referenceISO)).length;
     const attendance = attendanceRecordForStudentDate(student.id, referenceISO);
     const completedMinutes = instructionBlocks.reduce((sum, block) => (
@@ -13698,16 +14508,21 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filter
         : sum
     ), 0);
     const scheduledMinutes = instructionBlocks.reduce((sum, block) => (
-      sum + effectiveInstructionMinutes(student.id, block.courseId, referenceISO)
+      effectiveInstructionExcused(student.id, block.courseId, referenceISO)
+        ? sum
+        : sum + effectiveInstructionMinutes(student.id, block.courseId, referenceISO)
     ), 0);
-    const gradedCount = instructionBlocks.filter((block) => gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length > 0).length;
+    const gradedCount = activeInstructionBlocks.filter((block) => gradeRecordsForStudentCourseDate(student.id, block.courseId, referenceISO).length > 0).length;
     return {
       student,
       scheduledCount: instructionBlocks.length,
+      completableCount: activeInstructionBlocks.length,
       completedCount,
-      openCount: Math.max(instructionBlocks.length - completedCount, 0),
+      excusedCount,
+      openCount: Math.max(activeInstructionBlocks.length - completedCount, 0),
       gradedCount,
       needsGradeCount,
+      pastDueCount,
       overrideCount,
       completedMinutes,
       scheduledMinutes,
@@ -13717,9 +14532,12 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filter
 
   const totals = students.reduce((summary, entry) => {
     summary.scheduledCount += entry.scheduledCount;
+    summary.completableCount += entry.completableCount;
     summary.completedCount += entry.completedCount;
+    summary.excusedCount += entry.excusedCount;
     summary.gradedCount += entry.gradedCount;
     summary.needsGradeCount += entry.needsGradeCount;
+    summary.pastDueCount += entry.pastDueCount;
     summary.overrideCount += entry.overrideCount;
     summary.needsCompletionCount += entry.openCount;
     summary.completedMinutes += entry.completedMinutes;
@@ -13730,9 +14548,12 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filter
     return summary;
   }, {
     scheduledCount: 0,
+    completableCount: 0,
     completedCount: 0,
+    excusedCount: 0,
     gradedCount: 0,
     needsGradeCount: 0,
+    pastDueCount: 0,
     overrideCount: 0,
     needsCompletionCount: 0,
     needsAttendanceCount: 0,
@@ -13745,10 +14566,10 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filter
   return {
     date: referenceISO,
     students,
-    completionPercent: totals.scheduledCount > 0 ? (totals.completedCount / totals.scheduledCount) * 100 : 0,
-    gradedPercent: totals.scheduledCount > 0 ? (totals.gradedCount / totals.scheduledCount) * 100 : 0,
+    completionPercent: totals.completableCount > 0 ? (totals.completedCount / totals.completableCount) * 100 : 0,
+    gradedPercent: totals.completableCount > 0 ? (totals.gradedCount / totals.completableCount) * 100 : 0,
     loggedHoursPercent: totals.scheduledMinutes > 0 ? (totals.completedMinutes / totals.scheduledMinutes) * 100 : 0,
-    attentionTotal: totals.needsAttendanceCount + totals.needsGradeCount + totals.needsCompletionCount + totals.overrideCount,
+    attentionTotal: totals.needsAttendanceCount + totals.needsGradeCount + totals.needsCompletionCount + totals.pastDueCount + totals.overrideCount,
     ...totals
   };
 }
@@ -14042,6 +14863,64 @@ function renderDashboardMissingRequiredSubjectsSummary(snapshot) {
   }
 }
 
+function buildDashboardOpenClassesSnapshot(dashboardStudents) {
+  const targetStudents = (Array.isArray(dashboardStudents) ? dashboardStudents : visibleStudents())
+    .filter((student) => !studentIsArchived(student));
+  const studentIds = targetStudents.map((student) => student.id);
+  const today = todayISO();
+  const schoolYear = currentSchoolYear();
+  const startCandidates = [schoolYear?.startDate || OPEN_CLASSES_TRACKING_START_DATE, OPEN_CLASSES_TRACKING_START_DATE]
+    .filter(Boolean)
+    .sort();
+  const startDate = startCandidates[startCandidates.length - 1] || OPEN_CLASSES_TRACKING_START_DATE;
+  const endDate = [today, schoolYear?.endDate || today].sort()[0] || today;
+  if (!studentIds.length || startDate > endDate) {
+    return { count: 0, rows: [], startDate, endDate };
+  }
+  const rows = instructionalDatesByRangeForSchoolYear(schoolYear, startDate, endDate)
+    .filter((dateKey) => dateKey >= startDate && dateKey <= endDate)
+    .map((dateKey) => {
+      const count = Array.from(dailyScheduledBlocks(dateKey, studentIds).values())
+        .flat()
+        .filter((block) =>
+          block.type === "instruction"
+          && effectiveInstructionStatus(block.studentId, block.courseId, dateKey) === INSTRUCTION_STATUS_SCHEDULED
+          && (dateKey < today || schoolDayPlannedEndHasPassed(block, dateKey))
+        ).length;
+      return { date: dateKey, count };
+    })
+    .filter((row) => row.count > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  return {
+    count: rows.reduce((sum, row) => sum + row.count, 0),
+    rows,
+    startDate,
+    endDate
+  };
+}
+
+function renderDashboardOpenClassesSummary(snapshot) {
+  const valueNode = document.getElementById("dashboard-overview-open-classes-value");
+  const listNode = document.getElementById("dashboard-overview-open-classes-list");
+  const noteNode = document.getElementById("dashboard-overview-open-classes-note");
+  if (valueNode) valueNode.textContent = String(snapshot.count || 0);
+  if (listNode) {
+    const visibleRows = (snapshot.rows || []).slice(0, 4);
+    listNode.innerHTML = visibleRows.map((row) => {
+      const quickFilter = row.date === todayISO() ? "past-due" : "";
+      return `<button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${row.date}" data-school-day-status-filter="${INSTRUCTION_STATUS_SCHEDULED}"${quickFilter ? ` data-school-day-quick-filter="${quickFilter}"` : ""} data-dashboard-context-label="Open Classes"><b>${formatDisplayDate(row.date)}</b><small>${row.count} open</small></button>`;
+    }).join("");
+  }
+  if (noteNode) {
+    if (snapshot.count) {
+      const hiddenCount = Math.max(0, (snapshot.rows || []).length - 4);
+      noteNode.textContent = `${snapshot.count} scheduled class${snapshot.count === 1 ? "" : "es"} past planned completion since ${formatDisplayDate(snapshot.startDate)}${hiddenCount ? `; ${hiddenCount} more date${hiddenCount === 1 ? "" : "s"}.` : "."}`;
+    } else {
+      noteNode.textContent = `No open scheduled classes since ${formatDisplayDate(snapshot.startDate)}.`;
+    }
+  }
+}
+
 function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = snapshot) {
   const context = activeYearReferenceContext(snapshot.date);
   const completionLabel = document.getElementById("dashboard-overview-completion-label");
@@ -14082,13 +14961,13 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
       <td>
         <div class="student-analytics-name completion-student-cell">
           ${renderStudentInitialsBadge(studentName)}
-          <span>${escapeHtml(studentName)}<small>${entry.completedCount} completed, ${entry.openCount} open</small></span>
+          <span>${escapeHtml(studentName)}<small>${entry.completedCount} completed, ${entry.openCount} open${entry.excusedCount ? `, ${entry.excusedCount} excused` : ""}</small></span>
         </div>
       </td>
       <td><span class="completion-count-pill">${entry.scheduledCount}</span></td>
-      <td>${metricPill(entry.completedCount, entry.scheduledCount, entry.completedCount === entry.scheduledCount ? "excellent" : "strong")}</td>
-      <td>${metricPill(entry.openCount, entry.scheduledCount, openTone, ` role="button" tabindex="0" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-student-id="${entry.student.id}" data-school-day-quick-filter="needs-completion" data-dashboard-context-label="Classes Open"` )}</td>
-      <td>${metricPill(entry.gradedCount, entry.scheduledCount, entry.gradedCount === entry.scheduledCount ? "excellent" : "strong")}</td>
+      <td>${metricPill(entry.completedCount, entry.completableCount, entry.completedCount === entry.completableCount ? "excellent" : "strong")}</td>
+      <td>${metricPill(entry.openCount, entry.completableCount, openTone, ` role="button" tabindex="0" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-student-id="${entry.student.id}" data-school-day-quick-filter="needs-completion" data-dashboard-context-label="Classes Open"` )}</td>
+      <td>${metricPill(entry.gradedCount, entry.completableCount, entry.gradedCount === entry.completableCount ? "excellent" : "strong")}</td>
       <td>
         <div class="hours-analytics-cell completion-hours-cell">
           <span>${(entry.completedMinutes / 60).toFixed(2)} / ${(entry.scheduledMinutes / 60).toFixed(2)} hrs</span>
@@ -14102,12 +14981,12 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
   if (attentionLabel) attentionLabel.textContent = context.isLiveToday ? "Open Items Today" : `Open Items ${context.label}`;
   if (completionValue) completionValue.textContent = `${snapshot.completionPercent.toFixed(1)}%`;
   if (completionNote) completionNote.textContent = snapshot.scheduledCount
-    ? `${snapshot.completedCount} of ${snapshot.scheduledCount} classes completed on ${formatDisplayDate(snapshot.date)}.`
+    ? `${snapshot.completedCount} of ${snapshot.completableCount} active classes completed on ${formatDisplayDate(snapshot.date)}.`
     : `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`;
   if (completionOverviewFill) completionOverviewFill.style.width = `${snapshot.completionPercent.toFixed(1)}%`;
   if (attentionValue) attentionValue.textContent = String(snapshot.attentionTotal);
   if (attentionNote) attentionNote.textContent = snapshot.attentionTotal
-    ? `${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
+    ? `${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.pastDueCount} past due, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
     : `No open items for ${formatDisplayDate(snapshot.date)}.`;
   if (attendanceOpenCount) attendanceOpenCount.textContent = String(snapshot.needsAttendanceCount);
   if (classesOpenCount) classesOpenCount.textContent = String(snapshot.needsCompletionCount);
@@ -14120,22 +14999,22 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
   if (gradesValue) gradesValue.textContent = `${detailSnapshot.gradedPercent.toFixed(1)}%`;
   if (hoursValue) hoursValue.textContent = `${detailSnapshot.loggedHoursPercent.toFixed(1)}%`;
   if (detailCompletionNote) detailCompletionNote.textContent = detailSnapshot.scheduledCount
-    ? `${detailSnapshot.completedCount} of ${detailSnapshot.scheduledCount} scheduled classes are completed on ${formatDisplayDate(snapshot.date)}.`
+    ? `${detailSnapshot.completedCount} of ${detailSnapshot.completableCount} active scheduled classes are completed on ${formatDisplayDate(snapshot.date)}.`
     : `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`;
   if (completionFill) completionFill.style.width = `${detailSnapshot.completionPercent.toFixed(1)}%`;
   if (gradesFill) gradesFill.style.width = `${detailSnapshot.gradedPercent.toFixed(1)}%`;
   if (hoursFill) hoursFill.style.width = `${detailSnapshot.loggedHoursPercent.toFixed(1)}%`;
-  if (completionStatus) completionStatus.textContent = `${detailSnapshot.completedCount} / ${detailSnapshot.scheduledCount} classes completed`;
-  if (gradesStatus) gradesStatus.textContent = `${detailSnapshot.gradedCount} / ${detailSnapshot.scheduledCount} scheduled classes graded`;
+  if (completionStatus) completionStatus.textContent = `${detailSnapshot.completedCount} / ${detailSnapshot.completableCount} classes completed`;
+  if (gradesStatus) gradesStatus.textContent = `${detailSnapshot.gradedCount} / ${detailSnapshot.completableCount} scheduled classes graded`;
   if (hoursStatus) hoursStatus.textContent = `${(detailSnapshot.completedMinutes / 60).toFixed(2)} / ${(detailSnapshot.scheduledMinutes / 60).toFixed(2)} hours logged`;
   rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`, 6);
   if (detailAttentionValue) detailAttentionValue.textContent = String(snapshot.attentionTotal);
   if (detailAttentionNote) detailAttentionNote.textContent = snapshot.attentionTotal
-    ? `Open on ${formatDisplayDate(snapshot.date)}: ${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
+    ? `Open on ${formatDisplayDate(snapshot.date)}: ${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.pastDueCount} past due, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
     : `No open items for ${formatDisplayDate(snapshot.date)}.`;
   const chipsHost = document.getElementById("dashboard-needs-attention-chips");
   if (chipsHost) {
-    chipsHost.innerHTML = [
+    const chipItems = [
       {
         key: "attendance",
         label: "Attendance Open",
@@ -14145,12 +15024,12 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
         icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>`
       },
       {
-        key: "classes",
-        label: "Classes Open",
-        value: snapshot.needsCompletionCount,
-        quickFilter: "needs-completion",
-        note: `${snapshot.needsCompletionCount} scheduled class${snapshot.needsCompletionCount === 1 ? "" : "es"} still need${snapshot.needsCompletionCount === 1 ? "s" : ""} completion for ${formatDisplayDate(snapshot.date)}.`,
-        icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M8 7h8M8 11h6"/></svg>`
+        key: "past-due",
+        label: "Past Due",
+        value: snapshot.pastDueCount,
+        quickFilter: "past-due",
+        note: `${snapshot.pastDueCount} session${snapshot.pastDueCount === 1 ? "" : "s"} remain${snapshot.pastDueCount === 1 ? "s" : ""} uncompleted past scheduled instruction time.`,
+        icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M8 3 6 5"/><path d="m18 5-2-2"/></svg>`
       },
       {
         key: "grades",
@@ -14167,8 +15046,27 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
         quickFilter: "overridden",
         note: `${snapshot.overrideCount} schedule override${snapshot.overrideCount === 1 ? "" : "s"} active for ${formatDisplayDate(snapshot.date)}.`,
         icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M2 14h4"/><path d="M10 8h4"/><path d="M18 16h4"/></svg>`
+      },
+      {
+        key: "class-status",
+        label: "Class Status",
+        note: `Current status distribution for ${formatDisplayDate(snapshot.date)}.`,
+        icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M8 7h8M8 11h6"/></svg>`
       }
-    ].map((item) => `
+    ];
+    chipsHost.innerHTML = chipItems.map((item) => item.key === "class-status"
+      ? `
+      <div class="dashboard-open-gauge dashboard-open-gauge-class-status">
+        <span class="dashboard-open-gauge-icon">${item.icon}</span>
+        <span class="dashboard-open-gauge-label">${item.label}</span>
+        <div class="dashboard-class-status-actions" aria-label="Class status breakdown">
+          <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-school-day-status-filter="${INSTRUCTION_STATUS_SCHEDULED}" data-dashboard-context-label="Scheduled Classes"><b>${snapshot.needsCompletionCount}</b><small>Scheduled</small></button>
+          <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-school-day-status-filter="${INSTRUCTION_STATUS_COMPLETED}" data-dashboard-context-label="Completed Classes"><b>${snapshot.completedCount}</b><small>Completed</small></button>
+          <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-school-day-status-filter="${INSTRUCTION_STATUS_EXCUSED}" data-dashboard-context-label="Excused Classes"><b>${snapshot.excusedCount}</b><small>Excused</small></button>
+        </div>
+        <span class="dashboard-open-gauge-note">${item.note}</span>
+      </div>`
+      : `
       <button type="button" class="dashboard-open-gauge dashboard-open-gauge-${item.key}" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-school-day-quick-filter="${item.quickFilter}" data-dashboard-context-label="${item.label}">
         <span class="dashboard-open-gauge-icon">${item.icon}</span>
         <span class="dashboard-open-gauge-label">${item.label}</span>
@@ -15302,6 +16200,7 @@ function renderDashboard() {
   renderDashboardExecutionSummary(executionSnapshot, completionDetailSnapshot);
   renderDashboardInstructionHourPaceSummary(overviewHourPaceSnapshot);
   renderDashboardWeeklyGradeRiskSummary(buildDashboardWeeklyGradeRiskSnapshot(dashboardStudents, referenceDate));
+  renderDashboardOpenClassesSummary(buildDashboardOpenClassesSnapshot(dashboardStudents));
   renderDashboardMissingRequiredSubjectsSummary(buildDashboardMissingRequiredSubjectsSnapshot(dashboardStudents));
   renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
   renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
@@ -15688,6 +16587,7 @@ function sectionStartMinutesForStudentCourse(studentId, courseId, dateKey) {
 function fixedSectionWindowsForStudentDate(studentId, events, dateKey) {
   return events
     .map((event) => {
+      if (effectiveInstructionExcused(studentId, event.courseId, dateKey)) return null;
       const course = getCourse(event.courseId);
       const plannedStart = sectionStartMinutesForStudentCourse(studentId, event.courseId, dateKey);
       const durationMinutes = Math.max(15, Math.round(Number(course?.hoursPerDay || 1) * 60));
@@ -15848,7 +16748,9 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           durationMinutes,
           type: "instruction"
         });
-        pushResourceAllocation(resourceAllocations, course, startMin, endMin);
+        if (!effectiveInstructionExcused(studentId, event.courseId, dateKey)) {
+          pushResourceAllocation(resourceAllocations, course, startMin, endMin);
+        }
         remainingByCourseId.delete(event.courseId);
         slot = Math.max(slot, endMin);
         if (slot < 24 * 60) slot = Math.min(24 * 60, slot + minutesBetweenClasses);
@@ -15929,7 +16831,9 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           durationMinutes: chosen.durationMinutes,
           type: "instruction"
         });
-        pushResourceAllocation(resourceAllocations, chosen.course, startMin, endMin);
+        if (!effectiveInstructionExcused(studentId, chosen.event.courseId, dateKey)) {
+          pushResourceAllocation(resourceAllocations, chosen.course, startMin, endMin);
+        }
 
         const removeIndex = remaining.findIndex((event) =>
           event.studentId === chosen.event.studentId && event.courseId === chosen.event.courseId);
@@ -15972,7 +16876,9 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           durationMinutes,
           type: "instruction"
         });
-        pushResourceAllocation(resourceAllocations, course, startMin, endMin);
+        if (!effectiveInstructionExcused(studentId, event.courseId, dateKey)) {
+          pushResourceAllocation(resourceAllocations, course, startMin, endMin);
+        }
         slot = Math.max(slot, endMin);
         if (slot < 24 * 60) slot = Math.min(24 * 60, slot + minutesBetweenClasses);
       });
@@ -15993,6 +16899,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       const plannedStart = Number.isFinite(block.plannedStart) ? block.plannedStart : block.start;
       const plannedEnd = Number.isFinite(block.plannedEnd) ? block.plannedEnd : block.end;
       const plannedDuration = Math.max(1, plannedEnd - plannedStart);
+      if (block.type === "instruction" && effectiveInstructionExcused(block.studentId, block.courseId, dateKey)) return 0;
       return block.type === "instruction"
         ? effectiveInstructionMinutes(block.studentId, block.courseId, dateKey)
         : plannedDuration;
@@ -16013,7 +16920,12 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     function isFlexibleInstructionCandidate(block) {
       return block.type === "instruction"
         && !block.courseSectionId
-        && !hasInstructionStartOverride(block.studentId, block.courseId, dateKey);
+        && !hasInstructionStartOverride(block.studentId, block.courseId, dateKey)
+        && !effectiveInstructionExcused(block.studentId, block.courseId, dateKey);
+    }
+
+    function blockRequiresFollowingClassGap(block) {
+      return block && block.type !== "instruction" && SCHEDULE_BLOCK_TYPE_OPTIONS.includes(block.type);
     }
 
     function findInstructionThatFitsGap(pendingBlocks, gapStart, gapEnd) {
@@ -16034,18 +16946,24 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       const plannedStart = Number.isFinite(block.plannedStart) ? block.plannedStart : block.start;
       const plannedEnd = Number.isFinite(block.plannedEnd) ? block.plannedEnd : block.end;
       const actualDuration = blockActualDuration(block);
+      const excusedInstruction = block.type === "instruction" && effectiveInstructionExcused(block.studentId, block.courseId, dateKey);
+      const previousActualCursor = actualCursor;
       const hasStartOverride = block.type === "instruction" && hasInstructionStartOverride(block.studentId, block.courseId, dateKey);
       const hasFixedSectionStart = block.type === "instruction" && !!block.courseSectionId && !hasStartOverride;
       const hasAnchoredInstructionStart = hasFixedSectionStart || hasStartOverride;
       const hasFlexibleScheduleBlockTiming = block.type !== "instruction" && !!block.scheduleBlockId;
-      const actualStartTarget = block.type === "instruction"
+      const actualStartTarget = excusedInstruction
+        ? plannedStart
+        : block.type === "instruction"
         ? (hasAnchoredInstructionStart
           ? effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, plannedStart)
           : Number.isFinite(forcedStartMinutes)
           ? forcedStartMinutes
           : plannedStart)
         : plannedStart;
-      const actualStart = hasAnchoredInstructionStart
+      const actualStart = excusedInstruction
+        ? actualStartTarget
+        : hasAnchoredInstructionStart
         ? actualStartTarget
         : actualCursor == null
         ? actualStartTarget
@@ -16056,7 +16974,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
           : Math.max(actualStartTarget, actualCursor));
       let resolvedActualStart = actualStart;
       let resolvedActualEnd = Math.min(24 * 60, resolvedActualStart + actualDuration);
-      if (block.type === "instruction" && !hasFixedSectionStart) {
+      if (block.type === "instruction" && !hasFixedSectionStart && !excusedInstruction) {
         let blockedWindow = nextBlockedSectionWindow(fixedSectionWindows, resolvedActualStart, resolvedActualEnd, block.courseId);
         while (blockedWindow) {
           resolvedActualStart = blockedWindow.end;
@@ -16072,9 +16990,15 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         end: resolvedActualEnd,
         actualMinutes: actualDuration
       });
-      actualCursor = block.type === "instruction"
-        ? Math.min(24 * 60, resolvedActualEnd + minutesBetweenClasses)
-        : resolvedActualEnd;
+      if (excusedInstruction) {
+        actualCursor = previousActualCursor;
+      } else if (block.type === "instruction") {
+        actualCursor = Math.min(24 * 60, resolvedActualEnd + minutesBetweenClasses);
+      } else {
+        actualCursor = blockRequiresFollowingClassGap(block)
+          ? Math.min(24 * 60, resolvedActualEnd + minutesBetweenClasses)
+          : resolvedActualEnd;
+      }
     }
 
     const pendingPositionedBlocks = [...positionedBlocks];
@@ -16143,7 +17067,9 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         && blocksOverlap(savedFlexBlock, block));
       if (!flexExists) adjustedWithFlexBlocks.push(savedFlexBlock);
     });
-    adjustedWithFlexBlocks.sort((a, b) => a.start - b.start || a.end - b.end || (a.label || "").localeCompare(b.label || ""));
+    adjustedWithFlexBlocks.sort((a, b) =>
+      compareSchoolDayBlockTime(a, b, dateKey)
+      || (a.label || "").localeCompare(b.label || ""));
 
     const instructionBlocks = adjustedWithFlexBlocks.filter((entry) => entry.type === "instruction");
     instructionBlocks.forEach((entry, index) => {
@@ -16165,6 +17091,18 @@ function schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds = [], cours
   if (subjectFilterIds.length && !subjectFilterIds.includes(block.subjectId)) return false;
   if (courseFilterIds.length && !courseFilterIds.includes(block.courseId)) return false;
   return true;
+}
+
+function schoolDayBlockIsExcusedInstruction(block, dateKey) {
+  return block?.type === "instruction" && effectiveInstructionExcused(block.studentId, block.courseId, dateKey);
+}
+
+function compareSchoolDayBlockTime(a, b, dateKey) {
+  const excusedA = schoolDayBlockIsExcusedInstruction(a, dateKey);
+  const excusedB = schoolDayBlockIsExcusedInstruction(b, dateKey);
+  if (excusedA !== excusedB) return excusedA ? 1 : -1;
+  return (Number(a?.start) || 0) - (Number(b?.start) || 0)
+    || (Number(a?.end) || 0) - (Number(b?.end) || 0);
 }
 
 function buildFlexBlockPurposeOptions(selectedPurpose = "") {
@@ -16326,12 +17264,18 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
   const dateKey = toISO(ref);
   const mode = options.mode || "calendar";
   const useQuickFilters = !!options.useQuickFilters;
+  const statusFilter = options.statusFilter || "all";
 
   const blocksByStudent = dailyScheduledBlocks(dateKey, studentFilterIds);
   const rows = Array.from(blocksByStudent.values())
     .flat()
     .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
-    .sort((a, b) => a.start - b.start || a.student.localeCompare(b.student) || a.label.localeCompare(b.label))
+    .filter((block) => schoolDayBlockMatchesStatusFilter(block, dateKey, statusFilter))
+    .sort((a, b) => {
+      const timeComparison = compareSchoolDayBlockTime(a, b, dateKey);
+      if (timeComparison) return timeComparison;
+      return a.student.localeCompare(b.student) || a.label.localeCompare(b.label);
+    })
     .flatMap((block) => {
       const actualRange = `${formatClockTime(block.start)} - ${formatClockTime(block.end)}`;
       const plannedRange = `${formatClockTime(block.plannedStart)} - ${formatClockTime(block.plannedEnd)}`;
@@ -16348,9 +17292,11 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
             : (isEditingFlex
               ? `<div class="table-action-row"><button type="button" data-school-day-save-flex-block="${flexEditKey}" data-student-id="${block.studentId}" data-date="${dateKey}" data-start="${block.start}" data-end="${block.end}">Save</button><button type="button" data-school-day-cancel-flex-block="${flexEditKey}">Cancel</button></div>`
               : `<div class="table-action-row"><button type="button" data-school-day-edit-flex-block="${flexEditKey}">Edit</button></div>`);
-          return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${purposeCell}</td><td></td><td>${Number(block.actualMinutes || 0)} min</td><td class="calendar-actions-cell">${actionsCell}</td></tr>`];
+          const statusCell = mode === "school-day" ? `<td class="school-day-status-column"></td>` : "";
+          return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${purposeCell}</td><td></td><td>${Number(block.actualMinutes || 0)} min</td>${statusCell}<td class="calendar-actions-cell">${actionsCell}</td></tr>`];
         }
-        return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td></td><td>${Number(block.actualMinutes || 0)} min</td><td class="calendar-actions-cell"></td></tr>`];
+        const statusCell = mode === "school-day" ? `<td class="school-day-status-column"></td>` : "";
+        return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td></td><td>${Number(block.actualMinutes || 0)} min</td>${statusCell}<td class="calendar-actions-cell"></td></tr>`];
       }
 
       const existing = findInstructionActualRecord(block.studentId, block.courseId, dateKey);
@@ -16363,23 +17309,35 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
       const attendanceBadge = attendanceRecord
         ? `<span class="school-day-status-badge ${attendanceRecord.present ? "success" : "warning"}">${attendanceRecord.present ? "Present" : "Absent"}</span>`
         : `<span class="school-day-status-badge warning">Needs Attendance</span>`;
-      const gradeRecordCount = gradeRecordsForStudentCourseDate(block.studentId, block.courseId, dateKey).length;
-      const needsGrade = gradeRecordCount === 0;
       const isOverridden = hasOverride;
-      const isCompleted = effectiveInstructionCompleted(block.studentId, block.courseId, dateKey);
-      const needsCompletion = !isCompleted;
-      if (useQuickFilters && !rowMatchesSchoolDayQuickFilters({ needsAttendance, needsCompletion, needsGrade, completed: isCompleted, overridden: isOverridden })) {
+      const instructionStatus = effectiveInstructionStatus(block.studentId, block.courseId, dateKey);
+      const isCompleted = instructionStatus === INSTRUCTION_STATUS_COMPLETED;
+      const isExcused = instructionStatus === INSTRUCTION_STATUS_EXCUSED;
+      const gradeRecordCount = gradeRecordsForStudentCourseDate(block.studentId, block.courseId, dateKey).length;
+      const needsGrade = !isExcused && gradeRecordCount === 0;
+      const isPastDue = schoolDayInstructionPastDue(block, dateKey);
+      const needsCompletion = instructionStatus === INSTRUCTION_STATUS_SCHEDULED;
+      if (useQuickFilters && !rowMatchesSchoolDayQuickFilters({ needsAttendance, needsCompletion, needsGrade, completed: isCompleted, pastDue: isPastDue, overridden: isOverridden })) {
         return [];
       }
       const completedBadge = isCompleted
         ? `<span class="school-day-status-badge complete">Completed</span>`
-        : `<span class="school-day-status-badge warning">Needs Completion</span>`;
-      const gradeBadge = gradeRecordCount
-        ? `<span class="school-day-status-badge info">${gradeRecordCount} ${gradeRecordCount === 1 ? "Grade" : "Grades"}</span>`
-        : `<span class="school-day-status-badge warning">Needs Grade</span>`;
-      const rowBadges = `<div class="school-day-row-badges">${overrideBadge}${completedBadge}${attendanceBadge}${gradeBadge}</div>`;
+        : isExcused
+          ? `<span class="school-day-status-badge excused">Excused</span>`
+          : `<span class="school-day-status-badge warning">Needs Completion</span>`;
+      const pastDueBadge = isPastDue
+        ? `<span class="school-day-status-badge danger">Past Due</span>`
+        : "";
+      const gradeBadge = isExcused
+        ? ""
+        : gradeRecordCount
+          ? `<span class="school-day-status-badge info">${gradeRecordCount} ${gradeRecordCount === 1 ? "Grade" : "Grades"}</span>`
+          : `<span class="school-day-status-badge warning">Needs Grade</span>`;
+      const rowBadges = `<div class="school-day-row-badges">${overrideBadge}${completedBadge}${pastDueBadge}${attendanceBadge}${gradeBadge}</div>`;
       const rowStateClasses = [
         needsCompletion ? "school-day-row-needs-completion" : "",
+        isPastDue ? "school-day-row-past-due" : "",
+        isExcused ? "school-day-row-excused" : "",
         needsGrade ? "school-day-row-needs-grade" : "",
         needsAttendance ? "school-day-row-needs-attendance" : "",
         isCompleted && !needsGrade ? "school-day-row-completed" : ""
@@ -16400,13 +17358,21 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
         ? (isSectionBoundInstruction
           ? `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Class Start<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-class-instruction-actual-start="${sharedEditKey}"></label></div>`
           : `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Start Time<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-instruction-actual-start="${editKey}"></label></div>`)
-        : actualRange;
+        : isExcused
+          ? `${plannedRange}<br><span class="muted">Excused</span>`
+          : actualRange;
       const instructorCell = isEditing
         ? `<select class="school-day-instructor-editor" ${isSectionBoundInstruction ? `data-class-instruction-actual-instructor="${sharedEditKey}"` : `data-instruction-actual-instructor="${editKey}"`}>${buildInstructionInstructorOptions(instructorId)}</select>`
         : escapeHtml(instructorId ? getInstructorName(instructorId) : "Unassigned");
       const minutesCell = isEditing
         ? `<input class="school-day-minutes-editor" type="number" min="1" step="1" value="${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))}" ${isSectionBoundInstruction ? `data-class-instruction-actual-input="${sharedEditKey}"` : `data-instruction-actual-input="${editKey}"`}>`
-        : `${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))} min`;
+        : `${Number(isExcused ? plannedInstructionMinutesForCourse(block.courseId) : (block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId)))} min`;
+      const statusCell = mode === "school-day" && canEditActualMinutes
+        ? renderSchoolDayStatusControl({ studentId: block.studentId, courseId: block.courseId, date: dateKey, status: instructionStatus })
+        : `<span class="school-day-status-readonly ${instructionStatus}">${escapeHtml(instructionStatusLabel(instructionStatus))}</span>`;
+      const statusColumnCell = mode === "school-day"
+        ? `<td class="school-day-status-column">${statusCell}</td>`
+        : "";
       const inlineGradeKey = schoolDayGradeKey(block.studentId, block.courseId, dateKey);
       const showInlineGrade = mode === "school-day" && schoolDayInlineGradeKey === inlineGradeKey;
       const inlineGradeActions = mode === "school-day" && canEditActualMinutes
@@ -16434,8 +17400,8 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
           ? (isSectionBoundInstruction
             ? `<div class="table-action-row"><button type="button" data-school-day-save-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" data-school-day-cancel-class-actual="${sharedEditKey}">Cancel</button></div>`
             : `<div class="table-action-row"><button type="button" ${saveAttr}="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" ${cancelAttr}="${editKey}">Cancel</button></div>`)
-          : `<div class="school-day-actions-wrap"><label class="school-day-complete-toggle"><input type="checkbox" data-school-day-completed-toggle="1" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}"${isCompleted ? " checked" : ""}> Completed</label><div class="table-action-row">${inlineGradeActions}${isSectionBoundInstruction ? `<button type="button" data-school-day-edit-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-course-id="${block.courseId}" data-date="${dateKey}">Edit Class For Today</button>${hasOverride && sharedRecord ? `<button type="button" data-school-day-reset-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-date="${dateKey}">Use Planned</button>` : ""}` : `<button type="button" ${editAttr}="${editKey}">Edit</button>${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}`}</div></div>`);
-      const renderedRows = [`<tr class="${rowStateClasses}${isEditing ? " school-day-editing-row" : ""}"><td class="school-day-hour-column">${hourDisplay}</td><td class="school-day-student-column">${block.student}</td><td class="school-day-planned-column"><div class="school-day-planned-copy">${block.label}</div>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td class="school-day-instructor-column">${instructorCell}</td><td class="school-day-minutes-column">${minutesCell}</td><td class="calendar-actions-cell school-day-actions-column">${actionsCell}</td></tr>`];
+          : `<div class="school-day-actions-wrap"><div class="table-action-row">${inlineGradeActions}${isSectionBoundInstruction ? `<button type="button" data-school-day-edit-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-course-id="${block.courseId}" data-date="${dateKey}">Edit Class For Today</button>${hasOverride && sharedRecord ? `<button type="button" data-school-day-reset-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-date="${dateKey}">Use Planned</button>` : ""}` : `<button type="button" ${editAttr}="${editKey}">Edit</button>${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}`}</div></div>`);
+      const renderedRows = [`<tr class="${rowStateClasses}${isEditing ? " school-day-editing-row" : ""}"><td class="school-day-hour-column">${hourDisplay}</td><td class="school-day-student-column">${block.student}</td><td class="school-day-planned-column"><div class="school-day-planned-copy">${block.label}</div>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td class="school-day-instructor-column">${instructorCell}</td><td class="school-day-minutes-column">${minutesCell}</td>${statusColumnCell}<td class="calendar-actions-cell school-day-actions-column">${actionsCell}</td></tr>`];
       if (showInlineGrade) {
         const gradeRow = buildGradeEntryRow(null, {
           date: dateKey,
@@ -16461,7 +17427,7 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
               </div>
             </td>
           </tr>`;
-        renderedRows.push(`<tr data-school-day-inline-grade-container="${inlineGradeKey}" class="school-day-inline-grade-row"><td colspan="6"><div class="table-wrap school-day-inline-grade-wrap"><table><thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead><tbody>${gradeRow.outerHTML}${inlineActionRows}</tbody></table></div></td></tr>`);
+        renderedRows.push(`<tr data-school-day-inline-grade-container="${inlineGradeKey}" class="school-day-inline-grade-row"><td colspan="7"><div class="table-wrap school-day-inline-grade-wrap"><table><thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead><tbody>${gradeRow.outerHTML}${inlineActionRows}</tbody></table></div></td></tr>`);
       }
       return renderedRows;
     });
@@ -16576,22 +17542,26 @@ function renderSchoolDay() {
   const studentFilterIds = getSchoolDaySelectedStudentIds();
   const subjectFilterIds = getSchoolDaySelectedSubjectIds();
   const courseFilterIds = getSchoolDaySelectedCourseIds();
-  const { rows } = buildDayCalendarRows(ref, studentFilterIds, subjectFilterIds, courseFilterIds, { mode: "school-day", useQuickFilters: true });
+  const statusFilter = getSchoolDaySelectedStatus();
+  const { rows } = buildDayCalendarRows(ref, studentFilterIds, subjectFilterIds, courseFilterIds, { mode: "school-day", useQuickFilters: true, statusFilter });
   const completionRows = Array.from(dailyScheduledBlocks(ref, studentFilterIds).values())
     .flat()
     .filter((block) => block.type === "instruction")
-    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds));
-  const completionCount = completionRows.filter((block) => effectiveInstructionCompleted(block.studentId, block.courseId, ref)).length;
+    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
+    .filter((block) => schoolDayBlockMatchesStatusFilter(block, ref, statusFilter));
+  const activeCompletionRows = completionRows.filter((block) => !effectiveInstructionExcused(block.studentId, block.courseId, ref));
+  const completionCount = activeCompletionRows.filter((block) => effectiveInstructionCompleted(block.studentId, block.courseId, ref)).length;
+  const excusedCount = completionRows.length - activeCompletionRows.length;
   const plannedMinutesTotal = completionRows.reduce((sum, block) => sum + plannedInstructionMinutesForCourse(block.courseId), 0);
   const completedMinutesTotal = completionRows.reduce((sum, block) => (
     effectiveInstructionCompleted(block.studentId, block.courseId, ref)
       ? sum + effectiveInstructionMinutes(block.studentId, block.courseId, ref)
       : sum
   ), 0);
-  const quickFilterEmptyMessage = schoolDayActiveQuickFilterCount()
-    ? "No School Day rows match the selected quick filters."
+  const quickFilterEmptyMessage = schoolDayActiveQuickFilterCount() || statusFilter !== "all"
+    ? "No School Day rows match the selected filters."
     : "No scheduled instruction for this day.";
-  rowOrEmpty(document.getElementById("school-day-table"), rows, quickFilterEmptyMessage, 6);
+  rowOrEmpty(document.getElementById("school-day-table"), rows, quickFilterEmptyMessage, 7);
   renderSchoolDayStudentSummaries(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
   renderSchoolDayOverviewGrid(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
   const hoursSummary = document.getElementById("school-day-hours-summary");
@@ -16604,7 +17574,7 @@ function renderSchoolDay() {
     setSchoolDayDailyMessage(schoolDayDailyMessageState.kind, schoolDayDailyMessageState.text);
   } else {
     setSchoolDayDailyMessage("", completionRows.length
-      ? `${completionCount} of ${completionRows.length} classes completed on ${formatDisplayDate(ref)}.`
+      ? `${completionCount} of ${activeCompletionRows.length} active classes completed on ${formatDisplayDate(ref)}${excusedCount ? `; ${excusedCount} excused.` : "."}`
       : `No scheduled classes for ${formatDisplayDate(ref)}.`);
   }
   renderSchoolDayAttendance();
@@ -16768,6 +17738,12 @@ function effectiveInstructionMinutes(studentId, courseId, date) {
   return plannedInstructionMinutesForCourse(courseId);
 }
 
+function persistedInstructionActualMinutes(studentId, courseId, date) {
+  const existing = findInstructionActualRecord(studentId, courseId, date);
+  if (existing && Number.isInteger(existing.actualMinutes) && existing.actualMinutes > 0) return existing.actualMinutes;
+  return plannedInstructionMinutesForCourse(courseId);
+}
+
 function effectiveInstructionStartMinutes(studentId, courseId, date, fallbackStartMinutes = null) {
   const section = courseSectionForStudentCourse(studentId, courseId);
   if (section) {
@@ -16799,12 +17775,14 @@ function instructionActualEditKey(studentId, courseId, date) {
 }
 
 function createLegacyLocalInstructionActual(payload) {
+  const status = normalizeInstructionStatus(payload.status, payload.completed);
   state.instructionActuals.push({
     id: payload.id || uid(),
     studentId: payload.studentId,
     courseId: payload.courseId,
     instructorId: payload.instructorId || "",
-    completed: !!payload.completed,
+    status,
+    completed: status === INSTRUCTION_STATUS_COMPLETED,
     date: payload.date,
     actualMinutes: payload.actualMinutes,
     startMinutes: payload.startMinutes == null ? null : payload.startMinutes,
@@ -16814,10 +17792,12 @@ function createLegacyLocalInstructionActual(payload) {
 
 function updateLegacyLocalInstructionActual(existing, payload) {
   if (!existing) return;
+  const status = normalizeInstructionStatus(payload.status, payload.completed);
   existing.studentId = payload.studentId;
   existing.courseId = payload.courseId;
   existing.instructorId = payload.instructorId || "";
-  existing.completed = !!payload.completed;
+  existing.status = status;
+  existing.completed = status === INSTRUCTION_STATUS_COMPLETED;
   existing.date = payload.date;
   existing.actualMinutes = payload.actualMinutes;
   existing.startMinutes = payload.startMinutes == null ? null : payload.startMinutes;
@@ -16842,8 +17822,17 @@ function effectiveInstructionInstructorId(studentId, courseId, date) {
   return String(existing?.instructorId || defaultInstructorIdForCourse(courseId) || "").trim();
 }
 
+function effectiveInstructionStatus(studentId, courseId, date) {
+  const existing = findInstructionActualRecord(studentId, courseId, date);
+  return normalizeInstructionStatus(existing?.status, existing?.completed);
+}
+
 function effectiveInstructionCompleted(studentId, courseId, date) {
-  return !!findInstructionActualRecord(studentId, courseId, date)?.completed;
+  return effectiveInstructionStatus(studentId, courseId, date) === INSTRUCTION_STATUS_COMPLETED;
+}
+
+function effectiveInstructionExcused(studentId, courseId, date) {
+  return effectiveInstructionStatus(studentId, courseId, date) === INSTRUCTION_STATUS_EXCUSED;
 }
 
 function instructionCountsTowardCompletedHours(studentId, courseId, date) {
@@ -16876,8 +17865,27 @@ function buildInstructionInstructorOptions(selectedInstructorId) {
     .join("");
 }
 
-async function saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes, startMinutes, orderIndex, completed }) {
+function buildInstructionStatusOptions(selectedStatus) {
+  const normalizedSelected = normalizeInstructionStatus(selectedStatus);
+  return INSTRUCTION_STATUS_OPTIONS
+    .map((option) => `<option value="${escapeHtml(option.value)}"${option.value === normalizedSelected ? " selected" : ""}>${escapeHtml(option.label)}</option>`)
+    .join("");
+}
+
+function renderSchoolDayStatusControl({ studentId, courseId, date, status }) {
+  const normalizedStatus = normalizeInstructionStatus(status);
+  const label = instructionStatusLabel(normalizedStatus);
+  return `<label class="school-day-status-control ${normalizedStatus}" aria-label="Instruction status for ${escapeHtml(getCourseName(courseId))}">
+    <span class="school-day-status-icon" aria-hidden="true"></span>
+    <select class="school-day-status-select" data-school-day-status="1" data-student-id="${escapeHtml(studentId)}" data-course-id="${escapeHtml(courseId)}" data-date="${escapeHtml(date)}" title="${escapeHtml(label)}">
+      ${buildInstructionStatusOptions(normalizedStatus)}
+    </select>
+  </label>`;
+}
+
+async function saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes, startMinutes, orderIndex, completed, status }) {
   const existing = findInstructionActualRecord(studentId, courseId, date);
+  const nextStatus = normalizeInstructionStatus(status == null ? existing?.status : status, completed == null ? existing?.completed : completed);
   const payload = {
     studentId,
     courseId,
@@ -16886,7 +17894,8 @@ async function saveInstructionActualMinutes({ studentId, courseId, instructorId,
     actualMinutes,
     startMinutes: startMinutes == null || startMinutes === "" ? null : Number(startMinutes),
     orderIndex: orderIndex == null || orderIndex === "" ? null : Number(orderIndex),
-    completed: completed == null ? !!existing?.completed : !!completed
+    status: nextStatus,
+    completed: nextStatus === INSTRUCTION_STATUS_COMPLETED
   };
   if (hostedModeEnabled) {
     if (existing) {
@@ -16921,7 +17930,7 @@ async function saveSharedClassInstructionActual({ courseSectionId, instructorId,
       actualMinutes,
       startMinutes,
       orderIndex: existing?.orderIndex ?? null,
-      completed: existing?.completed ?? false
+      status: effectiveInstructionStatus(studentId, section.courseId, date)
     });
   }
 }
@@ -16935,7 +17944,8 @@ async function resetSharedClassInstructionActuals(courseSectionId, date) {
   for (const studentId of studentIds) {
     const existing = findInstructionActualRecord(studentId, section.courseId, date);
     if (!existing) continue;
-    if (existing.completed) {
+    const existingStatus = effectiveInstructionStatus(studentId, section.courseId, date);
+    if (existingStatus !== INSTRUCTION_STATUS_SCHEDULED) {
       await saveInstructionActualMinutes({
         studentId,
         courseId: section.courseId,
@@ -16944,7 +17954,7 @@ async function resetSharedClassInstructionActuals(courseSectionId, date) {
         actualMinutes: plannedMinutes,
         startMinutes: null,
         orderIndex: existing.orderIndex ?? null,
-        completed: true
+        status: existingStatus
       });
       continue;
     }
@@ -17022,7 +18032,7 @@ async function saveInstructionOrderOverridesForStudentDate(studentId, date, orde
       actualMinutes: effectiveInstructionMinutes(studentId, courseId, date),
       startMinutes: existing?.startMinutes ?? null,
       orderIndex: index + 1,
-      completed: existing?.completed ?? false
+      status: effectiveInstructionStatus(studentId, courseId, date)
     });
   }));
 }
@@ -18873,7 +19883,7 @@ function bindEvents() {
       setReportsMessage("", "Select report criteria and content to generate a printable report.");
     });
   }
-  ["reports-quarter", "reports-instructor"].forEach((id) => {
+  ["reports-quarter", "reports-instructor", "reports-subject", "reports-grade"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener("change", () => {
@@ -19422,6 +20432,13 @@ function bindEvents() {
   const schoolDayDateInput = document.getElementById("school-day-date");
   if (schoolDayDateInput) {
     schoolDayDateInput.addEventListener("change", () => {
+      clearSchoolDayDailyMessage();
+      renderSchoolDay();
+    });
+  }
+  const schoolDayStatusFilter = document.getElementById("school-day-status-filter");
+  if (schoolDayStatusFilter) {
+    schoolDayStatusFilter.addEventListener("change", () => {
       clearSchoolDayDailyMessage();
       renderSchoolDay();
     });
@@ -20328,18 +21345,25 @@ function bindEvents() {
       renderSchoolDay();
       return;
     }
-    if (t.getAttribute("data-school-day-completed-toggle")) {
-      if (!ensureAdminAction()) return;
+    if (t.getAttribute("data-school-day-status")) {
+      if (!ensureAdminAction()) {
+        renderSchoolDay();
+        return;
+      }
       const studentId = t.getAttribute("data-student-id") || "";
       const courseId = t.getAttribute("data-course-id") || "";
       const date = t.getAttribute("data-date") || document.getElementById("school-day-date")?.value || todayISO();
-      const completed = t instanceof HTMLInputElement ? t.checked : false;
+      const status = normalizeInstructionStatus(t instanceof HTMLSelectElement ? t.value : "");
       const existing = findInstructionActualRecord(studentId, courseId, date);
       (async () => {
         try {
-          if (!completed && existing && !hasInstructionExecutionOverride(studentId, courseId, date)) {
+          if (status === INSTRUCTION_STATUS_SCHEDULED && !existing) {
+            renderSchoolDay();
+            return;
+          }
+          if (status === INSTRUCTION_STATUS_SCHEDULED && existing && !hasInstructionExecutionOverride(studentId, courseId, date)) {
             await resetInstructionActualMinutes(existing.id);
-            setSchoolDayDailyMessage("success", `Unmarked ${getCourseName(courseId)} as completed for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
+            setSchoolDayDailyMessage("success", `Set ${getCourseName(courseId)} back to scheduled for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
             rerenderAfterInstructionChange();
             return;
           }
@@ -20348,16 +21372,16 @@ function bindEvents() {
             courseId,
             instructorId: effectiveInstructionInstructorId(studentId, courseId, date),
             date,
-            actualMinutes: effectiveInstructionMinutes(studentId, courseId, date),
+            actualMinutes: persistedInstructionActualMinutes(studentId, courseId, date),
             startMinutes: existing?.startMinutes ?? null,
             orderIndex: existing?.orderIndex ?? null,
-            completed
+            status
           });
-          setSchoolDayDailyMessage("success", `${completed ? "Marked" : "Unmarked"} ${getCourseName(courseId)} as completed for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
+          setSchoolDayDailyMessage("success", `Set ${getCourseName(courseId)} to ${instructionStatusLabel(status).toLowerCase()} for ${getStudentName(studentId)} on ${formatDisplayDate(date)}.`);
           rerenderAfterInstructionChange();
         } catch (error) {
-          setSchoolDayDailyMessage("error", error.message || "Unable to update completion status.");
-          alert(error.message || "Unable to update completion status.");
+          setSchoolDayDailyMessage("error", error.message || "Unable to update instruction status.");
+          alert(error.message || "Unable to update instruction status.");
         }
       })();
       return;
@@ -20640,6 +21664,7 @@ function bindEvents() {
       const studentId = dashboardSchoolDayTarget.getAttribute("data-student-id") || "";
       const courseId = dashboardSchoolDayTarget.getAttribute("data-course-id") || "";
       const quickFilter = dashboardSchoolDayTarget.getAttribute("data-school-day-quick-filter") || "";
+      const statusFilter = dashboardSchoolDayTarget.getAttribute("data-school-day-status-filter") || "all";
       const contextLabel = dashboardSchoolDayTarget.getAttribute("data-dashboard-context-label") || "";
       openSchoolDayFromDashboard({
         date,
@@ -20647,6 +21672,7 @@ function bindEvents() {
         studentIds: studentId ? [studentId] : [],
         courseIds: courseId ? [courseId] : [],
         quickFilter,
+        statusFilter,
         contextLabel
       });
       return;
@@ -20662,6 +21688,8 @@ function bindEvents() {
               ? schoolDayQuickFilters.needsGrade
               : key === "completed"
                 ? schoolDayQuickFilters.completed
+                : key === "past-due"
+                  ? schoolDayQuickFilters.pastDue
                 : key === "overridden"
                   ? schoolDayQuickFilters.overridden
                   : false;

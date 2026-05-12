@@ -36,7 +36,8 @@ function normalizeActualInstructionPayload(input) {
   const orderIndex = input?.orderIndex == null || input?.orderIndex === ""
     ? null
     : Number(input.orderIndex);
-  const completed = Boolean(input?.completed);
+  const status = normalizeInstructionStatus(input?.status, input?.completed);
+  const completed = status === "completed";
   if (!studentId
     || !courseId
     || !/^\d{4}-\d{2}-\d{2}$/.test(date)
@@ -48,7 +49,14 @@ function normalizeActualInstructionPayload(input) {
     error.statusCode = 400;
     throw error;
   }
-  return { id, studentId, courseId, instructorId, date, actualMinutes, startMinutes, orderIndex, completed };
+  return { id, studentId, courseId, instructorId, date, actualMinutes, startMinutes, orderIndex, status, completed };
+}
+
+function normalizeInstructionStatus(value, completed = false) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "completed") return "completed";
+  if (normalized === "excused") return "excused";
+  return completed ? "completed" : "scheduled";
 }
 
 function normalizeAttendancePayload(input) {

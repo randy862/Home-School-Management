@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605110941">
+  <link rel="stylesheet" href="styles.css?v=202605112000">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -263,11 +263,20 @@
             <p id="dashboard-overview-attention-value" class="dashboard-summary-value">0</p>
             <div class="dashboard-open-mini" aria-label="Open item breakdown">
               <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="attendance" data-open-items-date="1"><b id="dashboard-overview-attendance-open-count">0</b><small>Attendance</small></button>
-              <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-school-day-quick-filter="needs-completion" data-open-items-date="1"><b id="dashboard-overview-classes-open-count">0</b><small>Classes</small></button>
+              <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-school-day-status-filter="scheduled" data-open-items-date="1"><b id="dashboard-overview-classes-open-count">0</b><small>Classes</small></button>
               <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-school-day-quick-filter="needs-grade" data-open-items-date="1"><b id="dashboard-overview-grades-open-count">0</b><small>Grades</small></button>
               <button type="button" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-school-day-quick-filter="overridden" data-open-items-date="1"><b id="dashboard-overview-overrides-open-count">0</b><small>Overrides</small></button>
             </div>
             <p id="dashboard-overview-attention-note" class="dashboard-summary-note muted">No open items for today.</p>
+          </article>
+          <article id="dashboard-overview-open-classes-card" class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-open-classes">
+            <div class="dashboard-visual-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Z"/><path d="M8 7h8"/><path d="M8 11h5"/><path d="M16 14l3 3"/><path d="m19 14-3 3"/></svg>
+            </div>
+            <p class="dashboard-summary-label">Open Classes</p>
+            <p id="dashboard-overview-open-classes-value" class="dashboard-summary-value">0</p>
+            <div id="dashboard-overview-open-classes-list" class="dashboard-required-subject-mini dashboard-open-class-list" aria-label="Open class dates"></div>
+            <p id="dashboard-overview-open-classes-note" class="dashboard-summary-note muted">Tracking scheduled classes from 05/12/2026 forward.</p>
           </article>
           <article id="dashboard-overview-grade-risk-card" class="dashboard-summary-card dashboard-visual-card dashboard-visual-card-grade-risk">
             <div class="dashboard-visual-icon" aria-hidden="true">
@@ -1114,6 +1123,7 @@
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-student-filter"> <span>Show Student filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-subject-filter"> <span>Show Subject filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-course-filter"> <span>Show Course filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-status-filter"> <span>Show Status filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-student-summaries"> <span>Show Student Summaries</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-side-by-side-overview"> <span>Show Side-By-Side Overview</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-reset-student-day"> <span>Show Reset Student Day button</span></label>
@@ -1122,6 +1132,7 @@
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-completion"> <span>Show Needs Completion filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-needs-grade"> <span>Show Needs Grade filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-completed"> <span>Show Completed filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-past-due"> <span>Show Past Due filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-overridden"> <span>Show Overridden filter</span></label>
             </div>
           </section>
@@ -1166,6 +1177,7 @@
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-quarter-progress"> <span>Show Current Quarter Progress</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-completed-today"> <span>Show Completed Today Summary</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-open-items-today"> <span>Show Open Items Today Summary</span></label>
+                <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-open-classes"> <span>Show Open Classes</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-grades-at-risk"> <span>Show Grades at Risk</span></label>
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-overview-missing-required-subjects"> <span>Show Missing Required Subjects</span></label>
               </div>
@@ -1323,6 +1335,14 @@
               <div id="school-day-course-options" class="checklist-vertical"></div>
             </details>
           </label>
+          <label id="school-day-status-filter-field" class="calendar-filter-field">Status
+            <select id="school-day-status-filter">
+              <option value="all">All Statuses</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="completed">Completed</option>
+              <option value="excused">Excused</option>
+            </select>
+          </label>
         </form>
       </div>
 
@@ -1332,6 +1352,7 @@
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="needs-completion">Needs Completion</button>
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="needs-grade">Needs Grade</button>
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="completed">Completed</button>
+          <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="past-due">Past Due</button>
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="overridden">Overridden</button>
         </div>
         <div class="subtabs school-day-subtabs" aria-label="School Day sections">
@@ -1372,7 +1393,7 @@
         <div id="school-day-overview-grid" class="school-day-overview-grid hidden"></div>
         <div class="table-wrap calendar-table-wrap">
           <table>
-            <thead><tr><th>Hour</th><th>Student</th><th>Planned Instruction</th><th>Instructor</th><th>Minutes</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Hour</th><th>Student</th><th>Planned Instruction</th><th>Instructor</th><th>Minutes</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="school-day-table"></tbody>
           </table>
         </div>
@@ -2276,6 +2297,16 @@
                   <div id="reports-student-options" class="checklist-vertical"></div>
                 </details>
               </label>
+              <label>Subject
+                <select id="reports-subject">
+                  <option value="all">All Subjects</option>
+                </select>
+              </label>
+              <label>Grade
+                <select id="reports-grade">
+                  <option value="all">All Grades</option>
+                </select>
+              </label>
               <label>School Year
                 <select id="reports-school-year" required></select>
               </label>
@@ -2365,6 +2396,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605110941"></script>
+  <script src="app.js?v=202605112000"></script>
   </body>
   </html>

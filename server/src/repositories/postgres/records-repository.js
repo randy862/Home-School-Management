@@ -6,8 +6,8 @@ function createRecordsRepository(deps) {
       const pool = getPostgresPool();
       await ensureFlexBlocksTable(pool);
       const result = await pool.query(`
-        INSERT INTO actual_instruction_minutes (id, student_id, course_id, instructor_id, instruction_date, actual_minutes, start_minutes, order_index, completed)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO actual_instruction_minutes (id, student_id, course_id, instructor_id, instruction_date, actual_minutes, start_minutes, order_index, completed, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING
           id,
           student_id AS "studentId",
@@ -17,8 +17,9 @@ function createRecordsRepository(deps) {
           actual_minutes AS "actualMinutes",
           start_minutes AS "startMinutes",
           order_index AS "orderIndex",
-          completed
-      `, [record.id, record.studentId, record.courseId, record.instructorId || null, record.date, record.actualMinutes, record.startMinutes ?? null, record.orderIndex ?? null, !!record.completed]);
+          completed,
+          status
+      `, [record.id, record.studentId, record.courseId, record.instructorId || null, record.date, record.actualMinutes, record.startMinutes ?? null, record.orderIndex ?? null, !!record.completed, record.status || "scheduled"]);
       return mapActualInstructionRow(result.rows[0]);
     },
 
@@ -138,7 +139,8 @@ function createRecordsRepository(deps) {
             actual_minutes AS "actualMinutes",
             start_minutes AS "startMinutes",
             order_index AS "orderIndex",
-            completed
+            completed,
+            status
           FROM actual_instruction_minutes
           WHERE student_id = $1
           ORDER BY instruction_date, course_id
@@ -156,7 +158,8 @@ function createRecordsRepository(deps) {
           actual_minutes AS "actualMinutes",
           start_minutes AS "startMinutes",
           order_index AS "orderIndex",
-          completed
+          completed,
+          status
         FROM actual_instruction_minutes
         ORDER BY instruction_date, student_id, course_id
       `);
@@ -264,7 +267,8 @@ function createRecordsRepository(deps) {
           actual_minutes = $6,
           start_minutes = $7,
           order_index = $8,
-          completed = $9
+          completed = $9,
+          status = $10
         WHERE id = $1
         RETURNING
           id,
@@ -275,8 +279,9 @@ function createRecordsRepository(deps) {
           actual_minutes AS "actualMinutes",
           start_minutes AS "startMinutes",
           order_index AS "orderIndex",
-          completed
-      `, [id, record.studentId, record.courseId, record.instructorId || null, record.date, record.actualMinutes, record.startMinutes ?? null, record.orderIndex ?? null, !!record.completed]);
+          completed,
+          status
+      `, [id, record.studentId, record.courseId, record.instructorId || null, record.date, record.actualMinutes, record.startMinutes ?? null, record.orderIndex ?? null, !!record.completed, record.status || "scheduled"]);
       return result.rows[0] ? mapActualInstructionRow(result.rows[0]) : null;
     },
 
@@ -348,10 +353,12 @@ function mapAttendanceRow(row) {
 }
 
 function mapActualInstructionRow(row) {
+  const status = normalizeInstructionStatus(row.status, row.completed);
   return {
     ...row,
     instructorId: row.instructorId || "",
-    completed: !!row.completed,
+    status,
+    completed: status === "completed",
     actualMinutes: Number(row.actualMinutes || 0),
     startMinutes: row.startMinutes == null || row.startMinutes === ""
       ? null
@@ -360,6 +367,13 @@ function mapActualInstructionRow(row) {
       ? null
       : Number(row.orderIndex)
   };
+}
+
+function normalizeInstructionStatus(value, completed = false) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "completed") return "completed";
+  if (normalized === "excused") return "excused";
+  return completed ? "completed" : "scheduled";
 }
 
 function mapTestRow(row) {

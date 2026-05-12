@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-10
+Date: 2026-05-11
 
 ## Active Workstream
 
@@ -8,7 +8,7 @@ Modern app preview refinement.
 
 ## Current Focus
 
-Modern preview polish in `/modern-design/`.
+Modern preview polish in `/modern-preview/`.
 
 ## Completed Recently
 
@@ -31,8 +31,10 @@ Modern preview polish in `/modern-design/`.
 - Compliance > Required Subjects now includes Required Subject Compliance with course/class rows, distribution bars, active-student summary cards, Student multi-select and Compliance filters, and Students-page count links.
 - Administration > Workspace Configuration > Dashboard Visibility now mirrors Dashboard tabs/subtabs and exposes one configurable flag per current dashboard gauge/section.
 - Hosted workspace-config normalization now preserves unchecked split Dashboard Visibility flags after Save Configuration.
-- Printable Student and Instructor reports now use a branded Navigrader report frame with the header logo, generated timestamp, polished report tables/cards, and `https://www.navigrader.com` footer.
-- Current web assets were deployed to `https://mitchell.navigrader.com/modern-design/` and `https://mitchell.navigrader.com/modern-preview/`.
+- Printable Student and Instructor reports now use a branded Navigrader report frame with Subject/Grade Report Criteria filters, configurable Student Executive Summary/Required Subjects content, split Instructor Executive Summary/Overview/Course Summary sections, Instructor performance summaries by subject, student, and grade, polished report tables/cards, `https://www.navigrader.com` footer, compact print summary cards, and tighter Reports status-message spacing.
+- School Day now has a persisted Scheduled/Completed/Excused status model, a Status filter, correct Excused schedule behavior, and Flex Block actions aligned under Actions.
+- Dashboard Execution now has Class Status and Past Due gauges, and Overview tracks Open Classes from 05/12/2026 forward.
+- Current web assets were deployed to `https://mitchell.navigrader.com/modern-preview/`. The duplicate `modern-design` URL currently matches `modern-preview`; keep `modern-preview` as source of truth.
 
 ## Current Blockers
 
@@ -46,5 +48,5 @@ Modern preview polish in `/modern-design/`.
 
 ## Next Actions
 
-1. Smoke-test Reports by generating Student and Instructor reports and checking logo/URL/print layout.
+1. Smoke-test School Day status dropdowns, especially Excused moving later flexible classes up.
 2. Keep live app unchanged unless replacement is explicitly approved.
