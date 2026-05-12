@@ -31,6 +31,7 @@ Completed this batch:
 - Hardened systemd templates with dedicated users, external secret env files, and baseline sandboxing directives.
 - Remediated npm audit finding in `server/package-lock.json`.
 - Added `control-api/package-lock.json`; both npm audits now pass.
+- Added `CHECKLISTS/security-hardening-deployment.md` for service-user, secret-file, Apache, DB, and post-deploy validation prerequisites.
 
 Prior live SaaS polish remains deployed at `https://www.navigrader.com/`; see previous history if that workstream is reopened.
 
@@ -41,7 +42,7 @@ Current commits:
 
 ## Next Action
 
-Review the hardening diff, ensure production service users and `/etc/home-school-management/*.env` files exist before applying systemd templates, then run the hosted release gate against the target environment.
+Use `CHECKLISTS/security-hardening-deployment.md` to prepare production prerequisites, then run the hosted release gate against the target environment after deploy.
 
 ## Risks
 
