@@ -37,7 +37,7 @@ function registerAdminRoutes(app, deps) {
     try {
       res.json(await listUsers());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -62,7 +62,7 @@ function registerAdminRoutes(app, deps) {
         ...credentials
       }));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -95,7 +95,7 @@ function registerAdminRoutes(app, deps) {
         ...(credentials || {})
       }));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -131,7 +131,7 @@ function registerAdminRoutes(app, deps) {
       }
       res.json({ ok: true });
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -164,7 +164,7 @@ function registerAdminRoutes(app, deps) {
       `);
       res.json(result.recordset);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -178,7 +178,7 @@ function registerAdminRoutes(app, deps) {
       }
       res.status(201).json(await createStudent(normalizeStudentPayload(req.body)));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -194,7 +194,7 @@ function registerAdminRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -210,7 +210,7 @@ function registerAdminRoutes(app, deps) {
       }
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -226,7 +226,7 @@ function registerAdminRoutes(app, deps) {
       }
       res.json(restored);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -237,7 +237,7 @@ function registerAdminRoutes(app, deps) {
     try {
       res.json(await (listInstructorsForUser || listInstructors)(req.auth.user));
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -248,7 +248,7 @@ function registerAdminRoutes(app, deps) {
     try {
       res.status(201).json(await createInstructor(normalizeInstructorPayload(req.body)));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -264,7 +264,7 @@ function registerAdminRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -285,7 +285,7 @@ function registerAdminRoutes(app, deps) {
       }
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -296,7 +296,7 @@ function registerAdminRoutes(app, deps) {
     try {
       res.json(await getWorkspaceConfig());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 
@@ -307,7 +307,7 @@ function registerAdminRoutes(app, deps) {
     try {
       res.json(await saveWorkspaceConfig(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendAdminRouteError(res, error);
     }
   });
 }
@@ -329,6 +329,19 @@ function ensureAdmin(req, res) {
   if (req.auth.user.role === "admin") return true;
   res.status(403).json({ error: "Admin access required." });
   return false;
+}
+
+function sendAdminRouteError(res, error) {
+  const statusCode = Number(error.statusCode || error.status || 500);
+  const safeStatusCode = statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+  const isProduction = String(process.env.APP_ENV || "").toLowerCase() === "production";
+  const message = safeStatusCode >= 500 && isProduction
+    ? "Unexpected error."
+    : (error.message || "Unexpected error.");
+  if (safeStatusCode >= 500) {
+    console.error(error);
+  }
+  res.status(safeStatusCode).json({ error: message });
 }
 
 function normalizeStudentPayload(input) {
