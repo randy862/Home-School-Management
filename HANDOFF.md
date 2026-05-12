@@ -41,10 +41,9 @@ Completed this batch:
 
 Prior live SaaS polish remains deployed at `https://www.navigrader.com/`; see previous history if that workstream is reopened.
 
-Current commits:
+Current security commits:
 
-- `75533f1 Add SaaS landing preview redesign`
-- `781fffd Update SaaS preview hero imagery`
+- `6f9d8c8`, `495ea8a`, `9ff7129`, and `7f6eb01` continue route and operational hardening.
 
 ## Next Action
 
