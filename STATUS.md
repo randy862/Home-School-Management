@@ -48,6 +48,7 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Tenant user creation and account password changes now use the same 10-character minimum as setup/operator flows.
 - `GET /api/account` now withholds hosted subscription, upgrade, billing-event, and export-request details from non-admin users.
 - Account routes now sanitize production 5xx responses instead of returning raw internal error messages.
+- Records routes now sanitize production 5xx responses and retained student read scoping/admin-only writes under route-level checks.
 
 ## Current Blockers
 

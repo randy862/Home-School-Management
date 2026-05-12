@@ -12,7 +12,7 @@ function registerRecordsRoutes(app, deps) {
     try {
       res.json(await recordsService.listAttendanceForUser(req.auth.user));
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -23,7 +23,7 @@ function registerRecordsRoutes(app, deps) {
     try {
       res.json(await recordsService.listActualInstructionMinutesForUser(req.auth.user));
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -34,7 +34,7 @@ function registerRecordsRoutes(app, deps) {
     try {
       res.json(await recordsService.listFlexBlocksForUser(req.auth.user));
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -48,7 +48,7 @@ function registerRecordsRoutes(app, deps) {
       }
       res.status(201).json(await recordsService.createAttendance(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -59,7 +59,7 @@ function registerRecordsRoutes(app, deps) {
     try {
       res.status(201).json(await recordsService.createActualInstructionMinutes(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -70,7 +70,7 @@ function registerRecordsRoutes(app, deps) {
     try {
       res.status(201).json(await recordsService.createFlexBlock(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -89,7 +89,7 @@ function registerRecordsRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -105,7 +105,7 @@ function registerRecordsRoutes(app, deps) {
       }
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -121,7 +121,7 @@ function registerRecordsRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -137,7 +137,7 @@ function registerRecordsRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -153,7 +153,7 @@ function registerRecordsRoutes(app, deps) {
       }
       res.status(204).send();
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -169,7 +169,7 @@ function registerRecordsRoutes(app, deps) {
       }
       res.status(204).send();
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -180,7 +180,7 @@ function registerRecordsRoutes(app, deps) {
     try {
       res.json(await recordsService.listTestsForUser(req.auth.user));
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -194,7 +194,7 @@ function registerRecordsRoutes(app, deps) {
       }
       res.status(201).json(await recordsService.createTest(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -213,7 +213,7 @@ function registerRecordsRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 
@@ -229,7 +229,7 @@ function registerRecordsRoutes(app, deps) {
       }
       res.status(204).send();
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendRecordsRouteError(res, error);
     }
   });
 }
@@ -251,6 +251,19 @@ function ensureAdmin(req, res) {
   if (req.auth.user.role === "admin") return true;
   res.status(403).json({ error: "Admin access required." });
   return false;
+}
+
+function sendRecordsRouteError(res, error) {
+  const statusCode = Number(error.statusCode || error.status || 500);
+  const safeStatusCode = statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+  const isProduction = String(process.env.APP_ENV || "").toLowerCase() === "production";
+  const message = safeStatusCode >= 500 && isProduction
+    ? "Unexpected error."
+    : (error.message || "Unexpected error.");
+  if (safeStatusCode >= 500) {
+    console.error(error);
+  }
+  res.status(safeStatusCode).json({ error: message });
 }
 
 module.exports = {
