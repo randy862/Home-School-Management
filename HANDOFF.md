@@ -32,6 +32,7 @@ Completed this batch:
 - Remediated npm audit finding in `server/package-lock.json`.
 - Added `control-api/package-lock.json`; both npm audits now pass.
 - Added security deployment, operational, and lab checklists for service users, secrets, Apache, DB roles, backup/restore, AWS-deferred controls, monitoring, incident response, and validation.
+- Added `scripts/Invoke-LabSecurityGate.ps1` for lab security validation.
 - Tightened tenant runtime resolution so hosted PostgreSQL requests fail closed without a resolved tenant schema; fallback runtime is host-bound and legacy state sync fails closed in production.
 - Tightened control-plane environment job routes so queued jobs use the environment's server-side tenant ID and reject mismatched body tenant IDs.
 - Scoped student instructor reads to assigned instructors and redacted instructor birthdate/background fields from student responses.
@@ -47,7 +48,7 @@ Current security commits:
 
 ## Next Action
 
-Use `CHECKLISTS/security-lab-hardening.md` to complete lab signoff, then keep AWS-only controls deferred until hosted infrastructure exists.
+Run `scripts\Invoke-LabSecurityGate.ps1` against the lab, then continue `CHECKLISTS/security-lab-hardening.md`.
 
 ## Risks
 

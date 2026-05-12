@@ -56,6 +56,21 @@ Lab signoff means the code, service configuration, database access, backup/resto
 
 ## Lab Smoke Gate
 
+- [ ] Run the lab security gate:
+
+```powershell
+scripts\Invoke-LabSecurityGate.ps1 `
+  -TenantBaseUrl "http://LAB-WEB-OR-API" `
+  -TenantAdminUsername "..." `
+  -TenantAdminPassword "..." `
+  -TenantStudentUsername "..." `
+  -TenantStudentPassword "..." `
+  -ControlBaseUrl "http://LAB-CONTROL/control-api" `
+  -ControlUsername "..." `
+  -ControlPassword "..." `
+  -RejectedOrigin "https://not-allowed.example"
+```
+
 - [ ] Tenant login succeeds.
 - [ ] Operator login succeeds.
 - [ ] Student-scoped dashboard data loads.

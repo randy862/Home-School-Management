@@ -55,6 +55,7 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Control API routes now share production-safe route error handling across tenant, environment, job, operator, audit, runtime, and commercial endpoints.
 - Added `CHECKLISTS/security-operational-hardening.md` for PostgreSQL roles, encrypted backup/restore, AWS security groups, monitoring, and incident response.
 - Added `CHECKLISTS/security-lab-hardening.md` so lab hardening can be signed off while AWS-only controls remain deferred.
+- Added `scripts/Invoke-LabSecurityGate.ps1` for lab health, login, privacy, permission, legacy-state, CORS, and optional control checks.
 - Broad tenant/control route raw-error scan, syntax checks, and production npm audits are clean.
 
 ## Current Blockers
