@@ -18,6 +18,59 @@ async function listInstructors() {
   return result.rows;
 }
 
+async function listInstructorsForUser(user) {
+  if (user?.role !== "student") {
+    return listInstructors();
+  }
+
+  const studentId = String(user?.studentId || "").trim();
+  if (!studentId) return [];
+
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    WITH assigned_instructors AS (
+      SELECT c.instructor_id
+      FROM courses c
+      JOIN enrollments e
+        ON e.course_id = c.id
+      WHERE e.student_id = $1
+        AND c.instructor_id IS NOT NULL
+
+      UNION
+
+      SELECT c.instructor_id
+      FROM courses c
+      JOIN course_sections cs
+        ON cs.course_id = c.id
+      JOIN section_enrollments se
+        ON se.course_section_id = cs.id
+      WHERE se.student_id = $1
+        AND c.instructor_id IS NOT NULL
+
+      UNION
+
+      SELECT instructor_id
+      FROM actual_instruction_minutes
+      WHERE student_id = $1
+        AND instructor_id IS NOT NULL
+    )
+    SELECT DISTINCT
+      i.id,
+      i.first_name AS "firstName",
+      i.last_name AS "lastName",
+      NULL::date AS birthdate,
+      'other' AS category,
+      '' AS "educationLevel",
+      NULL::integer AS "ageRecorded",
+      NULL::date AS "createdAt"
+    FROM instructors i
+    JOIN assigned_instructors assigned
+      ON assigned.instructor_id = i.id
+    ORDER BY lower(i.last_name), lower(i.first_name)
+  `, [studentId]);
+  return result.rows;
+}
+
 async function getInstructorById(id) {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -109,5 +162,6 @@ module.exports = {
   deleteInstructor,
   getInstructorById,
   listInstructors,
+  listInstructorsForUser,
   updateInstructor
 };

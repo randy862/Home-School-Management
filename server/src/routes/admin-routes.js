@@ -14,6 +14,7 @@ function registerAdminRoutes(app, deps) {
     getUserById,
     isPostgresMode,
     listInstructors,
+    listInstructorsForUser,
     listStudents,
     listUsers,
     restoreStudent,
@@ -233,7 +234,7 @@ function registerAdminRoutes(app, deps) {
     if (!ensureAuthenticated(req, res)) return;
 
     try {
-      res.json(await listInstructors());
+      res.json(await (listInstructorsForUser || listInstructors)(req.auth.user));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }

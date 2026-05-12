@@ -35,6 +35,7 @@ const {
   deleteInstructor,
   getInstructorById,
   listInstructors,
+  listInstructorsForUser,
   updateInstructor
 } = require("./postgres-instructor-store");
 const {
@@ -105,6 +106,7 @@ const adminRouteDeps = {
   getUserById,
   isPostgresMode,
   listInstructors,
+  listInstructorsForUser,
   listStudents,
   listUsers,
   restoreStudent,
