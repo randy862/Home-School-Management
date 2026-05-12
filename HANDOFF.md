@@ -35,6 +35,7 @@ Completed this batch:
 - Tightened tenant runtime resolution so hosted PostgreSQL requests fail closed without a resolved tenant schema; fallback runtime is host-bound when `TENANT_APP_BASE_URL` is configured.
 - Tightened control-plane environment job routes so queued jobs use the environment's server-side tenant ID and reject mismatched body tenant IDs.
 - Scoped student instructor reads to assigned instructors and redacted instructor birthdate/background fields from student responses.
+- Aligned tenant user creation and tenant account password changes to a 10-character minimum password policy.
 
 Prior live SaaS polish remains deployed at `https://www.navigrader.com/`; see previous history if that workstream is reopened.
 
@@ -67,3 +68,4 @@ Use `CHECKLISTS/security-hardening-deployment.md` to prepare production prerequi
 - Inline tenant runtime fail-closed check via `node -`
 - Inline control-plane environment tenant/job binding check via `node -`
 - Inline scoped instructor route check via `node -`
+- Inline tenant admin user password-minimum check via `node -`

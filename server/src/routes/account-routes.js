@@ -1,4 +1,5 @@
 const { hashPassword, verifyPassword } = require("../auth-service");
+const PASSWORD_MIN_LENGTH = 10;
 
 function registerAccountRoutes(app, deps) {
   const {
@@ -113,8 +114,8 @@ function registerAccountRoutes(app, deps) {
         error.statusCode = 400;
         throw error;
       }
-      if (newPassword.length < 8) {
-        const error = new Error("New password must be at least 8 characters long.");
+      if (newPassword.length < PASSWORD_MIN_LENGTH) {
+        const error = new Error(`New password must be at least ${PASSWORD_MIN_LENGTH} characters long.`);
         error.statusCode = 400;
         throw error;
       }

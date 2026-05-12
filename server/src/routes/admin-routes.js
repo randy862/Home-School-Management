@@ -1,4 +1,5 @@
 const { createSessionToken, clearSessionCookie, hashPassword, hashSessionToken, parseCookies } = require("../auth-service");
+const PASSWORD_MIN_LENGTH = 10;
 
 function registerAdminRoutes(app, deps) {
   const {
@@ -422,6 +423,11 @@ function normalizeUserPayload(input, options = {}) {
   }
   if (options.requirePassword && !password) {
     const error = new Error("Password is required for new users.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (password && password.length < PASSWORD_MIN_LENGTH) {
+    const error = new Error(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
     error.statusCode = 400;
     throw error;
   }

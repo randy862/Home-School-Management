@@ -45,6 +45,7 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Tenant runtime middleware now fails closed for unresolved PostgreSQL tenant contexts and only allows fallback runtime when the request matches the configured tenant app host.
 - Control-plane environment job routes now derive tenant identity from the server-loaded environment and reject mismatched body tenant IDs.
 - `GET /api/instructors` now scopes student users to assigned instructors only and redacts instructor birthdate/background fields for student responses.
+- Tenant user creation and account password changes now use the same 10-character minimum as setup/operator flows.
 
 ## Current Blockers
 
