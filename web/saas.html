@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Plans</title>
   <link rel="stylesheet" href="saas.css?v=202605051430">
+  <link rel="stylesheet" href="saas-polish.css?v=202605121350">
 </head>
 <body>
   <main class="landing-shell">
@@ -475,21 +476,86 @@
         </div>
         <div class="final-screenshot-collage" aria-label="Navigrader product screenshots">
           <figure class="final-screenshot-card final-dashboard-shot">
-            <img src="assets/screenshot-dashboard.png" alt="Navigrader dashboard with performance and grade trend analytics">
+            <img src="assets/saas-screenshot-dashboard-status.png" alt="Navigrader dashboard with status and needs attention info">
           </figure>
           <figure class="final-screenshot-card final-school-day-shot">
-            <img src="assets/screenshot-school-day.png" alt="Navigrader school day view with daily schedule rows">
+            <img src="assets/saas-screenshot-daily-schedule.png" alt="Navigrader single point of management Daily Schedule">
           </figure>
           <figure class="final-screenshot-card final-side-by-side-shot">
-            <img src="assets/screenshot-school-day-side-by-side.png" alt="Navigrader side-by-side schedule overview">
+            <img src="assets/saas-screenshot-grade-trending.png" alt="Navigrader dashboard with performance and grade trend analytics">
           </figure>
           <figure class="final-screenshot-card final-report-shot">
-            <img src="assets/screenshot-report.png" alt="Navigrader printable instructional hours report">
+            <img src="assets/saas-screenshot-printable-reports.png" alt="Navigrader printable student and instructor reports">
           </figure>
         </div>
       </div>
     </section>
   </main>
+  <div id="screenshot-preview-modal" class="screenshot-preview-modal hidden" role="dialog" aria-modal="true" aria-label="Product screenshot preview">
+    <button class="screenshot-preview-close" type="button" aria-label="Close screenshot preview">Close</button>
+    <figure class="screenshot-preview-frame">
+      <img id="screenshot-preview-image" src="" alt="">
+      <figcaption id="screenshot-preview-caption"></figcaption>
+    </figure>
+  </div>
+  <script>
+    (() => {
+      const modal = document.getElementById("screenshot-preview-modal");
+      const modalImage = document.getElementById("screenshot-preview-image");
+      const modalCaption = document.getElementById("screenshot-preview-caption");
+      const closeButton = modal.querySelector(".screenshot-preview-close");
+      let lastTrigger = null;
+
+      const closePreview = () => {
+        modal.classList.add("hidden");
+        modalImage.removeAttribute("src");
+        modalImage.alt = "";
+        document.body.classList.remove("screenshot-preview-open");
+        if (lastTrigger) {
+          lastTrigger.focus();
+        }
+      };
+
+      document.querySelectorAll(".final-screenshot-card").forEach((card) => {
+        const image = card.querySelector("img");
+        if (!image) return;
+
+        card.setAttribute("role", "button");
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("aria-label", "Open larger screenshot preview");
+
+        const openPreview = () => {
+          lastTrigger = card;
+          modalImage.src = image.currentSrc || image.src;
+          modalImage.alt = image.alt || "Navigrader product screenshot";
+          modalCaption.textContent = image.alt || "";
+          modal.classList.remove("hidden");
+          document.body.classList.add("screenshot-preview-open");
+          closeButton.focus();
+        };
+
+        card.addEventListener("click", openPreview);
+        card.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openPreview();
+          }
+        });
+      });
+
+      closeButton.addEventListener("click", closePreview);
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) {
+          closePreview();
+        }
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+          closePreview();
+        }
+      });
+    })();
+  </script>
   <script src="saas.js?v=202605012250"></script>
 </body>
 </html>

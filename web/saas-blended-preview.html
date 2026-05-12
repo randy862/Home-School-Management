@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navigrader | Blended SaaS Preview</title>
+</head>
+<body>
+  <script>
+    fetch("saas.html", { cache: "no-store" })
+      .then((response) => response.text())
+      .then((html) => {
+        const blendedCss = '<link rel="stylesheet" href="saas-blended-preview.css?v=202605121335">';
+        const screenshotPreview = `
+  <div id="screenshot-preview-modal" class="screenshot-preview-modal hidden" role="dialog" aria-modal="true" aria-label="Product screenshot preview">
+    <button class="screenshot-preview-close" type="button" aria-label="Close screenshot preview">Close</button>
+    <figure class="screenshot-preview-frame">
+      <img id="screenshot-preview-image" src="" alt="">
+      <figcaption id="screenshot-preview-caption"></figcaption>
+    </figure>
+  </div>
+  <script>
+    (() => {
+      const modal = document.getElementById("screenshot-preview-modal");
+      const modalImage = document.getElementById("screenshot-preview-image");
+      const modalCaption = document.getElementById("screenshot-preview-caption");
+      const closeButton = modal.querySelector(".screenshot-preview-close");
+      let lastTrigger = null;
+
+      const closePreview = () => {
+        modal.classList.add("hidden");
+        modalImage.removeAttribute("src");
+        modalImage.alt = "";
+        document.body.classList.remove("screenshot-preview-open");
+        if (lastTrigger) {
+          lastTrigger.focus();
+        }
+      };
+
+      document.querySelectorAll(".final-screenshot-card").forEach((card) => {
+        const image = card.querySelector("img");
+        if (!image) return;
+
+        card.setAttribute("role", "button");
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("aria-label", "Open larger screenshot preview");
+
+        const openPreview = () => {
+          lastTrigger = card;
+          modalImage.src = image.currentSrc || image.src;
+          modalImage.alt = image.alt || "Navigrader product screenshot";
+          modalCaption.textContent = image.alt || "";
+          modal.classList.remove("hidden");
+          document.body.classList.add("screenshot-preview-open");
+          closeButton.focus();
+        };
+
+        card.addEventListener("click", openPreview);
+        card.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openPreview();
+          }
+        });
+      });
+
+      closeButton.addEventListener("click", closePreview);
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) {
+          closePreview();
+        }
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+          closePreview();
+        }
+      });
+    })();
+  <\/script>`;
+        const previewHtml = html
+          .replace("<title>Navigrader | Hosted Plans</title>", "<title>Navigrader | Blended SaaS Preview</title>")
+          .replace("assets/screenshot-dashboard.png", "assets/preview-screenshot-dashboard.png")
+          .replace("Navigrader dashboard with performance and grade trend analytics", "Navigrader dashboard with status and needs attention info")
+          .replace("assets/screenshot-school-day.png", "assets/preview-screenshot-school-day.png")
+          .replace("Navigrader school day view with daily schedule rows", "Navigrader single point of management Daily Schedule")
+          .replace("assets/screenshot-school-day-side-by-side.png", "assets/preview-screenshot-grade-trending.png")
+          .replace("Navigrader side-by-side schedule overview", "Navigrader dashboard with performance and grade trend analytics")
+          .replace("assets/screenshot-report.png", "assets/preview-screenshot-academic-report.png")
+          .replace("Navigrader printable instructional hours report", "Navigrader printable student and instructor reports")
+          .replace("</body>", `${screenshotPreview}\n</body>`)
+          .replace("</head>", `  ${blendedCss}\n</head>`);
+
+        document.open();
+        document.write(previewHtml);
+        document.close();
+      })
+      .catch(() => {
+        document.body.innerHTML = "<p>Unable to load the SaaS preview.</p>";
+      });
+  </script>
+</body>
+</html>

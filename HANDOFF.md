@@ -1,31 +1,41 @@
 # Session Handoff
 
-Date: 2026-05-11
+Date: 2026-05-12
 
 ## Current Work
 
-SaaS landing page redesign preview on branch:
+Production SaaS landing refinements while redesign continues separately.
 
-`saas-modern-redesign`
+Live URL: https://www.navigrader.com/
 
-Preview URL: https://www.navigrader.com/saas-preview.html
+Preview URLs:
 
-Live page still unchanged: https://www.navigrader.com/saas.html
+- https://www.navigrader.com/saas-preview.html
+- https://www.navigrader.com/saas-blended-preview.html
 
 ## Current State
 
-The first SaaS landing redesign preview is implemented, deployed, committed, and pushed.
+The polished production-layout SaaS page has been promoted live.
 
 Completed this batch:
 
-- Fast-forwarded `saas-modern-redesign` to the modern production app baseline.
-- Added preview-only landing files: `web/saas-preview.html` and `web/saas-preview.css`.
-- Reused existing `web/saas.js` checkout behavior and preserved checkout/pricing element IDs.
-- Deployed preview files to the web host without replacing live `saas.html`.
-- Added `web/assets/saas-hero-family.png` and `web/assets/ModernScreenshot1.png`.
-- Updated the preview hero to use the new family image with a soft left fade/overlap.
-- Updated hero and final CTA product screenshots to use `ModernScreenshot1.png`.
-- Bumped preview cache key to `202605120130`.
+- Added a host-specific Apache HTTPS rewrite on WEB001 so `https://www.navigrader.com/` serves `/saas.html`.
+- Kept tenant/app subdomains on the hosted workspace login.
+- Backed up the live SSL Apache vhost on WEB001:
+  `/etc/apache2/sites-available/home-school-management-le-ssl.conf.bak-20260512-root-saas`
+- Updated `infra/apache/home-school-management.conf` with the guarded root rewrite pattern for source tracking.
+- Promoted the blended production-layout refinements to `web/saas.html`.
+- Added `web/saas-polish.css?v=202605121350` for the live visual polish layer.
+- Preserved the current Hero/Problem treatment and the original Built For/Solution card style.
+- Blended later section title/background areas while keeping Joy, Why It Helps, How It Works, Pricing, FAQ, and screenshot cards distinct.
+- Removed the Hero/Problem vertical divider and centered the hero CTA buttons above the trust chips.
+- Added production screenshot assets:
+  `saas-screenshot-dashboard-status.png`, `saas-screenshot-daily-schedule.png`,
+  `saas-screenshot-grade-trending.png`, and `saas-screenshot-printable-reports.png`.
+- Corrected screenshot labels for dashboard status, Daily Schedule, grade trend analytics, and printable reports.
+- Added click/keyboard screenshot preview modal behavior for the bottom CTA screenshots.
+- Backed up live `saas.html` on WEB001:
+  `/var/www/home-school-management/web/saas.html.bak-20260512-saas-polish`
 
 Current commits:
 
@@ -34,18 +44,21 @@ Current commits:
 
 ## Next Action
 
-Review `https://www.navigrader.com/saas-preview.html` and collect polish notes before promoting to the live SaaS page.
+Monitor live `https://www.navigrader.com/`, then continue the separate SaaS redesign preview work as a later branch/workstream.
 
 ## Risks
 
-- Live `saas.html` has not been replaced.
-- Untracked `tmp/`, unused ModernScreenshot variants, and icon scratch files remain intentionally untouched.
+- Apex `https://navigrader.com/` DNS currently resolves to parking/forwarding IPs, not WEB001.
+- Scratch assets remain intentionally untouched.
 - Checkout uses live public plans and checkout endpoints through existing `saas.js`.
 
 ## Validation
 
 - `node --check web/saas.js`
-- `git diff --check -- web/saas-preview.html web/saas-preview.css`
-- `curl.exe -s https://www.navigrader.com/saas-preview.html | Select-String -SimpleMatch -Pattern 'saas-preview.css?v=202605120130','saas-hero-family.png','ModernScreenshot1.png'`
-- `curl.exe -s https://www.navigrader.com/saas.html | Select-String -SimpleMatch -Pattern 'saas.css?v=202605051430','saas-preview.css'`
-- Playwright screenshots captured in `tmp/` for desktop and mobile preview review.
+- `git diff --check -- web/saas.html web/saas-polish.css`
+- `curl.exe -s -L https://www.navigrader.com/ | Select-String -SimpleMatch -Pattern '<title>Navigrader | Hosted Plans</title>','saas-polish.css?v=202605121350','saas-screenshot-dashboard-status.png','screenshot-preview-modal','Navigrader printable student and instructor reports'`
+- `curl.exe -s https://www.navigrader.com/saas-polish.css | Select-String -SimpleMatch -Pattern '.screenshot-preview-modal','.problem-panel','.hero-actions'`
+- `curl.exe -s -I https://www.navigrader.com/assets/saas-screenshot-printable-reports.png`
+- `curl.exe -s -L https://mitchell.navigrader.com/ | Select-String -SimpleMatch -Pattern '<title>Navigrader | Hosted Workspace</title>','Sign in with your system user account'`
+- `npx.cmd playwright screenshot --wait-for-selector '.final-screenshot-card[role="button"]' --full-page https://www.navigrader.com/ tmp/saas-production-desktop.png`
+- `npx.cmd playwright screenshot --viewport-size=390,900 --full-page https://www.navigrader.com/ tmp/saas-production-mobile.png`
