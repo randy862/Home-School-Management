@@ -11,7 +11,7 @@ function registerGradingRoutes(app, deps) {
     try {
       res.json(await gradingService.listGradeTypes());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendGradingRouteError(res, error);
     }
   });
 
@@ -22,7 +22,7 @@ function registerGradingRoutes(app, deps) {
     try {
       res.json(await gradingService.replaceGradeTypes(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendGradingRouteError(res, error);
     }
   });
 
@@ -33,7 +33,7 @@ function registerGradingRoutes(app, deps) {
     try {
       res.json(await gradingService.getGradingCriteria());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendGradingRouteError(res, error);
     }
   });
 
@@ -44,7 +44,7 @@ function registerGradingRoutes(app, deps) {
     try {
       res.json(await gradingService.saveGradingCriteria(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendGradingRouteError(res, error);
     }
   });
 }
@@ -66,6 +66,19 @@ function ensureAdmin(req, res) {
   if (req.auth.user.role === "admin") return true;
   res.status(403).json({ error: "Admin access required." });
   return false;
+}
+
+function sendGradingRouteError(res, error) {
+  const statusCode = Number(error.statusCode || error.status || 500);
+  const safeStatusCode = statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+  const isProduction = String(process.env.APP_ENV || "").toLowerCase() === "production";
+  const message = safeStatusCode >= 500 && isProduction
+    ? "Unexpected error."
+    : (error.message || "Unexpected error.");
+  if (safeStatusCode >= 500) {
+    console.error(error);
+  }
+  res.status(safeStatusCode).json({ error: message });
 }
 
 module.exports = {

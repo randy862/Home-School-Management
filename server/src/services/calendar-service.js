@@ -24,7 +24,7 @@ function createCalendarService(deps) {
     deletePlan: (id) => calendarRepository.deletePlan(id),
     deleteSchoolYear: (id) => calendarRepository.deleteSchoolYear(id),
     listDailyBreaksForUser: (user) => calendarRepository.listDailyBreaksForUser(user),
-    listScheduleBlocks: () => calendarRepository.listScheduleBlocks(),
+    listScheduleBlocksForUser: (user) => calendarRepository.listScheduleBlocksForUser(user),
     listHolidays: () => calendarRepository.listHolidays(),
     listPlansForUser: (user) => calendarRepository.listPlansForUser(user),
     listQuarters: () => calendarRepository.listQuarters(),

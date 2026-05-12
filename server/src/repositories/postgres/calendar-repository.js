@@ -294,6 +294,38 @@ function createCalendarRepository(deps) {
       return result.rows.map(mapScheduleBlockRow);
     },
 
+    listScheduleBlocksForUser: async (user) => {
+      const pool = getPostgresPool();
+      if (user?.role === "student") {
+        const result = await pool.query(`
+          SELECT DISTINCT
+            sb.id,
+            sb.name,
+            sb.block_type AS "type",
+            sb.description,
+            sb.duration_minutes AS "durationMinutes",
+            sb.weekdays_json AS "weekdaysJson"
+          FROM schedule_blocks sb
+          JOIN student_schedule_blocks ssb ON ssb.schedule_block_id = sb.id
+          WHERE ssb.student_id = $1
+          ORDER BY lower(sb.name), sb.id
+        `, [user.studentId || ""]);
+        return result.rows.map(mapScheduleBlockRow);
+      }
+      const result = await pool.query(`
+        SELECT
+          id,
+          name,
+          block_type AS "type",
+          description,
+          duration_minutes AS "durationMinutes",
+          weekdays_json AS "weekdaysJson"
+        FROM schedule_blocks
+        ORDER BY lower(name), id
+      `);
+      return result.rows.map(mapScheduleBlockRow);
+    },
+
     listHolidays: async () => {
       const pool = getPostgresPool();
       const result = await pool.query(`

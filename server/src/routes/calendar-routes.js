@@ -12,7 +12,7 @@ function registerCalendarRoutes(app, deps) {
     try {
       res.json(await calendarService.listSchoolYears());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -23,7 +23,7 @@ function registerCalendarRoutes(app, deps) {
     try {
       res.status(201).json(await calendarService.createSchoolYear(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -39,7 +39,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -55,7 +55,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -71,7 +71,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -82,7 +82,7 @@ function registerCalendarRoutes(app, deps) {
     try {
       res.json(await calendarService.listQuarters());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -93,7 +93,7 @@ function registerCalendarRoutes(app, deps) {
     try {
       res.json(await calendarService.replaceQuartersForSchoolYear(req.params.id, req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -104,34 +104,34 @@ function registerCalendarRoutes(app, deps) {
     try {
       res.json(await calendarService.listDailyBreaksForUser(req.auth.user));
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
   app.get("/api/schedule-blocks", async (req, res) => {
-    if (!ensurePostgresMode(res, isPostgresMode, "Schedule blocks")) return;
+    if (!ensurePostgresMode(req, res, isPostgresMode, "Schedule blocks")) return;
     if (!ensureAuthenticated(req, res)) return;
 
     try {
-      res.json(await calendarService.listScheduleBlocks());
+      res.json(await calendarService.listScheduleBlocksForUser(req.auth.user));
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
   app.post("/api/schedule-blocks", async (req, res) => {
-    if (!ensurePostgresMode(res, isPostgresMode, "Schedule blocks")) return;
+    if (!ensurePostgresMode(req, res, isPostgresMode, "Schedule blocks")) return;
     if (!ensureAdmin(req, res)) return;
 
     try {
       res.status(201).json(await calendarService.createScheduleBlock(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
   app.patch("/api/schedule-blocks/:id", async (req, res) => {
-    if (!ensurePostgresMode(res, isPostgresMode, "Schedule blocks")) return;
+    if (!ensurePostgresMode(req, res, isPostgresMode, "Schedule blocks")) return;
     if (!ensureAdmin(req, res)) return;
 
     try {
@@ -142,12 +142,12 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
   app.delete("/api/schedule-blocks/:id", async (req, res) => {
-    if (!ensurePostgresMode(res, isPostgresMode, "Schedule blocks")) return;
+    if (!ensurePostgresMode(req, res, isPostgresMode, "Schedule blocks")) return;
     if (!ensureAdmin(req, res)) return;
 
     try {
@@ -158,7 +158,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -169,7 +169,7 @@ function registerCalendarRoutes(app, deps) {
     try {
       res.status(201).json(await calendarService.createDailyBreak(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -185,7 +185,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -201,7 +201,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -212,7 +212,7 @@ function registerCalendarRoutes(app, deps) {
     try {
       res.json(await calendarService.listHolidays());
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -223,7 +223,7 @@ function registerCalendarRoutes(app, deps) {
     try {
       res.status(201).json(await calendarService.createHoliday(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -239,7 +239,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -255,7 +255,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -266,7 +266,7 @@ function registerCalendarRoutes(app, deps) {
     try {
       res.json(await calendarService.listPlansForUser(req.auth.user));
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -285,7 +285,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.status(201).json(await calendarService.createPlans(req.body));
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -304,7 +304,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json(updated);
     } catch (error) {
-      res.status(error.statusCode || 500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 
@@ -320,7 +320,7 @@ function registerCalendarRoutes(app, deps) {
       }
       res.json({ ok: true });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      sendCalendarRouteError(res, error);
     }
   });
 }
@@ -342,6 +342,19 @@ function ensureAdmin(req, res) {
   if (req.auth.user.role === "admin") return true;
   res.status(403).json({ error: "Admin access required." });
   return false;
+}
+
+function sendCalendarRouteError(res, error) {
+  const statusCode = Number(error.statusCode || error.status || 500);
+  const safeStatusCode = statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+  const isProduction = String(process.env.APP_ENV || "").toLowerCase() === "production";
+  const message = safeStatusCode >= 500 && isProduction
+    ? "Unexpected error."
+    : (error.message || "Unexpected error.");
+  if (safeStatusCode >= 500) {
+    console.error(error);
+  }
+  res.status(safeStatusCode).json({ error: message });
 }
 
 module.exports = {
