@@ -7739,6 +7739,7 @@ tbody tr:hover {
   max-width: 24ch;
   color: #5f6f86;
   font-size: 0.82rem;
+  font-weight: 600;
   line-height: 1.35;
 }
 
@@ -10499,13 +10500,20 @@ tbody tr:hover {
 
 #app-shell .school-day-form {
   display: grid;
-  grid-template-columns: minmax(185px, 0.68fr) repeat(3, minmax(230px, 1fr));
-  gap: 0.55rem;
+  grid-template-columns:
+    minmax(175px, 0.74fr)
+    repeat(3, minmax(190px, 1fr))
+    minmax(150px, 0.68fr);
+  align-items: center;
+  gap: 0.5rem 0.58rem;
 }
 
 #app-shell .school-day-form > label {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.45rem;
+  min-width: 0;
   color: #5b6a80;
   font-size: 0.88rem;
   font-weight: 600;
@@ -10514,17 +10522,34 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-form input,
+#app-shell .school-day-form select,
 #app-shell .school-day-form .multi-select-dropdown summary {
+  width: 100%;
+  min-width: 0;
   min-height: 34px;
   border-radius: 12px;
   background: #ffffff;
+  color: #35445a;
+  font-size: 0.88rem;
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
+  box-sizing: border-box;
+}
+
+#app-shell .school-day-form select {
+  border-color: #cbd8ea;
+}
+
+#app-shell .school-day-form .multi-select-dropdown {
+  min-width: 0;
 }
 
 #app-shell .school-day-form .multi-select-dropdown summary {
   font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #app-shell .school-day-nav-row {
@@ -12413,10 +12438,6 @@ tbody tr:hover {
     display: none;
   }
 
-  #app-shell .school-day-form {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   #app-shell #grades-filter-form {
     grid-template-columns: repeat(3, minmax(150px, 1fr));
   }
@@ -12461,6 +12482,12 @@ tbody tr:hover {
 
   #app-shell .course-watchlist-summary {
     justify-items: start;
+  }
+}
+
+@media (max-width: 980px) {
+  #app-shell .school-day-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
