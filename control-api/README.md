@@ -66,6 +66,7 @@ Deployment-related environment variables:
 - `CONTROL_DEPLOY_LOCAL_HOSTS=APP001,192.168.1.200,127.0.0.1,localhost` to tell the worker when the app host should be treated as local
 - `CONTROL_HOST_ALIASES=APP001=192.168.1.200,WEB001=192.168.1.210,DB001=192.168.1.202` to resolve control-plane host labels on the worker host
 - `CONTROL_DEPLOY_APP_DIR=/home/debian/apps/home-school-management/server`
+- `CONTROL_DEPLOY_APP_RUNTIME_ENV_ENABLED=false` for the current shared SaaS host so new tenant provisioning writes runtime bundles but does not overwrite the shared tenant API `.env.runtime`
 - `CONTROL_DEPLOY_APP_SERVICE=hsm-api.service`
 - `CONTROL_DEPLOY_APP_SERVICE_SCOPE=system`
 - `CONTROL_DEPLOY_APP_SERVICE_USE_SUDO=true`
@@ -99,6 +100,8 @@ The public-facing names can change without changing the internal plan codes, but
 Current APP001 assumption:
 - the tenant runtime is managed by system-level `systemd` units, not lingering user services
 - the control-plane worker uses `sudo systemctl restart ...` for app restarts during hosted deployment automation
+- the current shared APP001 SaaS runtime resolves tenants by request host; provisioning must not rewrite the shared tenant API `.env.runtime` for each new tenant
+- the `hsm-control-api` service user has a locked-down SSH home at `/var/lib/hsm-control-api` for WEB001 deployment automation
 - if a legacy environment still uses user units, override `CONTROL_DEPLOY_APP_SERVICE_SCOPE=user` and `CONTROL_DEPLOY_APP_SERVICE_USE_SUDO=false`
 
 Validation helper:

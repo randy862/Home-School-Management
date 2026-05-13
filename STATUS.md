@@ -42,10 +42,12 @@ Creating the production-readiness foundation that future app changes can build o
 - User confirmed browser login works in both affected tenant domains after the CORS repair.
 - User-rerun `scripts\Invoke-LabSecurityGate.ps1` succeeded after the CORS repair.
 - Documented APP001 rollback commands, WEB001 rollback commands, and the minimum monitoring/alerting baseline in `RUNBOOKS/lab-production-readiness.md`.
+- Fixed commercial provisioning on the hardened APP001 path by disabling shared `.env.runtime` overwrite during tenant provisioning and adding retry-success request lookup by environment.
+- Recovered `may122026.navigrader.com`; provisioning and setup-token jobs succeeded, Postmark email was sent, and user confirmed admin access.
 
 ## Current Blockers
 
-- None for the CORS repair or lab hardening.
+- None for commercial provisioning recovery, the CORS repair, or lab hardening.
 
 ## Current Risks
 
@@ -55,6 +57,7 @@ Creating the production-readiness foundation that future app changes can build o
 - In-memory rate limits are not final distributed SaaS abuse control.
 - Lab DB uses shared non-superuser `appuser`; production should use split least-privilege roles.
 - App changes can continue on top of the readiness baseline; rerun validation gates according to the touched area.
+- `hsm-control-api` now uses `/var/lib/hsm-control-api` for WEB001 deployment SSH material; keep that directory locked down and out of git.
 
 ## Next Actions
 

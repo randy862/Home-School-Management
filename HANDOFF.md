@@ -42,6 +42,12 @@ Lab-hosted production readiness after completed security hardening.
 - User confirmed browser login works in both tenant domains after the CORS repair.
 - User-rerun `scripts\Invoke-LabSecurityGate.ps1` succeeded after the CORS repair.
 - `RUNBOOKS/lab-production-readiness.md` now documents rollback snapshot creation, exact APP001 rollback commands, exact WEB001 rollback commands, and the minimum monitoring/alerting baseline.
+- Commercial signup recovery for `may122026.navigrader.com` completed:
+  - original provisioning failed on hardened APP001 `.env.runtime` permissions
+  - control worker now supports `CONTROL_DEPLOY_APP_RUNTIME_ENV_ENABLED=false`
+  - retry provisioning succeeded with `runtimeEnvDeployed=false`
+  - `hsm-control-api` was given locked-down SSH home `/var/lib/hsm-control-api` for WEB001 deployment automation
+  - setup-token job succeeded, Postmark delivery was `sent`, and user confirmed admin setup/login worked
 
 ## Next Action
 
@@ -72,3 +78,4 @@ Continue non-blocking readiness work from `RUNBOOKS/lab-production-readiness.md`
 - APP001 `hsm-api.service` and `hsm-control-api.service` restarted active after public tenant-domain CORS repair.
 - Browser tenant-login retry passed for both reported tenants, and the lab security gate succeeded after repair.
 - Rollback and monitoring baseline documentation completed; no service changes were made for this docs-only step.
+- `may122026.navigrader.com` health returned `200`; provisioning request reached `ready`; setup email was delivered and user completed admin setup.

@@ -1,7 +1,7 @@
 # Lab-Hosted Production Readiness Runbook
 
 Date started: 2026-05-13
-Current readiness baseline commit: `19f4162`
+Current readiness baseline: latest pushed `saas-modern-redesign` head.
 
 ## Purpose
 
@@ -62,6 +62,13 @@ Current deploy paths captured there:
 - WEB001 Apache site: `home-school-management.conf`
 
 Use this runbook to track readiness status. Use `RUNBOOKS/hosted-deployment.md` for the step-by-step deploy and recovery procedure until a more automated release path replaces it.
+
+Current provisioning deployment notes:
+
+- Tenant API runtime resolution is host-based on this shared SaaS lab host.
+- Control-plane provisioning writes tenant runtime bundles under `/home/debian/apps/home-school-management/runtime-bundles`.
+- `CONTROL_DEPLOY_APP_RUNTIME_ENV_ENABLED=false` prevents new tenant provisioning from overwriting the shared tenant API `.env.runtime`.
+- The `hsm-control-api` service user has `/var/lib/hsm-control-api` as its locked-down SSH home for WEB001 deployment automation.
 
 ## Rollback Snapshot Before A Promoted Change
 

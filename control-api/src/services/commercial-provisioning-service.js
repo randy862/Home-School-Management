@@ -134,7 +134,8 @@ function createCommercialProvisioningService(deps) {
     },
 
     async markProvisioningStarted(job) {
-      const provisioningRequest = await getProvisioningRequestByJobId(job.id);
+      const provisioningRequest = await getProvisioningRequestByJobId(job.id)
+        || await getProvisioningRequestByEnvironmentId(job.tenantEnvironmentId);
       if (!provisioningRequest) return null;
       return updateProvisioningRequest(provisioningRequest.id, {
         status: "provisioning",
@@ -143,7 +144,8 @@ function createCommercialProvisioningService(deps) {
     },
 
     async handleProvisioningSucceeded(job, environment) {
-      const provisioningRequest = await getProvisioningRequestByJobId(job.id);
+      const provisioningRequest = await getProvisioningRequestByJobId(job.id)
+        || await getProvisioningRequestByEnvironmentId(job.tenantEnvironmentId);
       if (!provisioningRequest) return null;
 
       await updateProvisioningRequest(provisioningRequest.id, {

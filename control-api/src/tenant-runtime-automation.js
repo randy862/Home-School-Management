@@ -182,8 +182,11 @@ async function deployAppRelease(config, environment, bundlePath) {
         exclude: new Set(["node_modules", ".git"])
       });
     }
-    await fs.copyFile(bundlePath, path.join(config.appDeployDir, config.appRuntimeEnvFilename));
-    await restartLocalService(config, config.appServiceName);
+    const runtimeEnvDeployed = await deployLocalRuntimeEnvIfEnabled(config, bundlePath);
+    const restartRequired = !sourceEqualsDeployDir || runtimeEnvDeployed;
+    if (restartRequired) {
+      await restartLocalService(config, config.appServiceName);
+    }
     await waitForCommand("curl", ["-fsS", config.appHealthCheckUrl], config);
     return {
       attempted: true,
@@ -191,8 +194,12 @@ async function deployAppRelease(config, environment, bundlePath) {
       host,
       resolvedHost,
       sourceCopySkipped: sourceEqualsDeployDir,
+      restartSkipped: !restartRequired,
       deployDir: config.appDeployDir,
-      runtimeEnvPath: path.posix.join(config.appDeployDir, config.appRuntimeEnvFilename),
+      runtimeEnvDeployed,
+      runtimeEnvPath: runtimeEnvDeployed
+        ? path.posix.join(config.appDeployDir, config.appRuntimeEnvFilename)
+        : null,
       serviceName: config.appServiceName,
       healthCheckUrl: config.appHealthCheckUrl
     };
@@ -202,7 +209,7 @@ async function deployAppRelease(config, environment, bundlePath) {
   await verifySshAccess(config, sshTarget);
   await runCommand(config.sshBin, buildSshArgs(config, sshTarget, `mkdir -p ${quoteShellArg(config.appDeployDir)}`));
   await copyDirectoryViaScp(config, config.appSourceDir, `${sshTarget}:${config.appDeployDir}`);
-  await copyFileViaScp(config, bundlePath, `${sshTarget}:${path.posix.join(config.appDeployDir, config.appRuntimeEnvFilename)}`);
+  const runtimeEnvDeployed = await deployRemoteRuntimeEnvIfEnabled(config, bundlePath, sshTarget);
   await runCommand(config.sshBin, buildSshArgs(config, sshTarget, buildRemoteRestartCommand(config, config.appServiceName)));
   await waitForCommand(config.sshBin, buildSshArgs(config, sshTarget, `curl -fsS ${quoteShellArg(config.appHealthCheckUrl)}`), config);
   return {
@@ -212,10 +219,25 @@ async function deployAppRelease(config, environment, bundlePath) {
     resolvedHost,
     sshTarget,
     deployDir: config.appDeployDir,
-    runtimeEnvPath: path.posix.join(config.appDeployDir, config.appRuntimeEnvFilename),
+    runtimeEnvDeployed,
+    runtimeEnvPath: runtimeEnvDeployed
+      ? path.posix.join(config.appDeployDir, config.appRuntimeEnvFilename)
+      : null,
     serviceName: config.appServiceName,
     healthCheckUrl: config.appHealthCheckUrl
   };
+}
+
+async function deployLocalRuntimeEnvIfEnabled(config, bundlePath) {
+  if (!config.appRuntimeEnvDeployEnabled) return false;
+  await fs.copyFile(bundlePath, path.join(config.appDeployDir, config.appRuntimeEnvFilename));
+  return true;
+}
+
+async function deployRemoteRuntimeEnvIfEnabled(config, bundlePath, sshTarget) {
+  if (!config.appRuntimeEnvDeployEnabled) return false;
+  await copyFileViaScp(config, bundlePath, `${sshTarget}:${path.posix.join(config.appDeployDir, config.appRuntimeEnvFilename)}`);
+  return true;
 }
 
 async function deployWebRelease(config, environment) {

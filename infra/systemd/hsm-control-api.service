@@ -28,6 +28,7 @@ Environment="PGOPTIONS=-c search_path=hsm_control_staging"
 Environment=CONTROL_DEPLOYMENT_ENABLED=true
 Environment=CONTROL_DEPLOY_LOCAL_HOSTS=APP001,192.168.1.200,127.0.0.1,localhost
 Environment=CONTROL_HOST_ALIASES=APP001=192.168.1.200,WEB001=192.168.1.210,DB001=192.168.1.202
+Environment=CONTROL_DEPLOY_APP_RUNTIME_ENV_ENABLED=false
 Environment=CONTROL_DEPLOY_APP_CORS_ORIGIN=https://192.168.1.210,https://www.navigrader.com,https://navigrader.com,https://*.navigrader.com
 Environment=PUBLIC_DEFAULT_DOMAIN_SUFFIX=navigrader.com
 Environment=CONTROL_COMMERCIAL_DEFAULT_APP_HOST=APP001
