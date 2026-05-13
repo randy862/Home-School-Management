@@ -44,6 +44,7 @@ Creating the production-readiness foundation that future app changes can build o
 - Documented APP001 rollback commands, WEB001 rollback commands, and the minimum monitoring/alerting baseline in `RUNBOOKS/lab-production-readiness.md`.
 - Fixed commercial provisioning on the hardened APP001 path by disabling shared `.env.runtime` overwrite during tenant provisioning and adding retry-success request lookup by environment.
 - Recovered `may122026.navigrader.com`; provisioning and setup-token jobs succeeded, Postmark email was sent, and user confirmed admin access.
+- User completed a second fresh subscription after the fix and reported the full flow worked beautifully.
 
 ## Current Blockers
 
