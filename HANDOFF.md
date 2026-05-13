@@ -44,7 +44,7 @@ Current security commits include `6f9d8c8`, `495ea8a`, `9ff7129`, `7f6eb01`, `88
 
 ## Next Action
 
-Deploy/pull current `origin/saas-modern-redesign` backend code to APP001 `192.168.1.200`, restart `hsm-api.service`, then rerun `scripts\Invoke-LabSecurityGate.ps1`.
+Rerun `scripts\Invoke-LabSecurityGate.ps1` after the APP001 CORS config fix, then continue any remaining control API checks.
 
 ## Risks
 
@@ -52,7 +52,8 @@ Deploy/pull current `origin/saas-modern-redesign` backend code to APP001 `192.16
 - Scratch assets remain intentionally untouched.
 - Checkout uses live public plans and checkout endpoints through existing `saas.js`.
 - In-memory rate limits are not a final distributed SaaS limiter.
-- Lab gate passes tenant login/privacy/scoping/write-denial/legacy-state checks, then fails because live tenant API still reflects unlisted CORS origins.
+- APP001 `.env.runtime` now sets `APP_CORS_ORIGIN=https://192.168.1.210`; rejected-origin probe returns `403`.
+- APP001 live `hsm-api.service` still differs from hardened template and should be reconciled after the gate.
 - Lab PostgreSQL least privilege, encrypted backup/restore, incident checklist, and cross-tenant abuse tests remain open; AWS security groups are deferred until AWS exists.
 - Route-by-route IDOR testing is started but not complete.
 
