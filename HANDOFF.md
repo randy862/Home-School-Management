@@ -27,14 +27,16 @@ Production backend/platform security hardening in the lab environment.
   - 18 internal-auth rejection checks returned `401`.
 - Unsigned Stripe webhook probe returned `400`.
 - SQL001 `pg_hba.conf` now limits TCP app DB access to `appuser` from APP001 `192.168.1.200/32` with `scram-sha-256`; backup is `/etc/postgresql/17/main/pg_hba.conf.bak-20260513015337`.
+- Tenant admin/student API smoke and control view API smoke passed with temporary accounts.
+- Final npm audits are clean for `server/` and `control-api/`.
 - Latest APP001 deployed source backups use timestamped `.bak-*` copies beside replaced files.
 
 ## Next Action
 
 Continue remaining `CHECKLISTS/security-lab-hardening.md` items:
 
-1. Run remaining UI/control smoke checks.
-2. Run final lab gate/npm audits after any remaining changes.
+1. Rerun `scripts\Invoke-LabSecurityGate.ps1` from the user's PowerShell session with existing `LAB_*` variables.
+2. If the gate passes, complete lab signoff and leave AWS-only controls deferred.
 
 ## Risks
 

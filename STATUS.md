@@ -31,6 +31,8 @@ Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 - Internal-auth rejection probe passed for 18 missing/invalid-auth checks.
 - SQL001 PostgreSQL TCP app access is limited in `pg_hba.conf` to `appuser` from APP001 `192.168.1.200/32`; tenant/control DB probes and health checks passed after reload.
 - Unsigned Stripe webhook probe returned `400`.
+- Tenant admin/student API smoke and control view API smoke passed with temporary accounts.
+- Final npm audits are clean for `server/` and `control-api/`.
 
 ## Current Blockers
 
@@ -46,5 +48,5 @@ Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 
 ## Next Actions
 
-1. Run remaining UI/control smoke checks.
-2. Run final lab gate and npm audits after any remaining changes.
+1. Rerun `scripts\Invoke-LabSecurityGate.ps1` from the user's PowerShell session with existing `LAB_*` variables.
+2. If the gate passes, complete lab signoff and leave AWS-only controls deferred.

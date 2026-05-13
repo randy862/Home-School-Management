@@ -103,13 +103,19 @@ Use `-AllowInsecureTls` only when the lab redirects to HTTPS with a certificate 
 
 - [x] Tenant login succeeds.
 - [x] Operator login succeeds.
-- [ ] Student-scoped dashboard data loads.
-- [ ] Admin dashboard data loads.
-- [ ] Account page loads for student and admin roles.
-- [ ] Control tenant/environment/job views load for an authorized operator.
+- [x] Student-scoped dashboard data loads.
+- [x] Admin dashboard data loads.
+- [x] Account page loads for student and admin roles.
+- [x] Control tenant/environment/job views load for an authorized operator.
 - [x] Stripe webhook endpoint rejects unsigned payloads.
-- [ ] `npm audit --omit=dev` remains clean for `server/`.
-- [ ] `npm audit --omit=dev` remains clean for `control-api/`.
+- [x] `npm audit --omit=dev` remains clean for `server/`.
+- [x] `npm audit --omit=dev` remains clean for `control-api/`.
+
+Lab smoke evidence, 2026-05-13:
+
+- Temporary tenant admin and student accounts each loaded 22 dashboard/account backing API endpoints successfully, then were deleted.
+- Temporary full-permission control operator loaded 7 control view backing API endpoints successfully, then was deleted.
+- Final `npm audit --omit=dev` returned `found 0 vulnerabilities` in both `server/` and `control-api/`.
 
 ## Deferred Until AWS / Hosted Production
 
