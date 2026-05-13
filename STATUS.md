@@ -48,6 +48,7 @@ Creating the production-readiness foundation that future app changes can build o
 - Added checkout preflight validation so duplicate organization names or tenant names return an error before Stripe checkout.
 - Live duplicate checkout probe for `May2026 Test` / `May-2026` returned `409` with both conflicts.
 - Documented operational secret custody without secret values, explicitly deferred apex DNS, and planned the production PostgreSQL role split.
+- Documented the Redis/Valkey-backed replacement plan for in-memory rate limits before distributed/public production.
 
 ## Current Blockers
 
@@ -58,12 +59,12 @@ Creating the production-readiness foundation that future app changes can build o
 - AWS controls remain deferred until AWS/hosted production exists.
 - Apex `https://navigrader.com/` DNS is explicitly deferred; `www.navigrader.com` remains the lab canonical entrypoint.
 - Untracked scratch assets remain outside current security commits unless explicitly requested.
-- In-memory rate limits are not final distributed SaaS abuse control.
+- In-memory rate limits remain implemented in lab; Redis/Valkey-backed implementation is deferred until distributed/public production.
 - Lab DB uses shared non-superuser `appuser`; production should use split least-privilege roles.
 - App changes can continue on top of the readiness baseline; rerun validation gates according to the touched area.
 - `hsm-control-api` now uses `/var/lib/hsm-control-api` for WEB001 deployment SSH material; keep that directory locked down and out of git.
 
 ## Next Actions
 
-1. Plan replacement for in-memory rate limits before distributed/public production.
-2. Browser-check the duplicate signup-name error only if more UX confirmation is desired.
+1. Continue app/product changes or choose the next production-readiness workstream.
+2. Implement Redis/Valkey-backed rate limits when a distributed/public production target is chosen.

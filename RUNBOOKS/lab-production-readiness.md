@@ -169,6 +169,63 @@ Implementation sequence:
 
 Defer actual role creation until the next database maintenance window because it changes live database credentials and rollback paths.
 
+## Distributed Rate Limit Replacement Plan
+
+Decision: keep the current in-memory limiters for the single-process lab baseline, but replace them before distributed/public production with a shared counter store.
+
+Current implementation:
+
+- Tenant API and control API each use `createRateLimiter(...)` from their local `src/middleware/security.js`.
+- Counters live in a process-local JavaScript `Map`.
+- Keys are currently client IP, HTTP method, and path.
+- Counters reset when the service restarts and are not shared across multiple API processes or hosts.
+
+Current endpoint coverage:
+
+- Tenant API:
+  - `POST /api/auth/login`: 10 requests per 15 minutes.
+  - `POST /api/setup/initialize`: 5 requests per hour.
+- Control API:
+  - `POST /api/operator/auth/login`: 10 requests per 15 minutes.
+  - `POST /api/operator/setup/bootstrap`: 5 requests per hour.
+  - `POST /api/public/checkout/session`: 20 requests per 15 minutes.
+  - `POST /api/public/billing/webhook`: 120 requests per minute.
+
+Production target:
+
+- Use Redis, Valkey, or a managed Redis-compatible service as the shared rate-limit store.
+- All tenant/control API instances must use the same store so counters survive service restarts and apply consistently across multiple app servers.
+- Keep an application-level limiter even if an edge/WAF limiter is added later; edge limits catch broad floods, application limits understand auth, tenant, checkout, and setup context.
+
+Required limiter dimensions:
+
+- Client IP for anonymous public traffic.
+- Username plus IP for tenant login and control operator login.
+- Tenant host plus IP for tenant-scoped endpoints.
+- Requested tenant label, account name, owner email, and IP for checkout session creation.
+- Stripe webhook source IP/path plus signature verification result metrics for webhook abuse visibility.
+- Setup token or setup target plus IP for setup flows.
+
+Implementation sequence:
+
+1. Add a small rate-limit store abstraction used by both `server/` and `control-api/`.
+2. Support `RATE_LIMIT_STORE=memory` for lab/default local development and `RATE_LIMIT_STORE=redis` for production.
+3. Add Redis connection settings through env files only, for example `RATE_LIMIT_REDIS_URL` or host/port/password variables.
+4. Preserve the current endpoint limits as the first Redis-backed policy.
+5. Add stricter failed-auth counters keyed by username plus IP for tenant and control login.
+6. Add logging for limit hits without logging passwords, tokens, Stripe signatures, or secret values.
+7. Add operational metrics or daily log review for repeated `429` responses by endpoint and source.
+8. Validate with a two-process test: start two API instances against the same Redis store and confirm the combined request count hits one shared limit.
+9. Keep the existing lab stress check as a regression gate, then add a distributed limiter smoke before public production.
+
+Failure behavior:
+
+- Auth, setup, and checkout endpoints should fail closed or return a short retry response if the shared limiter is unavailable.
+- Stripe webhook limiting should avoid dropping valid Stripe delivery silently; if the limiter backend is unavailable, log loudly and rely on signature verification plus Stripe retry behavior.
+- Any limiter-store outage in production should trigger an operator alert.
+
+Defer implementation until a distributed/public production target is chosen. The current single-process lab can continue with the in-memory limiter as long as the risk remains documented.
+
 ## Rollback Snapshot Before A Promoted Change
 
 Create a rollback snapshot before any promoted backend, control API, web asset, Apache, or systemd change.
@@ -395,7 +452,7 @@ This is the chosen minimum baseline for the lab-hosted production path. Manual c
 - [x] Decide the minimum disk, certificate, service, and database health checks.
 - [x] Resolve or explicitly defer apex `https://navigrader.com/` DNS routing.
 - [x] Plan production split of PostgreSQL least-privilege roles beyond the lab `appuser`.
-- [ ] Plan replacement for in-memory rate limits when the app moves to distributed/public production.
+- [x] Plan replacement for in-memory rate limits when the app moves to distributed/public production.
 
 ## Launch-Time Items To Defer
 

@@ -50,19 +50,19 @@ Lab-hosted production readiness after completed security hardening.
   - setup-token job succeeded, Postmark delivery was `sent`, and user confirmed admin setup/login worked
 - User completed a second fresh subscription after the provisioning fix and reported the end-to-end flow worked beautifully.
 - Duplicate signup-name validation now blocks checkout before Stripe when the organization name or tenant name is already in use.
-- Readiness runbook now records operational secret custody, apex DNS deferment, and the production PostgreSQL role split plan.
+- Readiness runbook now records operational secret custody, apex DNS deferment, PostgreSQL role split, and distributed rate-limit replacement plans.
 
 ## Next Action
 
-1. Continue next readiness item from `RUNBOOKS/lab-production-readiness.md`: plan replacement for in-memory rate limits before distributed/public production.
-2. Browser-check the duplicate signup-name form error only if more UX confirmation is desired.
+1. Continue app/product changes or choose the next production-readiness workstream; the current lab readiness planning checklist is complete except launch-time deferred items.
+2. Implement Redis/Valkey-backed rate limits only when a distributed/public production target is chosen.
 
 ## Risks
 
 - AWS-only controls remain deferred until AWS/hosted production exists.
 - Apex `https://navigrader.com/` DNS is explicitly deferred; `www.navigrader.com` remains the lab canonical entrypoint.
 - Untracked scratch assets remain intentionally untouched.
-- In-memory rate limits are a lab/first-pass limiter, not final distributed SaaS abuse control.
+- In-memory rate limits remain implemented in lab; Redis/Valkey-backed implementation is deferred until distributed/public production.
 - Lab uses shared non-superuser DB role `appuser`; final production should split least-privilege roles.
 - Future app changes are allowed; rerun only the validation gates that match touched auth, API, DB, web, or infrastructure areas.
 
@@ -82,3 +82,4 @@ Lab-hosted production readiness after completed security hardening.
 - Fresh subscription flow was manually re-tested after the provisioning fix and completed successfully end to end.
 - Live duplicate checkout probe returned `409` with organization-name and tenant-name conflicts before Stripe session creation.
 - Docs-only readiness update completed; no service deploy or lab security gate required.
+- Distributed rate-limit replacement plan documented; no service deploy or lab security gate required.
