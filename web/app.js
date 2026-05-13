@@ -163,7 +163,7 @@ const DEFAULT_WORKSPACE_CONFIG = {
     showPastDueFilter: true,
     showOverriddenFilter: true,
     defaultTab: "daily-schedule",
-    studentSummariesDefault: "adaptive",
+    studentSummariesDefault: "collapsed",
     overviewDefault: "collapsed"
   },
   dashboard: {
@@ -10230,13 +10230,13 @@ function schoolDayRosterStudents(referenceISO) {
 
 function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const host = document.getElementById("school-day-student-summaries");
-  const header = document.getElementById("school-day-student-summaries-header");
   const toggle = document.getElementById("school-day-student-summaries-toggle");
   if (!host) return;
   if (!workspaceConfig.schoolDay.showStudentSummaries) {
     host.innerHTML = "";
     host.classList.add("hidden");
-    if (header) header.classList.add("hidden");
+    if (toggle) toggle.classList.add("hidden");
+    updateSchoolDaySecondaryPanelsVisibility();
     return;
   }
   const roster = schoolDayRosterStudents(referenceISO);
@@ -10283,16 +10283,28 @@ function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], su
   const summaryCount = cards.length;
   if (!schoolDayStudentSummariesManual) {
     const pref = workspaceConfig.schoolDay.studentSummariesDefault;
-    schoolDayStudentSummariesCollapsed = pref === "collapsed" ? true : pref === "expanded" ? false : summaryCount > 3;
+    schoolDayStudentSummariesCollapsed = pref === "expanded" ? false : true;
   }
   host.innerHTML = cards.join("");
   host.classList.toggle("hidden", !summaryCount || schoolDayStudentSummariesCollapsed);
-  if (header) header.classList.toggle("hidden", !summaryCount);
   if (toggle) {
-    toggle.textContent = schoolDayStudentSummariesCollapsed ? "+" : "-";
+    toggle.classList.toggle("hidden", !summaryCount);
+    toggle.textContent = schoolDayStudentSummariesCollapsed
+      ? `Student Summaries (${summaryCount})`
+      : "Hide Student Summaries";
+    toggle.classList.toggle("active", !schoolDayStudentSummariesCollapsed);
     toggle.setAttribute("aria-expanded", schoolDayStudentSummariesCollapsed ? "false" : "true");
   }
+  updateSchoolDaySecondaryPanelsVisibility();
   saveSchoolDayPreferences();
+}
+
+function updateSchoolDaySecondaryPanelsVisibility() {
+  const toolbar = document.getElementById("school-day-secondary-panels");
+  if (!toolbar) return;
+  const hasVisibleToggle = Array.from(toolbar.querySelectorAll("button"))
+    .some((button) => !button.classList.contains("hidden"));
+  toolbar.classList.toggle("hidden", !hasVisibleToggle);
 }
 
 function schoolDayOverviewBlockLabel(block) {
@@ -10354,13 +10366,13 @@ function schoolDayOverviewBlockMatchesDisplayFilters(block, subjectFilterIds = [
 
 function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const host = document.getElementById("school-day-overview-grid");
-  const header = document.getElementById("school-day-overview-header");
   const toggle = document.getElementById("school-day-overview-toggle");
   if (!host) return;
   if (!workspaceConfig.schoolDay.showSideBySideOverview) {
     host.innerHTML = "";
     host.classList.add("hidden");
-    if (header) header.classList.add("hidden");
+    if (toggle) toggle.classList.add("hidden");
+    updateSchoolDaySecondaryPanelsVisibility();
     return;
   }
   const roster = schoolDayRosterStudents(referenceISO);
@@ -10369,7 +10381,8 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
   if (!showOverview) {
     host.innerHTML = "";
     host.classList.add("hidden");
-    if (header) header.classList.add("hidden");
+    if (toggle) toggle.classList.add("hidden");
+    updateSchoolDaySecondaryPanelsVisibility();
     return;
   }
   const cards = roster.map((student) => {
@@ -10403,11 +10416,15 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
   }
   host.innerHTML = cards.join("");
   host.classList.toggle("hidden", !cards.length || schoolDayOverviewCollapsed);
-  if (header) header.classList.toggle("hidden", !cards.length);
   if (toggle) {
-    toggle.textContent = schoolDayOverviewCollapsed ? "+" : "-";
+    toggle.classList.toggle("hidden", !cards.length);
+    toggle.textContent = schoolDayOverviewCollapsed
+      ? `Side-By-Side Overview (${cards.length})`
+      : "Hide Side-By-Side Overview";
+    toggle.classList.toggle("active", !schoolDayOverviewCollapsed);
     toggle.setAttribute("aria-expanded", schoolDayOverviewCollapsed ? "false" : "true");
   }
+  updateSchoolDaySecondaryPanelsVisibility();
   saveSchoolDayPreferences();
 }
 
@@ -11833,6 +11850,20 @@ function hasActiveSchoolDayQueueFilters({ statusFilter = "all", studentIds = [],
     || courseIds.length > 0;
 }
 
+function renderSchoolDayFilterSummary({ date, statusFilter = "all", studentIds = [], subjectIds = [], courseIds = [] } = {}) {
+  const summary = document.getElementById("school-day-filter-summary");
+  if (!summary) return;
+  const parts = [
+    formatDisplayDate(date || document.getElementById("school-day-date")?.value || todayISO()),
+    statusFilter && statusFilter !== "all" ? instructionStatusLabel(statusFilter) : "",
+    ...activeSchoolDayQuickFilterLabels(),
+    schoolDaySelectedFilterChip("Student", studentIds, getStudentName).replace(/^Student: /, ""),
+    schoolDaySelectedFilterChip("Subject", subjectIds, getSubjectName).replace(/^Subject: /, ""),
+    schoolDaySelectedFilterChip("Course", courseIds, getCourseName).replace(/^Course: /, "")
+  ].filter(Boolean);
+  summary.textContent = parts.length ? parts.join(" | ") : "All scheduled rows";
+}
+
 function renderSchoolDayFilteredEmptyState() {
   return `
     <div class="school-day-empty-state">
@@ -11846,6 +11877,11 @@ function renderSchoolDayActiveQueue({ date, rowCount, statusFilter, studentIds =
   const host = document.getElementById("school-day-active-queue");
   if (!host) return;
   const hasActiveFilters = hasActiveSchoolDayQueueFilters({ statusFilter, studentIds, subjectIds, courseIds });
+  if (!hasActiveFilters) {
+    host.innerHTML = "";
+    host.classList.add("hidden");
+    return;
+  }
   const emptyFilteredQueue = rowCount === 0 && hasActiveFilters;
   const filterChips = [
     `Date: ${formatDisplayDate(date || todayISO())}`,
@@ -11855,7 +11891,6 @@ function renderSchoolDayActiveQueue({ date, rowCount, statusFilter, studentIds =
     schoolDaySelectedFilterChip("Subject", subjectIds, getSubjectName),
     schoolDaySelectedFilterChip("Course", courseIds, getCourseName)
   ].filter(Boolean);
-  if (filterChips.length === 1) filterChips.push("All scheduled rows");
   host.classList.remove("hidden");
   host.innerHTML = `
     <div class="school-day-active-queue-summary">
@@ -18040,6 +18075,13 @@ function renderSchoolDay() {
     ? renderSchoolDayFilteredEmptyState()
     : "No scheduled instruction for this day.";
   rowOrEmpty(document.getElementById("school-day-table"), rows, quickFilterEmptyMessage, 8);
+  renderSchoolDayFilterSummary({
+    date: ref,
+    statusFilter,
+    studentIds: studentFilterIds,
+    subjectIds: subjectFilterIds,
+    courseIds: courseFilterIds
+  });
   renderSchoolDayActiveQueue({
     date: ref,
     rowCount: rows.length,

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605131825">
+  <link rel="stylesheet" href="styles.css?v=202605132015">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1330,35 +1330,41 @@
         </div>
       </div>
       <div class="school-day-section school-day-section-shell">
-        <form id="school-day-form" class="grid-form school-day-form">
-          <label id="school-day-reference-date-field">Date<input id="school-day-date" type="date" required></label>
-          <label id="school-day-student-filter-field" class="calendar-filter-field">Student
-            <details id="school-day-student-dropdown" class="multi-select-dropdown">
-              <summary id="school-day-student-summary">Students (0 selected)</summary>
-              <div id="school-day-student-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label id="school-day-subject-filter-field" class="calendar-filter-field">Subject
-            <details id="school-day-subject-dropdown" class="multi-select-dropdown">
-              <summary id="school-day-subject-summary">Subjects (0 selected)</summary>
-              <div id="school-day-subject-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label id="school-day-course-filter-field" class="calendar-filter-field">Course
-            <details id="school-day-course-dropdown" class="multi-select-dropdown">
-              <summary id="school-day-course-summary">Courses (0 selected)</summary>
-              <div id="school-day-course-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label id="school-day-status-filter-field" class="calendar-filter-field">Status
-            <select id="school-day-status-filter">
-              <option value="all">All Statuses</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="completed">Completed</option>
-              <option value="excused">Excused</option>
-            </select>
-          </label>
-        </form>
+        <details id="school-day-filter-panel" class="school-day-filter-panel">
+          <summary>
+            <span>Filters</span>
+            <span id="school-day-filter-summary" class="school-day-filter-summary">All scheduled rows</span>
+          </summary>
+          <form id="school-day-form" class="grid-form school-day-form">
+            <label id="school-day-reference-date-field">Date<input id="school-day-date" type="date" required></label>
+            <label id="school-day-student-filter-field" class="calendar-filter-field">Student
+              <details id="school-day-student-dropdown" class="multi-select-dropdown">
+                <summary id="school-day-student-summary">Students (0 selected)</summary>
+                <div id="school-day-student-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label id="school-day-subject-filter-field" class="calendar-filter-field">Subject
+              <details id="school-day-subject-dropdown" class="multi-select-dropdown">
+                <summary id="school-day-subject-summary">Subjects (0 selected)</summary>
+                <div id="school-day-subject-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label id="school-day-course-filter-field" class="calendar-filter-field">Course
+              <details id="school-day-course-dropdown" class="multi-select-dropdown">
+                <summary id="school-day-course-summary">Courses (0 selected)</summary>
+                <div id="school-day-course-options" class="checklist-vertical"></div>
+              </details>
+            </label>
+            <label id="school-day-status-filter-field" class="calendar-filter-field">Status
+              <select id="school-day-status-filter">
+                <option value="all">All Statuses</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="completed">Completed</option>
+                <option value="excused">Excused</option>
+              </select>
+            </label>
+          </form>
+        </details>
       </div>
 
       <div class="school-day-nav-row">
@@ -1397,15 +1403,11 @@
           </div>
         </div>
         <div id="school-day-active-queue" class="school-day-active-queue hidden" aria-live="polite"></div>
-        <div id="school-day-student-summaries-header" class="school-day-student-summaries-header hidden">
-          <button type="button" id="school-day-student-summaries-toggle" class="school-day-student-summaries-toggle" aria-expanded="true">-</button>
-          <h4>Student Summaries</h4>
+        <div id="school-day-secondary-panels" class="school-day-secondary-panels hidden">
+          <button type="button" id="school-day-student-summaries-toggle" class="school-day-secondary-panel-toggle hidden" aria-expanded="false">Student Summaries</button>
+          <button type="button" id="school-day-overview-toggle" class="school-day-secondary-panel-toggle hidden" aria-expanded="false">Side-By-Side Overview</button>
         </div>
         <div id="school-day-student-summaries" class="school-day-student-summaries"></div>
-        <div id="school-day-overview-header" class="school-day-student-summaries-header hidden">
-          <button type="button" id="school-day-overview-toggle" class="school-day-student-summaries-toggle" aria-expanded="true">-</button>
-          <h4>Side-By-Side Schedule Overview</h4>
-        </div>
         <div id="school-day-overview-grid" class="school-day-overview-grid hidden"></div>
         <div class="table-wrap calendar-table-wrap">
           <table>
