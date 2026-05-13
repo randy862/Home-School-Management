@@ -60,11 +60,12 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Lab database migration and lab tenant credential reset were applied manually during validation.
 - Local hardening branch was pushed to `origin/saas-modern-redesign`.
 - APP001 `.env.runtime` was updated to `APP_CORS_ORIGIN=https://192.168.1.210`; rejected-origin CORS probe now returns `403`.
+- `scripts\Invoke-LabSecurityGate.ps1` succeeded against lab tenant/control APIs.
 - Broad tenant/control route raw-error scan, syntax checks, and production npm audits are clean.
 
 ## Current Blockers
 
-- None for tenant API gate rerun; APP001 live systemd service still needs reconciliation with the hardened template.
+- None for scripted lab gate; APP001 live systemd service still needs reconciliation with the hardened template.
 
 ## Current Risks
 
@@ -77,5 +78,5 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 ## Next Actions
 
 1. Complete `CHECKLISTS/security-lab-hardening.md` against the lab environment.
-2. Rerun `scripts\Invoke-LabSecurityGate.ps1` and continue the control API portion of the lab gate.
+2. Continue lab host/database/backup/deeper-IDOR hardening items not covered by the scripted gate.
 3. Keep AWS-only controls deferred until the hosted platform exists.

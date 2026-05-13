@@ -16,15 +16,15 @@ Lab signoff means the code, service configuration, database access, backup/resto
 - [ ] Tenant API and control API secrets are stored outside git.
 - [ ] Secret files or environment stores are readable only by the service account or lab operator.
 - [ ] Real Stripe live secrets are not used in lab unless intentionally testing live billing.
-- [ ] `DB_CLIENT=postgres` is used for hardening validation.
-- [ ] `LEGACY_STATE_SYNC_ENABLED=false` unless a specific legacy bridge test requires it.
+- [x] `DB_CLIENT=postgres` is used for hardening validation.
+- [x] `LEGACY_STATE_SYNC_ENABLED=false` unless a specific legacy bridge test requires it.
 
 ## Lab Service And Host Checks
 
 - [ ] API/control services run as non-admin users where the lab supports service users.
-- [ ] Services start cleanly after restart.
+- [x] Services start cleanly after restart.
 - [ ] Service logs do not expose passwords, session tokens, Stripe secrets, internal auth secrets, or database URLs.
-- [ ] CORS allowlist rejects an unlisted origin.
+- [x] CORS allowlist rejects an unlisted origin.
 - [ ] Login/setup/bootstrap rate limits return `429` after repeated attempts.
 - [ ] Tenant and operator cookies include `HttpOnly`, expected `SameSite`, and `Secure` when validating over HTTPS.
 - [ ] Production 5xx responses return a generic error while logs keep diagnostic detail.
@@ -48,15 +48,15 @@ Lab signoff means the code, service configuration, database access, backup/resto
 ## Lab Permission And IDOR Checks
 
 - [ ] Student users cannot read another student's account, instructor, records, curriculum, schedule-block, or plan data.
-- [ ] Student users receive `403` for tenant admin writes.
-- [ ] Non-admin tenant users do not receive subscription, billing-event, upgrade, or export-request details.
+- [x] Student users receive `403` for tenant admin writes.
+- [x] Non-admin tenant users do not receive subscription, billing-event, upgrade, or export-request details.
 - [ ] Under-permissioned control operators receive `403` for tenant, environment, job retry, operator, and commercial mutations.
 - [ ] Internal commercial/control endpoints reject missing or invalid internal auth.
-- [ ] Legacy `/api/state` returns disabled in production-style lab validation.
+- [x] Legacy `/api/state` returns disabled in production-style lab validation.
 
 ## Lab Smoke Gate
 
-- [ ] Run the lab security gate:
+- [x] Run the lab security gate:
 
 ```powershell
 scripts\Invoke-LabSecurityGate.ps1 `
@@ -74,8 +74,8 @@ scripts\Invoke-LabSecurityGate.ps1 `
 
 Use `-AllowInsecureTls` only when the lab redirects to HTTPS with a certificate this workstation does not trust.
 
-- [ ] Tenant login succeeds.
-- [ ] Operator login succeeds.
+- [x] Tenant login succeeds.
+- [x] Operator login succeeds.
 - [ ] Student-scoped dashboard data loads.
 - [ ] Admin dashboard data loads.
 - [ ] Account page loads for student and admin roles.

@@ -40,11 +40,11 @@ Completed this batch:
 
 Prior live SaaS polish remains deployed at `https://www.navigrader.com/`; see previous history if that workstream is reopened.
 
-Current security commits include `6f9d8c8`, `495ea8a`, `9ff7129`, `7f6eb01`, `886b05f`, and `8bcaba2`; branch pushed to `origin/saas-modern-redesign`.
+Current security commits include `6f9d8c8`, `495ea8a`, `9ff7129`, `7f6eb01`, `886b05f`, `8bcaba2`, and `ac50d12`; branch pushed to `origin/saas-modern-redesign`.
 
 ## Next Action
 
-Rerun `scripts\Invoke-LabSecurityGate.ps1` after the APP001 CORS config fix, then continue any remaining control API checks.
+Continue remaining `CHECKLISTS/security-lab-hardening.md` host/database/backup/deeper-IDOR items.
 
 ## Risks
 
@@ -52,7 +52,7 @@ Rerun `scripts\Invoke-LabSecurityGate.ps1` after the APP001 CORS config fix, the
 - Scratch assets remain intentionally untouched.
 - Checkout uses live public plans and checkout endpoints through existing `saas.js`.
 - In-memory rate limits are not a final distributed SaaS limiter.
-- APP001 `.env.runtime` now sets `APP_CORS_ORIGIN=https://192.168.1.210`; rejected-origin probe returns `403`.
+- Lab security gate succeeded end-to-end after APP001 `.env.runtime` CORS fix.
 - APP001 live `hsm-api.service` still differs from hardened template and should be reconciled after the gate.
 - Lab PostgreSQL least privilege, encrypted backup/restore, incident checklist, and cross-tenant abuse tests remain open; AWS security groups are deferred until AWS exists.
 - Route-by-route IDOR testing is started but not complete.
@@ -71,3 +71,4 @@ Rerun `scripts\Invoke-LabSecurityGate.ps1` after the APP001 CORS config fix, the
 - Inline tenant admin user password-minimum check via `node -`
 - `node --check server\src\routes\account-routes.js; node --check server\src\routes\records-routes.js`
 - Inline account, admin, records, and tenant app route role-scoping/error-sanitization checks via `node -`
+- `scripts\Invoke-LabSecurityGate.ps1` succeeded against `https://192.168.1.210` with tenant and control API checks.
