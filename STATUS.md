@@ -39,10 +39,12 @@ Creating the production-readiness foundation that future app changes can build o
 - APP001 and WEB001 deploy paths are recorded in the readiness runbook and reference `RUNBOOKS/hosted-deployment.md`.
 - Fixed public tenant-domain login CORS for `https://*.navigrader.com` while preserving rejected-origin behavior.
 - Deployed the CORS middleware/config fix to APP001; tenant/control services restarted active.
+- User confirmed browser login works in both affected tenant domains after the CORS repair.
+- User-rerun `scripts\Invoke-LabSecurityGate.ps1` succeeded after the CORS repair.
 
 ## Current Blockers
 
-- User browser retry and full lab security gate rerun are pending after the public tenant-domain CORS repair.
+- None for the CORS repair or lab hardening.
 
 ## Current Risks
 
@@ -55,6 +57,6 @@ Creating the production-readiness foundation that future app changes can build o
 
 ## Next Actions
 
-1. User retries login at the correct tenant URL and reruns `scripts\Invoke-LabSecurityGate.ps1`.
-2. Document APP001 rollback commands.
-3. Document WEB001 web asset/Apache rollback commands.
+1. Document APP001 rollback commands.
+2. Document WEB001 web asset/Apache rollback commands.
+3. Choose the minimum monitoring/alerting baseline for APP001, WEB001, and SQL001.
