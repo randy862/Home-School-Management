@@ -53,8 +53,9 @@ Continue remaining `CHECKLISTS/security-lab-hardening.md` host/database/backup/d
 - Checkout uses live public plans and checkout endpoints through existing `saas.js`.
 - In-memory rate limits are not a final distributed SaaS limiter.
 - Lab security gate succeeded end-to-end after APP001 `.env.runtime` CORS fix.
-- APP001 live `hsm-api.service` still differs from hardened template and should be reconciled after the gate.
-- Lab PostgreSQL least privilege, encrypted backup/restore, incident checklist, and cross-tenant abuse tests remain open; AWS security groups are deferred until AWS exists.
+- APP001 tenant API/control API now run as dedicated non-admin service users with hardened systemd directives and protected secret env files.
+- SQL001 encrypted backup/isolated restore validation succeeded and the restore database was dropped.
+- Lab rate-limit stress, log secret review, cookie inspection, incident checklist, and deeper cross-tenant abuse tests remain open; AWS security groups are deferred until AWS exists.
 - Route-by-route IDOR testing is started but not complete.
 
 ## Validation
@@ -72,3 +73,5 @@ Continue remaining `CHECKLISTS/security-lab-hardening.md` host/database/backup/d
 - `node --check server\src\routes\account-routes.js; node --check server\src\routes\records-routes.js`
 - Inline account, admin, records, and tenant app route role-scoping/error-sanitization checks via `node -`
 - `scripts\Invoke-LabSecurityGate.ps1` succeeded against `https://192.168.1.210` with tenant and control API checks.
+- APP001 public tenant/control health checks succeeded after service-user hardening; rejected-origin tenant/control CORS probes return `403`.
+- SQL001 encrypted backup restored into `hsm_restore_20260513010750`; source/restore metrics matched and restore DB was dropped.

@@ -12,16 +12,16 @@ Lab signoff means the code, service configuration, database access, backup/resto
 ## Lab Completion Criteria
 
 - [ ] Hardened repo commits are deployed to the lab API/control API runtime.
-- [ ] Lab runs with `APP_ENV=production` and `CONTROL_APP_ENV=production` when validating production-safe behavior.
-- [ ] Tenant API and control API secrets are stored outside git.
-- [ ] Secret files or environment stores are readable only by the service account or lab operator.
+- [x] Lab runs with `APP_ENV=production` and `CONTROL_APP_ENV=production` when validating production-safe behavior.
+- [x] Tenant API and control API secrets are stored outside git.
+- [x] Secret files or environment stores are readable only by the service account or lab operator.
 - [ ] Real Stripe live secrets are not used in lab unless intentionally testing live billing.
 - [x] `DB_CLIENT=postgres` is used for hardening validation.
 - [x] `LEGACY_STATE_SYNC_ENABLED=false` unless a specific legacy bridge test requires it.
 
 ## Lab Service And Host Checks
 
-- [ ] API/control services run as non-admin users where the lab supports service users.
+- [x] API/control services run as non-admin users where the lab supports service users.
 - [x] Services start cleanly after restart.
 - [ ] Service logs do not expose passwords, session tokens, Stripe secrets, internal auth secrets, or database URLs.
 - [x] CORS allowlist rejects an unlisted origin.
@@ -31,19 +31,28 @@ Lab signoff means the code, service configuration, database access, backup/resto
 
 ## Lab Database Checks
 
-- [ ] Tenant API and control API use non-superuser PostgreSQL roles.
-- [ ] Lab role grants are documented, even if they are less strict than the final production model.
+- [x] Tenant API and control API use non-superuser PostgreSQL roles.
+- [x] Lab role grants are documented, even if they are less strict than the final production model.
 - [ ] Tenant runtime cannot resolve without a tenant schema in PostgreSQL mode.
 - [ ] Tenant schema identifiers are validated before generated search paths are used.
 - [ ] `pg_hba.conf` or the lab firewall limits PostgreSQL to lab app/control hosts where possible.
 
 ## Lab Backup And Restore
 
-- [ ] Create an encrypted PostgreSQL backup of the lab database.
-- [ ] Restore the encrypted backup into an isolated lab restore database.
-- [ ] Verify restored schema counts, tenant runtime rows, users, and representative academic records.
-- [ ] Delete or rotate the restore-test database after validation.
-- [ ] Record backup and restore commands, duration, and any failed objects.
+- [x] Create an encrypted PostgreSQL backup of the lab database.
+- [x] Restore the encrypted backup into an isolated lab restore database.
+- [x] Verify restored schema counts, tenant runtime rows, users, and representative academic records.
+- [x] Delete or rotate the restore-test database after validation.
+- [x] Record backup and restore commands, duration, and any failed objects.
+
+Lab backup evidence, 2026-05-13:
+
+- SQL001 encrypted backup: `/var/backups/home-school-management/appdb-20260513T010750Z.dump.enc`
+- SHA-256: `590e2268ece71200a0adb2a766b53a2f926d1c08251083e748b7c9432df9e160`
+- Restore database: `hsm_restore_20260513010750`, verified and dropped.
+- Duration: 14 seconds.
+- Verified metrics matched source and restore: `base_tables_non_system=541`, `control_tenant_environments=25`, `schemas_with_users=23`, `tenant_schemas=22`, `users_total=24`.
+- Lab DB role note: tenant API and control API use `appuser`; `appuser` is not superuser, cannot create databases, and cannot create roles. This remains a shared lab application role, not the final split production least-privilege role model.
 
 ## Lab Permission And IDOR Checks
 

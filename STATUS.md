@@ -61,11 +61,13 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Local hardening branch was pushed to `origin/saas-modern-redesign`.
 - APP001 `.env.runtime` was updated to `APP_CORS_ORIGIN=https://192.168.1.210`; rejected-origin CORS probe now returns `403`.
 - `scripts\Invoke-LabSecurityGate.ps1` succeeded against lab tenant/control APIs.
+- APP001 tenant API/control API now run as `hsm-api` and `hsm-control-api` with hardened systemd directives and protected env files.
+- SQL001 encrypted backup and isolated restore validation succeeded; restore metrics matched and the restore database was dropped.
 - Broad tenant/control route raw-error scan, syntax checks, and production npm audits are clean.
 
 ## Current Blockers
 
-- None for scripted lab gate; APP001 live systemd service still needs reconciliation with the hardened template.
+- None for scripted lab gate.
 
 ## Current Risks
 
@@ -73,10 +75,10 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Untracked scratch assets remain outside the current commit unless explicitly requested.
 - Continue avoiding archive/ and NOTES/ unless the task requires them.
 - In-memory rate limits are a first hardening step, not the final distributed SaaS abuse-control design.
-- Lab PostgreSQL role/backup hardening and cross-tenant abuse tests remain open; AWS security groups remain deferred until AWS exists.
+- Lab rate-limit stress, log secret review, cookie inspection, incident checklist, and deeper cross-tenant abuse tests remain open; AWS security groups remain deferred until AWS exists.
 
 ## Next Actions
 
 1. Complete `CHECKLISTS/security-lab-hardening.md` against the lab environment.
-2. Continue lab host/database/backup/deeper-IDOR hardening items not covered by the scripted gate.
+2. Continue lab rate-limit, cookie, log-review, incident, and deeper-IDOR checks not covered by the scripted gate.
 3. Keep AWS-only controls deferred until the hosted platform exists.
