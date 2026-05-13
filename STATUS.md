@@ -60,7 +60,7 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Lab database migration and lab tenant credential reset were applied manually during validation.
 - Local hardening branch was pushed to `origin/saas-modern-redesign`.
 - APP001 `.env.runtime` was updated to `APP_CORS_ORIGIN=https://192.168.1.210`; rejected-origin CORS probe now returns `403`.
-- `scripts\Invoke-LabSecurityGate.ps1` succeeded against lab tenant/control APIs.
+- `scripts\Invoke-LabSecurityGate.ps1` succeeded against lab tenant/control APIs before and after APP001 service-user/systemd hardening.
 - APP001 tenant API/control API now run as `hsm-api` and `hsm-control-api` with hardened systemd directives and protected env files.
 - SQL001 encrypted backup and isolated restore validation succeeded; restore metrics matched and the restore database was dropped.
 - Broad tenant/control route raw-error scan, syntax checks, and production npm audits are clean.

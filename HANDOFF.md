@@ -72,6 +72,6 @@ Continue remaining `CHECKLISTS/security-lab-hardening.md` host/database/backup/d
 - Inline tenant admin user password-minimum check via `node -`
 - `node --check server\src\routes\account-routes.js; node --check server\src\routes\records-routes.js`
 - Inline account, admin, records, and tenant app route role-scoping/error-sanitization checks via `node -`
-- `scripts\Invoke-LabSecurityGate.ps1` succeeded against `https://192.168.1.210` with tenant and control API checks.
+- `scripts\Invoke-LabSecurityGate.ps1` succeeded against `https://192.168.1.210` after APP001 service-user/systemd hardening.
 - APP001 public tenant/control health checks succeeded after service-user hardening; rejected-origin tenant/control CORS probes return `403`.
 - SQL001 encrypted backup restored into `hsm_restore_20260513010750`; source/restore metrics matched and restore DB was dropped.
