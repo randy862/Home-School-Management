@@ -68,8 +68,11 @@ scripts\Invoke-LabSecurityGate.ps1 `
   -ControlBaseUrl "http://LAB-CONTROL/control-api" `
   -ControlUsername "..." `
   -ControlPassword "..." `
-  -RejectedOrigin "https://not-allowed.example"
+  -RejectedOrigin "https://not-allowed.example" `
+  -AllowInsecureTls
 ```
+
+Use `-AllowInsecureTls` only when the lab redirects to HTTPS with a certificate this workstation does not trust.
 
 - [ ] Tenant login succeeds.
 - [ ] Operator login succeeds.

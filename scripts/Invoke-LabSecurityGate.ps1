@@ -9,10 +9,17 @@ param(
   [string]$ControlPassword,
   [string]$LimitedControlUsername,
   [string]$LimitedControlPassword,
-  [string]$RejectedOrigin
+  [string]$RejectedOrigin,
+  [switch]$AllowInsecureTls
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($AllowInsecureTls) {
+  Write-Warning "AllowInsecureTls is enabled. Use only for lab certificates that are not trusted by this workstation."
+  [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+  [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+}
 
 function Write-Step {
   param([string]$Message)
