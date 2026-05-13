@@ -18,7 +18,31 @@ $ErrorActionPreference = "Stop"
 if ($AllowInsecureTls) {
   Write-Warning "AllowInsecureTls is enabled. Use only for lab certificates that are not trusted by this workstation."
   [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
-  [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+  if (-not ("HsmLabTrustAllCerts" -as [type])) {
+    Add-Type @"
+using System.Net;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
+
+public static class HsmLabTrustAllCerts {
+  public static bool Validate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors) {
+    return true;
+  }
+}
+
+public class HsmLabTrustAllCertsPolicy : ICertificatePolicy {
+  public bool CheckValidationResult(ServicePoint srvPoint, X509Certificate certificate, WebRequest request, int certificateProblem) {
+    return true;
+  }
+}
+"@
+  }
+  [System.Net.ServicePointManager]::CertificatePolicy = New-Object HsmLabTrustAllCertsPolicy
+  [System.Net.ServicePointManager]::ServerCertificateValidationCallback = [System.Delegate]::CreateDelegate(
+    [System.Net.Security.RemoteCertificateValidationCallback],
+    [HsmLabTrustAllCerts],
+    "Validate"
+  )
 }
 
 function Write-Step {
