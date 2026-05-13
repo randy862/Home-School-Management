@@ -57,11 +57,13 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Added `CHECKLISTS/security-lab-hardening.md` so lab hardening can be signed off while AWS-only controls remain deferred.
 - Added `scripts/Invoke-LabSecurityGate.ps1` for lab health, login, privacy, permission, legacy-state, CORS, and optional control checks.
 - Added `server/migrations/postgres/028_user_profile_fields_tenant_schemas.sql` to repair lab tenant schemas missing user profile columns required by current login queries.
+- Lab database migration and lab tenant credential reset were applied manually during validation.
+- Local hardening branch was pushed to `origin/saas-modern-redesign`.
 - Broad tenant/control route raw-error scan, syntax checks, and production npm audits are clean.
 
 ## Current Blockers
 
-- Lab security gate currently fails tenant admin login until the lab PostgreSQL database has the tenant user profile migration applied.
+- Lab APP001 is still serving older tenant API code that reflects arbitrary CORS origins; deploy/pull current backend and restart `hsm-api.service`.
 
 ## Current Risks
 
@@ -74,5 +76,5 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 ## Next Actions
 
 1. Complete `CHECKLISTS/security-lab-hardening.md` against the lab environment.
-2. Apply `server/migrations/postgres/028_user_profile_fields_tenant_schemas.sql` to the lab PostgreSQL database, then rerun `scripts\Invoke-LabSecurityGate.ps1`.
+2. Deploy current backend to APP001 `192.168.1.200`, restart `hsm-api.service`, then rerun `scripts\Invoke-LabSecurityGate.ps1`.
 3. Keep AWS-only controls deferred until the hosted platform exists.

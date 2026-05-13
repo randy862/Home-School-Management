@@ -40,11 +40,11 @@ Completed this batch:
 
 Prior live SaaS polish remains deployed at `https://www.navigrader.com/`; see previous history if that workstream is reopened.
 
-Current security commits include `6f9d8c8`, `495ea8a`, `9ff7129`, `7f6eb01`, and `886b05f`.
+Current security commits include `6f9d8c8`, `495ea8a`, `9ff7129`, `7f6eb01`, `886b05f`, and `8bcaba2`; branch pushed to `origin/saas-modern-redesign`.
 
 ## Next Action
 
-Apply `server/migrations/postgres/028_user_profile_fields_tenant_schemas.sql` to the lab PostgreSQL database, restart the tenant API if needed, then rerun `scripts\Invoke-LabSecurityGate.ps1`.
+Deploy/pull current `origin/saas-modern-redesign` backend code to APP001 `192.168.1.200`, restart `hsm-api.service`, then rerun `scripts\Invoke-LabSecurityGate.ps1`.
 
 ## Risks
 
@@ -52,7 +52,7 @@ Apply `server/migrations/postgres/028_user_profile_fields_tenant_schemas.sql` to
 - Scratch assets remain intentionally untouched.
 - Checkout uses live public plans and checkout endpoints through existing `saas.js`.
 - In-memory rate limits are not a final distributed SaaS limiter.
-- Current lab gate is blocked at tenant admin login until the lab database has the user profile columns expected by the deployed API.
+- Lab gate passes tenant login/privacy/scoping/write-denial/legacy-state checks, then fails because live tenant API still reflects unlisted CORS origins.
 - Lab PostgreSQL least privilege, encrypted backup/restore, incident checklist, and cross-tenant abuse tests remain open; AWS security groups are deferred until AWS exists.
 - Route-by-route IDOR testing is started but not complete.
 
