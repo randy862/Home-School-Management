@@ -47,6 +47,7 @@ Creating the production-readiness foundation that future app changes can build o
 - User completed a second fresh subscription after the fix and reported the full flow worked beautifully.
 - Added checkout preflight validation so duplicate organization names or tenant names return an error before Stripe checkout.
 - Live duplicate checkout probe for `May2026 Test` / `May-2026` returned `409` with both conflicts.
+- Documented operational secret custody without secret values, explicitly deferred apex DNS, and planned the production PostgreSQL role split.
 
 ## Current Blockers
 
@@ -55,7 +56,7 @@ Creating the production-readiness foundation that future app changes can build o
 ## Current Risks
 
 - AWS controls remain deferred until AWS/hosted production exists.
-- Apex `https://navigrader.com/` DNS currently resolves away from WEB001.
+- Apex `https://navigrader.com/` DNS is explicitly deferred; `www.navigrader.com` remains the lab canonical entrypoint.
 - Untracked scratch assets remain outside current security commits unless explicitly requested.
 - In-memory rate limits are not final distributed SaaS abuse control.
 - Lab DB uses shared non-superuser `appuser`; production should use split least-privilege roles.
@@ -64,7 +65,5 @@ Creating the production-readiness foundation that future app changes can build o
 
 ## Next Actions
 
-1. Browser-check the duplicate signup-name error if desired.
-2. Record operational secret locations/access without writing secret values into git.
-3. Resolve or explicitly defer apex `https://navigrader.com/` DNS routing.
-4. Plan production split of PostgreSQL least-privilege roles beyond the lab `appuser`.
+1. Plan replacement for in-memory rate limits before distributed/public production.
+2. Browser-check the duplicate signup-name error only if more UX confirmation is desired.

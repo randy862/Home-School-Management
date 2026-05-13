@@ -50,16 +50,17 @@ Lab-hosted production readiness after completed security hardening.
   - setup-token job succeeded, Postmark delivery was `sent`, and user confirmed admin setup/login worked
 - User completed a second fresh subscription after the provisioning fix and reported the end-to-end flow worked beautifully.
 - Duplicate signup-name validation now blocks checkout before Stripe when the organization name or tenant name is already in use.
+- Readiness runbook now records operational secret custody, apex DNS deferment, and the production PostgreSQL role split plan.
 
 ## Next Action
 
-1. Browser-check the duplicate signup-name form error if desired.
-2. Continue non-blocking readiness work from `RUNBOOKS/lab-production-readiness.md`: operational secret locations/access, apex DNS routing, and production DB role split planning.
+1. Continue next readiness item from `RUNBOOKS/lab-production-readiness.md`: plan replacement for in-memory rate limits before distributed/public production.
+2. Browser-check the duplicate signup-name form error only if more UX confirmation is desired.
 
 ## Risks
 
 - AWS-only controls remain deferred until AWS/hosted production exists.
-- Apex `https://navigrader.com/` DNS currently resolves away from WEB001.
+- Apex `https://navigrader.com/` DNS is explicitly deferred; `www.navigrader.com` remains the lab canonical entrypoint.
 - Untracked scratch assets remain intentionally untouched.
 - In-memory rate limits are a lab/first-pass limiter, not final distributed SaaS abuse control.
 - Lab uses shared non-superuser DB role `appuser`; final production should split least-privilege roles.
@@ -80,3 +81,4 @@ Lab-hosted production readiness after completed security hardening.
 - `may122026.navigrader.com` health returned `200`; provisioning request reached `ready`; setup email was delivered and user completed admin setup.
 - Fresh subscription flow was manually re-tested after the provisioning fix and completed successfully end to end.
 - Live duplicate checkout probe returned `409` with organization-name and tenant-name conflicts before Stripe session creation.
+- Docs-only readiness update completed; no service deploy or lab security gate required.
