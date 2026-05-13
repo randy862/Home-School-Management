@@ -41,6 +41,7 @@ Creating the production-readiness foundation that future app changes can build o
 - Deployed the CORS middleware/config fix to APP001; tenant/control services restarted active.
 - User confirmed browser login works in both affected tenant domains after the CORS repair.
 - User-rerun `scripts\Invoke-LabSecurityGate.ps1` succeeded after the CORS repair.
+- Documented APP001 rollback commands, WEB001 rollback commands, and the minimum monitoring/alerting baseline in `RUNBOOKS/lab-production-readiness.md`.
 
 ## Current Blockers
 
@@ -57,6 +58,6 @@ Creating the production-readiness foundation that future app changes can build o
 
 ## Next Actions
 
-1. Document APP001 rollback commands.
-2. Document WEB001 web asset/Apache rollback commands.
-3. Choose the minimum monitoring/alerting baseline for APP001, WEB001, and SQL001.
+1. Record operational secret locations/access without writing secret values into git.
+2. Resolve or explicitly defer apex `https://navigrader.com/` DNS routing.
+3. Plan production split of PostgreSQL least-privilege roles beyond the lab `appuser`.

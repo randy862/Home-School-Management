@@ -1,7 +1,7 @@
 # Lab-Hosted Production Readiness Runbook
 
 Date started: 2026-05-13
-Current readiness baseline commit: `bea748a`
+Current readiness baseline commit: `19f4162`
 
 ## Purpose
 
@@ -63,6 +63,185 @@ Current deploy paths captured there:
 
 Use this runbook to track readiness status. Use `RUNBOOKS/hosted-deployment.md` for the step-by-step deploy and recovery procedure until a more automated release path replaces it.
 
+## Rollback Snapshot Before A Promoted Change
+
+Create a rollback snapshot before any promoted backend, control API, web asset, Apache, or systemd change.
+
+When both APP001 and WEB001 are touched, use the same `ROLLBACK_ID` on both hosts. Keep the printed `ROLLBACK_ID` with the release evidence.
+
+```sh
+ROLLBACK_ID=$(date +%Y%m%d%H%M%S)
+echo $ROLLBACK_ID
+```
+
+For an APP001 change:
+
+```sh
+sudo mkdir -p /home/debian/rollback/hsm/$ROLLBACK_ID/app001
+sudo tar -C /home/debian/apps/home-school-management -czf /home/debian/rollback/hsm/$ROLLBACK_ID/app001/server.tgz server
+sudo tar -C /home/debian/apps/home-school-management -czf /home/debian/rollback/hsm/$ROLLBACK_ID/app001/control-api.tgz control-api
+sudo cp /home/debian/apps/home-school-management/server/.env.runtime /home/debian/rollback/hsm/$ROLLBACK_ID/app001/env.runtime
+sudo cp /etc/systemd/system/hsm-api.service /home/debian/rollback/hsm/$ROLLBACK_ID/app001/hsm-api.service
+sudo cp /etc/systemd/system/hsm-control-api.service /home/debian/rollback/hsm/$ROLLBACK_ID/app001/hsm-control-api.service
+sudo chown -R root:root /home/debian/rollback/hsm/$ROLLBACK_ID
+sudo chmod -R go-rwx /home/debian/rollback/hsm/$ROLLBACK_ID
+```
+
+For a WEB001 change:
+
+```sh
+sudo mkdir -p /home/debian/rollback/hsm/$ROLLBACK_ID/web001
+sudo tar -C /var/www/home-school-management -czf /home/debian/rollback/hsm/$ROLLBACK_ID/web001/web.tgz web
+sudo tar -C /var/www/home-school-management -czf /home/debian/rollback/hsm/$ROLLBACK_ID/web001/control.tgz control
+sudo cp /etc/apache2/sites-available/home-school-management.conf /home/debian/rollback/hsm/$ROLLBACK_ID/web001/home-school-management.conf
+sudo cp /etc/apache2/sites-available/home-school-management-le-ssl.conf /home/debian/rollback/hsm/$ROLLBACK_ID/web001/home-school-management-le-ssl.conf
+sudo apachectl configtest
+sudo chown -R root:root /home/debian/rollback/hsm/$ROLLBACK_ID
+sudo chmod -R go-rwx /home/debian/rollback/hsm/$ROLLBACK_ID
+```
+
+## APP001 Rollback Commands
+
+Use when a tenant API, control API, runtime bundle, or APP001 systemd deploy regresses.
+
+Replace `<rollback-id>` with the saved `ROLLBACK_ID`.
+
+```sh
+cd /home/debian/apps/home-school-management
+ROLLBACK_ID=<rollback-id>
+FAILED_ID=$(date +%Y%m%d%H%M%S)
+
+sudo systemctl stop hsm-api.service hsm-control-api.service
+sudo mkdir -p /home/debian/rollback/hsm/$ROLLBACK_ID/app001/failed-$FAILED_ID
+sudo mv server /home/debian/rollback/hsm/$ROLLBACK_ID/app001/failed-$FAILED_ID/server
+sudo mv control-api /home/debian/rollback/hsm/$ROLLBACK_ID/app001/failed-$FAILED_ID/control-api
+
+sudo tar -C /home/debian/apps/home-school-management -xzf /home/debian/rollback/hsm/$ROLLBACK_ID/app001/server.tgz
+sudo tar -C /home/debian/apps/home-school-management -xzf /home/debian/rollback/hsm/$ROLLBACK_ID/app001/control-api.tgz
+sudo cp /home/debian/rollback/hsm/$ROLLBACK_ID/app001/env.runtime /home/debian/apps/home-school-management/server/.env.runtime
+sudo cp /home/debian/rollback/hsm/$ROLLBACK_ID/app001/hsm-api.service /etc/systemd/system/hsm-api.service
+sudo cp /home/debian/rollback/hsm/$ROLLBACK_ID/app001/hsm-control-api.service /etc/systemd/system/hsm-control-api.service
+sudo chown root:hsm-api /home/debian/apps/home-school-management/server/.env.runtime
+sudo chmod 640 /home/debian/apps/home-school-management/server/.env.runtime
+
+sudo systemctl daemon-reload
+sudo systemctl restart hsm-api.service hsm-control-api.service
+sudo systemctl is-active hsm-api.service
+sudo systemctl is-active hsm-control-api.service
+curl -s http://127.0.0.1:3000/health
+curl -s http://127.0.0.1:3100/health
+```
+
+After APP001 rollback, run from the workstation:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-LabSecurityGate.ps1 `
+  -TenantBaseUrl $env:LAB_TENANT_BASE_URL `
+  -TenantAdminUsername $env:LAB_TENANT_ADMIN_USERNAME `
+  -TenantAdminPassword $env:LAB_TENANT_ADMIN_PASSWORD `
+  -TenantStudentUsername $env:LAB_TENANT_STUDENT_USERNAME `
+  -TenantStudentPassword $env:LAB_TENANT_STUDENT_PASSWORD `
+  -ControlBaseUrl $env:LAB_CONTROL_BASE_URL `
+  -ControlUsername $env:LAB_CONTROL_USERNAME `
+  -ControlPassword $env:LAB_CONTROL_PASSWORD `
+  -RejectedOrigin $env:LAB_REJECTED_ORIGIN `
+  -AllowInsecureTls
+```
+
+## WEB001 Rollback Commands
+
+Use when a web asset, Control Center asset, Apache config, DNS, or TLS deploy regresses.
+
+Replace `<rollback-id>` with the saved `ROLLBACK_ID`.
+
+```sh
+ROLLBACK_ID=<rollback-id>
+FAILED_ID=$(date +%Y%m%d%H%M%S)
+
+sudo mkdir -p /home/debian/rollback/hsm/$ROLLBACK_ID/web001/failed-$FAILED_ID
+sudo mv /var/www/home-school-management/web /home/debian/rollback/hsm/$ROLLBACK_ID/web001/failed-$FAILED_ID/web
+sudo mv /var/www/home-school-management/control /home/debian/rollback/hsm/$ROLLBACK_ID/web001/failed-$FAILED_ID/control
+
+sudo tar -C /var/www/home-school-management -xzf /home/debian/rollback/hsm/$ROLLBACK_ID/web001/web.tgz
+sudo tar -C /var/www/home-school-management -xzf /home/debian/rollback/hsm/$ROLLBACK_ID/web001/control.tgz
+sudo cp /home/debian/rollback/hsm/$ROLLBACK_ID/web001/home-school-management.conf /etc/apache2/sites-available/home-school-management.conf
+sudo cp /home/debian/rollback/hsm/$ROLLBACK_ID/web001/home-school-management-le-ssl.conf /etc/apache2/sites-available/home-school-management-le-ssl.conf
+
+sudo apachectl configtest
+sudo systemctl reload apache2
+sudo systemctl is-active apache2
+curl -k -s https://127.0.0.1/health -H 'Host: mitchell.navigrader.com'
+curl -k -s https://127.0.0.1/control-api/health -H 'Host: mitchell.navigrader.com'
+```
+
+After WEB001 rollback, run from the workstation:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-LabSecurityGate.ps1 `
+  -TenantBaseUrl $env:LAB_TENANT_BASE_URL `
+  -TenantAdminUsername $env:LAB_TENANT_ADMIN_USERNAME `
+  -TenantAdminPassword $env:LAB_TENANT_ADMIN_PASSWORD `
+  -TenantStudentUsername $env:LAB_TENANT_STUDENT_USERNAME `
+  -TenantStudentPassword $env:LAB_TENANT_STUDENT_PASSWORD `
+  -ControlBaseUrl $env:LAB_CONTROL_BASE_URL `
+  -ControlUsername $env:LAB_CONTROL_USERNAME `
+  -ControlPassword $env:LAB_CONTROL_PASSWORD `
+  -RejectedOrigin $env:LAB_REJECTED_ORIGIN `
+  -AllowInsecureTls
+```
+
+## Minimum Monitoring And Alerting Baseline
+
+This is the chosen minimum baseline for the lab-hosted production path. Manual checks are acceptable in the lab, but these same checks must be automated before a public production launch.
+
+### Availability
+
+- Check every 5 minutes:
+  - `https://mitchell.navigrader.com/health`
+  - `https://pj-cool.navigrader.com/health`
+  - `https://192.168.1.210/control-api/health`
+- Warning: one failed check.
+- Critical: two consecutive failed checks or any public `5xx`.
+
+### APP001
+
+- Check every 5 minutes:
+  - `systemctl is-active hsm-api.service`
+  - `systemctl is-active hsm-control-api.service`
+  - `curl -s http://127.0.0.1:3000/health`
+  - `curl -s http://127.0.0.1:3100/health`
+- Critical: either service inactive, restart-looping, or local health fails twice.
+- Review daily until automated:
+  - `sudo journalctl -u hsm-api.service -u hsm-control-api.service --since today --no-pager`
+
+### WEB001
+
+- Check every 5 minutes:
+  - `systemctl is-active apache2`
+  - public tenant health through Apache.
+- Warning: Apache reload/config drift or TLS certificate expires within 14 days.
+- Critical: Apache inactive, config test fails, public health fails twice, or TLS certificate expires within 7 days.
+- Review daily until automated:
+  - Apache error logs for current `5xx`, proxy, certificate, or permission failures.
+
+### SQL001
+
+- Check every 5 minutes:
+  - `systemctl is-active postgresql`
+  - `pg_isready -h 127.0.0.1 -p 5432`
+- Warning: backup age exceeds 24 hours, disk exceeds 80%, or connection failures begin.
+- Critical: PostgreSQL inactive, `pg_isready` fails twice, backup age exceeds 48 hours, or disk exceeds 90%.
+- Restore validation: perform at least monthly and before any real production cutover.
+
+### Cross-Host
+
+- Warning: root filesystem exceeds 80% on APP001, WEB001, or SQL001.
+- Critical: root filesystem exceeds 90% on any host.
+- Warning: `npm audit --omit=dev` finds moderate issues in `server/` or `control-api/`.
+- Critical: `npm audit --omit=dev` finds high or critical issues.
+- Alert destination for the lab: operator-visible terminal/email is acceptable.
+- Alert destination before public production: automated email or SMS/push to the named operator.
+
 ## Change Classes And Required Gates
 
 ### UI-only web changes
@@ -103,11 +282,11 @@ Use this runbook to track readiness status. Use `RUNBOOKS/hosted-deployment.md` 
 
 - [x] Document the exact current deploy path for APP001 backend changes.
 - [x] Document the exact current deploy path for WEB001 web asset changes.
-- [ ] Document the exact rollback command sequence for APP001 services.
-- [ ] Document the exact rollback command sequence for WEB001 assets/Apache config.
+- [x] Document the exact rollback command sequence for APP001 services.
+- [x] Document the exact rollback command sequence for WEB001 assets/Apache config.
 - [ ] Record where operational secrets live and who can access them, without writing secret values into git.
-- [ ] Decide the minimum monitoring/alerting baseline for APP001, WEB001, and SQL001.
-- [ ] Decide the minimum disk, certificate, service, and database health checks.
+- [x] Decide the minimum monitoring/alerting baseline for APP001, WEB001, and SQL001.
+- [x] Decide the minimum disk, certificate, service, and database health checks.
 - [ ] Resolve or explicitly defer apex `https://navigrader.com/` DNS routing.
 - [ ] Plan production split of PostgreSQL least-privilege roles beyond the lab `appuser`.
 - [ ] Plan replacement for in-memory rate limits when the app moves to distributed/public production.

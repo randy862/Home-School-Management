@@ -41,14 +41,15 @@ Lab-hosted production readiness after completed security hardening.
   - `not-allowed.example` remains rejected with `403`
 - User confirmed browser login works in both tenant domains after the CORS repair.
 - User-rerun `scripts\Invoke-LabSecurityGate.ps1` succeeded after the CORS repair.
+- `RUNBOOKS/lab-production-readiness.md` now documents rollback snapshot creation, exact APP001 rollback commands, exact WEB001 rollback commands, and the minimum monitoring/alerting baseline.
 
 ## Next Action
 
 Continue non-blocking readiness work from `RUNBOOKS/lab-production-readiness.md`:
 
-1. Document the exact rollback command sequence for APP001 services.
-2. Document the exact rollback command sequence for WEB001 assets/Apache config.
-3. Choose the minimum monitoring/alerting baseline for APP001, WEB001, and SQL001.
+1. Record where operational secrets live and who can access them, without writing secret values into git.
+2. Resolve or explicitly defer apex `https://navigrader.com/` DNS routing.
+3. Plan production split of PostgreSQL least-privilege roles beyond the lab `appuser`.
 
 ## Risks
 
@@ -70,3 +71,4 @@ Continue non-blocking readiness work from `RUNBOOKS/lab-production-readiness.md`
 - APP001 tenant/control DB probes and tenant/control health checks passed after SQL001 `pg_hba.conf` reload.
 - APP001 `hsm-api.service` and `hsm-control-api.service` restarted active after public tenant-domain CORS repair.
 - Browser tenant-login retry passed for both reported tenants, and the lab security gate succeeded after repair.
+- Rollback and monitoring baseline documentation completed; no service changes were made for this docs-only step.
