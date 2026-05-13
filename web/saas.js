@@ -218,7 +218,7 @@ function bindCheckoutForm() {
       setCheckoutMessage("Checkout session created, but no redirect URL was returned.", "error");
     } catch (error) {
       if (error.statusCode === 409) {
-        setCheckoutMessage(`${error.message} The public form and backend are ready; this will begin redirecting once Stripe plan IDs are loaded.`, "error");
+        setCheckoutMessage(error.message || "Choose different signup names before continuing to checkout.", "error");
       } else {
         setCheckoutMessage(error.message || "Unable to start checkout right now.", "error");
       }

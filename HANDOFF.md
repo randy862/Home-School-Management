@@ -49,14 +49,12 @@ Lab-hosted production readiness after completed security hardening.
   - `hsm-control-api` was given locked-down SSH home `/var/lib/hsm-control-api` for WEB001 deployment automation
   - setup-token job succeeded, Postmark delivery was `sent`, and user confirmed admin setup/login worked
 - User completed a second fresh subscription after the provisioning fix and reported the end-to-end flow worked beautifully.
+- Duplicate signup-name validation now blocks checkout before Stripe when the organization name or tenant name is already in use.
 
 ## Next Action
 
-Continue non-blocking readiness work from `RUNBOOKS/lab-production-readiness.md`:
-
-1. Record where operational secrets live and who can access them, without writing secret values into git.
-2. Resolve or explicitly defer apex `https://navigrader.com/` DNS routing.
-3. Plan production split of PostgreSQL least-privilege roles beyond the lab `appuser`.
+1. Browser-check the duplicate signup-name form error if desired.
+2. Continue non-blocking readiness work from `RUNBOOKS/lab-production-readiness.md`: operational secret locations/access, apex DNS routing, and production DB role split planning.
 
 ## Risks
 
@@ -81,3 +79,4 @@ Continue non-blocking readiness work from `RUNBOOKS/lab-production-readiness.md`
 - Rollback and monitoring baseline documentation completed; no service changes were made for this docs-only step.
 - `may122026.navigrader.com` health returned `200`; provisioning request reached `ready`; setup email was delivered and user completed admin setup.
 - Fresh subscription flow was manually re-tested after the provisioning fix and completed successfully end to end.
+- Live duplicate checkout probe returned `409` with organization-name and tenant-name conflicts before Stripe session creation.

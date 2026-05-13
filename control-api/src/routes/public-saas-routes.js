@@ -5,6 +5,7 @@ function registerPublicSaasRoutes(app, deps) {
     createCheckoutCustomerAccount,
     createCheckoutSessionRecord,
     createCheckoutSubscription,
+    findCheckoutNameConflicts,
     getPublicSignupStatusByToken,
     processStripeBillingEvent,
     getPublicCommercialPlanByCode,
@@ -32,6 +33,17 @@ function registerPublicSaasRoutes(app, deps) {
       }
       if (!plan.stripePriceId) {
         res.status(409).json({ error: "Selected plan is not yet configured for Stripe checkout." });
+        return;
+      }
+
+      const conflicts = findCheckoutNameConflicts
+        ? await findCheckoutNameConflicts(payload, { domainSuffix: publicConfig.defaultDomainSuffix })
+        : [];
+      if (conflicts.length) {
+        res.status(409).json({
+          error: buildCheckoutConflictMessage(conflicts),
+          conflicts
+        });
         return;
       }
 
@@ -131,6 +143,20 @@ function registerPublicSaasRoutes(app, deps) {
       sendRouteError(res, error);
     }
   });
+}
+
+function buildCheckoutConflictMessage(conflicts) {
+  const fields = new Set((conflicts || []).map((conflict) => conflict.field));
+  if (fields.has("accountName") && fields.has("requestedSubdomainLabel")) {
+    return "That organization name and tenant name are already in use. Choose different names before continuing to checkout.";
+  }
+  if (fields.has("accountName")) {
+    return "That organization name is already in use. Choose a different organization name before continuing to checkout.";
+  }
+  if (fields.has("requestedSubdomainLabel")) {
+    return "That tenant name is already in use. Choose a different tenant name before continuing to checkout.";
+  }
+  return "One or more checkout names are already in use. Choose different names before continuing to checkout.";
 }
 
 function normalizeCheckoutSessionPayload(input) {

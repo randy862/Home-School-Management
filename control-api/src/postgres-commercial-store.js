@@ -386,6 +386,76 @@ async function createCheckoutCustomerAccount(input) {
   }
 }
 
+async function findCheckoutNameConflicts(input = {}, options = {}) {
+  const accountNameKey = normalizeAccountNameKey(input.accountName);
+  const requestedSubdomainLabel = slugify(input.requestedSubdomainLabel || "");
+  const domainSuffix = String(options.domainSuffix || "").trim().toLowerCase().replace(/^\.+/, "");
+  const requestedDomain = requestedSubdomainLabel && domainSuffix
+    ? `${requestedSubdomainLabel}.${domainSuffix}`
+    : "";
+  const conflicts = [];
+  const pool = getPostgresPool();
+
+  if (accountNameKey) {
+    const accountResult = await pool.query(`
+      SELECT
+        id,
+        account_name AS "accountName",
+        status
+      FROM customer_accounts
+      WHERE lower(btrim(account_name)) = $1
+        AND status NOT IN ('checkout_started', 'canceled')
+      ORDER BY created_at ASC
+      LIMIT 1
+    `, [accountNameKey]);
+    const account = accountResult.rows[0];
+    if (account) {
+      conflicts.push({
+        field: "accountName",
+        message: "That organization name is already in use.",
+        accountId: account.id,
+        accountName: account.accountName,
+        status: account.status
+      });
+    }
+  }
+
+  if (requestedSubdomainLabel) {
+    const tenantResult = await pool.query(`
+      SELECT
+        t.id,
+        t.slug,
+        t.display_name AS "displayName",
+        t.status,
+        d.domain
+      FROM tenants t
+      LEFT JOIN tenant_domains d
+        ON d.tenant_id = t.id
+      WHERE lower(t.slug) = $1
+        OR lower(coalesce(d.domain, '')) = $2
+      ORDER BY t.created_at ASC
+      LIMIT 1
+    `, [requestedSubdomainLabel, requestedDomain]);
+    const tenant = tenantResult.rows[0];
+    if (tenant) {
+      conflicts.push({
+        field: "requestedSubdomainLabel",
+        message: "That tenant name is already in use.",
+        tenantId: tenant.id,
+        tenantSlug: tenant.slug,
+        domain: tenant.domain || requestedDomain,
+        status: tenant.status
+      });
+    }
+  }
+
+  return conflicts;
+}
+
+function normalizeAccountNameKey(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 async function getCustomerAccountById(id) {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -1754,6 +1824,7 @@ module.exports = {
   createCheckoutSubscription,
   createEmailDelivery,
   createProvisioningRequest,
+  findCheckoutNameConflicts,
   getBillingEventByStripeEventId,
   getCommercialPlanById,
   getCommercialPlanByStripePriceId,

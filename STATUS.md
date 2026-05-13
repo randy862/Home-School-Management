@@ -45,6 +45,8 @@ Creating the production-readiness foundation that future app changes can build o
 - Fixed commercial provisioning on the hardened APP001 path by disabling shared `.env.runtime` overwrite during tenant provisioning and adding retry-success request lookup by environment.
 - Recovered `may122026.navigrader.com`; provisioning and setup-token jobs succeeded, Postmark email was sent, and user confirmed admin access.
 - User completed a second fresh subscription after the fix and reported the full flow worked beautifully.
+- Added checkout preflight validation so duplicate organization names or tenant names return an error before Stripe checkout.
+- Live duplicate checkout probe for `May2026 Test` / `May-2026` returned `409` with both conflicts.
 
 ## Current Blockers
 
@@ -62,6 +64,7 @@ Creating the production-readiness foundation that future app changes can build o
 
 ## Next Actions
 
-1. Record operational secret locations/access without writing secret values into git.
-2. Resolve or explicitly defer apex `https://navigrader.com/` DNS routing.
-3. Plan production split of PostgreSQL least-privilege roles beyond the lab `appuser`.
+1. Browser-check the duplicate signup-name error if desired.
+2. Record operational secret locations/access without writing secret values into git.
+3. Resolve or explicitly defer apex `https://navigrader.com/` DNS routing.
+4. Plan production split of PostgreSQL least-privilege roles beyond the lab `appuser`.
