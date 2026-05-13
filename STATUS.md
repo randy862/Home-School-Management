@@ -27,6 +27,8 @@ Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 - Fixed student-scoped PostgreSQL read queries that failed under `SELECT DISTINCT ... ORDER BY`.
 - Redacted shared daily-break `studentIds` from student responses.
 - Deeper student IDOR probe passed for 22 read endpoints and 10 admin-write denials.
+- Read-only control operator probe passed for 17 protected mutation denials.
+- Internal-auth rejection probe passed for 18 missing/invalid-auth checks.
 
 ## Current Blockers
 
@@ -42,7 +44,6 @@ Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 
 ## Next Actions
 
-1. Validate under-permissioned control operator mutation denials.
-2. Validate missing/invalid internal auth on internal commercial/control endpoints.
-3. Check PostgreSQL host access restrictions via `pg_hba.conf` or lab firewall.
-4. Run UI/control smoke, Stripe unsigned-webhook rejection, and final npm audits.
+1. Check PostgreSQL host access restrictions via `pg_hba.conf` or lab firewall.
+2. Run UI/control smoke and Stripe unsigned-webhook rejection.
+3. Run final lab gate and npm audits after any remaining changes.

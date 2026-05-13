@@ -22,16 +22,18 @@ Production backend/platform security hardening in the lab environment.
 - Deeper student probe passed:
   - 22 authenticated read endpoints checked with no other-student ID leakage.
   - 10 tenant admin-write attempts returned `403`.
+- Temporary read-only control operator probe passed:
+  - 17 protected control mutations returned `403`.
+  - 18 internal-auth rejection checks returned `401`.
 - Latest APP001 deployed source backups use timestamped `.bak-*` copies beside replaced files.
 
 ## Next Action
 
 Continue remaining `CHECKLISTS/security-lab-hardening.md` items:
 
-1. Validate under-permissioned control operator mutation denials.
-2. Validate internal commercial/control endpoints reject missing or invalid internal auth.
-3. Validate PostgreSQL host access controls (`pg_hba.conf` or lab firewall).
-4. Run remaining UI/control smoke and Stripe unsigned-webhook rejection checks.
+1. Validate PostgreSQL host access controls (`pg_hba.conf` or lab firewall).
+2. Run remaining UI/control smoke and Stripe unsigned-webhook rejection checks.
+3. Run final lab gate/npm audits after any remaining changes.
 
 ## Risks
 
@@ -48,3 +50,4 @@ Continue remaining `CHECKLISTS/security-lab-hardening.md` items:
 - APP001 `hsm-api.service` restarted active after deploy.
 - Tenant schema catch-up migration applied; active tenant has expected feature tables/columns.
 - Fresh `hsm-api.service` log scan found no error/secret/token keyword matches after reruns.
+- Control read-only mutation denial and internal-auth rejection probes passed.

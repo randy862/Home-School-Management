@@ -59,8 +59,8 @@ Lab backup evidence, 2026-05-13:
 - [x] Student users cannot read another student's account, instructor, records, curriculum, schedule-block, or plan data.
 - [x] Student users receive `403` for tenant admin writes.
 - [x] Non-admin tenant users do not receive subscription, billing-event, upgrade, or export-request details.
-- [ ] Under-permissioned control operators receive `403` for tenant, environment, job retry, operator, and commercial mutations.
-- [ ] Internal commercial/control endpoints reject missing or invalid internal auth.
+- [x] Under-permissioned control operators receive `403` for tenant, environment, job retry, operator, and commercial mutations.
+- [x] Internal commercial/control endpoints reject missing or invalid internal auth.
 - [x] Legacy `/api/state` returns disabled in production-style lab validation.
 
 Lab IDOR evidence, 2026-05-13:
@@ -71,6 +71,13 @@ Lab IDOR evidence, 2026-05-13:
 - Temporary student probe against `tenant_auto_20260328200130` checked 22 authenticated read endpoints with no other-student ID leakage.
 - Temporary student probe verified 10 tenant admin-write attempts returned `403`.
 - Fresh `hsm-api.service` log scan after reruns found no error/secret/token keyword matches.
+
+Lab control authorization evidence, 2026-05-13:
+
+- Temporary read-only control operator with no `manageCustomers`, `manageEnvironments`, `manageOperations`, or `manageUsers` permissions logged in through the real control API.
+- Verified 17 protected control mutations returned `403`, covering tenant, environment, provisioning/deploy/setup/lifecycle/archive/sync jobs, job retry, operator management, and commercial subscription actions.
+- Verified 18 internal-auth rejection checks returned `401` for missing auth, invalid bearer JWT, and invalid legacy control-plane key across tenant setup status and internal commercial subscription endpoints.
+- Fresh tenant/control log scan found no password/secret/token/auth header keyword leakage.
 
 ## Lab Smoke Gate
 
