@@ -440,7 +440,7 @@ h3 {
 
 .school-day-dashboard-return {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.9rem;
   margin-bottom: 0.85rem;
@@ -448,6 +448,97 @@ h3 {
 
 .school-day-dashboard-return.hidden {
   display: none;
+}
+
+.dashboard-origin-return {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.9rem;
+  margin-bottom: 0.85rem;
+}
+
+.dashboard-origin-return.hidden {
+  display: none;
+}
+
+.school-day-dashboard-focus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.dashboard-origin-focus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.school-day-dashboard-focus:empty {
+  display: none;
+}
+
+.dashboard-origin-focus:empty {
+  display: none;
+}
+
+.school-day-dashboard-focus-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  border: 1px solid #c8d7e8;
+  border-radius: 999px;
+  background: #f7fbff;
+  color: #35516e;
+  padding: 0.24rem 0.62rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.dashboard-origin-focus-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  border: 1px solid #c8d7e8;
+  border-radius: 999px;
+  background: #f7fbff;
+  color: #35516e;
+  padding: 0.24rem 0.62rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.school-day-dashboard-return-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.school-day-dashboard-return-actions button {
+  white-space: nowrap;
+}
+
+.dashboard-origin-return-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.dashboard-origin-return-actions button {
+  white-space: nowrap;
+}
+
+.dashboard-origin-title {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
 }
 
 #administration-workspace-config-message {
@@ -3468,31 +3559,36 @@ td {
 }
 
 #school-day-table .school-day-hour-column {
-  width: 15%;
+  width: 13%;
 }
 
 #school-day-table .school-day-student-column {
-  width: 13%;
+  width: 11%;
 }
 
 #school-day-table .school-day-planned-column {
-  width: 30%;
+  width: 26%;
 }
 
 #school-day-table .school-day-instructor-column {
-  width: 13%;
+  width: 12%;
 }
 
 #school-day-table .school-day-minutes-column {
-  width: 8%;
+  width: 7%;
 }
 
 #school-day-table .school-day-status-column {
   width: 12%;
 }
 
+#school-day-table .school-day-next-action-column {
+  width: 11%;
+  min-width: 8.8rem;
+}
+
 #school-day-table .school-day-actions-column {
-  width: 9%;
+  width: 8%;
 }
 
 .school-day-planned-copy {
@@ -3531,6 +3627,7 @@ td {
   #school-day-table .school-day-instructor-column,
   #school-day-table .school-day-minutes-column,
   #school-day-table .school-day-status-column,
+  #school-day-table .school-day-next-action-column,
   #school-day-table .school-day-actions-column {
     width: auto;
   }
@@ -8143,6 +8240,7 @@ tbody tr:hover {
 
 #app-shell .dashboard-visual-card-completion .dashboard-summary-value,
 #app-shell .dashboard-visual-card-open .dashboard-summary-value,
+#app-shell .dashboard-visual-card-open-classes .dashboard-summary-value,
 #app-shell .dashboard-visual-card-grade-risk .dashboard-summary-value,
 #app-shell .dashboard-visual-card-required-subjects .dashboard-summary-value,
 #app-shell .dashboard-visual-card-grades .dashboard-summary-value {
@@ -9453,6 +9551,19 @@ tbody tr:hover {
 
 #app-shell .course-watchlist-table tbody tr {
   background: linear-gradient(90deg, rgba(255, 248, 232, 0.68), rgba(255, 255, 255, 0) 34%);
+}
+
+#app-shell .course-watchlist-click-row {
+  cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+#app-shell .course-watchlist-click-row:hover,
+#app-shell .course-watchlist-click-row:focus-visible {
+  background: linear-gradient(90deg, rgba(255, 242, 213, 0.92), rgba(255, 255, 255, 0.2) 42%);
+  box-shadow: inset 4px 0 0 #f19012;
+  outline: none;
+  transform: translateY(-1px);
 }
 
 #app-shell .course-watchlist-grade-chip,
@@ -10807,6 +10918,7 @@ tbody tr:hover {
 #app-shell .school-day-inline-grade-wrap .grade-entry-action-row button,
 #app-shell #school-day-add-grade-row-btn,
 #app-shell #school-day-add-grade-rows-for-students-btn,
+#app-shell #school-day-add-grade-rows-for-classes-btn,
 #app-shell #school-day-attendance-save-all-btn {
   min-height: 34px;
   padding: 0.42rem 0.68rem;
@@ -10821,9 +10933,145 @@ tbody tr:hover {
   box-shadow: 0 10px 18px rgba(31, 47, 69, 0.04);
 }
 
+#app-shell .school-day-status-control-focused {
+  outline: 3px solid rgba(21, 91, 195, 0.24);
+  outline-offset: 2px;
+}
+
+#app-shell .school-day-next-action {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 8rem;
+  color: #526179;
+}
+
+#app-shell .school-day-next-action button,
+#app-shell .school-day-next-action-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 30px;
+  padding: 0.32rem 0.58rem;
+  border: 1px solid #cbd9ea;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1f3f6d;
+  box-shadow: none;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+#app-shell .school-day-next-action button {
+  cursor: pointer;
+}
+
+#app-shell .school-day-next-action button:hover {
+  border-color: #9eb8da;
+  background: #f4f8fd;
+  transform: none;
+}
+
+#app-shell .school-day-next-action small {
+  color: #6b778c;
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+#app-shell .school-day-next-action.is-warning button,
+#app-shell .school-day-next-action.is-warning .school-day-next-action-label {
+  border-color: #f0c997;
+  background: #fff9ef;
+  color: #8a4e0f;
+}
+
+#app-shell .school-day-next-action.is-info button,
+#app-shell .school-day-next-action.is-info .school-day-next-action-label {
+  border-color: #bcd3f4;
+  background: #f4f8ff;
+  color: #155bc3;
+}
+
+#app-shell .school-day-next-action.is-complete .school-day-next-action-label {
+  border-color: #bfe1c8;
+  background: #f3fbf5;
+  color: #257242;
+}
+
+#app-shell .school-day-next-action.is-muted .school-day-next-action-label {
+  border-color: #dce5ef;
+  background: #f8fbfd;
+  color: #637083;
+}
+
 #app-shell .school-day-inline-grade-row td,
 #app-shell .school-day-inline-grade-wrap .school-day-inline-grade-action-table-row td {
   background: #f8fbff;
+}
+
+#app-shell .school-day-inline-grade-panel {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid #dbe6f2;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+#app-shell .school-day-inline-grade-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+}
+
+#app-shell .school-day-inline-grade-context strong {
+  color: #17243d;
+  font-size: 0.95rem;
+}
+
+#app-shell .school-day-inline-grade-context span {
+  color: #64748a;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+#app-shell .school-day-inline-grade-panel .school-day-inline-grade-wrap {
+  margin-top: 0;
+}
+
+#app-shell .school-day-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 1rem;
+  color: #526179;
+  text-align: center;
+}
+
+#app-shell .school-day-empty-state strong {
+  color: #17243d;
+}
+
+#app-shell .school-day-empty-state span {
+  max-width: 34rem;
+  font-size: 0.84rem;
+}
+
+#app-shell .school-day-empty-state button,
+#app-shell .school-day-active-queue-actions button {
+  min-height: 32px;
+  padding: 0.36rem 0.68rem;
+  border: 1px solid #c8d7e8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1f3f6d;
+  box-shadow: none;
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 #app-shell .school-day-grades-callout {
@@ -10831,6 +11079,103 @@ tbody tr:hover {
   border: 1px solid #e2eaf4;
   border-radius: 14px;
   background: #f8fbfd;
+}
+
+#app-shell .school-day-grade-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 610px);
+  align-items: stretch;
+}
+
+#app-shell .school-day-grade-actions button {
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.34rem 0.5rem;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+#app-shell .school-day-active-queue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.55rem 0 0.75rem;
+  padding: 0.68rem 0.78rem;
+  border: 1px solid #dbe6f2;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 10px 24px rgba(31, 47, 69, 0.05);
+}
+
+#app-shell .school-day-active-queue.hidden {
+  display: none;
+}
+
+#app-shell .school-day-active-queue-summary {
+  display: grid;
+  gap: 0.12rem;
+}
+
+#app-shell .school-day-active-queue-summary strong {
+  color: #17243d;
+  font-size: 0.95rem;
+  line-height: 1.1;
+}
+
+#app-shell .school-day-active-queue-summary span {
+  color: #6b778c;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+#app-shell .school-day-active-queue-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.38rem;
+}
+
+#app-shell .school-day-active-queue-chips span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  padding: 0.18rem 0.58rem;
+  border: 1px solid #c8d7e8;
+  border-radius: 999px;
+  background: #f7fbff;
+  color: #35516e;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#app-shell .school-day-active-queue-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 760px) {
+  #app-shell .school-day-active-queue,
+  #app-shell .student-detail-required-callout {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  #app-shell .school-day-active-queue {
+    flex-direction: column;
+  }
+
+  #app-shell .school-day-active-queue-chips,
+  #app-shell .student-detail-required-chip-row {
+    justify-content: flex-start;
+  }
+
+  #app-shell .school-day-next-action {
+    min-width: 0;
+  }
 }
 
 #app-shell #tab-students.active {
@@ -10966,6 +11311,57 @@ tbody tr:hover {
   color: #17243d;
   font-size: 1.05rem;
   line-height: 1.2;
+}
+
+#app-shell .student-detail-required-callout {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #f4d48a;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fffaf0 0%, #fff7e3 100%);
+  color: #6c4a00;
+}
+
+#app-shell .student-detail-required-callout.hidden {
+  display: none;
+}
+
+#app-shell .student-detail-required-callout strong {
+  display: block;
+  color: #7a4a00;
+  font-size: 0.92rem;
+}
+
+#app-shell .student-detail-required-callout p {
+  margin: 0.18rem 0 0;
+  color: #7a5a16;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+#app-shell .student-detail-required-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.38rem;
+}
+
+#app-shell .student-detail-required-chip-row span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  padding: 0.18rem 0.58rem;
+  border: 1px solid #efc46a;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #7a4a00;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 #app-shell .student-detail-tab-panel {

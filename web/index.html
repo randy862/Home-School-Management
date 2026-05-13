@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
-  <link rel="stylesheet" href="styles.css?v=202605112035">
+  <script src="preview-seed.js?v=202605131650"></script>
+  <link rel="stylesheet" href="styles.css?v=202605131825">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -399,6 +400,16 @@
       </div>
 
       <div id="dashboard-section-grade-risk-watchlist" class="dashboard-section dashboard-section-student-performance dashboard-section-course-watchlist hidden">
+        <div id="dashboard-grade-risk-origin" class="callout dashboard-origin-return hidden">
+          <div>
+            <p class="dashboard-origin-title">From Dashboard</p>
+            <p id="dashboard-grade-risk-origin-copy" class="muted">Opened from Dashboard.</p>
+            <div id="dashboard-grade-risk-origin-focus" class="dashboard-origin-focus" aria-label="Dashboard grade risk focus"></div>
+          </div>
+          <div class="dashboard-origin-return-actions">
+            <button type="button" id="dashboard-grade-risk-clear-focus-btn">Clear Focus</button>
+          </div>
+        </div>
         <div class="student-performance-toolbar course-watchlist-toolbar">
           <div class="student-performance-heading">
             <span class="student-performance-heading-icon course-watchlist-heading-icon" aria-hidden="true">
@@ -1311,8 +1322,12 @@
         <div>
           <p class="school-day-callout-title">From Dashboard</p>
           <p id="school-day-dashboard-return-copy" class="muted">Opened from Dashboard.</p>
+          <div id="school-day-dashboard-focus" class="school-day-dashboard-focus" aria-label="Dashboard focus filters"></div>
         </div>
-        <button type="button" id="school-day-return-dashboard-btn">Back to Dashboard</button>
+        <div class="school-day-dashboard-return-actions">
+          <button type="button" id="school-day-clear-dashboard-focus-btn">Clear Focus</button>
+          <button type="button" id="school-day-return-dashboard-btn">Back to Dashboard</button>
+        </div>
       </div>
       <div class="school-day-section school-day-section-shell">
         <form id="school-day-form" class="grid-form school-day-form">
@@ -1356,8 +1371,8 @@
           <button type="button" class="school-day-quick-filter-btn" data-school-day-quick-filter="overridden">Overridden</button>
         </div>
         <div class="subtabs school-day-subtabs" aria-label="School Day sections">
-          <button class="subtab-btn active" data-school-day-tab="daily-schedule" type="button">Daily Schedule</button>
-          <button class="subtab-btn" data-school-day-tab="attendance" type="button">Attendance</button>
+          <button class="subtab-btn active" data-school-day-tab="daily-schedule" type="button">Daily Schedule (0)</button>
+          <button class="subtab-btn" data-school-day-tab="attendance" type="button">Attendance (0 open)</button>
           <button class="subtab-btn" data-school-day-tab="grades" type="button">Grades</button>
         </div>
       </div>
@@ -1381,6 +1396,7 @@
             <p id="school-day-hours-summary" class="muted school-day-hours-summary"></p>
           </div>
         </div>
+        <div id="school-day-active-queue" class="school-day-active-queue hidden" aria-live="polite"></div>
         <div id="school-day-student-summaries-header" class="school-day-student-summaries-header hidden">
           <button type="button" id="school-day-student-summaries-toggle" class="school-day-student-summaries-toggle" aria-expanded="true">-</button>
           <h4>Student Summaries</h4>
@@ -1393,7 +1409,7 @@
         <div id="school-day-overview-grid" class="school-day-overview-grid hidden"></div>
         <div class="table-wrap calendar-table-wrap">
           <table>
-            <thead><tr><th>Hour</th><th>Student</th><th>Planned Instruction</th><th>Instructor</th><th>Minutes</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Hour</th><th>Student</th><th>Planned Instruction</th><th>Instructor</th><th>Minutes</th><th>Status</th><th>Next Action</th><th>Actions</th></tr></thead>
             <tbody id="school-day-table"></tbody>
           </table>
         </div>
@@ -1417,9 +1433,10 @@
         <h3>Grades</h3>
         <div class="school-day-attendance-toolbar">
           <p id="school-day-grades-message" class="muted">Enter grades for the selected School Day context.</p>
-          <div class="table-action-row">
+          <div class="table-action-row school-day-grade-actions">
             <button type="button" id="school-day-add-grade-row-btn">Add Grade Row</button>
             <button type="button" id="school-day-add-grade-rows-for-students-btn">Add Rows For Students</button>
+            <button type="button" id="school-day-add-grade-rows-for-classes-btn">Add Rows Scheduled Class No Grade</button>
           </div>
         </div>
         <div id="school-day-grade-entry-wrap" class="table-wrap hidden">
@@ -1429,13 +1446,24 @@
           </table>
         </div>
         <div class="callout school-day-grades-callout">
-          <p class="muted">Use the `Grade` button on a schedule row for the fastest in-context workflow, or use this tab for bulk same-day entry.</p>
+          <p class="muted">Use schedule row Grade buttons for one-off entry, or build a batch here with one row per student or scheduled class.</p>
         </div>
       </div>
     </section>
 
     <section id="tab-students" class="tab-panel panel">
       <h2>Students</h2>
+      <div id="students-dashboard-return" class="callout dashboard-origin-return hidden">
+        <div>
+          <p class="dashboard-origin-title">From Dashboard</p>
+          <p id="students-dashboard-return-copy" class="muted">Opened from Dashboard.</p>
+          <div id="students-dashboard-focus" class="dashboard-origin-focus" aria-label="Dashboard student focus filters"></div>
+        </div>
+        <div class="dashboard-origin-return-actions">
+          <button type="button" id="students-clear-dashboard-focus-btn">Clear Focus</button>
+          <button type="button" id="students-return-dashboard-btn">Back to Dashboard</button>
+        </div>
+      </div>
       <div id="students-list-view">
         <div class="students-toolbar">
           <button id="student-new-btn" type="button">New Student</button>
@@ -1477,6 +1505,7 @@
               <button class="subtab-btn active" data-student-detail-tab="schedule" type="button">Schedule</button>
               <button class="subtab-btn" data-student-detail-tab="summary" type="button">Summary</button>
             </div>
+            <div id="student-detail-required-callout" class="student-detail-required-callout hidden" aria-live="polite"></div>
             <div id="student-detail-schedule-wrap" class="student-detail-tab-panel">
               <div class="student-detail-section student-detail-section-profile">
                 <h4>Course Enrollment</h4>
@@ -2154,6 +2183,17 @@
         <div id="grades-enter-records-host"></div>
       </div>
       <div id="grades-search-wrap" class="grades-tab-panel hidden">
+        <div id="grades-dashboard-return" class="callout dashboard-origin-return hidden">
+          <div>
+            <p class="dashboard-origin-title">From Dashboard</p>
+            <p id="grades-dashboard-return-copy" class="muted">Opened from Dashboard.</p>
+            <div id="grades-dashboard-focus" class="dashboard-origin-focus" aria-label="Dashboard grade focus filters"></div>
+          </div>
+          <div class="dashboard-origin-return-actions">
+            <button type="button" id="grades-clear-dashboard-focus-btn">Clear Focus</button>
+            <button type="button" id="grades-return-dashboard-btn">Back to Dashboard</button>
+          </div>
+        </div>
         <div class="grades-section grades-section-filters">
           <h3>Grade Filters</h3>
           <form id="grades-filter-form" class="grid-form">
@@ -2396,6 +2436,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605112035"></script>
+  <script src="app.js?v=202605131805"></script>
   </body>
   </html>

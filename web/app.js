@@ -1621,6 +1621,9 @@ let schoolDayStudentSummariesManual = false;
 let schoolDayOverviewCollapsed = false;
 let schoolDayOverviewManual = false;
 let schoolDayDashboardReturnContext = null;
+let gradesDashboardReturnContext = null;
+let studentsDashboardReturnContext = null;
+let dashboardGradeRiskOriginContext = null;
 let administrationWorkspaceConfigMessageState = { kind: "", text: "" };
 let administrationAlertsConfigMessageState = { kind: "", text: "" };
 let reportType = "student";
@@ -3316,6 +3319,7 @@ function renderStudentViewMode() {
   if (listView) listView.classList.toggle("hidden", studentViewMode !== "list");
   if (editorView) editorView.classList.toggle("hidden", studentViewMode !== "create");
   if (detailView) detailView.classList.toggle("hidden", studentViewMode !== "detail");
+  renderStudentsDashboardReturn();
 }
 
 function renderInstructorViewMode() {
@@ -3430,11 +3434,22 @@ function beginStudentDetail(studentId) {
 function openMissingRequiredStudent(studentId) {
   const student = state.students.find((entry) => entry.id === studentId);
   if (!student) return;
+  const studentName = `${student.firstName || ""} ${student.lastName || ""}`.trim();
+  const missingSubjects = studentMissingRequiredSubjects(studentId);
   studentTableFilterStudent = `${student.firstName || ""} ${student.lastName || ""}`.trim();
   studentTableFilterGrade = "all";
   studentTableFilterStatus = "all";
   studentTableFilterRequired = "no";
   studentTableRequiredSubjectFilterId = "";
+  studentsDashboardReturnContext = {
+    dashboardTab: currentDashboardTab,
+    message: `Missing Required Subjects from Dashboard > Overview for ${studentName}.`,
+    chips: [
+      `Student: ${studentName}`,
+      "Required: Missing",
+      `Subjects: ${missingSubjects.map((subject) => subject.name).join(", ") || "None"}`
+    ]
+  };
   activateTab("students");
   beginStudentDetail(studentId);
   renderCurrentTabPanel();
@@ -3492,6 +3507,7 @@ function renderGradesSectionVisibility() {
   document.querySelectorAll("[data-grades-tab]").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-grades-tab") === visibleTab);
   });
+  renderGradesDashboardReturn();
 }
 
 function renderStudentDetailSectionVisibility() {
@@ -3504,6 +3520,7 @@ function renderStudentDetailSectionVisibility() {
   document.querySelectorAll("[data-student-detail-tab]").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-student-detail-tab") === visibleTab);
   });
+  renderStudentsDashboardReturn();
 }
 
 function invalidateDashboardCache() {
@@ -4665,6 +4682,30 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   scheduleLegacyBridgeSave();
 }
+
+function refreshLocalPreviewSeedState() {
+  if (!IS_LOCAL_DEV_HOST) return false;
+  const seededState = loadState();
+  const hasSeedData = Array.isArray(seededState.students)
+    && Array.isArray(seededState.courses)
+    && Array.isArray(seededState.plans)
+    && seededState.students.length > 0
+    && seededState.courses.length > 0
+    && seededState.plans.length > 0;
+  if (!hasSeedData) return false;
+  state = seededState;
+  if (!state.users.some((user) => user.id === currentUserId)) {
+    currentUserId = "";
+    saveSession();
+  }
+  setCurrentSchoolYear(state.settings.currentSchoolYearId);
+  applyPreferredAcademicYearContext();
+  gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+  renderAll();
+  return true;
+}
+
+window.HSM_REFRESH_PREVIEW_SEED = refreshLocalPreviewSeedState;
 
 async function bootstrapApplicationState() {
   if (hostedModeEnabled) {
@@ -9310,6 +9351,26 @@ function studentHasRequiredSubject(studentId, subjectId) {
   return Array.from(enrolledCourseIds).some((courseId) => getCourse(courseId)?.subjectId === subjectId);
 }
 
+function renderStudentDetailRequiredCallout(student, missingSubjects = []) {
+  const callout = document.getElementById("student-detail-required-callout");
+  if (!callout) return;
+  if (!student || !missingSubjects.length) {
+    callout.classList.add("hidden");
+    callout.innerHTML = "";
+    return;
+  }
+  const studentName = `${student.firstName || ""} ${student.lastName || ""}`.trim();
+  callout.classList.remove("hidden");
+  callout.innerHTML = `
+    <div>
+      <strong>Missing Required Subjects</strong>
+      <p>${escapeHtml(studentName)} still needs scheduled work for ${missingSubjects.length} required subject${missingSubjects.length === 1 ? "" : "s"}.</p>
+    </div>
+    <div class="student-detail-required-chip-row">
+      ${missingSubjects.map((subject) => `<span>${escapeHtml(subject.name)}</span>`).join("")}
+    </div>`;
+}
+
 function requiredSubjectComplianceStudents() {
   const selectedStudentIds = new Set(requiredSubjectComplianceSelectedStudentIds);
   const requiredSubjects = state.subjects.filter((subject) => subject.required);
@@ -9743,6 +9804,15 @@ function renderStudentDetail() {
   const gradeSummary = studentGradeSummary(student.id, { quarterName: selectedQuarter });
 
   const studentEnrollments = sortedStudentScheduledEntries(student.id, workingStudentEnrollments(student.id));
+  const enrolledSubjectIds = new Set(
+    studentEnrollments
+      .map((entry) => getCourse(entryCourseId(entry))?.subjectId || "")
+      .filter(Boolean)
+  );
+  const missingRequiredSubjects = state.subjects
+    .filter((subject) => subject.required && !enrolledSubjectIds.has(subject.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  renderStudentDetailRequiredCallout(student, missingRequiredSubjects);
   const enrollmentRows = studentEnrollments
     .map((e) => {
       const isScheduleBlock = e.itemType === "scheduleBlock";
@@ -9770,17 +9840,9 @@ function renderStudentDetail() {
       const requiredCell = course?.subjectId ? requiredSubjectBadge(course.subjectId) : "<span class=\"muted\">-</span>";
       return `<tr><td>${escapeHtml(studentScheduledEntryDisplayName(e))}</td><td>${escapeHtml(subject)}</td><td>${requiredCell}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
     });
-  const enrolledSubjectIds = new Set(
-    studentEnrollments
-      .map((entry) => getCourse(entryCourseId(entry))?.subjectId || "")
-      .filter(Boolean)
-  );
-  state.subjects
-    .filter((subject) => subject.required && !enrolledSubjectIds.has(subject.id))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .forEach((subject) => {
-      enrollmentRows.push(`<tr class="student-required-subject-missing"><td>${escapeHtml(subject.name)}</td><td>Missing required subject</td><td>${requiredSubjectBadge(subject.id)}</td><td>-</td><td>-</td><td></td></tr>`);
-    });
+  missingRequiredSubjects.forEach((subject) => {
+    enrollmentRows.push(`<tr class="student-required-subject-missing"><td>${escapeHtml(subject.name)}</td><td>Missing required subject</td><td>${requiredSubjectBadge(subject.id)}</td><td>-</td><td>-</td><td></td></tr>`);
+  });
   if (enrollmentRows.length) {
     const overallAverage = gradeSummary.overallAverage;
     const averageDisplay = overallAverage > 0 ? `${overallAverage.toFixed(1)}%` : "No grades";
@@ -10582,6 +10644,68 @@ function buildSchoolDayGradeRowForStudent(studentId) {
   });
 }
 
+function schoolDayGradeCandidateBlocks(date) {
+  const dateKey = activeYearDateOrDefault(date || document.getElementById("school-day-date")?.value || todayISO());
+  const studentFilterIds = getSchoolDaySelectedStudentIds();
+  const subjectFilterIds = getSchoolDaySelectedSubjectIds();
+  const courseFilterIds = getSchoolDaySelectedCourseIds();
+  const statusFilter = getSchoolDaySelectedStatus();
+  const seenGradeRows = new Set();
+  return Array.from(dailyScheduledBlocks(dateKey, studentFilterIds).values())
+    .flat()
+    .filter((block) => block.type === "instruction")
+    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
+    .filter((block) => schoolDayBlockMatchesStatusFilter(block, dateKey, statusFilter))
+    .filter((block) => !effectiveInstructionExcused(block.studentId, block.courseId, dateKey))
+    .filter((block) => gradeRecordsForStudentCourseDate(block.studentId, block.courseId, dateKey).length === 0)
+    .filter((block) => {
+      const key = schoolDayGradeEntryKey(dateKey, block.studentId, block.courseId);
+      if (!key || seenGradeRows.has(key)) return false;
+      seenGradeRows.add(key);
+      return true;
+    });
+}
+
+function schoolDayGradeEntryKey(date, studentId, courseId) {
+  if (!date || !studentId || !courseId) return "";
+  return `${date}::${studentId}::${courseId}`;
+}
+
+function schoolDayGradeEntryRowKey(row) {
+  return schoolDayGradeEntryKey(
+    row?.querySelector?.(".grade-row-date")?.value || "",
+    row?.querySelector?.(".grade-row-student")?.value || "",
+    row?.querySelector?.(".grade-row-course")?.value || ""
+  );
+}
+
+function appendSchoolDayGradeRowsForBlocks(blocks, date) {
+  const body = document.getElementById("school-day-grade-entry-body");
+  if (!body) return 0;
+  const dateKey = activeYearDateOrDefault(date || document.getElementById("school-day-date")?.value || todayISO());
+  const existingKeys = new Set(
+    Array.from(body.querySelectorAll("tr[data-grade-entry-row-id]"))
+      .map((row) => schoolDayGradeEntryRowKey(row))
+      .filter(Boolean)
+  );
+  let addedCount = 0;
+  blocks.forEach((block) => {
+    const key = schoolDayGradeEntryKey(dateKey, block.studentId, block.courseId);
+    if (!key || existingKeys.has(key)) return;
+    body.appendChild(buildGradeEntryRow(null, {
+      date: dateKey,
+      studentId: block.studentId,
+      subjectId: block.subjectId,
+      courseId: block.courseId,
+      gradeType: "Assignment"
+    }));
+    existingKeys.add(key);
+    addedCount += 1;
+  });
+  updateSchoolDayGradeEntryVisibility();
+  return addedCount;
+}
+
 function updateSchoolDayGradeEntryVisibility() {
   const wrap = document.getElementById("school-day-grade-entry-wrap");
   const body = document.getElementById("school-day-grade-entry-body");
@@ -10594,10 +10718,14 @@ function renderSchoolDayGrades() {
   const rosterStudentIds = new Set(schoolDayRosterStudents(date).map((student) => student.id));
   const todayGrades = state.tests.filter((record) => record.date === date && (!rosterStudentIds.size || rosterStudentIds.has(record.studentId)));
   const gradedStudentCount = new Set(todayGrades.map((record) => record.studentId)).size;
+  const scheduledClassGradeCount = schoolDayGradeCandidateBlocks(date).length;
   if (schoolDayGradesMessageState.text) {
     setSchoolDayGradesMessage(schoolDayGradesMessageState.kind, schoolDayGradesMessageState.text);
   } else {
-    setSchoolDayGradesMessage("", `${todayGrades.length} grades recorded for ${gradedStudentCount} students on ${formatDisplayDate(date)}.`);
+    const scheduledClassCopy = scheduledClassGradeCount
+      ? ` ${scheduledClassGradeCount} scheduled class${scheduledClassGradeCount === 1 ? "" : "es"} can be added as batch grade row${scheduledClassGradeCount === 1 ? "" : "s"}.`
+      : " Add a row to begin a batch.";
+    setSchoolDayGradesMessage("", `${todayGrades.length} grades recorded for ${gradedStudentCount} students on ${formatDisplayDate(date)}.${scheduledClassCopy}`);
   }
   updateSchoolDayGradeEntryVisibility();
 }
@@ -11243,6 +11371,7 @@ function openStudentAttendanceSearch(studentId) {
 }
 
 function openStudentGradeSearch(studentId) {
+  gradesDashboardReturnContext = null;
   currentGradesTab = "search";
   activateTab("grades");
   renderGradesSectionVisibility();
@@ -11270,6 +11399,15 @@ function openStudentGradeSearch(studentId) {
 function openSingleGradeRiskSearch() {
   const alertConfig = workspaceConfig?.alerts || DEFAULT_WORKSPACE_CONFIG.alerts;
   const weekRange = currentSchoolWeekRange(defaultReferenceDateForActiveYear());
+  const threshold = alertConfig.singleGradeRiskThresholdPercent;
+  gradesDashboardReturnContext = {
+    dashboardTab: currentDashboardTab,
+    message: `Single Grade Risks from Dashboard > Overview for ${formatDisplayDate(weekRange.startDate)} to ${formatDisplayDate(weekRange.endDate)}.`,
+    chips: [
+      `Date Range: ${formatDisplayDate(weekRange.startDate)} - ${formatDisplayDate(weekRange.endDate)}`,
+      `Grade: below ${threshold}%`
+    ]
+  };
   currentGradesTab = "search";
   activateTab("grades");
   renderGradesSectionVisibility();
@@ -11284,7 +11422,7 @@ function openSingleGradeRiskSearch() {
     "grades-filter-course": "all",
     "grades-filter-grade-type": "all",
     "grades-filter-grade-operator": "lt",
-    "grades-filter-grade-value": String(alertConfig.singleGradeRiskThresholdPercent)
+    "grades-filter-grade-value": String(threshold)
   };
   Object.entries(filterValues).forEach(([id, value]) => {
     const input = document.getElementById(id);
@@ -11296,7 +11434,66 @@ function openSingleGradeRiskSearch() {
   renderSessionChrome();
 }
 
+function openAverageGradeRiskSearch({ studentId = "", courseId = "", subjectId = "", quarterName = "", averageScore = "" } = {}) {
+  const studentName = getStudentName(studentId);
+  const courseName = getCourseName(courseId);
+  gradesDashboardReturnContext = {
+    dashboardTab: "performance",
+    message: `Course Watchlist from Dashboard > Performance for ${studentName} / ${courseName}.`,
+    chips: [
+      `Student: ${studentName}`,
+      `Course: ${courseName}`,
+      quarterName ? `Quarter: ${quarterName}` : "",
+      averageScore ? `Average: ${Number(averageScore).toFixed(1)}%` : ""
+    ].filter(Boolean)
+  };
+  currentGradesTab = "search";
+  activateTab("grades");
+  renderGradesSectionVisibility();
+  const filterValues = {
+    "grades-filter-student": studentId || "all",
+    "grades-filter-quarter": quarterName || "all",
+    "grades-filter-school-year": "all",
+    "grades-filter-start-date": "",
+    "grades-filter-end-date": "",
+    "grades-filter-subject": "all",
+    "grades-filter-instructor": "all",
+    "grades-filter-course": "all",
+    "grades-filter-grade-type": "all",
+    "grades-filter-grade-operator": "all",
+    "grades-filter-grade-value": ""
+  };
+  Object.entries(filterValues).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.value = value;
+  });
+  syncGradesFilterSubjectCourseOptions();
+  const subjectSelect = document.getElementById("grades-filter-subject");
+  if (subjectSelect && subjectId && Array.from(subjectSelect.options).some((option) => option.value === subjectId)) {
+    subjectSelect.value = subjectId;
+    syncGradesFilterSubjectCourseOptions();
+  }
+  const courseSelect = document.getElementById("grades-filter-course");
+  if (courseSelect && courseId && Array.from(courseSelect.options).some((option) => option.value === courseId)) {
+    courseSelect.value = courseId;
+  }
+  editingSearchGradeId = "";
+  renderTests();
+  renderSessionChrome();
+}
+
 function openAverageGradeRiskWatchlist() {
+  gradesDashboardReturnContext = null;
+  studentsDashboardReturnContext = null;
+  const snapshot = buildDashboardGradeRiskSnapshot(visibleStudents());
+  dashboardGradeRiskOriginContext = {
+    message: `Average Grade Risks from Dashboard > Overview for ${snapshot.quarterName}.`,
+    chips: [
+      `Quarter: ${snapshot.quarterName}`,
+      "Average: below 85%",
+      `Courses: ${snapshot.count}`
+    ]
+  };
   currentDashboardTab = "performance";
   activateTab("dashboard");
   renderDashboardSectionVisibility();
@@ -11478,7 +11675,7 @@ function renderSchoolDaySectionVisibility() {
     const section = document.getElementById(`school-day-${tabName}-section`);
     if (section) section.classList.toggle("hidden", currentSchoolDayTab !== tabName);
   });
-  document.querySelectorAll("[data-school-day-tab]").forEach((btn) => {
+  document.querySelectorAll(".school-day-subtabs [data-school-day-tab]").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-school-day-tab") === currentSchoolDayTab);
   });
   const quickFilters = document.getElementById("school-day-quick-filters");
@@ -11488,6 +11685,110 @@ function renderSchoolDaySectionVisibility() {
   }
 }
 
+function setSchoolDaySubtabLabel(tab, label) {
+  const btn = document.querySelector(`.school-day-subtabs [data-school-day-tab="${tab}"]`);
+  if (btn) btn.textContent = label;
+}
+
+function updateSchoolDaySubtabCounts({ scheduleCount = 0, attendanceOpenCount = 0 } = {}) {
+  setSchoolDaySubtabLabel("daily-schedule", `Daily Schedule (${scheduleCount})`);
+  setSchoolDaySubtabLabel("attendance", `Attendance (${attendanceOpenCount} open)`);
+  setSchoolDaySubtabLabel("grades", "Grades");
+}
+
+function schoolDayTabLabel(tab) {
+  if (tab === "attendance") return "Attendance";
+  if (tab === "grades") return "Grades";
+  return "Daily Schedule";
+}
+
+function schoolDayQuickFilterLabel(key) {
+  if (key === "needs-attendance") return "Needs Attendance";
+  if (key === "needs-completion") return "Needs Completion";
+  if (key === "needs-grade") return "Needs Grade";
+  if (key === "completed") return "Completed";
+  if (key === "past-due") return "Past Due";
+  if (key === "overridden") return "Overridden";
+  return "";
+}
+
+function renderSchoolDayDashboardFocus(context) {
+  const focus = document.getElementById("school-day-dashboard-focus");
+  if (!focus) return;
+  if (!context) {
+    focus.innerHTML = "";
+    return;
+  }
+  const chips = [
+    `Date: ${formatDisplayDate(context.date || todayISO())}`,
+    `View: ${schoolDayTabLabel(context.tab)}`
+  ];
+  const statusFilter = context.statusFilter || "all";
+  if (statusFilter && statusFilter !== "all") chips.push(`Status: ${instructionStatusLabel(statusFilter)}`);
+  (context.quickFilters || []).forEach((key) => {
+    const label = schoolDayQuickFilterLabel(key);
+    if (label) chips.push(`Filter: ${label}`);
+  });
+  (context.studentIds || []).forEach((studentId) => chips.push(`Student: ${getStudentName(studentId)}`));
+  (context.subjectIds || []).forEach((subjectId) => chips.push(`Subject: ${getSubjectName(subjectId)}`));
+  (context.courseIds || []).forEach((courseId) => chips.push(`Course: ${getCourseName(courseId)}`));
+  focus.innerHTML = chips.map((chip) => `<span class="school-day-dashboard-focus-chip">${escapeHtml(chip)}</span>`).join("");
+}
+
+function renderDashboardOriginFocus(hostId, chips = []) {
+  const focus = document.getElementById(hostId);
+  if (!focus) return;
+  focus.innerHTML = (chips || [])
+    .filter(Boolean)
+    .map((chip) => `<span class="dashboard-origin-focus-chip">${escapeHtml(chip)}</span>`)
+    .join("");
+}
+
+function renderGradesDashboardReturn() {
+  const wrap = document.getElementById("grades-dashboard-return");
+  const copy = document.getElementById("grades-dashboard-return-copy");
+  if (!wrap || !copy) return;
+  if (!gradesDashboardReturnContext) {
+    wrap.classList.add("hidden");
+    copy.textContent = "";
+    renderDashboardOriginFocus("grades-dashboard-focus", []);
+    return;
+  }
+  wrap.classList.remove("hidden");
+  copy.textContent = gradesDashboardReturnContext.message || "Opened from Dashboard.";
+  renderDashboardOriginFocus("grades-dashboard-focus", gradesDashboardReturnContext.chips || []);
+}
+
+function renderStudentsDashboardReturn() {
+  const wrap = document.getElementById("students-dashboard-return");
+  const copy = document.getElementById("students-dashboard-return-copy");
+  if (!wrap || !copy) return;
+  if (!studentsDashboardReturnContext) {
+    wrap.classList.add("hidden");
+    copy.textContent = "";
+    renderDashboardOriginFocus("students-dashboard-focus", []);
+    return;
+  }
+  wrap.classList.remove("hidden");
+  copy.textContent = studentsDashboardReturnContext.message || "Opened from Dashboard.";
+  renderDashboardOriginFocus("students-dashboard-focus", studentsDashboardReturnContext.chips || []);
+}
+
+function renderDashboardGradeRiskOrigin() {
+  const wrap = document.getElementById("dashboard-grade-risk-origin");
+  const copy = document.getElementById("dashboard-grade-risk-origin-copy");
+  if (!wrap || !copy) return;
+  if (!dashboardGradeRiskOriginContext) {
+    wrap.classList.add("hidden");
+    copy.textContent = "";
+    renderDashboardOriginFocus("dashboard-grade-risk-origin-focus", []);
+    return;
+  }
+  wrap.classList.remove("hidden");
+  copy.textContent = dashboardGradeRiskOriginContext.message || "Opened from Dashboard.";
+  renderDashboardOriginFocus("dashboard-grade-risk-origin-focus", dashboardGradeRiskOriginContext.chips || []);
+}
+
 function renderSchoolDayDashboardReturn() {
   const wrap = document.getElementById("school-day-dashboard-return");
   const copy = document.getElementById("school-day-dashboard-return-copy");
@@ -11495,10 +11796,76 @@ function renderSchoolDayDashboardReturn() {
   if (!schoolDayDashboardReturnContext) {
     wrap.classList.add("hidden");
     copy.textContent = "";
+    renderSchoolDayDashboardFocus(null);
     return;
   }
   wrap.classList.remove("hidden");
   copy.textContent = schoolDayDashboardReturnContext.message || "Opened from Dashboard.";
+  renderSchoolDayDashboardFocus(schoolDayDashboardReturnContext);
+}
+
+function activeSchoolDayQuickFilterLabels() {
+  const keys = [
+    ["needs-attendance", schoolDayQuickFilters.needsAttendance],
+    ["needs-completion", schoolDayQuickFilters.needsCompletion],
+    ["needs-grade", schoolDayQuickFilters.needsGrade],
+    ["completed", schoolDayQuickFilters.completed],
+    ["past-due", schoolDayQuickFilters.pastDue],
+    ["overridden", schoolDayQuickFilters.overridden]
+  ];
+  return keys
+    .filter(([, active]) => !!active)
+    .map(([key]) => schoolDayQuickFilterLabel(key))
+    .filter(Boolean);
+}
+
+function schoolDaySelectedFilterChip(prefix, ids, resolver) {
+  if (!ids.length) return "";
+  if (ids.length === 1) return `${prefix}: ${resolver(ids[0])}`;
+  return `${prefix}: ${ids.length} selected`;
+}
+
+function hasActiveSchoolDayQueueFilters({ statusFilter = "all", studentIds = [], subjectIds = [], courseIds = [] } = {}) {
+  return schoolDayActiveQuickFilterCount() > 0
+    || (statusFilter && statusFilter !== "all")
+    || studentIds.length > 0
+    || subjectIds.length > 0
+    || courseIds.length > 0;
+}
+
+function renderSchoolDayFilteredEmptyState() {
+  return `
+    <div class="school-day-empty-state">
+      <strong>No rows match the active filters.</strong>
+      <span>Use the queue chips above to see what is narrowing the list, or reset the queue.</span>
+      <button type="button" data-school-day-clear-filters="1">Clear filters</button>
+    </div>`;
+}
+
+function renderSchoolDayActiveQueue({ date, rowCount, statusFilter, studentIds = [], subjectIds = [], courseIds = [] } = {}) {
+  const host = document.getElementById("school-day-active-queue");
+  if (!host) return;
+  const hasActiveFilters = hasActiveSchoolDayQueueFilters({ statusFilter, studentIds, subjectIds, courseIds });
+  const emptyFilteredQueue = rowCount === 0 && hasActiveFilters;
+  const filterChips = [
+    `Date: ${formatDisplayDate(date || todayISO())}`,
+    statusFilter && statusFilter !== "all" ? `Status: ${instructionStatusLabel(statusFilter)}` : "",
+    ...activeSchoolDayQuickFilterLabels().map((label) => `Filter: ${label}`),
+    schoolDaySelectedFilterChip("Student", studentIds, getStudentName),
+    schoolDaySelectedFilterChip("Subject", subjectIds, getSubjectName),
+    schoolDaySelectedFilterChip("Course", courseIds, getCourseName)
+  ].filter(Boolean);
+  if (filterChips.length === 1) filterChips.push("All scheduled rows");
+  host.classList.remove("hidden");
+  host.innerHTML = `
+    <div class="school-day-active-queue-summary">
+      <strong>${emptyFilteredQueue ? "No matching rows" : `${rowCount} row${rowCount === 1 ? "" : "s"} shown`}</strong>
+      <span>${emptyFilteredQueue ? "Active filters are hiding the queue" : "Daily Schedule work queue"}</span>
+    </div>
+    <div class="school-day-active-queue-chips">
+      ${filterChips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
+    </div>
+    ${hasActiveFilters ? `<div class="school-day-active-queue-actions"><button type="button" data-school-day-clear-filters="1">Clear filters</button></div>` : ""}`;
 }
 
 function resetSchoolDayQuickFilters() {
@@ -11521,19 +11888,25 @@ function openSchoolDayFromDashboard({
   contextLabel = ""
 } = {}) {
   const dateInput = document.getElementById("school-day-date");
-  if (dateInput) dateInput.value = date || todayISO();
+  const normalizedDate = date || todayISO();
+  const normalizedTab = ["daily-schedule", "attendance", "grades"].includes(tab) ? tab : "daily-schedule";
+  const normalizedQuickFilters = String(quickFilter || "").split(",").map((key) => key.trim()).filter(Boolean);
+  const normalizedStudentIds = Array.isArray(studentIds) ? studentIds : [];
+  const normalizedSubjectIds = Array.isArray(subjectIds) ? subjectIds : [];
+  const normalizedCourseIds = Array.isArray(courseIds) ? courseIds : [];
+  if (dateInput) dateInput.value = normalizedDate;
   resetSchoolDayQuickFilters();
   setSchoolDaySelectedStatus(statusFilter);
-  String(quickFilter || "").split(",").map((key) => key.trim()).filter(Boolean).forEach((key) => {
+  normalizedQuickFilters.forEach((key) => {
     setSchoolDayQuickFilterState(key, true);
   });
   applySchoolDayFilterSelection({
-    studentIds: Array.isArray(studentIds) ? studentIds : [],
-    subjectIds: Array.isArray(subjectIds) ? subjectIds : [],
-    courseIds: Array.isArray(courseIds) ? courseIds : []
+    studentIds: normalizedStudentIds,
+    subjectIds: normalizedSubjectIds,
+    courseIds: normalizedCourseIds
   });
   syncSchoolDayFilterSubjectCourseOptions();
-  currentSchoolDayTab = ["daily-schedule", "attendance", "grades"].includes(tab) ? tab : "daily-schedule";
+  currentSchoolDayTab = normalizedTab;
   schoolDayInlineGradeKey = "";
   const dashboardTabLabel = currentDashboardTab === "execution"
     ? "Execution"
@@ -11544,9 +11917,16 @@ function openSchoolDayFromDashboard({
         : "Overview";
   schoolDayDashboardReturnContext = {
     dashboardTab: currentDashboardTab,
+    date: normalizedDate,
+    tab: normalizedTab,
+    studentIds: normalizedStudentIds,
+    subjectIds: normalizedSubjectIds,
+    courseIds: normalizedCourseIds,
+    quickFilters: normalizedQuickFilters,
+    statusFilter: statusFilter || "all",
     message: contextLabel
-      ? `${contextLabel} from Dashboard > ${dashboardTabLabel} for ${formatDisplayDate(date || todayISO())}.`
-      : `Opened from Dashboard > ${dashboardTabLabel} for ${formatDisplayDate(date || todayISO())}.`
+      ? `${contextLabel} from Dashboard > ${dashboardTabLabel} for ${formatDisplayDate(normalizedDate)}.`
+      : `Opened from Dashboard > ${dashboardTabLabel} for ${formatDisplayDate(normalizedDate)}.`
   };
   saveSchoolDayPreferences();
   activateTab("school-day");
@@ -14760,12 +15140,14 @@ function buildDashboardGradeRiskSnapshot(dashboardStudents) {
   const rows = Array.from(byStudentCourse.entries()).map(([key, tests]) => {
     const [studentId, courseId] = key.split("||");
     const averageScore = weightedAverageForTests(tests, { quarterScoped: true });
+    const subjectId = tests[0]?.subjectId || getCourse(courseId)?.subjectId || "";
     return {
       studentId,
       studentName: getStudentName(studentId),
       courseId,
       courseName: getCourseName(courseId),
-      subjectName: tests[0]?.subjectId ? getSubjectName(tests[0].subjectId) : getSubjectName(getCourse(courseId)?.subjectId),
+      subjectId,
+      subjectName: subjectId ? getSubjectName(subjectId) : "Unknown Subject",
       averageScore,
       letterGrade: scoreToLetterGrade(averageScore) || "-",
       gpa: averageToGpa(averageScore),
@@ -15854,10 +16236,11 @@ function renderDashboardMissingGradesSummary(snapshot) {
 }
 
 function renderDashboardGradeRiskSummary(snapshot) {
+  renderDashboardGradeRiskOrigin();
   const riskValue = document.getElementById("dashboard-grade-risk-value");
   const riskNote = document.getElementById("dashboard-grade-risk-note");
   const riskRows = snapshot.rows.map((row) => `
-    <tr class="student-performance-row course-watchlist-row">
+    <tr class="student-performance-row course-watchlist-row course-watchlist-click-row" role="button" tabindex="0" data-dashboard-grade-risk-search="1" data-student-id="${escapeHtml(row.studentId)}" data-course-id="${escapeHtml(row.courseId)}" data-subject-id="${escapeHtml(row.subjectId || "")}" data-quarter-name="${escapeHtml(snapshot.quarterName)}" data-average-score="${row.averageScore.toFixed(1)}" title="Open Grades Search for ${escapeHtml(row.studentName)} / ${escapeHtml(row.courseName)}">
       <td>${escapeHtml(row.studentName)}</td>
       <td>${escapeHtml(row.courseName)}</td>
       <td>${escapeHtml(row.subjectName)}</td>
@@ -16034,6 +16417,16 @@ function openRequiredSubjectComplianceStudents(subjectId, status) {
   const row = snapshot.rows.find((entry) => entry.subject.id === subjectId);
   if (!row) return;
   const students = status === "not-compliant" ? row.missingStudents : row.compliantStudents;
+  studentsDashboardReturnContext = {
+    dashboardTab: "compliance",
+    complianceTab: "required-subjects",
+    message: `${status === "not-compliant" ? "Not In Compliance" : "Compliant"} students from Dashboard > Compliance > Required Subjects.`,
+    chips: [
+      `Subject: ${row.subject.name}`,
+      `Required: ${status === "not-compliant" ? "Missing" : "Met"}`,
+      `Students: ${students.length}`
+    ]
+  };
   studentTableFilterStudent = students.map((student) => `${student.firstName || ""} ${student.lastName || ""}`.trim()).filter(Boolean).join(", ");
   studentTableFilterGrade = "all";
   studentTableFilterStatus = "all";
@@ -17093,6 +17486,67 @@ function schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds = [], cours
   return true;
 }
 
+function renderSchoolDayNextAction({
+  studentId = "",
+  courseId = "",
+  subjectId = "",
+  date = "",
+  inlineGradeKey = "",
+  showInlineGrade = false,
+  needsAttendance = false,
+  needsCompletion = false,
+  needsGrade = false,
+  isPastDue = false,
+  isOverridden = false,
+  isCompleted = false,
+  isExcused = false,
+  gradeRecordCount = 0,
+  canEdit = false
+} = {}) {
+  if (isExcused) {
+    return `<div class="school-day-next-action is-muted"><span class="school-day-next-action-label">Excused</span><small>No grade needed</small></div>`;
+  }
+  if (!canEdit) {
+    return `<div class="school-day-next-action is-muted"><span class="school-day-next-action-label">Review only</span><small>Admin required</small></div>`;
+  }
+  if (needsAttendance) {
+    return `<div class="school-day-next-action is-warning"><button type="button" data-school-day-switch-tab="attendance">Record attendance</button><small>Attendance is still open</small></div>`;
+  }
+  if (needsCompletion || isPastDue) {
+    const targetKey = `${studentId}||${courseId}||${date}`;
+    return `<div class="school-day-next-action is-warning"><button type="button" data-school-day-focus-status="${escapeHtml(targetKey)}">${isPastDue ? "Resolve past due" : "Set status"}</button><small>Use the status menu</small></div>`;
+  }
+  if (needsGrade) {
+    return `<div class="school-day-next-action is-info"><button type="button" data-school-day-grade="${escapeHtml(inlineGradeKey)}" data-student-id="${escapeHtml(studentId)}" data-course-id="${escapeHtml(courseId)}" data-subject-id="${escapeHtml(subjectId)}" data-date="${escapeHtml(date)}">${showInlineGrade ? "Close grade" : "Add grade"}</button><small>${isCompleted ? "Grade waiting" : "Prefilled grade row"}</small></div>`;
+  }
+  if (isOverridden) {
+    return `<div class="school-day-next-action is-info"><span class="school-day-next-action-label">Review override</span><small>Today differs from plan</small></div>`;
+  }
+  if (isCompleted || gradeRecordCount) {
+    return `<div class="school-day-next-action is-complete"><span class="school-day-next-action-label">Complete</span><small>${gradeRecordCount ? `${gradeRecordCount} grade${gradeRecordCount === 1 ? "" : "s"} logged` : "No open action"}</small></div>`;
+  }
+  return `<div class="school-day-next-action is-muted"><span class="school-day-next-action-label">On track</span><small>No open action</small></div>`;
+}
+
+function renderSchoolDayNoActionCell() {
+  return `<td class="school-day-next-action-column"><div class="school-day-next-action is-muted"><span class="school-day-next-action-label">No action</span><small>Schedule block</small></div></td>`;
+}
+
+function focusSchoolDayStatusControl(targetKey) {
+  if (!targetKey) return false;
+  const select = Array.from(document.querySelectorAll("[data-school-day-status]"))
+    .find((el) => `${el.getAttribute("data-student-id") || ""}||${el.getAttribute("data-course-id") || ""}||${el.getAttribute("data-date") || ""}` === targetKey);
+  if (!select) return false;
+  select.closest("tr")?.scrollIntoView({ block: "center", behavior: "smooth" });
+  select.focus();
+  const control = select.closest(".school-day-status-control");
+  if (control) {
+    control.classList.add("school-day-status-control-focused");
+    window.setTimeout(() => control.classList.remove("school-day-status-control-focused"), 1400);
+  }
+  return true;
+}
+
 function schoolDayBlockIsExcusedInstruction(block, dateKey) {
   return block?.type === "instruction" && effectiveInstructionExcused(block.studentId, block.courseId, dateKey);
 }
@@ -17293,10 +17747,14 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
               ? `<div class="table-action-row"><button type="button" data-school-day-save-flex-block="${flexEditKey}" data-student-id="${block.studentId}" data-date="${dateKey}" data-start="${block.start}" data-end="${block.end}">Save</button><button type="button" data-school-day-cancel-flex-block="${flexEditKey}">Cancel</button></div>`
               : `<div class="table-action-row"><button type="button" data-school-day-edit-flex-block="${flexEditKey}">Edit</button></div>`);
           const statusCell = mode === "school-day" ? `<td class="school-day-status-column"></td>` : "";
-          return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${purposeCell}</td><td></td><td>${Number(block.actualMinutes || 0)} min</td>${statusCell}<td class="calendar-actions-cell">${actionsCell}</td></tr>`];
+          const nextActionCell = mode === "school-day" ? renderSchoolDayNoActionCell() : "";
+          const actionsColumnClass = mode === "school-day" ? "calendar-actions-cell school-day-actions-column" : "calendar-actions-cell";
+          return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${purposeCell}</td><td></td><td>${Number(block.actualMinutes || 0)} min</td>${statusCell}${nextActionCell}<td class="${actionsColumnClass}">${actionsCell}</td></tr>`];
         }
         const statusCell = mode === "school-day" ? `<td class="school-day-status-column"></td>` : "";
-        return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td></td><td>${Number(block.actualMinutes || 0)} min</td>${statusCell}<td class="calendar-actions-cell"></td></tr>`];
+        const nextActionCell = mode === "school-day" ? renderSchoolDayNoActionCell() : "";
+        const actionsColumnClass = mode === "school-day" ? "calendar-actions-cell school-day-actions-column" : "calendar-actions-cell";
+        return [`<tr><td>${actualRange}</td><td>${block.student}</td><td>${block.label}<br><span class="muted">Planned ${plannedRange}</span></td><td></td><td>${Number(block.actualMinutes || 0)} min</td>${statusCell}${nextActionCell}<td class="${actionsColumnClass}"></td></tr>`];
       }
 
       const existing = findInstructionActualRecord(block.studentId, block.courseId, dateKey);
@@ -17401,7 +17859,26 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
             ? `<div class="table-action-row"><button type="button" data-school-day-save-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" data-school-day-cancel-class-actual="${sharedEditKey}">Cancel</button></div>`
             : `<div class="table-action-row"><button type="button" ${saveAttr}="${editKey}" data-student-id="${block.studentId}" data-course-id="${block.courseId}" data-date="${dateKey}">Save</button><button type="button" ${cancelAttr}="${editKey}">Cancel</button></div>`)
           : `<div class="school-day-actions-wrap"><div class="table-action-row">${inlineGradeActions}${isSectionBoundInstruction ? `<button type="button" data-school-day-edit-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-course-id="${block.courseId}" data-date="${dateKey}">Edit Class For Today</button>${hasOverride && sharedRecord ? `<button type="button" data-school-day-reset-class-actual="${sharedEditKey}" data-course-section-id="${block.courseSectionId}" data-date="${dateKey}">Use Planned</button>` : ""}` : `<button type="button" ${editAttr}="${editKey}">Edit</button>${hasOverride && existing ? `<button type="button" ${resetAttr}="${existing.id}">Use Planned</button>` : ""}`}</div></div>`);
-      const renderedRows = [`<tr class="${rowStateClasses}${isEditing ? " school-day-editing-row" : ""}"><td class="school-day-hour-column">${hourDisplay}</td><td class="school-day-student-column">${block.student}</td><td class="school-day-planned-column"><div class="school-day-planned-copy">${block.label}</div>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td class="school-day-instructor-column">${instructorCell}</td><td class="school-day-minutes-column">${minutesCell}</td>${statusColumnCell}<td class="calendar-actions-cell school-day-actions-column">${actionsCell}</td></tr>`];
+      const nextActionCell = mode === "school-day"
+        ? `<td class="school-day-next-action-column">${renderSchoolDayNextAction({
+          studentId: block.studentId,
+          courseId: block.courseId,
+          subjectId: block.subjectId,
+          date: dateKey,
+          inlineGradeKey,
+          showInlineGrade,
+          needsAttendance,
+          needsCompletion,
+          needsGrade,
+          isPastDue,
+          isOverridden,
+          isCompleted,
+          isExcused,
+          gradeRecordCount,
+          canEdit: canEditActualMinutes
+        })}</td>`
+        : "";
+      const renderedRows = [`<tr class="${rowStateClasses}${isEditing ? " school-day-editing-row" : ""}"><td class="school-day-hour-column">${hourDisplay}</td><td class="school-day-student-column">${block.student}</td><td class="school-day-planned-column"><div class="school-day-planned-copy">${block.label}</div>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td class="school-day-instructor-column">${instructorCell}</td><td class="school-day-minutes-column">${minutesCell}</td>${statusColumnCell}${nextActionCell}<td class="calendar-actions-cell school-day-actions-column">${actionsCell}</td></tr>`];
       if (showInlineGrade) {
         const gradeRow = buildGradeEntryRow(null, {
           date: dateKey,
@@ -17421,13 +17898,13 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
           <tr class="school-day-inline-grade-action-table-row" data-grade-action-for="${gradeRowId}">
             <td colspan="7">
               <div class="grade-entry-action-row">
-                <button type="button" data-grade-save="1">Save</button>
-                <button type="button" data-grade-calc-toggle="1">Calculate</button>
+                <button type="button" data-grade-save="1">Save Grade</button>
+                <button type="button" data-grade-calc-toggle="1">Calculate Score</button>
                 <button type="button" data-grade-cancel="1">Cancel</button>
               </div>
             </td>
           </tr>`;
-        renderedRows.push(`<tr data-school-day-inline-grade-container="${inlineGradeKey}" class="school-day-inline-grade-row"><td colspan="7"><div class="table-wrap school-day-inline-grade-wrap"><table><thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead><tbody>${gradeRow.outerHTML}${inlineActionRows}</tbody></table></div></td></tr>`);
+        renderedRows.push(`<tr data-school-day-inline-grade-container="${inlineGradeKey}" class="school-day-inline-grade-row"><td colspan="8"><div class="school-day-inline-grade-panel"><div class="school-day-inline-grade-context"><strong>Add grade</strong><span>${escapeHtml(block.student)} &middot; ${escapeHtml(block.label)} &middot; ${formatDisplayDate(dateKey)}</span></div><div class="table-wrap school-day-inline-grade-wrap"><table><thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead><tbody>${gradeRow.outerHTML}${inlineActionRows}</tbody></table></div></div></td></tr>`);
       }
       return renderedRows;
     });
@@ -17558,10 +18035,24 @@ function renderSchoolDay() {
       ? sum + effectiveInstructionMinutes(block.studentId, block.courseId, ref)
       : sum
   ), 0);
-  const quickFilterEmptyMessage = schoolDayActiveQuickFilterCount() || statusFilter !== "all"
-    ? "No School Day rows match the selected filters."
+  const hasActiveQueueFilters = hasActiveSchoolDayQueueFilters({ statusFilter, studentIds: studentFilterIds, subjectIds: subjectFilterIds, courseIds: courseFilterIds });
+  const quickFilterEmptyMessage = hasActiveQueueFilters
+    ? renderSchoolDayFilteredEmptyState()
     : "No scheduled instruction for this day.";
-  rowOrEmpty(document.getElementById("school-day-table"), rows, quickFilterEmptyMessage, 7);
+  rowOrEmpty(document.getElementById("school-day-table"), rows, quickFilterEmptyMessage, 8);
+  renderSchoolDayActiveQueue({
+    date: ref,
+    rowCount: rows.length,
+    statusFilter,
+    studentIds: studentFilterIds,
+    subjectIds: subjectFilterIds,
+    courseIds: courseFilterIds
+  });
+  const attendanceOpenCount = schoolDayRosterStudents(ref).filter((student) => !attendanceRecordForStudentDate(student.id, ref)).length;
+  updateSchoolDaySubtabCounts({
+    scheduleCount: rows.length,
+    attendanceOpenCount
+  });
   renderSchoolDayStudentSummaries(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
   renderSchoolDayOverviewGrid(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
   const hoursSummary = document.getElementById("school-day-hours-summary");
@@ -20523,6 +21014,25 @@ function bindEvents() {
       updateSchoolDayGradeEntryVisibility();
     });
   }
+  const schoolDayAddGradeRowsForClassesBtn = document.getElementById("school-day-add-grade-rows-for-classes-btn");
+  if (schoolDayAddGradeRowsForClassesBtn) {
+    schoolDayAddGradeRowsForClassesBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      const date = document.getElementById("school-day-date")?.value || todayISO();
+      const candidateBlocks = schoolDayGradeCandidateBlocks(date);
+      if (!candidateBlocks.length) {
+        setSchoolDayGradesMessage("info", `No scheduled classes need batch grade rows for ${formatDisplayDate(date)} with the current filters.`);
+        updateSchoolDayGradeEntryVisibility();
+        return;
+      }
+      const addedCount = appendSchoolDayGradeRowsForBlocks(candidateBlocks, date);
+      if (!addedCount) {
+        setSchoolDayGradesMessage("info", `Scheduled class grade rows for ${formatDisplayDate(date)} are already in the batch.`);
+        return;
+      }
+      setSchoolDayGradesMessage("success", `Added ${addedCount} scheduled class grade row${addedCount === 1 ? "" : "s"} for ${formatDisplayDate(date)}.`);
+    });
+  }
 
   const addAttendanceRecordBtn = document.getElementById("add-attendance-record-btn");
   if (addAttendanceRecordBtn) {
@@ -21427,7 +21937,7 @@ function bindEvents() {
   document.addEventListener("keydown", (event) => {
     if (!["Enter", " "].includes(event.key)) return;
     const target = event.target instanceof HTMLElement
-      ? event.target.closest('[role="button"][data-dashboard-open-school-day]')
+      ? event.target.closest('[role="button"][data-dashboard-open-school-day], [role="button"][data-dashboard-grade-risk-search]')
       : null;
     if (!(target instanceof HTMLElement)) return;
     event.preventDefault();
@@ -21457,6 +21967,17 @@ function bindEvents() {
     const averageGradeRiskTarget = t.closest("#dashboard-overview-average-grade-risk-btn");
     if (averageGradeRiskTarget instanceof HTMLElement) {
       openAverageGradeRiskWatchlist();
+      return;
+    }
+    const gradeRiskSearchTarget = t.closest("[data-dashboard-grade-risk-search]");
+    if (gradeRiskSearchTarget instanceof HTMLElement) {
+      openAverageGradeRiskSearch({
+        studentId: gradeRiskSearchTarget.getAttribute("data-student-id") || "",
+        courseId: gradeRiskSearchTarget.getAttribute("data-course-id") || "",
+        subjectId: gradeRiskSearchTarget.getAttribute("data-subject-id") || "",
+        quarterName: gradeRiskSearchTarget.getAttribute("data-quarter-name") || "",
+        averageScore: gradeRiskSearchTarget.getAttribute("data-average-score") || ""
+      });
       return;
     }
     const missingRequiredStudentTarget = t.closest("[data-open-missing-required-student]");
@@ -21677,6 +22198,28 @@ function bindEvents() {
       });
       return;
     }
+    if (t.getAttribute("data-school-day-clear-filters")) {
+      resetSchoolDayQuickFilters();
+      setSchoolDaySelectedStatus("all");
+      applySchoolDayFilterSelection({ studentIds: [], subjectIds: [], courseIds: [] });
+      syncSchoolDayFilterSubjectCourseOptions();
+      schoolDayInlineGradeKey = "";
+      clearSchoolDayDailyMessage();
+      renderSchoolDay();
+      return;
+    }
+    const schoolDaySwitchTab = t.getAttribute("data-school-day-switch-tab");
+    if (schoolDaySwitchTab) {
+      currentSchoolDayTab = ["daily-schedule", "attendance", "grades"].includes(schoolDaySwitchTab) ? schoolDaySwitchTab : "daily-schedule";
+      saveSchoolDayPreferences();
+      renderSchoolDaySectionVisibility();
+      return;
+    }
+    const schoolDayFocusStatus = t.getAttribute("data-school-day-focus-status");
+    if (schoolDayFocusStatus) {
+      if (!focusSchoolDayStatusControl(schoolDayFocusStatus)) renderSchoolDay();
+      return;
+    }
     const schoolDayQuickFilter = t.getAttribute("data-school-day-quick-filter");
     if (schoolDayQuickFilter) {
       String(schoolDayQuickFilter).split(",").map((key) => key.trim()).filter(Boolean).forEach((key) => {
@@ -21754,6 +22297,83 @@ function bindEvents() {
       currentDashboardTab = ["overview", "execution", "performance", "compliance"].includes(returnTab) ? returnTab : "overview";
       renderDashboardSectionVisibility();
       renderDashboard();
+      return;
+    }
+    if (t.id === "grades-return-dashboard-btn") {
+      const returnTab = gradesDashboardReturnContext?.dashboardTab || "overview";
+      gradesDashboardReturnContext = null;
+      activateTab("dashboard");
+      currentDashboardTab = ["overview", "execution", "performance", "compliance"].includes(returnTab) ? returnTab : "overview";
+      renderDashboardSectionVisibility();
+      renderDashboard();
+      return;
+    }
+    if (t.id === "dashboard-grade-risk-clear-focus-btn") {
+      dashboardGradeRiskOriginContext = null;
+      renderDashboardGradeRiskOrigin();
+      return;
+    }
+    if (t.id === "grades-clear-dashboard-focus-btn") {
+      gradesDashboardReturnContext = null;
+      currentGradesTab = "search";
+      [
+        "grades-filter-student",
+        "grades-filter-quarter",
+        "grades-filter-school-year",
+        "grades-filter-subject",
+        "grades-filter-instructor",
+        "grades-filter-course",
+        "grades-filter-grade-type",
+        "grades-filter-grade-operator"
+      ].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "all";
+      });
+      ["grades-filter-start-date", "grades-filter-end-date", "grades-filter-grade-value"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      editingSearchGradeId = "";
+      syncGradesFilterSubjectCourseOptions();
+      renderGradesSectionVisibility();
+      renderTests();
+      return;
+    }
+    if (t.id === "students-return-dashboard-btn") {
+      const returnTab = studentsDashboardReturnContext?.dashboardTab || "overview";
+      const returnComplianceTab = studentsDashboardReturnContext?.complianceTab || "";
+      studentsDashboardReturnContext = null;
+      activateTab("dashboard");
+      currentDashboardTab = ["overview", "execution", "performance", "compliance"].includes(returnTab) ? returnTab : "overview";
+      if (currentDashboardTab === "compliance" && ["instructional-hours", "instructional-days", "required-subjects"].includes(returnComplianceTab)) {
+        currentComplianceTab = returnComplianceTab;
+      }
+      renderDashboardSectionVisibility();
+      renderDashboard();
+      return;
+    }
+    if (t.id === "students-clear-dashboard-focus-btn") {
+      studentsDashboardReturnContext = null;
+      studentTableFilterStudent = "";
+      studentTableFilterGrade = "all";
+      studentTableFilterStatus = "all";
+      studentTableFilterRequired = "all";
+      studentTableRequiredSubjectFilterId = "";
+      selectedStudentId = "";
+      setStudentViewMode("list");
+      renderStudents();
+      return;
+    }
+    if (t.id === "school-day-clear-dashboard-focus-btn") {
+      schoolDayDashboardReturnContext = null;
+      resetSchoolDayQuickFilters();
+      setSchoolDaySelectedStatus("all");
+      applySchoolDayFilterSelection({ studentIds: [], subjectIds: [], courseIds: [] });
+      syncSchoolDayFilterSubjectCourseOptions();
+      clearSchoolDayDailyMessage();
+      schoolDayAttendanceMessageState = { kind: "", text: "" };
+      schoolDayGradesMessageState = { kind: "", text: "" };
+      renderSchoolDay();
       return;
     }
     const schoolDayAttendanceSaveStudentId = t.getAttribute("data-school-day-attendance-save");
@@ -22837,6 +23457,7 @@ function renderAll() {
 }
 
 bindEvents();
+refreshLocalPreviewSeedState();
 renderAll();
 if (startupBackfillChanged) saveState();
 bootstrapApplicationState();
