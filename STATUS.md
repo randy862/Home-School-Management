@@ -56,11 +56,12 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 - Added `CHECKLISTS/security-operational-hardening.md` for PostgreSQL roles, encrypted backup/restore, AWS security groups, monitoring, and incident response.
 - Added `CHECKLISTS/security-lab-hardening.md` so lab hardening can be signed off while AWS-only controls remain deferred.
 - Added `scripts/Invoke-LabSecurityGate.ps1` for lab health, login, privacy, permission, legacy-state, CORS, and optional control checks.
+- Added `server/migrations/postgres/028_user_profile_fields_tenant_schemas.sql` to repair lab tenant schemas missing user profile columns required by current login queries.
 - Broad tenant/control route raw-error scan, syntax checks, and production npm audits are clean.
 
 ## Current Blockers
 
-- None.
+- Lab security gate currently fails tenant admin login until the lab PostgreSQL database has the tenant user profile migration applied.
 
 ## Current Risks
 
@@ -73,5 +74,5 @@ First repo-level commercial hardening pass from `NOTES/commercial-security-harde
 ## Next Actions
 
 1. Complete `CHECKLISTS/security-lab-hardening.md` against the lab environment.
-2. Run lab smoke validation for tenant/admin/control flows after deploy.
+2. Apply `server/migrations/postgres/028_user_profile_fields_tenant_schemas.sql` to the lab PostgreSQL database, then rerun `scripts\Invoke-LabSecurityGate.ps1`.
 3. Keep AWS-only controls deferred until the hosted platform exists.

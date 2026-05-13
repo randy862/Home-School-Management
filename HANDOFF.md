@@ -8,10 +8,7 @@ Production backend/platform security hardening.
 
 Live URL: https://www.navigrader.com/
 
-Preview URLs:
-
-- https://www.navigrader.com/saas-preview.html
-- https://www.navigrader.com/saas-blended-preview.html
+Preview URLs: https://www.navigrader.com/saas-preview.html and https://www.navigrader.com/saas-blended-preview.html
 
 ## Current State
 
@@ -33,6 +30,7 @@ Completed this batch:
 - Added `control-api/package-lock.json`; both npm audits now pass.
 - Added security deployment, operational, and lab checklists for service users, secrets, Apache, DB roles, backup/restore, AWS-deferred controls, monitoring, incident response, and validation.
 - Added `scripts/Invoke-LabSecurityGate.ps1` for lab security validation.
+- Added `server/migrations/postgres/028_user_profile_fields_tenant_schemas.sql` to repair tenant-schema user profile columns when older lab databases only received the search-path scoped profile migration.
 - Tightened tenant runtime resolution so hosted PostgreSQL requests fail closed without a resolved tenant schema; fallback runtime is host-bound and legacy state sync fails closed in production.
 - Tightened control-plane environment job routes so queued jobs use the environment's server-side tenant ID and reject mismatched body tenant IDs.
 - Scoped student instructor reads to assigned instructors and redacted instructor birthdate/background fields from student responses.
@@ -42,13 +40,11 @@ Completed this batch:
 
 Prior live SaaS polish remains deployed at `https://www.navigrader.com/`; see previous history if that workstream is reopened.
 
-Current security commits:
-
-- `6f9d8c8`, `495ea8a`, `9ff7129`, and `7f6eb01` continue route and operational hardening.
+Current security commits include `6f9d8c8`, `495ea8a`, `9ff7129`, `7f6eb01`, and `886b05f`.
 
 ## Next Action
 
-Run `scripts\Invoke-LabSecurityGate.ps1` against the lab, then continue `CHECKLISTS/security-lab-hardening.md`.
+Apply `server/migrations/postgres/028_user_profile_fields_tenant_schemas.sql` to the lab PostgreSQL database, restart the tenant API if needed, then rerun `scripts\Invoke-LabSecurityGate.ps1`.
 
 ## Risks
 
@@ -56,6 +52,7 @@ Run `scripts\Invoke-LabSecurityGate.ps1` against the lab, then continue `CHECKLI
 - Scratch assets remain intentionally untouched.
 - Checkout uses live public plans and checkout endpoints through existing `saas.js`.
 - In-memory rate limits are not a final distributed SaaS limiter.
+- Current lab gate is blocked at tenant admin login until the lab database has the user profile columns expected by the deployed API.
 - Lab PostgreSQL least privilege, encrypted backup/restore, incident checklist, and cross-tenant abuse tests remain open; AWS security groups are deferred until AWS exists.
 - Route-by-route IDOR testing is started but not complete.
 
