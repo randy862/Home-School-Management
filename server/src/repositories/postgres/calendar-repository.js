@@ -249,7 +249,7 @@ function createCalendarRepository(deps) {
           SELECT
             id,
             school_year_id AS "schoolYearId",
-            student_ids_json AS "studentIdsJson",
+            to_jsonb(ARRAY[$1]::text[]) AS "studentIdsJson",
             break_type AS "type",
             description,
             start_time AS "startTime",
@@ -298,17 +298,21 @@ function createCalendarRepository(deps) {
       const pool = getPostgresPool();
       if (user?.role === "student") {
         const result = await pool.query(`
-          SELECT DISTINCT
-            sb.id,
-            sb.name,
-            sb.block_type AS "type",
-            sb.description,
-            sb.duration_minutes AS "durationMinutes",
-            sb.weekdays_json AS "weekdaysJson"
-          FROM schedule_blocks sb
-          JOIN student_schedule_blocks ssb ON ssb.schedule_block_id = sb.id
-          WHERE ssb.student_id = $1
-          ORDER BY lower(sb.name), sb.id
+          SELECT *
+          FROM (
+            SELECT DISTINCT
+              sb.id,
+              sb.name,
+              sb.block_type AS "type",
+              sb.description,
+              sb.duration_minutes AS "durationMinutes",
+              sb.weekdays_json AS "weekdaysJson",
+              lower(sb.name) AS "_sortName"
+            FROM schedule_blocks sb
+            JOIN student_schedule_blocks ssb ON ssb.schedule_block_id = sb.id
+            WHERE ssb.student_id = $1
+          ) scoped_blocks
+          ORDER BY "_sortName", id
         `, [user.studentId || ""]);
         return result.rows.map(mapScheduleBlockRow);
       }

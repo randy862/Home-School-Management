@@ -54,19 +54,32 @@ async function listInstructorsForUser(user) {
       WHERE student_id = $1
         AND instructor_id IS NOT NULL
     )
-    SELECT DISTINCT
-      i.id,
-      i.first_name AS "firstName",
-      i.last_name AS "lastName",
-      NULL::date AS birthdate,
-      'other' AS category,
-      '' AS "educationLevel",
-      NULL::integer AS "ageRecorded",
-      NULL::date AS "createdAt"
-    FROM instructors i
-    JOIN assigned_instructors assigned
-      ON assigned.instructor_id = i.id
-    ORDER BY lower(i.last_name), lower(i.first_name)
+    SELECT
+      id,
+      "firstName",
+      "lastName",
+      birthdate,
+      category,
+      "educationLevel",
+      "ageRecorded",
+      "createdAt"
+    FROM (
+      SELECT DISTINCT
+        i.id,
+        i.first_name AS "firstName",
+        i.last_name AS "lastName",
+        NULL::date AS birthdate,
+        'other' AS category,
+        '' AS "educationLevel",
+        NULL::integer AS "ageRecorded",
+        NULL::date AS "createdAt",
+        lower(i.last_name) AS sort_last_name,
+        lower(i.first_name) AS sort_first_name
+      FROM instructors i
+      JOIN assigned_instructors assigned
+        ON assigned.instructor_id = i.id
+    ) scoped_instructors
+    ORDER BY sort_last_name, sort_first_name
   `, [studentId]);
   return result.rows;
 }

@@ -11,7 +11,7 @@ Lab signoff means the code, service configuration, database access, backup/resto
 
 ## Lab Completion Criteria
 
-- [ ] Hardened repo commits are deployed to the lab API/control API runtime.
+- [x] Hardened repo commits are deployed to the lab API/control API runtime.
 - [x] Lab runs with `APP_ENV=production` and `CONTROL_APP_ENV=production` when validating production-safe behavior.
 - [x] Tenant API and control API secrets are stored outside git.
 - [x] Secret files or environment stores are readable only by the service account or lab operator.
@@ -23,18 +23,18 @@ Lab signoff means the code, service configuration, database access, backup/resto
 
 - [x] API/control services run as non-admin users where the lab supports service users.
 - [x] Services start cleanly after restart.
-- [ ] Service logs do not expose passwords, session tokens, Stripe secrets, internal auth secrets, or database URLs.
+- [x] Service logs do not expose passwords, session tokens, Stripe secrets, internal auth secrets, or database URLs.
 - [x] CORS allowlist rejects an unlisted origin.
-- [ ] Login/setup/bootstrap rate limits return `429` after repeated attempts.
-- [ ] Tenant and operator cookies include `HttpOnly`, expected `SameSite`, and `Secure` when validating over HTTPS.
-- [ ] Production 5xx responses return a generic error while logs keep diagnostic detail.
+- [x] Login/setup/bootstrap rate limits return `429` after repeated attempts.
+- [x] Tenant and operator cookies include `HttpOnly`, expected `SameSite`, and `Secure` when validating over HTTPS.
+- [x] Production 5xx responses return a generic error while logs keep diagnostic detail.
 
 ## Lab Database Checks
 
 - [x] Tenant API and control API use non-superuser PostgreSQL roles.
 - [x] Lab role grants are documented, even if they are less strict than the final production model.
-- [ ] Tenant runtime cannot resolve without a tenant schema in PostgreSQL mode.
-- [ ] Tenant schema identifiers are validated before generated search paths are used.
+- [x] Tenant runtime cannot resolve without a tenant schema in PostgreSQL mode.
+- [x] Tenant schema identifiers are validated before generated search paths are used.
 - [ ] `pg_hba.conf` or the lab firewall limits PostgreSQL to lab app/control hosts where possible.
 
 ## Lab Backup And Restore
@@ -56,12 +56,21 @@ Lab backup evidence, 2026-05-13:
 
 ## Lab Permission And IDOR Checks
 
-- [ ] Student users cannot read another student's account, instructor, records, curriculum, schedule-block, or plan data.
+- [x] Student users cannot read another student's account, instructor, records, curriculum, schedule-block, or plan data.
 - [x] Student users receive `403` for tenant admin writes.
 - [x] Non-admin tenant users do not receive subscription, billing-event, upgrade, or export-request details.
 - [ ] Under-permissioned control operators receive `403` for tenant, environment, job retry, operator, and commercial mutations.
 - [ ] Internal commercial/control endpoints reject missing or invalid internal auth.
 - [x] Legacy `/api/state` returns disabled in production-style lab validation.
+
+Lab IDOR evidence, 2026-05-13:
+
+- Added and applied tenant-schema repair migrations `029_instructor_assignments_tenant_schemas.sql` and `030_tenant_schema_feature_catchup.sql` after route probes exposed older lab tenant schema drift.
+- Deployed fixes for student-scoped PostgreSQL `SELECT DISTINCT` ordering in instructor, curriculum, and schedule-block reads.
+- Redacted shared daily-break `studentIds` responses so a student sees only their own student ID.
+- Temporary student probe against `tenant_auto_20260328200130` checked 22 authenticated read endpoints with no other-student ID leakage.
+- Temporary student probe verified 10 tenant admin-write attempts returned `403`.
+- Fresh `hsm-api.service` log scan after reruns found no error/secret/token keyword matches.
 
 ## Lab Smoke Gate
 

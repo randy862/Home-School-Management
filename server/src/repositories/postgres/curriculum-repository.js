@@ -224,14 +224,18 @@ function createCurriculumRepository(deps) {
       if (user?.role === "student") {
         await ensureCourseSectionTables(pool);
         const result = await pool.query(`
-          SELECT DISTINCT
-            ${selectColumns}
-          FROM courses c
-          LEFT JOIN enrollments e ON e.course_id = c.id AND e.student_id = $1
-          LEFT JOIN course_sections cs ON cs.course_id = c.id
-          LEFT JOIN section_enrollments se ON se.course_section_id = cs.id AND se.student_id = $1
-          WHERE e.student_id IS NOT NULL OR se.student_id IS NOT NULL
-          ORDER BY lower(c.name)
+          SELECT *
+          FROM (
+            SELECT DISTINCT
+              ${selectColumns},
+              lower(c.name) AS "_sortName"
+            FROM courses c
+            LEFT JOIN enrollments e ON e.course_id = c.id AND e.student_id = $1
+            LEFT JOIN course_sections cs ON cs.course_id = c.id
+            LEFT JOIN section_enrollments se ON se.course_section_id = cs.id AND se.student_id = $1
+            WHERE e.student_id IS NOT NULL OR se.student_id IS NOT NULL
+          ) scoped_courses
+          ORDER BY "_sortName"
         `, [user.studentId || ""]);
         return result.rows.map(mapCourseRow);
       }
@@ -278,20 +282,24 @@ function createCurriculumRepository(deps) {
       await ensureCourseSectionTables(pool);
       const result = user?.role === "student"
         ? await pool.query(`
-          SELECT DISTINCT
-            cs.id,
-            cs.course_id AS "courseId",
-            cs.label,
-            cs.resource_group AS "resourceGroup",
-            cs.concurrent_capacity AS "concurrentCapacity",
-            cs.start_time AS "startTime",
-            cs.quarter_names_json AS "quarterNamesJson",
-            cs.weekdays_json AS "weekdaysJson",
-            cs.schedule_order AS "scheduleOrder"
-          FROM course_sections cs
-          JOIN section_enrollments se ON se.course_section_id = cs.id
-          WHERE se.student_id = $1
-          ORDER BY lower(cs.label), cs.id
+          SELECT *
+          FROM (
+            SELECT DISTINCT
+              cs.id,
+              cs.course_id AS "courseId",
+              cs.label,
+              cs.resource_group AS "resourceGroup",
+              cs.concurrent_capacity AS "concurrentCapacity",
+              cs.start_time AS "startTime",
+              cs.quarter_names_json AS "quarterNamesJson",
+              cs.weekdays_json AS "weekdaysJson",
+              cs.schedule_order AS "scheduleOrder",
+              lower(cs.label) AS "_sortLabel"
+            FROM course_sections cs
+            JOIN section_enrollments se ON se.course_section_id = cs.id
+            WHERE se.student_id = $1
+          ) scoped_sections
+          ORDER BY "_sortLabel", id
         `, [user.studentId || ""])
         : await pool.query(`
           SELECT
@@ -366,17 +374,24 @@ function createCurriculumRepository(deps) {
       if (user?.role === "student") {
         await ensureCourseSectionTables(pool);
         const result = await pool.query(`
-          SELECT DISTINCT
-            s.id,
-            s.name,
-            s.required
-          FROM subjects s
-          JOIN courses c ON c.subject_id = s.id
-          LEFT JOIN enrollments e ON e.course_id = c.id AND e.student_id = $1
-          LEFT JOIN course_sections cs ON cs.course_id = c.id
-          LEFT JOIN section_enrollments se ON se.course_section_id = cs.id AND se.student_id = $1
-          WHERE e.student_id IS NOT NULL OR se.student_id IS NOT NULL
-          ORDER BY lower(s.name)
+          SELECT
+            id,
+            name,
+            required
+          FROM (
+            SELECT DISTINCT
+              s.id,
+              s.name,
+              s.required,
+              lower(s.name) AS sort_name
+            FROM subjects s
+            JOIN courses c ON c.subject_id = s.id
+            LEFT JOIN enrollments e ON e.course_id = c.id AND e.student_id = $1
+            LEFT JOIN course_sections cs ON cs.course_id = c.id
+            LEFT JOIN section_enrollments se ON se.course_section_id = cs.id AND se.student_id = $1
+            WHERE e.student_id IS NOT NULL OR se.student_id IS NOT NULL
+          ) scoped_subjects
+          ORDER BY sort_name
         `, [user.studentId || ""]);
         return result.rows;
       }

@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-12
+Date: 2026-05-13
 
 ## Active Workstream
 
@@ -8,77 +8,41 @@ Production backend/platform security hardening.
 
 ## Current Focus
 
-First repo-level commercial hardening pass from `NOTES/commercial-security-hardening-plan.md`.
+Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 
 ## Completed Recently
 
-- Modern app interface was promoted to production at `https://mitchell.navigrader.com/`.
-- SaaS redesign branch `saas-modern-redesign` was fast-forwarded to the modern production baseline.
-- Preview-only files `web/saas-preview.html` and `web/saas-preview.css` were added.
-- Existing `web/saas.js` checkout and public plan-loading behavior is reused.
-- The preview page was deployed to `https://www.navigrader.com/saas-preview.html`.
-- Live `https://www.navigrader.com/` now serves `/saas.html` through a guarded WEB001 Apache rewrite.
-- Tenant subdomain root pages, including `https://mitchell.navigrader.com/`, still serve the hosted workspace login.
-- Blended production-layout preview remains available at `https://www.navigrader.com/saas-blended-preview.html`.
-- The polished production-layout SaaS page is now live through `web/saas.html` plus `web/saas-polish.css?v=202605121350`.
-- Hero/Problem treatment remains as approved, with the divider removed and CTA buttons centered over trust chips.
-- Built For/Solution remain production-style cards.
-- Joy, Why It Helps, How It Works, Pricing, FAQ, and bottom screenshots keep distinct cards with blended section titles.
-- Bottom CTA uses updated production screenshot assets and corrected labels.
-- Bottom CTA screenshots open in a larger click/keyboard preview modal.
-- Live `saas.html` backup exists on WEB001:
-  `/var/www/home-school-management/web/saas.html.bak-20260512-saas-polish`
-- Latest pushed commits before this production polish: `75533f1`, `781fffd`.
-- Security hardening pass applied:
-  - API security headers for tenant API and control API.
-  - CORS allowlist behavior instead of origin reflection when configured.
-  - Rate limits on tenant login/setup, operator login/bootstrap, public checkout, and Stripe webhook ingress.
-  - Production-safe 5xx error responses with server-side logging.
-  - Production cookie defaults infer secure cookies in production.
-  - Setup/bootstrap password minimum length added.
-  - Tenant schema identifiers validated before provisioning-generated search paths.
-  - Production Apache SSL template added.
-  - Existing Apache templates disable directory indexes and deny dotfiles.
-  - Systemd templates now use secure cookies, external secret env files, dedicated users, and hardening directives.
-  - `server/package-lock.json` updated to remediate `path-to-regexp`; `control-api/package-lock.json` added.
-- Added `CHECKLISTS/security-hardening-deployment.md` for APP001/WEB001/SQL001 hardening prerequisites and validation.
-- Tenant runtime middleware now fails closed for unresolved PostgreSQL tenant contexts and only allows fallback runtime when the request matches the configured tenant app host.
-- Control-plane environment job routes now derive tenant identity from the server-loaded environment and reject mismatched body tenant IDs.
-- `GET /api/instructors` now scopes student users to assigned instructors only and redacts instructor birthdate/background fields for student responses.
-- Tenant user creation and account password changes now use the same 10-character minimum as setup/operator flows.
-- `GET /api/account` now withholds hosted subscription, upgrade, billing-event, and export-request details from non-admin users.
-- Account routes now sanitize production 5xx responses instead of returning raw internal error messages.
-- Records routes now sanitize production 5xx responses and retained student read scoping/admin-only writes under route-level checks.
-- Legacy `/api/state` full-state sync now fails closed in production unless `LEGACY_STATE_SYNC_ENABLED=true` is explicitly set.
-- Admin routes now sanitize production 5xx responses and retain route-level checks for student scoping/admin-only writes.
-- Curriculum/calendar/grading routes now sanitize production 5xx responses; student schedule-block reads are scoped to assigned blocks.
-- Control API routes now share production-safe route error handling across tenant, environment, job, operator, audit, runtime, and commercial endpoints.
-- Added `CHECKLISTS/security-operational-hardening.md` for PostgreSQL roles, encrypted backup/restore, AWS security groups, monitoring, and incident response.
-- Added `CHECKLISTS/security-lab-hardening.md` so lab hardening can be signed off while AWS-only controls remain deferred.
-- Added `scripts/Invoke-LabSecurityGate.ps1` for lab health, login, privacy, permission, legacy-state, CORS, and optional control checks.
-- Added `server/migrations/postgres/028_user_profile_fields_tenant_schemas.sql` to repair lab tenant schemas missing user profile columns required by current login queries.
-- Lab database migration and lab tenant credential reset were applied manually during validation.
-- Local hardening branch was pushed to `origin/saas-modern-redesign`.
-- APP001 `.env.runtime` was updated to `APP_CORS_ORIGIN=https://192.168.1.210`; rejected-origin CORS probe now returns `403`.
-- `scripts\Invoke-LabSecurityGate.ps1` succeeded against lab tenant/control APIs before and after APP001 service-user/systemd hardening.
-- APP001 tenant API/control API now run as `hsm-api` and `hsm-control-api` with hardened systemd directives and protected env files.
-- SQL001 encrypted backup and isolated restore validation succeeded; restore metrics matched and the restore database was dropped.
-- Broad tenant/control route raw-error scan, syntax checks, and production npm audits are clean.
+- SaaS redesign branch `saas-modern-redesign` remains the active hardening branch.
+- Live SaaS polish remains deployed at `https://www.navigrader.com/`; tenant app remains at `https://mitchell.navigrader.com/`.
+- Tenant/control APIs have security headers, CORS allowlists, production-safe 5xx responses, secure cookie defaults, and rate limits.
+- Tenant runtime fails closed when PostgreSQL tenant schema resolution fails.
+- Control environment jobs derive tenant identity from server-loaded environment rows.
+- Student account/subscription/admin data is role-scoped.
+- Legacy `/api/state` fails closed unless explicitly enabled.
+- APP001 tenant/control services run as `hsm-api` and `hsm-control-api` with hardened systemd units and protected env files.
+- SQL001 encrypted backup/restore validation succeeded and restore DB was dropped.
+- Lab security gate succeeded against tenant and control APIs.
+- Lab rate-limit, cookie, log-secret, and incident checklist checks passed.
+- Added/applied tenant schema repair migrations `028`, `029`, and `030`.
+- Fixed student-scoped PostgreSQL read queries that failed under `SELECT DISTINCT ... ORDER BY`.
+- Redacted shared daily-break `studentIds` from student responses.
+- Deeper student IDOR probe passed for 22 read endpoints and 10 admin-write denials.
 
 ## Current Blockers
 
-- None for scripted lab gate.
+- None for tenant student-scope validation.
 
 ## Current Risks
 
+- AWS controls remain deferred until AWS/hosted production exists.
 - Apex `https://navigrader.com/` DNS currently resolves away from WEB001.
-- Untracked scratch assets remain outside the current commit unless explicitly requested.
-- Continue avoiding archive/ and NOTES/ unless the task requires them.
-- In-memory rate limits are a first hardening step, not the final distributed SaaS abuse-control design.
-- Lab rate-limit stress, log secret review, cookie inspection, incident checklist, and deeper cross-tenant abuse tests remain open; AWS security groups remain deferred until AWS exists.
+- Untracked scratch assets remain outside current security commits unless explicitly requested.
+- In-memory rate limits are not final distributed SaaS abuse control.
+- Lab DB uses shared non-superuser `appuser`; production should use split least-privilege roles.
 
 ## Next Actions
 
-1. Complete `CHECKLISTS/security-lab-hardening.md` against the lab environment.
-2. Continue lab rate-limit, cookie, log-review, incident, and deeper-IDOR checks not covered by the scripted gate.
-3. Keep AWS-only controls deferred until the hosted platform exists.
+1. Validate under-permissioned control operator mutation denials.
+2. Validate missing/invalid internal auth on internal commercial/control endpoints.
+3. Check PostgreSQL host access restrictions via `pg_hba.conf` or lab firewall.
+4. Run UI/control smoke, Stripe unsigned-webhook rejection, and final npm audits.
