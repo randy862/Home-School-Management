@@ -9,7 +9,8 @@ Production backend/platform security hardening in the lab environment.
 ## Current State
 
 - Repo hardening pass from `NOTES/commercial-security-hardening-plan.md` is implemented on `saas-modern-redesign`.
-- Lab tenant/control security gate has succeeded end-to-end against `https://192.168.1.210`.
+- Lab hardening checklist is signed off for APP001/WEB001/SQL001.
+- Final user-rerun tenant/control security gate succeeded end-to-end against `https://192.168.1.210`.
 - APP001 tenant/control APIs run as dedicated service users with hardened systemd units and protected env files.
 - SQL001 encrypted backup and isolated restore validation succeeded; restore DB was dropped.
 - Lab rate-limit stress, cookie flag inspection, generic 5xx/log review, and incident checklist checks have passed.
@@ -29,14 +30,12 @@ Production backend/platform security hardening in the lab environment.
 - SQL001 `pg_hba.conf` now limits TCP app DB access to `appuser` from APP001 `192.168.1.200/32` with `scram-sha-256`; backup is `/etc/postgresql/17/main/pg_hba.conf.bak-20260513015337`.
 - Tenant admin/student API smoke and control view API smoke passed with temporary accounts.
 - Final npm audits are clean for `server/` and `control-api/`.
+- Lab Stripe secret classification confirmed test-mode key material and configured webhook secret.
 - Latest APP001 deployed source backups use timestamped `.bak-*` copies beside replaced files.
 
 ## Next Action
 
-Continue remaining `CHECKLISTS/security-lab-hardening.md` items:
-
-1. Rerun `scripts\Invoke-LabSecurityGate.ps1` from the user's PowerShell session with existing `LAB_*` variables.
-2. If the gate passes, complete lab signoff and leave AWS-only controls deferred.
+No remaining lab hardening action is open. Move to the next production-readiness workstream, or resume AWS/public-production controls once AWS/hosted production exists.
 
 ## Risks
 

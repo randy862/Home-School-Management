@@ -15,7 +15,7 @@ Lab signoff means the code, service configuration, database access, backup/resto
 - [x] Lab runs with `APP_ENV=production` and `CONTROL_APP_ENV=production` when validating production-safe behavior.
 - [x] Tenant API and control API secrets are stored outside git.
 - [x] Secret files or environment stores are readable only by the service account or lab operator.
-- [ ] Real Stripe live secrets are not used in lab unless intentionally testing live billing.
+- [x] Real Stripe live secrets are not used in lab unless intentionally testing live billing.
 - [x] `DB_CLIENT=postgres` is used for hardening validation.
 - [x] `LEGACY_STATE_SYNC_ENABLED=false` unless a specific legacy bridge test requires it.
 
@@ -113,9 +113,11 @@ Use `-AllowInsecureTls` only when the lab redirects to HTTPS with a certificate 
 
 Lab smoke evidence, 2026-05-13:
 
+- User-rerun `scripts\Invoke-LabSecurityGate.ps1` completed successfully after all lab hardening changes.
 - Temporary tenant admin and student accounts each loaded 22 dashboard/account backing API endpoints successfully, then were deleted.
 - Temporary full-permission control operator loaded 7 control view backing API endpoints successfully, then was deleted.
 - Final `npm audit --omit=dev` returned `found 0 vulnerabilities` in both `server/` and `control-api/`.
+- Lab Stripe secret classification confirmed `sk_test_*`; webhook secret is configured.
 
 ## Deferred Until AWS / Hosted Production
 
@@ -128,6 +130,6 @@ Lab smoke evidence, 2026-05-13:
 
 ## Signoff
 
-- [ ] Lab hardening completed by:
-- [ ] Date completed:
-- [ ] Deferred AWS controls acknowledged:
+- [x] Lab hardening completed by: Codex with user-provided final lab gate evidence.
+- [x] Date completed: 2026-05-13.
+- [x] Deferred AWS controls acknowledged: AWS/public-production controls remain out of scope until AWS/hosted production exists.

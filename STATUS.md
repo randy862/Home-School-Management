@@ -8,7 +8,7 @@ Production backend/platform security hardening.
 
 ## Current Focus
 
-Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
+Lab hardening is signed off for APP001/WEB001/SQL001.
 
 ## Completed Recently
 
@@ -33,10 +33,12 @@ Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 - Unsigned Stripe webhook probe returned `400`.
 - Tenant admin/student API smoke and control view API smoke passed with temporary accounts.
 - Final npm audits are clean for `server/` and `control-api/`.
+- Final user-rerun `scripts\Invoke-LabSecurityGate.ps1` succeeded end-to-end.
+- `CHECKLISTS/security-lab-hardening.md` is signed off with AWS-only controls deferred.
 
 ## Current Blockers
 
-- None for tenant student-scope validation.
+- None for lab hardening.
 
 ## Current Risks
 
@@ -48,5 +50,5 @@ Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 
 ## Next Actions
 
-1. Rerun `scripts\Invoke-LabSecurityGate.ps1` from the user's PowerShell session with existing `LAB_*` variables.
-2. If the gate passes, complete lab signoff and leave AWS-only controls deferred.
+1. Start the next production-readiness workstream.
+2. Resume AWS/public-production controls after AWS/hosted production exists.
