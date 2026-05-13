@@ -79,6 +79,7 @@ Lab control authorization evidence, 2026-05-13:
 - Verified 17 protected control mutations returned `403`, covering tenant, environment, provisioning/deploy/setup/lifecycle/archive/sync jobs, job retry, operator management, and commercial subscription actions.
 - Verified 18 internal-auth rejection checks returned `401` for missing auth, invalid bearer JWT, and invalid legacy control-plane key across tenant setup status and internal commercial subscription endpoints.
 - Fresh tenant/control log scan found no password/secret/token/auth header keyword leakage.
+- Unsigned Stripe webhook probe against `/control-api/api/public/billing/webhook` returned `400` with `Missing Stripe signature header.`
 
 ## Lab Smoke Gate
 
@@ -106,7 +107,7 @@ Use `-AllowInsecureTls` only when the lab redirects to HTTPS with a certificate 
 - [ ] Admin dashboard data loads.
 - [ ] Account page loads for student and admin roles.
 - [ ] Control tenant/environment/job views load for an authorized operator.
-- [ ] Stripe webhook endpoint rejects unsigned payloads.
+- [x] Stripe webhook endpoint rejects unsigned payloads.
 - [ ] `npm audit --omit=dev` remains clean for `server/`.
 - [ ] `npm audit --omit=dev` remains clean for `control-api/`.
 

@@ -30,6 +30,7 @@ Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 - Read-only control operator probe passed for 17 protected mutation denials.
 - Internal-auth rejection probe passed for 18 missing/invalid-auth checks.
 - SQL001 PostgreSQL TCP app access is limited in `pg_hba.conf` to `appuser` from APP001 `192.168.1.200/32`; tenant/control DB probes and health checks passed after reload.
+- Unsigned Stripe webhook probe returned `400`.
 
 ## Current Blockers
 
@@ -45,5 +46,5 @@ Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 
 ## Next Actions
 
-1. Run UI/control smoke and Stripe unsigned-webhook rejection.
+1. Run remaining UI/control smoke checks.
 2. Run final lab gate and npm audits after any remaining changes.
