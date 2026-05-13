@@ -4,11 +4,11 @@ Date: 2026-05-13
 
 ## Active Workstream
 
-Production backend/platform security hardening.
+Lab-hosted production readiness.
 
 ## Current Focus
 
-Lab hardening is signed off for APP001/WEB001/SQL001.
+Creating the production-readiness foundation that future app changes can build on safely.
 
 ## Completed Recently
 
@@ -35,6 +35,8 @@ Lab hardening is signed off for APP001/WEB001/SQL001.
 - Final npm audits are clean for `server/` and `control-api/`.
 - Final user-rerun `scripts\Invoke-LabSecurityGate.ps1` succeeded end-to-end.
 - `CHECKLISTS/security-lab-hardening.md` is signed off with AWS-only controls deferred.
+- Added `RUNBOOKS/lab-production-readiness.md` with completed foundation items, change-class validation gates, deferred launch items, and next readiness tasks.
+- APP001 and WEB001 deploy paths are recorded in the readiness runbook and reference `RUNBOOKS/hosted-deployment.md`.
 
 ## Current Blockers
 
@@ -47,8 +49,10 @@ Lab hardening is signed off for APP001/WEB001/SQL001.
 - Untracked scratch assets remain outside current security commits unless explicitly requested.
 - In-memory rate limits are not final distributed SaaS abuse control.
 - Lab DB uses shared non-superuser `appuser`; production should use split least-privilege roles.
+- App changes can continue on top of the readiness baseline; rerun validation gates according to the touched area.
 
 ## Next Actions
 
-1. Start the next production-readiness workstream.
-2. Resume AWS/public-production controls after AWS/hosted production exists.
+1. Document APP001 rollback commands.
+2. Document WEB001 web asset/Apache rollback commands.
+3. Choose the minimum monitoring/alerting baseline for APP001, WEB001, and SQL001.

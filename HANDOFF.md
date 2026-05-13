@@ -4,12 +4,14 @@ Date: 2026-05-13
 
 ## Current Work
 
-Production backend/platform security hardening in the lab environment.
+Lab-hosted production readiness after completed security hardening.
 
 ## Current State
 
 - Repo hardening pass from `NOTES/commercial-security-hardening-plan.md` is implemented on `saas-modern-redesign`.
 - Lab hardening checklist is signed off for APP001/WEB001/SQL001.
+- Added `RUNBOOKS/lab-production-readiness.md` as the source of truth for continuing app changes safely on top of the hardened lab baseline.
+- APP001 and WEB001 deploy paths are recorded in the readiness runbook with `RUNBOOKS/hosted-deployment.md` as the detailed deployment reference.
 - Final user-rerun tenant/control security gate succeeded end-to-end against `https://192.168.1.210`.
 - APP001 tenant/control APIs run as dedicated service users with hardened systemd units and protected env files.
 - SQL001 encrypted backup and isolated restore validation succeeded; restore DB was dropped.
@@ -35,7 +37,11 @@ Production backend/platform security hardening in the lab environment.
 
 ## Next Action
 
-No remaining lab hardening action is open. Move to the next production-readiness workstream, or resume AWS/public-production controls once AWS/hosted production exists.
+Continue non-blocking readiness work from `RUNBOOKS/lab-production-readiness.md`:
+
+1. Document the exact rollback command sequence for APP001 services.
+2. Document the exact rollback command sequence for WEB001 assets/Apache config.
+3. Choose the minimum monitoring/alerting baseline for APP001, WEB001, and SQL001.
 
 ## Risks
 
@@ -44,6 +50,7 @@ No remaining lab hardening action is open. Move to the next production-readiness
 - Untracked scratch assets remain intentionally untouched.
 - In-memory rate limits are a lab/first-pass limiter, not final distributed SaaS abuse control.
 - Lab uses shared non-superuser DB role `appuser`; final production should split least-privilege roles.
+- Future app changes are allowed; rerun only the validation gates that match touched auth, API, DB, web, or infrastructure areas.
 
 ## Validation
 
