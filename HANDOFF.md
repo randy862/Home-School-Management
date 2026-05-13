@@ -25,15 +25,15 @@ Production backend/platform security hardening in the lab environment.
 - Temporary read-only control operator probe passed:
   - 17 protected control mutations returned `403`.
   - 18 internal-auth rejection checks returned `401`.
+- SQL001 `pg_hba.conf` now limits TCP app DB access to `appuser` from APP001 `192.168.1.200/32` with `scram-sha-256`; backup is `/etc/postgresql/17/main/pg_hba.conf.bak-20260513015337`.
 - Latest APP001 deployed source backups use timestamped `.bak-*` copies beside replaced files.
 
 ## Next Action
 
 Continue remaining `CHECKLISTS/security-lab-hardening.md` items:
 
-1. Validate PostgreSQL host access controls (`pg_hba.conf` or lab firewall).
-2. Run remaining UI/control smoke and Stripe unsigned-webhook rejection checks.
-3. Run final lab gate/npm audits after any remaining changes.
+1. Run remaining UI/control smoke and Stripe unsigned-webhook rejection checks.
+2. Run final lab gate/npm audits after any remaining changes.
 
 ## Risks
 
@@ -51,3 +51,4 @@ Continue remaining `CHECKLISTS/security-lab-hardening.md` items:
 - Tenant schema catch-up migration applied; active tenant has expected feature tables/columns.
 - Fresh `hsm-api.service` log scan found no error/secret/token keyword matches after reruns.
 - Control read-only mutation denial and internal-auth rejection probes passed.
+- APP001 tenant/control DB probes and tenant/control health checks passed after SQL001 `pg_hba.conf` reload.

@@ -29,6 +29,7 @@ Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 - Deeper student IDOR probe passed for 22 read endpoints and 10 admin-write denials.
 - Read-only control operator probe passed for 17 protected mutation denials.
 - Internal-auth rejection probe passed for 18 missing/invalid-auth checks.
+- SQL001 PostgreSQL TCP app access is limited in `pg_hba.conf` to `appuser` from APP001 `192.168.1.200/32`; tenant/control DB probes and health checks passed after reload.
 
 ## Current Blockers
 
@@ -44,6 +45,5 @@ Completing `CHECKLISTS/security-lab-hardening.md` against APP001/WEB001/SQL001.
 
 ## Next Actions
 
-1. Check PostgreSQL host access restrictions via `pg_hba.conf` or lab firewall.
-2. Run UI/control smoke and Stripe unsigned-webhook rejection.
-3. Run final lab gate and npm audits after any remaining changes.
+1. Run UI/control smoke and Stripe unsigned-webhook rejection.
+2. Run final lab gate and npm audits after any remaining changes.

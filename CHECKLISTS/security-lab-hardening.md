@@ -35,7 +35,7 @@ Lab signoff means the code, service configuration, database access, backup/resto
 - [x] Lab role grants are documented, even if they are less strict than the final production model.
 - [x] Tenant runtime cannot resolve without a tenant schema in PostgreSQL mode.
 - [x] Tenant schema identifiers are validated before generated search paths are used.
-- [ ] `pg_hba.conf` or the lab firewall limits PostgreSQL to lab app/control hosts where possible.
+- [x] `pg_hba.conf` or the lab firewall limits PostgreSQL to lab app/control hosts where possible.
 
 ## Lab Backup And Restore
 
@@ -53,6 +53,7 @@ Lab backup evidence, 2026-05-13:
 - Duration: 14 seconds.
 - Verified metrics matched source and restore: `base_tables_non_system=541`, `control_tenant_environments=25`, `schemas_with_users=23`, `tenant_schemas=22`, `users_total=24`.
 - Lab DB role note: tenant API and control API use `appuser`; `appuser` is not superuser, cannot create databases, and cannot create roles. This remains a shared lab application role, not the final split production least-privilege role model.
+- SQL001 host-access note: `/etc/postgresql/17/main/pg_hba.conf` was backed up to `/etc/postgresql/17/main/pg_hba.conf.bak-20260513015337`, broad `192.168.1.0/24` and `fe80::/10` app access was removed, and TCP app access is limited to `appuser` from APP001 `192.168.1.200/32` with `scram-sha-256`. APP001 tenant/control DB probes and tenant/control health checks succeeded after reload.
 
 ## Lab Permission And IDOR Checks
 
