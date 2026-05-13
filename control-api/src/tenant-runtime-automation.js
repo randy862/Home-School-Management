@@ -14,10 +14,10 @@ function createTenantRuntimeAutomation(config) {
       const dbConfig = buildTenantDbConfig(config, environment);
       const schemaName = dbConfig.schema;
       await ensureSchemaExists(dbConfig);
-      await runServerScript(serverDir, "src/scripts/migrate-postgres.js", buildServerScriptEnv(dbConfig, environment));
+      await runServerScript(serverDir, "src/scripts/migrate-postgres.js", buildServerScriptEnv(config, dbConfig, environment));
 
       const bundlePath = path.join(runtimeBundleDir, `${environment.id}.env`);
-      const bundleContents = buildRuntimeBundle(environment, dbConfig, payload);
+      const bundleContents = buildRuntimeBundle(config, environment, dbConfig, payload);
       await fs.mkdir(runtimeBundleDir, { recursive: true });
       await fs.writeFile(bundlePath, bundleContents, { encoding: "utf8", mode: 0o600 });
 
@@ -42,7 +42,7 @@ function createTenantRuntimeAutomation(config) {
     async deployRelease(environment, payload = {}) {
       const dbConfig = buildTenantDbConfig(config, environment);
       const bundlePath = path.join(runtimeBundleDir, `${environment.id}.env`);
-      const bundleContents = buildRuntimeBundle(environment, dbConfig, payload);
+      const bundleContents = buildRuntimeBundle(config, environment, dbConfig, payload);
       await fs.mkdir(runtimeBundleDir, { recursive: true });
       await fs.writeFile(bundlePath, bundleContents, { encoding: "utf8", mode: 0o600 });
 
@@ -66,7 +66,7 @@ function createTenantRuntimeAutomation(config) {
 
     async issueSetupToken(environment) {
       const dbConfig = buildTenantDbConfig(config, environment);
-      const { stdout } = await runServerScript(serverDir, "src/scripts/create-setup-token.js", buildServerScriptEnv(dbConfig, environment));
+      const { stdout } = await runServerScript(serverDir, "src/scripts/create-setup-token.js", buildServerScriptEnv(config, dbConfig, environment));
       const parsed = parseSetupTokenOutput(stdout);
       const tokenPath = path.join(runtimeBundleDir, `${environment.id}.setup-token.txt`);
       await fs.mkdir(runtimeBundleDir, { recursive: true });
@@ -112,10 +112,10 @@ async function ensureSchemaExists(dbConfig) {
   }
 }
 
-function buildServerScriptEnv(dbConfig, environment) {
+function buildServerScriptEnv(config, dbConfig, environment) {
   return {
     DB_CLIENT: "postgres",
-    APP_CORS_ORIGIN: environment.appBaseUrl || "",
+    APP_CORS_ORIGIN: buildAppCorsOrigin(config, environment),
     PGHOST: dbConfig.host,
     PGPORT: String(dbConfig.port),
     PGDATABASE: dbConfig.database,
@@ -126,11 +126,11 @@ function buildServerScriptEnv(dbConfig, environment) {
   };
 }
 
-function buildRuntimeBundle(environment, dbConfig, payload) {
+function buildRuntimeBundle(config, environment, dbConfig, payload) {
   const lines = [
     `APP_ENV=production`,
     `DB_CLIENT=postgres`,
-    `APP_CORS_ORIGIN=${environment.appBaseUrl || ""}`,
+    `APP_CORS_ORIGIN=${buildAppCorsOrigin(config, environment)}`,
     `PGHOST=${dbConfig.host}`,
     `PGPORT=${dbConfig.port}`,
     `PGDATABASE=${dbConfig.database}`,
@@ -144,6 +144,10 @@ function buildRuntimeBundle(environment, dbConfig, payload) {
     `TENANT_RELEASE_VERSION=${payload.releaseVersion || ""}`
   ];
   return `${lines.join("\n")}\n`;
+}
+
+function buildAppCorsOrigin(config, environment) {
+  return String(config?.appCorsOrigin || environment.appBaseUrl || "").trim();
 }
 
 async function deployEnvironmentRelease(config, environment, bundlePath) {

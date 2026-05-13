@@ -81,6 +81,7 @@ module.exports = {
     appSourceDir: process.env.CONTROL_DEPLOY_APP_SOURCE_DIR || path.resolve(__dirname, "../../server"),
     appDeployDir: process.env.CONTROL_DEPLOY_APP_DIR || "/home/debian/apps/home-school-management/server",
     appRuntimeEnvFilename: process.env.CONTROL_DEPLOY_APP_RUNTIME_ENV_FILENAME || ".env.runtime",
+    appCorsOrigin: String(process.env.CONTROL_DEPLOY_APP_CORS_ORIGIN || "").trim(),
     appServiceName: process.env.CONTROL_DEPLOY_APP_SERVICE || "hsm-api.service",
     appServiceScope: normalizeServiceScope(process.env.CONTROL_DEPLOY_APP_SERVICE_SCOPE || "system"),
     appServiceUseSudo: toBool(process.env.CONTROL_DEPLOY_APP_SERVICE_USE_SUDO, true),

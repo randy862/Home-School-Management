@@ -34,14 +34,19 @@ Lab-hosted production readiness after completed security hardening.
 - Final npm audits are clean for `server/` and `control-api/`.
 - Lab Stripe secret classification confirmed test-mode key material and configured webhook secret.
 - Latest APP001 deployed source backups use timestamped `.bak-*` copies beside replaced files.
+- Public tenant-domain login CORS was repaired:
+  - tenant API now supports configured wildcard origins such as `https://*.navigrader.com`
+  - APP001 live runtime CORS includes lab IP, apex/www, and Navigrader tenant subdomains
+  - `mitchell.navigrader.com` and `pj-cool.navigrader.com` now reach normal auth validation instead of blank `403`
+  - `not-allowed.example` remains rejected with `403`
 
 ## Next Action
 
 Continue non-blocking readiness work from `RUNBOOKS/lab-production-readiness.md`:
 
-1. Document the exact rollback command sequence for APP001 services.
-2. Document the exact rollback command sequence for WEB001 assets/Apache config.
-3. Choose the minimum monitoring/alerting baseline for APP001, WEB001, and SQL001.
+1. Ask the user to retry tenant login in the browser and rerun `scripts\Invoke-LabSecurityGate.ps1` from their PowerShell session.
+2. Document the exact rollback command sequence for APP001 services.
+3. Document the exact rollback command sequence for WEB001 assets/Apache config.
 
 ## Risks
 
@@ -61,3 +66,4 @@ Continue non-blocking readiness work from `RUNBOOKS/lab-production-readiness.md`
 - Fresh `hsm-api.service` log scan found no error/secret/token keyword matches after reruns.
 - Control read-only mutation denial and internal-auth rejection probes passed.
 - APP001 tenant/control DB probes and tenant/control health checks passed after SQL001 `pg_hba.conf` reload.
+- APP001 `hsm-api.service` and `hsm-control-api.service` restarted active after public tenant-domain CORS repair.

@@ -37,10 +37,12 @@ Creating the production-readiness foundation that future app changes can build o
 - `CHECKLISTS/security-lab-hardening.md` is signed off with AWS-only controls deferred.
 - Added `RUNBOOKS/lab-production-readiness.md` with completed foundation items, change-class validation gates, deferred launch items, and next readiness tasks.
 - APP001 and WEB001 deploy paths are recorded in the readiness runbook and reference `RUNBOOKS/hosted-deployment.md`.
+- Fixed public tenant-domain login CORS for `https://*.navigrader.com` while preserving rejected-origin behavior.
+- Deployed the CORS middleware/config fix to APP001; tenant/control services restarted active.
 
 ## Current Blockers
 
-- None for lab hardening.
+- User browser retry and full lab security gate rerun are pending after the public tenant-domain CORS repair.
 
 ## Current Risks
 
@@ -53,6 +55,6 @@ Creating the production-readiness foundation that future app changes can build o
 
 ## Next Actions
 
-1. Document APP001 rollback commands.
-2. Document WEB001 web asset/Apache rollback commands.
-3. Choose the minimum monitoring/alerting baseline for APP001, WEB001, and SQL001.
+1. User retries login at the correct tenant URL and reruns `scripts\Invoke-LabSecurityGate.ps1`.
+2. Document APP001 rollback commands.
+3. Document WEB001 web asset/Apache rollback commands.

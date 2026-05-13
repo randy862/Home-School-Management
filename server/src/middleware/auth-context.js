@@ -72,10 +72,35 @@ function resolveCorsOrigin(requestOrigin, configuredOrigin) {
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
-  return allowed.includes(requestOrigin) ? requestOrigin : "";
+  return allowed.some((origin) => matchesAllowedOrigin(requestOrigin, origin)) ? requestOrigin : "";
+}
+
+function matchesAllowedOrigin(requestOrigin, allowedOrigin) {
+  if (allowedOrigin === requestOrigin) return true;
+
+  const wildcardMatch = allowedOrigin.match(/^([a-z][a-z0-9+.-]*):\/\/\*\.(.+)$/i);
+  if (!wildcardMatch) return false;
+
+  let requestUrl;
+  try {
+    requestUrl = new URL(requestOrigin);
+  } catch (_error) {
+    return false;
+  }
+
+  const expectedProtocol = `${wildcardMatch[1].toLowerCase()}:`;
+  const suffixParts = wildcardMatch[2].toLowerCase().split(":");
+  const suffixHost = suffixParts[0];
+  const suffixPort = suffixParts[1] || "";
+  const requestHost = requestUrl.hostname.toLowerCase();
+
+  if (requestUrl.protocol.toLowerCase() !== expectedProtocol) return false;
+  if (requestUrl.port !== suffixPort) return false;
+  return requestHost.endsWith(`.${suffixHost}`);
 }
 
 module.exports = {
   applyCors,
-  createAuthContextMiddleware
+  createAuthContextMiddleware,
+  resolveCorsOrigin
 };

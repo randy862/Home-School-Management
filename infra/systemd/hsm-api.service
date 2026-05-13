@@ -12,7 +12,7 @@ Environment=APP_ENV=production
 Environment=DB_CLIENT=postgres
 Environment=LEGACY_STATE_SYNC_ENABLED=false
 Environment=APP_PORT=3000
-Environment=APP_CORS_ORIGIN=https://www.navigrader.com,https://navigrader.com
+Environment=APP_CORS_ORIGIN=https://192.168.1.210,https://www.navigrader.com,https://navigrader.com,https://*.navigrader.com
 Environment=SESSION_COOKIE_NAME=hsm_session
 Environment=SESSION_COOKIE_SECURE=true
 Environment=SESSION_COOKIE_SAMESITE=Lax
