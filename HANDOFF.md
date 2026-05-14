@@ -8,13 +8,13 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, Calenda
 
 ## Current State
 
-- Latest production code commit: `f8f2758 Add expandable calendar student rows`.
+- Latest production code commit: `c626fe4 Skip archived students in required compliance`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
-  - `styles.css?v=202605141610`
-  - `app.js?v=202605141610`
+  - `styles.css?v=202605141618`
+  - `app.js?v=202605141618`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605141610.tgz`
+  `/var/www/home-school-management/rollback/web-202605141618.tgz`
 - Production validation after latest deploy:
   - Apache config syntax OK
   - Apache active
@@ -40,6 +40,7 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, Calenda
   - missing required-subject chips are actionable
   - missing required-subject rows include `Find Item`
   - Scheduled Item picker opens with matching items highlighted
+  - archived students are not evaluated for required-subject compliance or shown with Fix Enrollment
 - Compliance Required Subjects links now mirror Missing Required Subjects navigation:
   - one matching student opens that student's enrollment workflow
   - multiple matching students open the filtered Students list
@@ -75,7 +76,7 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, Calenda
 
 - `node --check web/app.js` passed during the UI pass.
 - `git diff --check` passed on touched web files before production deployment.
-- WEB001 deploy validation passed after `f8f2758`.
+- WEB001 deploy validation passed after `c626fe4`.
 - Remote SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
 - Public health returned `200` for `https://mitchell.navigrader.com/health`.
 - Current documentation checkpoint records the deployed state; no service redeploy is required for the docs-only commit.

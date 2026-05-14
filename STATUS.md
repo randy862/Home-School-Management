@@ -54,6 +54,10 @@ School Day, Dashboard, Execution, Grades, Calendar, Student compliance, and Plan
   - month/week days default to scheduled student names and total hours
   - each student row expands to show class name, subject, and hours
   - expanded rows keep the Open Week/Open Day drill-in action
+- Deployed `c626fe4` with archived-student required compliance handling:
+  - archived students show required compliance as not evaluated
+  - archived students are excluded from required compliance filtering
+  - archived students no longer show Fix Enrollment or missing-required callouts
 - Updated Dashboard / Compliance / Required Subjects student-count links to match Dashboard / Overview / Missing Required Subjects behavior:
   - one matching student opens the student detail/enrollment workflow
   - multiple matching students open the Students list filtered to the relevant compliance set
@@ -61,9 +65,9 @@ School Day, Dashboard, Execution, Grades, Calendar, Student compliance, and Plan
   - Apache config syntax OK
   - Apache active
   - public health endpoint returned `200`
-  - live cache keys are `styles.css?v=202605141610` and `app.js?v=202605141610`
+  - live cache keys are `styles.css?v=202605141618` and `app.js?v=202605141618`
   - remote hashes match local `web/index.html`, `web/app.js`, and `web/styles.css`
-- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141610.tgz`.
+- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141618.tgz`.
 
 ## Current Blockers
 
