@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605141800">
+  <link rel="stylesheet" href="styles.css?v=202605142000">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -2175,8 +2175,10 @@
       </div>
       <div id="grades-enter-wrap" class="grades-tab-panel">
         <div class="grades-section grades-section-entry">
-          <h3>New Grade Entry</h3>
-          <button id="add-grade-row-btn" type="button">Enter New Grade</button>
+          <div class="grades-section-title-row">
+            <h3>Grade Entry</h3>
+            <button id="add-grade-row-btn" type="button">Add Grade Row</button>
+          </div>
           <div id="grade-entry-wrap" class="table-wrap hidden">
             <table>
               <thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead>
@@ -2198,8 +2200,8 @@
             <button type="button" id="grades-return-dashboard-btn">Back to Dashboard</button>
           </div>
         </div>
-        <div class="grades-section grades-section-filters">
-          <h3>Grade Filters</h3>
+        <details id="grades-filter-panel" class="grades-section grades-section-filters grades-filter-panel">
+          <summary>Grade Filters</summary>
           <form id="grades-filter-form" class="grid-form">
             <label>Student
               <select id="grades-filter-student">
@@ -2261,7 +2263,7 @@
               <button id="grades-clear-filters-btn" type="button">Clear Filters</button>
             </div>
           </form>
-        </div>
+        </details>
         <div id="grades-search-records-host"></div>
       </div>
       <div id="grades-records-section" class="grades-section grades-section-records">
@@ -2440,6 +2442,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605141815"></script>
+  <script src="app.js?v=202605142000"></script>
   </body>
   </html>

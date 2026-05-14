@@ -2851,6 +2851,51 @@ td {
   margin: 0 0 0.35rem;
 }
 
+.grades-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.grades-section-title-row h3 {
+  margin: 0;
+}
+
+.grades-filter-panel {
+  overflow: hidden;
+}
+
+.grades-filter-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.grades-filter-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.grades-filter-panel > summary::after {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid #c5d6e8;
+  border-radius: 999px;
+  color: #1f66bd;
+  font-weight: 700;
+}
+
+.grades-filter-panel[open] > summary::after {
+  content: "-";
+}
+
 .attendance-section-tracker {
   background: #f6f1e7;
   border-color: #d2c3a8;
@@ -11609,6 +11654,107 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
+#app-shell .student-detail-required-chip-row button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  width: auto;
+  padding: 0.18rem 0.58rem;
+  border: 1px solid #efc46a;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #7a4a00;
+  box-shadow: none;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#app-shell .student-detail-required-chip-row button:hover,
+#app-shell .student-detail-required-chip-row button:focus-visible,
+#app-shell .student-detail-required-action-btn:hover,
+#app-shell .student-detail-required-action-btn:focus-visible {
+  background: #fff2cc;
+  color: #643b00;
+  transform: none;
+}
+
+#app-shell .student-detail-required-action-btn {
+  min-height: 30px;
+  width: auto;
+  padding: 0.32rem 0.54rem;
+  border: 1px solid #efc46a;
+  border-radius: 10px;
+  background: #fffaf0;
+  color: #7a4a00;
+  box-shadow: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#app-shell .student-detail-enrollment-focused {
+  border-color: #b8cfee;
+  box-shadow: 0 0 0 3px rgba(31, 102, 189, 0.12), 0 14px 34px rgba(25, 42, 70, 0.06);
+}
+
+#app-shell .student-enrollment-focus-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin: 0 0 0.45rem;
+  padding: 0.5rem 0.58rem;
+  border: 1px solid #c8d7e8;
+  border-radius: 12px;
+  background: #f4f8fd;
+  color: #284763;
+}
+
+#app-shell .student-enrollment-focus-note.warning {
+  border-color: #efc46a;
+  background: #fff8e6;
+  color: #6c4a00;
+}
+
+#app-shell .student-enrollment-focus-note span {
+  display: grid;
+  gap: 0.12rem;
+}
+
+#app-shell .student-enrollment-focus-note strong {
+  color: inherit;
+  font-size: 0.82rem;
+  line-height: 1.15;
+}
+
+#app-shell .student-enrollment-focus-note em {
+  color: inherit;
+  font-size: 0.76rem;
+  font-style: normal;
+  line-height: 1.25;
+  opacity: 0.82;
+}
+
+#app-shell .student-enrollment-focus-note button {
+  min-height: 30px;
+  width: auto;
+  padding: 0.3rem 0.52rem;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1f5f9d;
+  box-shadow: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#app-shell #student-enroll-course-options .checklist-row.student-enroll-focus-match {
+  border-color: #9fc3ed;
+  background: #eef6ff;
+  box-shadow: inset 3px 0 0 #1f66bd;
+}
+
 #app-shell .student-detail-tab-panel {
   gap: 0.65rem;
 }
@@ -12868,6 +13014,17 @@ tbody tr:hover {
   margin: 0;
 }
 
+#app-shell .grades-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+#app-shell .grades-section-title-row h3 {
+  margin: 0;
+}
+
 #app-shell .grades-section-entry {
   display: grid;
   grid-template-columns: 1fr;
@@ -12876,8 +13033,8 @@ tbody tr:hover {
 }
 
 #app-shell #add-grade-row-btn {
-  order: 3;
-  justify-self: start;
+  order: initial;
+  justify-self: end;
   min-height: 34px;
   padding: 0.42rem 0.68rem;
   border-radius: 10px;
@@ -12887,19 +13044,62 @@ tbody tr:hover {
 }
 
 #app-shell #grade-entry-wrap {
-  order: 2;
+  order: initial;
   grid-column: 1 / -1;
 }
 
 #app-shell .grades-section-filters {
-  padding: 0.75rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+#app-shell .grades-filter-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 0.7rem 0.8rem;
+  cursor: pointer;
+  list-style: none;
+  color: #17243d;
+  font-size: 0.96rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+#app-shell .grades-filter-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+#app-shell .grades-filter-panel > summary::after {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid #c5d6e8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1f66bd;
+  font-weight: 700;
+  line-height: 1;
+}
+
+#app-shell .grades-filter-panel[open] > summary {
+  border-bottom: 1px solid #e4ebf4;
+}
+
+#app-shell .grades-filter-panel[open] > summary::after {
+  content: "-";
 }
 
 #app-shell #grades-filter-form {
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   align-items: end;
   gap: 0.55rem;
-  margin: 0.65rem 0 0;
+  margin: 0;
+  padding: 0.75rem;
 }
 
 #app-shell #grades-filter-form label {
