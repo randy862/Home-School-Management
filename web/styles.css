@@ -10731,8 +10731,7 @@ tbody tr:hover {
   order: 1;
 }
 
-#app-shell .school-day-quick-filters,
-#app-shell .school-day-subtabs {
+#app-shell .school-day-quick-filters {
   padding: 0.18rem;
   border: 1px solid #dbe4f0;
   border-radius: 14px;
@@ -10740,7 +10739,6 @@ tbody tr:hover {
   gap: 0.18rem;
 }
 
-#app-shell .school-day-subtabs .subtab-btn,
 #app-shell .school-day-quick-filter-btn {
   min-height: 32px;
   padding: 0.34rem 0.62rem;
@@ -10754,7 +10752,6 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
-#app-shell .school-day-subtabs .subtab-btn:hover,
 #app-shell .school-day-quick-filter-btn:hover {
   background: #edf3fa;
   color: #1f3f6d;
@@ -10762,11 +10759,47 @@ tbody tr:hover {
   transform: none;
 }
 
-#app-shell .school-day-subtabs .subtab-btn.active,
 #app-shell .school-day-quick-filter-btn.active {
   background: #ffffff;
   color: #155bc3;
   box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
+}
+
+#app-shell .school-day-subtabs {
+  padding: 0.2rem;
+  border: 1px solid #b8c8de;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.05);
+  gap: 0.2rem;
+}
+
+#app-shell .school-day-subtabs .subtab-btn {
+  min-height: 32px;
+  padding: 0.34rem 0.72rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: #f8fbfd;
+  color: #223a5a;
+  box-shadow: none;
+  font-size: 0.9rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#app-shell .school-day-subtabs .subtab-btn:hover {
+  border-color: #c5d4e7;
+  background: #eef5fc;
+  color: #155bc3;
+  box-shadow: none;
+  transform: none;
+}
+
+#app-shell .school-day-subtabs .subtab-btn.active {
+  border-color: #155bc3;
+  background: #155bc3;
+  color: #ffffff;
+  box-shadow: none;
 }
 
 #app-shell .school-day-section-header {
@@ -10864,9 +10897,11 @@ tbody tr:hover {
 
 #app-shell .school-day-secondary-panels {
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   gap: 0.35rem;
-  margin: 0.25rem 0 0.35rem;
+  justify-content: flex-end;
+  margin: 0;
 }
 
 #app-shell .school-day-secondary-panels.hidden {
@@ -10875,14 +10910,14 @@ tbody tr:hover {
 
 #app-shell .school-day-secondary-panel-toggle {
   min-height: 28px;
-  padding: 0.24rem 0.52rem;
+  padding: 0.22rem 0.5rem;
   border: 1px solid #d2deec;
   border-radius: 999px;
   background: #ffffff;
-  color: #53647d;
+  color: #263a58;
   box-shadow: none;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 850;
 }
 
 #app-shell .school-day-secondary-panel-toggle.hidden {
@@ -10893,7 +10928,7 @@ tbody tr:hover {
 #app-shell .school-day-secondary-panel-toggle:hover {
   border-color: #b7cbe4;
   background: #f4f8ff;
-  color: #155bc3;
+  color: #0f4fb0;
   transform: none;
 }
 
@@ -11186,17 +11221,25 @@ tbody tr:hover {
   line-height: 1.15;
 }
 
-#app-shell .school-day-active-queue {
+#app-shell .school-day-schedule-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin: 0.55rem 0 0.75rem;
-  padding: 0.68rem 0.78rem;
+  margin: 0.45rem 0 0.55rem;
+  padding: 0.48rem 0.62rem;
   border: 1px solid #dbe6f2;
   border-radius: 14px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   box-shadow: 0 10px 24px rgba(31, 47, 69, 0.05);
+}
+
+#app-shell .school-day-active-queue {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 #app-shell .school-day-active-queue.hidden {
@@ -11222,9 +11265,11 @@ tbody tr:hover {
 
 #app-shell .school-day-active-queue-chips {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.38rem;
+  min-width: 0;
 }
 
 #app-shell .school-day-active-queue-chips span {
@@ -11247,17 +11292,19 @@ tbody tr:hover {
 }
 
 @media (max-width: 760px) {
-  #app-shell .school-day-active-queue,
+  #app-shell .school-day-schedule-meta,
   #app-shell .student-detail-required-callout {
     grid-template-columns: 1fr;
     align-items: start;
   }
 
+  #app-shell .school-day-schedule-meta,
   #app-shell .school-day-active-queue {
     flex-direction: column;
   }
 
   #app-shell .school-day-active-queue-chips,
+  #app-shell .school-day-secondary-panels,
   #app-shell .student-detail-required-chip-row {
     justify-content: flex-start;
   }

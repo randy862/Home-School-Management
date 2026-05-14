@@ -10290,8 +10290,8 @@ function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], su
   if (toggle) {
     toggle.classList.toggle("hidden", !summaryCount);
     toggle.textContent = schoolDayStudentSummariesCollapsed
-      ? `Student Summaries (${summaryCount})`
-      : "Hide Student Summaries";
+      ? `+ Student Summaries (${summaryCount})`
+      : "- Student Summaries";
     toggle.classList.toggle("active", !schoolDayStudentSummariesCollapsed);
     toggle.setAttribute("aria-expanded", schoolDayStudentSummariesCollapsed ? "false" : "true");
   }
@@ -10419,8 +10419,8 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
   if (toggle) {
     toggle.classList.toggle("hidden", !cards.length);
     toggle.textContent = schoolDayOverviewCollapsed
-      ? `Side-By-Side Overview (${cards.length})`
-      : "Hide Side-By-Side Overview";
+      ? `+ Side-By-Side (${cards.length})`
+      : "- Side-By-Side";
     toggle.classList.toggle("active", !schoolDayOverviewCollapsed);
     toggle.setAttribute("aria-expanded", schoolDayOverviewCollapsed ? "false" : "true");
   }
@@ -11877,11 +11877,6 @@ function renderSchoolDayActiveQueue({ date, rowCount, statusFilter, studentIds =
   const host = document.getElementById("school-day-active-queue");
   if (!host) return;
   const hasActiveFilters = hasActiveSchoolDayQueueFilters({ statusFilter, studentIds, subjectIds, courseIds });
-  if (!hasActiveFilters) {
-    host.innerHTML = "";
-    host.classList.add("hidden");
-    return;
-  }
   const emptyFilteredQueue = rowCount === 0 && hasActiveFilters;
   const filterChips = [
     `Date: ${formatDisplayDate(date || todayISO())}`,
@@ -11891,6 +11886,7 @@ function renderSchoolDayActiveQueue({ date, rowCount, statusFilter, studentIds =
     schoolDaySelectedFilterChip("Subject", subjectIds, getSubjectName),
     schoolDaySelectedFilterChip("Course", courseIds, getCourseName)
   ].filter(Boolean);
+  if (!hasActiveFilters) filterChips.push("All scheduled rows");
   host.classList.remove("hidden");
   host.innerHTML = `
     <div class="school-day-active-queue-summary">
@@ -17547,12 +17543,12 @@ function renderSchoolDayNextAction({
   if (needsAttendance) {
     return `<div class="school-day-next-action is-warning"><button type="button" data-school-day-switch-tab="attendance">Record attendance</button><small>Attendance is still open</small></div>`;
   }
+  if (needsGrade) {
+    return `<div class="school-day-next-action is-info"><button type="button" data-school-day-grade="${escapeHtml(inlineGradeKey)}" data-student-id="${escapeHtml(studentId)}" data-course-id="${escapeHtml(courseId)}" data-subject-id="${escapeHtml(subjectId)}" data-date="${escapeHtml(date)}">${showInlineGrade ? "Close grade" : "Add grade"}</button><small>${isCompleted ? "Grade waiting" : "Grade needed before completion"}</small></div>`;
+  }
   if (needsCompletion || isPastDue) {
     const targetKey = `${studentId}||${courseId}||${date}`;
     return `<div class="school-day-next-action is-warning"><button type="button" data-school-day-focus-status="${escapeHtml(targetKey)}">${isPastDue ? "Resolve past due" : "Set status"}</button><small>Use the status menu</small></div>`;
-  }
-  if (needsGrade) {
-    return `<div class="school-day-next-action is-info"><button type="button" data-school-day-grade="${escapeHtml(inlineGradeKey)}" data-student-id="${escapeHtml(studentId)}" data-course-id="${escapeHtml(courseId)}" data-subject-id="${escapeHtml(subjectId)}" data-date="${escapeHtml(date)}">${showInlineGrade ? "Close grade" : "Add grade"}</button><small>${isCompleted ? "Grade waiting" : "Prefilled grade row"}</small></div>`;
   }
   if (isOverridden) {
     return `<div class="school-day-next-action is-info"><span class="school-day-next-action-label">Review override</span><small>Today differs from plan</small></div>`;

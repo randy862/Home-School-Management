@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605132015">
+  <link rel="stylesheet" href="styles.css?v=202605141015">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1402,10 +1402,12 @@
             <p id="school-day-hours-summary" class="muted school-day-hours-summary"></p>
           </div>
         </div>
-        <div id="school-day-active-queue" class="school-day-active-queue hidden" aria-live="polite"></div>
-        <div id="school-day-secondary-panels" class="school-day-secondary-panels hidden">
-          <button type="button" id="school-day-student-summaries-toggle" class="school-day-secondary-panel-toggle hidden" aria-expanded="false">Student Summaries</button>
-          <button type="button" id="school-day-overview-toggle" class="school-day-secondary-panel-toggle hidden" aria-expanded="false">Side-By-Side Overview</button>
+        <div id="school-day-schedule-meta" class="school-day-schedule-meta">
+          <div id="school-day-active-queue" class="school-day-active-queue" aria-live="polite"></div>
+          <div id="school-day-secondary-panels" class="school-day-secondary-panels hidden">
+            <button type="button" id="school-day-student-summaries-toggle" class="school-day-secondary-panel-toggle hidden" aria-expanded="false">+ Student Summaries</button>
+            <button type="button" id="school-day-overview-toggle" class="school-day-secondary-panel-toggle hidden" aria-expanded="false">+ Side-By-Side</button>
+          </div>
         </div>
         <div id="school-day-student-summaries" class="school-day-student-summaries"></div>
         <div id="school-day-overview-grid" class="school-day-overview-grid hidden"></div>
@@ -2438,6 +2440,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605131805"></script>
+  <script src="app.js?v=202605141015"></script>
   </body>
   </html>
