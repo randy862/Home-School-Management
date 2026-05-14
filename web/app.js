@@ -9246,13 +9246,23 @@ function buildAlertsConfigFromAdminForm() {
 
 function studentRequiredFocusForList(studentId) {
   const focusSubject = studentTableRequiredSubjectFilterId ? getSubject(studentTableRequiredSubjectFilterId) : null;
+  const student = state.students.find((entry) => entry.id === studentId);
+  if (studentIsArchived(student)) {
+    return {
+      focusSubject,
+      missingSubjects: [],
+      requiredComplete: true,
+      notEvaluated: true
+    };
+  }
   const missingSubjects = focusSubject
     ? (studentHasRequiredSubject(studentId, focusSubject.id) ? [] : [focusSubject])
     : studentMissingRequiredSubjects(studentId);
   return {
     focusSubject,
     missingSubjects,
-    requiredComplete: missingSubjects.length === 0
+    requiredComplete: missingSubjects.length === 0,
+    notEvaluated: false
   };
 }
 
@@ -9281,10 +9291,13 @@ function renderStudentWorkQueueSummary(filteredStudents) {
     summary.innerHTML = "";
     return;
   }
-  const missingCount = filteredStudents.filter((student) => !studentRequiredFocusForList(student.id).requiredComplete).length;
+  const activeStudentsShown = filteredStudents.filter((student) => !studentIsArchived(student));
+  const missingCount = activeStudentsShown.filter((student) => !studentRequiredFocusForList(student.id).requiredComplete).length;
   const contextText = missingCount
     ? `${missingCount} need enrollment attention`
-    : "All shown students meet the current required-subject focus";
+    : activeStudentsShown.length
+      ? "All shown active students meet the current required-subject focus"
+      : "Required compliance is not evaluated for archived students";
   summary.classList.remove("hidden");
   summary.innerHTML = `
     <div class="student-work-queue-copy">
@@ -9338,6 +9351,7 @@ function renderStudents() {
       if (studentTableFilterGrade !== "all" && student.grade !== studentTableFilterGrade) return false;
       if (studentTableFilterStatus === "active" && archived) return false;
       if (studentTableFilterStatus === "archived" && !archived) return false;
+      if (archived && studentTableFilterRequired !== "all") return false;
       if (studentTableFilterRequired === "yes" && !requiredComplete) return false;
       if (studentTableFilterRequired === "no" && requiredComplete) return false;
       return true;
@@ -9348,22 +9362,26 @@ function renderStudents() {
     const overallAvg = studentOverallAverage(s.id);
     const absences = studentAbsenceCount(s.id);
     const archived = studentIsArchived(s);
-    const { focusSubject, missingSubjects: missingRequiredSubjects, requiredComplete } = studentRequiredFocusForList(s.id);
+    const { focusSubject, missingSubjects: missingRequiredSubjects, requiredComplete, notEvaluated } = studentRequiredFocusForList(s.id);
     const status = archived
       ? `<span class="student-status-pill archived">Archived</span>`
       : `<span class="student-status-pill">Active</span>`;
       const missingSubjectText = missingRequiredSubjects.map((subject) => subject.name).join(", ");
-      const rowReason = requiredComplete
-        ? (focusSubject ? `${focusSubject.name} is enrolled` : "Required subjects complete")
-        : (focusSubject ? `Missing ${focusSubject.name}` : `Missing ${missingRequiredSubjects.length} required subject${missingRequiredSubjects.length === 1 ? "" : "s"}`);
-      const requiredCell = requiredComplete
+      const rowReason = notEvaluated
+        ? "Required compliance not evaluated for archived students"
+        : requiredComplete
+          ? (focusSubject ? `${focusSubject.name} is enrolled` : "Required subjects complete")
+          : (focusSubject ? `Missing ${focusSubject.name}` : `Missing ${missingRequiredSubjects.length} required subject${missingRequiredSubjects.length === 1 ? "" : "s"}`);
+      const requiredCell = notEvaluated
+        ? `<div class="student-required-cell"><span class="student-required-status neutral">Not Evaluated</span><small>${escapeHtml(rowReason)}</small></div>`
+        : requiredComplete
         ? `<div class="student-required-cell"><span class="student-required-status yes">Compliant</span><small>${escapeHtml(rowReason)}</small></div>`
         : `<div class="student-required-cell"><span class="student-required-status no" title="${escapeHtml(missingSubjectText)}">Not In Compliance</span><small>${escapeHtml(missingSubjectText || rowReason)}</small></div>`;
       const restoreButton = archived ? `<button data-restore-student='${s.id}' type='button'>Restore</button>` : "";
-      const actionLabel = requiredComplete ? "Edit/Enroll" : "Fix Enrollment";
-      const focusSubjectId = !requiredComplete ? (focusSubject?.id || missingRequiredSubjects[0]?.id || "") : "";
+      const actionLabel = archived ? "View" : requiredComplete ? "Edit/Enroll" : "Fix Enrollment";
+      const focusSubjectId = !archived && !requiredComplete ? (focusSubject?.id || missingRequiredSubjects[0]?.id || "") : "";
       const focusAttr = focusSubjectId ? ` data-student-open-focus-subject="${escapeHtml(focusSubjectId)}"` : "";
-      return `<tr class="${requiredComplete ? "" : "student-work-queue-row"}"><td><div class="student-name-cell"><strong>${escapeHtml(s.firstName)} ${escapeHtml(s.lastName)}</strong><small>${escapeHtml(rowReason)}</small></div></td><td>${escapeHtml(s.grade)}</td><td>${ageNow}</td><td>${status}</td><td>${requiredCell}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}'${focusAttr} type='button'>${actionLabel}</button>${restoreButton}</div></td></tr>`;
+      return `<tr class="${requiredComplete || archived ? "" : "student-work-queue-row"}"><td><div class="student-name-cell"><strong>${escapeHtml(s.firstName)} ${escapeHtml(s.lastName)}</strong><small>${escapeHtml(rowReason)}</small></div></td><td>${escapeHtml(s.grade)}</td><td>${ageNow}</td><td>${status}</td><td>${requiredCell}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}'${focusAttr} type='button'>${actionLabel}</button>${restoreButton}</div></td></tr>`;
     });
   rowOrEmpty(document.getElementById("student-table"), rows, "No students match the selected filters.", 8);
 }
@@ -9442,6 +9460,8 @@ function studentEnrolledCourseIds(studentId, sourceEnrollments = state.enrollmen
 }
 
 function studentMissingRequiredSubjects(studentId) {
+  const student = state.students.find((entry) => entry.id === studentId);
+  if (studentIsArchived(student)) return [];
   const requiredSubjects = state.subjects.filter((subject) => subject.required);
   if (!requiredSubjects.length) return [];
   const enrolledCourseIds = studentEnrolledCourseIds(studentId);
@@ -10329,7 +10349,7 @@ function renderStudentDetail() {
       .map((entry) => getCourse(entryCourseId(entry))?.subjectId || "")
       .filter(Boolean)
   );
-  const missingRequiredSubjects = state.subjects
+  const missingRequiredSubjects = archived ? [] : state.subjects
     .filter((subject) => subject.required && !enrolledSubjectIds.has(subject.id))
     .sort((a, b) => a.name.localeCompare(b.name));
   if (studentEnrollmentSubjectFocusId && !missingRequiredSubjects.some((subject) => subject.id === studentEnrollmentSubjectFocusId)) {

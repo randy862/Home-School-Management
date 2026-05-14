@@ -2721,6 +2721,11 @@ td {
   color: #a92f2f;
 }
 
+.student-required-status.neutral {
+  background: #eef2f7;
+  color: #5d6b82;
+}
+
 .student-table-filter-grid {
   display: grid;
   grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(140px, 1fr));
