@@ -13023,6 +13023,251 @@ tbody tr:hover {
   font-weight: 400;
 }
 
+@media (min-width: 821px) and (max-width: 1420px) {
+  #app-shell .app-topbar {
+    grid-template-columns: 228px minmax(250px, 420px) 1fr;
+    gap: 0.9rem;
+    min-height: 84px;
+    padding: 0.8rem 1.15rem;
+  }
+
+  #app-shell .app-topbar .title-logo {
+    width: 196px;
+    max-height: 62px;
+  }
+
+  #app-shell .app-global-search {
+    min-height: 46px;
+  }
+
+  #app-shell .app-topbar .account-menu-trigger {
+    grid-template-columns: 42px max-content 16px;
+    gap: 0.55rem;
+    min-height: 48px;
+  }
+
+  #app-shell .account-avatar {
+    width: 42px;
+    height: 42px;
+  }
+
+  #app-shell .app-layout {
+    grid-template-columns: 204px minmax(0, 1fr);
+  }
+
+  #app-shell .app-sidebar {
+    top: 84px;
+    min-height: calc(100vh - 84px);
+    padding: 1rem 0.75rem;
+  }
+
+  #app-shell .app-sidebar-nav {
+    gap: 0.32rem;
+  }
+
+  #app-shell .app-sidebar-nav .tab-btn {
+    grid-template-columns: 22px 1fr;
+    gap: 0.58rem;
+    min-height: 44px;
+    padding: 0.55rem 0.72rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+  }
+
+  #app-shell .app-sidebar-nav .tab-btn img {
+    width: 20px;
+    height: 20px;
+  }
+
+  #app-shell .sidebar-year-card {
+    margin-top: 2.25rem;
+  }
+
+  #app-shell .sidebar-support-card {
+    padding: 0.8rem;
+  }
+
+  #app-shell .app-main {
+    gap: 0.85rem;
+    padding: 1.25rem;
+  }
+
+  #app-shell .dashboard-section {
+    padding: 0.85rem;
+    border-radius: 14px;
+  }
+
+  #app-shell .dashboard-section-overview {
+    gap: 0.65rem;
+    padding: 0.9rem;
+  }
+
+  #app-shell .dashboard-section-overview .kpi-grid,
+  #app-shell .dashboard-summary-grid,
+  #app-shell .dashboard-pace-grid,
+  #app-shell .dashboard-chip-grid {
+    gap: 0.55rem;
+  }
+
+  #app-shell .dashboard-visual-summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  }
+
+  #app-shell .dashboard-visual-card {
+    min-height: 260px;
+    padding: 1rem 0.95rem 0.9rem;
+    border-radius: 16px;
+  }
+
+  #app-shell .dashboard-visual-icon {
+    width: 3.2rem;
+    height: 3.2rem;
+    margin-bottom: 0.75rem;
+    border-width: 5px;
+  }
+
+  #app-shell .dashboard-visual-icon svg,
+  #app-shell .dashboard-grade-check svg {
+    width: 1.55rem;
+    height: 1.55rem;
+  }
+
+  #app-shell .dashboard-visual-card .dashboard-summary-label {
+    font-size: 0.76rem;
+  }
+
+  #app-shell .dashboard-visual-card .dashboard-summary-note {
+    margin-top: 0.8rem;
+    font-size: 0.84rem;
+    line-height: 1.32;
+  }
+
+  #app-shell .dashboard-open-mini {
+    gap: 0.32rem;
+    margin-top: 0.75rem;
+  }
+
+  #app-shell .dashboard-open-mini button {
+    padding: 0.3rem 0.34rem;
+    border-radius: 10px;
+  }
+
+  #app-shell .dashboard-open-mini small {
+    font-size: 0.62rem;
+  }
+
+  #app-shell .dashboard-required-subject-mini {
+    gap: 0.34rem;
+    max-height: 4.9rem;
+    margin-top: 0.75rem;
+  }
+
+  #app-shell .dashboard-required-subject-mini button {
+    padding: 0.34rem 0.42rem;
+    border-radius: 10px;
+  }
+
+  #app-shell .dashboard-chip-grid {
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  }
+
+  #app-shell .dashboard-open-gauge {
+    min-height: 160px;
+    gap: 0.36rem;
+    padding: 0.78rem 0.82rem 0.86rem;
+    border-radius: 12px;
+  }
+
+  #app-shell .dashboard-open-gauge-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  #app-shell .dashboard-open-gauge-icon svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  #app-shell .dashboard-open-gauge-label {
+    font-size: 0.68rem;
+  }
+
+  #app-shell .dashboard-open-gauge-value {
+    font-size: clamp(1.8rem, 2.6vw, 2.25rem);
+  }
+
+  #app-shell .dashboard-open-gauge-action {
+    top: 0.7rem;
+    right: 0.7rem;
+    width: 1.9rem;
+    height: 1.9rem;
+  }
+
+  #app-shell .dashboard-open-gauge-note {
+    max-width: 22ch;
+    font-size: 0.74rem;
+  }
+
+  #app-shell .dashboard-class-status-actions {
+    gap: 0.32rem;
+  }
+
+  #app-shell .dashboard-class-status-actions button {
+    padding: 0.34rem 0.42rem;
+  }
+
+  #app-shell #dashboard-section-completion-today,
+  #app-shell #dashboard-section-needs-attention-today {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  #app-shell .student-performance-toolbar.completion-detail-toolbar {
+    grid-template-columns: minmax(220px, 0.9fr) minmax(470px, 1fr);
+    column-gap: 1rem;
+  }
+
+  #app-shell #completion-today-filter-form {
+    grid-template-columns: minmax(170px, 1.25fr) minmax(150px, 0.9fr) minmax(135px, 0.8fr);
+    gap: 0.55rem;
+    width: min(100%, 540px);
+  }
+
+  #app-shell .completion-detail-gauge {
+    padding: 0.9rem;
+  }
+
+  #app-shell .completion-detail-table {
+    min-width: 900px;
+  }
+
+  #app-shell .completion-detail-table th,
+  #app-shell .completion-detail-table td {
+    padding: 0.6rem 0.7rem;
+  }
+
+  #app-shell .completion-detail-row td:first-child {
+    min-width: 210px;
+  }
+
+  #app-shell #school-day-table {
+    min-width: 1000px;
+  }
+
+  #app-shell #school-day-table th,
+  #app-shell #school-day-table td {
+    padding: 0.52rem 0.58rem;
+  }
+
+  #app-shell #school-day-table .school-day-hour-column {
+    min-width: 8.4rem;
+  }
+
+  #app-shell #school-day-table .school-day-planned-column {
+    min-width: 17rem;
+  }
+}
+
 @media (max-width: 1120px) {
   #app-shell .app-topbar {
     grid-template-columns: 240px 1fr auto;

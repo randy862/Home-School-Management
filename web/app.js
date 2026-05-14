@@ -16451,10 +16451,11 @@ function openRequiredSubjectComplianceStudents(subjectId, status) {
   const row = snapshot.rows.find((entry) => entry.subject.id === subjectId);
   if (!row) return;
   const students = status === "not-compliant" ? row.missingStudents : row.compliantStudents;
+  const subjectStatusLabel = status === "not-compliant" ? "Not In Compliance" : "Compliant";
   studentsDashboardReturnContext = {
     dashboardTab: "compliance",
     complianceTab: "required-subjects",
-    message: `${status === "not-compliant" ? "Not In Compliance" : "Compliant"} students from Dashboard > Compliance > Required Subjects.`,
+    message: `${subjectStatusLabel} students from Dashboard > Compliance > Required Subjects.`,
     chips: [
       `Subject: ${row.subject.name}`,
       `Required: ${status === "not-compliant" ? "Missing" : "Met"}`,
@@ -16467,6 +16468,12 @@ function openRequiredSubjectComplianceStudents(subjectId, status) {
   studentTableFilterRequired = status === "not-compliant" ? "no" : "yes";
   studentTableRequiredSubjectFilterId = subjectId;
   selectedStudentId = "";
+  if (students.length === 1) {
+    activateTab("students");
+    beginStudentDetail(students[0].id);
+    renderCurrentTabPanel();
+    return;
+  }
   setStudentViewMode("list");
   activateTab("students");
 }
