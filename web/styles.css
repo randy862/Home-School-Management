@@ -12443,7 +12443,8 @@ tbody tr:hover {
   line-height: 1.2;
 }
 
-#app-shell .management-section tr.readiness-review-row td {
+#app-shell .management-section tr.readiness-review-row td,
+#app-shell .schedule-section tr.readiness-review-row td {
   background: #fffaf0;
 }
 

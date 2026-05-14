@@ -1574,6 +1574,7 @@ let editingCourseSectionId = "";
 let currentManagementCoursesTab = "course-form";
 let courseReadinessFilter = "";
 let classReadinessFilter = "";
+let scheduleBlockReadinessFilter = "";
 let editingHolidayId = "";
 let editingPlanId = "";
 let editingSchoolYearId = "";
@@ -9742,6 +9743,19 @@ function classNeedsEnrollmentReview(section) {
   return !!section && courseSectionEnrollmentCount(section.id) === 0;
 }
 
+function scheduleBlockAssignedStudentIdsForReadiness(scheduleBlockId) {
+  const activeStudentIds = activeStudentIdSetForReadiness();
+  const studentIds = new Set();
+  (state.studentScheduleBlocks || [])
+    .filter((entry) => entry.scheduleBlockId === scheduleBlockId && activeStudentIds.has(entry.studentId))
+    .forEach((entry) => studentIds.add(entry.studentId));
+  return studentIds;
+}
+
+function scheduleBlockNeedsAssignmentReview(block) {
+  return !!block && !scheduleBlockAssignedStudentIdsForReadiness(block.id).size;
+}
+
 function availableScheduledItemsForSubject(subjectId) {
   return state.courses
     .filter((course) => course.subjectId === subjectId)
@@ -9768,9 +9782,8 @@ function buildSchoolDayReadinessSnapshot() {
       missingSubjects: studentMissingRequiredSubjects(student.id)
     }))
     .filter((entry) => entry.missingSubjects.length);
-  const assignedBlockIds = new Set((state.studentScheduleBlocks || []).map((entry) => entry.scheduleBlockId));
   const unassignedScheduleBlocks = (state.scheduleBlocks || [])
-    .filter((block) => !assignedBlockIds.has(block.id));
+    .filter((block) => scheduleBlockNeedsAssignmentReview(block));
   const issues = [
     {
       id: "courses",
@@ -9879,7 +9892,7 @@ function renderSchoolDayReadinessPanels() {
             <strong>Schedule Block Readiness</strong>
             <span>${escapeHtml(blockIssue.detail)}</span>
           </div>
-          ${blockIssue.count ? `<button type="button" data-school-day-readiness-action="students">Review Student Assignments</button>` : `<div class="school-day-readiness-score">Ready</div>`}
+          ${blockIssue.count ? `<button type="button" data-school-day-readiness-action="schedule-blocks">Review Blocks</button>` : `<div class="school-day-readiness-score">Ready</div>`}
         </div>`
       : "";
   }
@@ -9923,12 +9936,24 @@ function renderClassReadinessFilterPanel(visibleCount) {
   });
 }
 
+function renderScheduleBlockReadinessFilterPanel(visibleCount) {
+  const active = scheduleBlockReadinessFilter === "unassigned";
+  renderReadinessFilterPanel({
+    panelId: "schedule-block-filter-panel",
+    active,
+    title: `Showing ${visibleCount} schedule block${visibleCount === 1 ? "" : "s"} not assigned to any active student`,
+    detail: "This is the same set counted by School Day Readiness > Schedule Blocks.",
+    clearAction: "schedule-blocks"
+  });
+}
+
 function openSchoolDayReadinessAction(action) {
   if (action === "courses") {
     currentManagementTab = "courses";
     currentManagementCoursesTab = "course-form";
     courseReadinessFilter = "no-flex-enrollment";
     classReadinessFilter = "";
+    scheduleBlockReadinessFilter = "";
     activateTab("management");
     return;
   }
@@ -9937,6 +9962,7 @@ function openSchoolDayReadinessAction(action) {
     currentManagementCoursesTab = "course-sections";
     classReadinessFilter = "no-enrollment";
     courseReadinessFilter = "";
+    scheduleBlockReadinessFilter = "";
     activateTab("management");
     return;
   }
@@ -9947,6 +9973,9 @@ function openSchoolDayReadinessAction(action) {
   }
   if (action === "schedule-blocks") {
     currentScheduleTab = "daily-breaks";
+    scheduleBlockReadinessFilter = "unassigned";
+    courseReadinessFilter = "";
+    classReadinessFilter = "";
     activateTab("planning");
     return;
   }
@@ -9982,6 +10011,11 @@ function clearReadinessFilter(target) {
   if (target === "classes") {
     classReadinessFilter = "";
     renderCourseSections();
+    return;
+  }
+  if (target === "schedule-blocks") {
+    scheduleBlockReadinessFilter = "";
+    renderScheduleBlocks();
   }
 }
 
@@ -10460,13 +10494,18 @@ function renderScheduleBlocks() {
   const tableBody = document.getElementById("schedule-block-table");
   if (!tableBody) return;
   const rows = [...(state.scheduleBlocks || [])]
+    .filter((entry) => scheduleBlockReadinessFilter !== "unassigned" || scheduleBlockNeedsAssignmentReview(entry))
     .sort((a, b) => scheduleBlockLabel(a).localeCompare(scheduleBlockLabel(b)))
     .map((entry) => {
       const weekdays = (entry.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
       const typeLabel = SCHEDULE_BLOCK_TYPE_LABELS[entry.type] || "Schedule Block";
-      return `<tr><td>${renderScheduleSourceCell(scheduleBlockLabel(entry), scheduleBlockSchoolDayMeta(entry))}</td><td>${escapeHtml(typeLabel)}</td><td>${escapeHtml(entry.description || "-")}</td><td>${Number(entry.durationMinutes || 0)} min</td><td>${escapeHtml(weekdays || "Mon-Fri")}</td><td class="schedule-actions-cell"><div class="table-action-row"><button data-edit-schedule-block="${entry.id}" type="button">Edit</button><button data-remove-schedule-block="${entry.id}" type="button">Remove</button></div></td></tr>`;
+      const enrolledCount = scheduleBlockAssignedStudentIdsForReadiness(entry.id).size;
+      const needsReview = scheduleBlockNeedsAssignmentReview(entry);
+      const enrolledCell = `<span class="enrollment-count-pill${needsReview ? " empty" : ""}">${enrolledCount}</span>${needsReview ? `<span class="enrollment-count-note">No students assigned</span>` : ""}`;
+      return `<tr class="${needsReview ? "readiness-review-row" : ""}"><td>${renderScheduleSourceCell(scheduleBlockLabel(entry), scheduleBlockSchoolDayMeta(entry))}</td><td>${escapeHtml(typeLabel)}</td><td>${escapeHtml(entry.description || "-")}</td><td>${Number(entry.durationMinutes || 0)} min</td><td>${escapeHtml(weekdays || "Mon-Fri")}</td><td>${enrolledCell}</td><td class="schedule-actions-cell"><div class="table-action-row"><button data-edit-schedule-block="${entry.id}" type="button">Edit</button><button data-remove-schedule-block="${entry.id}" type="button">Remove</button></div></td></tr>`;
     });
-  rowOrEmpty(tableBody, rows, "No ordered schedule blocks defined.", 6);
+  rowOrEmpty(tableBody, rows, scheduleBlockReadinessFilter === "unassigned" ? "No schedule blocks need assignment review." : "No ordered schedule blocks defined.", 7);
+  renderScheduleBlockReadinessFilterPanel(rows.length);
   renderSchoolDayReadinessPanels();
   const submitBtn = document.getElementById("schedule-block-submit-btn");
   const cancelBtn = document.getElementById("schedule-block-cancel-edit-btn");
