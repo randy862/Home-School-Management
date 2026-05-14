@@ -8,19 +8,14 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
 
 ## Current State
 
-- Latest production code commit: `f1b9725 Polish grades and student compliance flows`.
-- Previous production UI commits in this pass:
-  - `6f30caf Polish dashboard responsive behavior`
-  - `374648a Polish school day workflow layout`
-  - `de008c8 Prevent inline grade action crowding`
-  - `0121160 Align school day grade actions`
-  - `0de39cd Align school day schedule meta strip`
+- Latest production code commit: `745b119 Polish scheduled item readiness`.
+- Previous production UI commits in this pass include School Day, Dashboard/Execution, Grades, and Student compliance polish.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
-  - `styles.css?v=202605142000`
-  - `app.js?v=202605142000`
+  - `styles.css?v=202605141512`
+  - `app.js?v=202605141512`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-20260514135007.tgz`
+  `/var/www/home-school-management/rollback/web-202605141512.tgz`
 - Production validation after latest deploy:
   - Apache config syntax OK
   - Apache active
@@ -49,11 +44,19 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
 - Compliance Required Subjects links now mirror Missing Required Subjects navigation:
   - one matching student opens that student's enrollment workflow
   - multiple matching students open the filtered Students list
+- Planning / Scheduled Items improvements now deployed:
+  - Instruction Plans surface is retired from the Schedule tabs while legacy data/API remain dormant
+  - Courses, Classes, Schedule Blocks, and Student Scheduled Items show compact School Day source metadata
+  - School Day Readiness panels flag setup gaps for courses, classes, required subjects, students, and schedule blocks
+- Attendance search polish is now deployed:
+  - Attendance entry header/action is cleaner
+  - Attendance filters collapse by default
+  - attendance records show compact Present/Absent status pills
 
 ## Next Action
 
 1. User reviews production UI at `mitchell.navigrader.com`.
-2. After feedback, continue the next UI polish item in Web Preview before production promotion.
+2. After feedback, continue Calendar polish in Web Preview before production promotion.
 
 ## Risks
 
@@ -66,5 +69,7 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
 
 - `node --check web/app.js` passed during the UI pass.
 - `git diff --check` passed on touched web files before production deployment.
-- WEB001 deploy validation passed after `f1b9725`.
+- WEB001 deploy validation passed after `745b119`.
+- Remote SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
+- Public health returned `200` for `https://mitchell.navigrader.com/health`.
 - Current documentation checkpoint records the deployed state; no service redeploy is required for the docs-only commit.
