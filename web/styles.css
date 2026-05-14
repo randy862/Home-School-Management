@@ -10775,21 +10775,24 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-subtabs {
-  padding: 0.2rem;
-  border: 1px solid #b8c8de;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 8px 18px rgba(31, 47, 69, 0.05);
-  gap: 0.2rem;
+  align-items: flex-end;
+  gap: 0.28rem;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #d7e2ef;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 #app-shell .school-day-subtabs .subtab-btn {
-  min-height: 32px;
-  padding: 0.34rem 0.72rem;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  background: #f8fbfd;
-  color: #223a5a;
+  min-height: 34px;
+  padding: 0.36rem 0.78rem 0.42rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #526179;
   box-shadow: none;
   font-size: 0.9rem;
   font-weight: 800;
@@ -10797,17 +10800,16 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-subtabs .subtab-btn:hover {
-  border-color: #c5d4e7;
-  background: #eef5fc;
+  background: #f4f8fd;
   color: #155bc3;
   box-shadow: none;
   transform: none;
 }
 
 #app-shell .school-day-subtabs .subtab-btn.active {
-  border-color: #155bc3;
-  background: #155bc3;
-  color: #ffffff;
+  border-bottom-color: #155bc3;
+  background: #ffffff;
+  color: #155bc3;
   box-shadow: none;
 }
 
@@ -11011,6 +11013,11 @@ tbody tr:hover {
   width: 100%;
 }
 
+#app-shell #school-day-table {
+  min-width: 1040px;
+  table-layout: fixed;
+}
+
 #app-shell .school-day-section th {
   background: #f7f9fc;
   color: #68778d;
@@ -11020,6 +11027,44 @@ tbody tr:hover {
 
 #app-shell .school-day-section td {
   background: #ffffff;
+}
+
+#app-shell #school-day-table th,
+#app-shell #school-day-table td {
+  padding: 0.58rem 0.66rem;
+  vertical-align: middle;
+}
+
+#app-shell #school-day-table .school-day-planned-column {
+  min-width: 18rem;
+}
+
+#app-shell #school-day-table .school-day-hour-column {
+  min-width: 8.8rem;
+}
+
+#app-shell .school-day-hour-cell > span {
+  white-space: nowrap;
+}
+
+#app-shell .school-day-planned-copy {
+  color: #17243d;
+  font-size: 0.92rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+#app-shell .school-day-planned-range {
+  display: block;
+  margin-top: 0.16rem;
+  color: #66758b;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+#app-shell #school-day-table .school-day-row-badges {
+  gap: 0.26rem;
+  margin: 0.36rem 0 0;
 }
 
 #app-shell #school-day-table tr.school-day-row-needs-attendance td,

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605141125">
+  <link rel="stylesheet" href="styles.css?v=202605141640">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1379,7 +1379,7 @@
         <div class="subtabs school-day-subtabs" aria-label="School Day sections">
           <button class="subtab-btn active" data-school-day-tab="daily-schedule" type="button">Daily Schedule (0)</button>
           <button class="subtab-btn" data-school-day-tab="attendance" type="button">Attendance (0 open)</button>
-          <button class="subtab-btn" data-school-day-tab="grades" type="button">Grades</button>
+          <button class="subtab-btn" data-school-day-tab="grades" type="button">Grade Entry</button>
         </div>
       </div>
 
@@ -1434,13 +1434,13 @@
       </div>
 
       <div id="school-day-grades-section" class="school-day-section hidden">
-        <h3>Grades</h3>
+        <h3>Bulk Grade Entry</h3>
         <div class="school-day-attendance-toolbar">
-          <p id="school-day-grades-message" class="muted">Enter grades for the selected School Day context.</p>
+          <p id="school-day-grades-message" class="muted">Build a batch for the selected School Day context.</p>
           <div class="table-action-row school-day-grade-actions">
-            <button type="button" id="school-day-add-grade-row-btn">Add Grade Row</button>
+            <button type="button" id="school-day-add-grade-row-btn">Add Blank Row</button>
             <button type="button" id="school-day-add-grade-rows-for-students-btn">Add Rows For Students</button>
-            <button type="button" id="school-day-add-grade-rows-for-classes-btn">Add Rows Scheduled Class No Grade</button>
+            <button type="button" id="school-day-add-grade-rows-for-classes-btn">Add Classes Without Grades</button>
           </div>
         </div>
         <div id="school-day-grade-entry-wrap" class="table-wrap hidden">
@@ -1450,7 +1450,7 @@
           </table>
         </div>
         <div class="callout school-day-grades-callout">
-          <p class="muted">Use schedule row Grade buttons for one-off entry, or build a batch here with one row per student or scheduled class.</p>
+          <p class="muted">Use a row Grade button for one-off entry, or build a batch here when several grades should be entered together.</p>
         </div>
       </div>
     </section>
@@ -2440,6 +2440,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605141105"></script>
+  <script src="app.js?v=202605141625"></script>
   </body>
   </html>

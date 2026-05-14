@@ -10740,9 +10740,9 @@ function renderSchoolDayGrades() {
     setSchoolDayGradesMessage(schoolDayGradesMessageState.kind, schoolDayGradesMessageState.text);
   } else {
     const scheduledClassCopy = scheduledClassGradeCount
-      ? ` ${scheduledClassGradeCount} scheduled class${scheduledClassGradeCount === 1 ? "" : "es"} can be added as batch grade row${scheduledClassGradeCount === 1 ? "" : "s"}.`
-      : " Add a row to begin a batch.";
-    setSchoolDayGradesMessage("", `${todayGrades.length} grades recorded for ${gradedStudentCount} students on ${formatDisplayDate(date)}.${scheduledClassCopy}`);
+      ? `${scheduledClassGradeCount} scheduled class${scheduledClassGradeCount === 1 ? "" : "es"} without a grade can be added to this batch.`
+      : "No scheduled classes without grades are waiting for this date.";
+    setSchoolDayGradesMessage("", `Bulk entry for ${formatDisplayDate(date)}: ${todayGrades.length} grade${todayGrades.length === 1 ? "" : "s"} recorded for ${gradedStudentCount} student${gradedStudentCount === 1 ? "" : "s"}. ${scheduledClassCopy}`);
   }
   updateSchoolDayGradeEntryVisibility();
 }
@@ -11710,12 +11710,12 @@ function setSchoolDaySubtabLabel(tab, label) {
 function updateSchoolDaySubtabCounts({ scheduleCount = 0, attendanceOpenCount = 0 } = {}) {
   setSchoolDaySubtabLabel("daily-schedule", `Daily Schedule (${scheduleCount})`);
   setSchoolDaySubtabLabel("attendance", `Attendance (${attendanceOpenCount} open)`);
-  setSchoolDaySubtabLabel("grades", "Grades");
+  setSchoolDaySubtabLabel("grades", "Grade Entry");
 }
 
 function schoolDayTabLabel(tab) {
   if (tab === "attendance") return "Attendance";
-  if (tab === "grades") return "Grades";
+  if (tab === "grades") return "Grade Entry";
   return "Daily Schedule";
 }
 
@@ -17912,7 +17912,7 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
           canEdit: canEditActualMinutes
         })}</td>`
         : "";
-      const renderedRows = [`<tr class="${rowStateClasses}${isEditing ? " school-day-editing-row" : ""}"><td class="school-day-hour-column">${hourDisplay}</td><td class="school-day-student-column">${block.student}</td><td class="school-day-planned-column"><div class="school-day-planned-copy">${block.label}</div>${rowBadges}<span class="muted">Planned ${plannedRange}</span></td><td class="school-day-instructor-column">${instructorCell}</td><td class="school-day-minutes-column">${minutesCell}</td>${statusColumnCell}${nextActionCell}<td class="calendar-actions-cell school-day-actions-column">${actionsCell}</td></tr>`];
+      const renderedRows = [`<tr class="${rowStateClasses}${isEditing ? " school-day-editing-row" : ""}"><td class="school-day-hour-column">${hourDisplay}</td><td class="school-day-student-column">${block.student}</td><td class="school-day-planned-column"><div class="school-day-planned-copy">${block.label}</div><span class="muted school-day-planned-range">Planned ${plannedRange}</span>${rowBadges}</td><td class="school-day-instructor-column">${instructorCell}</td><td class="school-day-minutes-column">${minutesCell}</td>${statusColumnCell}${nextActionCell}<td class="calendar-actions-cell school-day-actions-column">${actionsCell}</td></tr>`];
       if (showInlineGrade) {
         const gradeRow = buildGradeEntryRow(null, {
           date: dateKey,
