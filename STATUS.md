@@ -50,6 +50,10 @@ School Day, Dashboard, Execution, Grades, Calendar, Student compliance, and Plan
   - Month/Week/Day use a segmented control instead of the View dropdown
   - month/week student cards show every scheduled class with class names and hours
   - active date range moved into a compact header pill
+- Deployed `f8f2758` with Calendar expandable student rows:
+  - month/week days default to scheduled student names and total hours
+  - each student row expands to show class name, subject, and hours
+  - expanded rows keep the Open Week/Open Day drill-in action
 - Updated Dashboard / Compliance / Required Subjects student-count links to match Dashboard / Overview / Missing Required Subjects behavior:
   - one matching student opens the student detail/enrollment workflow
   - multiple matching students open the Students list filtered to the relevant compliance set
@@ -57,9 +61,9 @@ School Day, Dashboard, Execution, Grades, Calendar, Student compliance, and Plan
   - Apache config syntax OK
   - Apache active
   - public health endpoint returned `200`
-  - live cache keys are `styles.css?v=202605141559` and `app.js?v=202605141559`
+  - live cache keys are `styles.css?v=202605141610` and `app.js?v=202605141610`
   - remote hashes match local `web/index.html`, `web/app.js`, and `web/styles.css`
-- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141559.tgz`.
+- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141610.tgz`.
 
 ## Current Blockers
 

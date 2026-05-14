@@ -8,13 +8,13 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, Calenda
 
 ## Current State
 
-- Latest production code commit: `37937e3 Polish calendar workflow`.
+- Latest production code commit: `f8f2758 Add expandable calendar student rows`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
-  - `styles.css?v=202605141559`
-  - `app.js?v=202605141559`
+  - `styles.css?v=202605141610`
+  - `app.js?v=202605141610`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605141559.tgz`
+  `/var/www/home-school-management/rollback/web-202605141610.tgz`
 - Production validation after latest deploy:
   - Apache config syntax OK
   - Apache active
@@ -56,7 +56,7 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, Calenda
 - Calendar polish is now deployed:
   - filters collapse into a compact drawer
   - Month/Week/Day use a segmented view switch instead of a bulky dropdown
-  - month/week cells show all scheduled classes for each student with class names and hours
+  - month/week cells list scheduled students with expandable class details and drill-ins
   - active date range is shown as a compact header pill
 
 ## Next Action
@@ -75,7 +75,7 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, Calenda
 
 - `node --check web/app.js` passed during the UI pass.
 - `git diff --check` passed on touched web files before production deployment.
-- WEB001 deploy validation passed after `37937e3`.
+- WEB001 deploy validation passed after `f8f2758`.
 - Remote SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
 - Public health returned `200` for `https://mitchell.navigrader.com/health`.
 - Current documentation checkpoint records the deployed state; no service redeploy is required for the docs-only commit.
