@@ -8,7 +8,7 @@ UI polish and workflow refinement on `saas-modern-redesign`.
 
 ## Current Focus
 
-School Day, Dashboard, Execution, Grades, Student compliance, and Planning / Scheduled Items polish are deployed to the lab production tenant site for user review.
+School Day, Dashboard, Execution, Grades, Calendar, Student compliance, and Planning / Scheduled Items polish are deployed to the lab production tenant site for user review.
 
 ## Completed Recently
 
@@ -45,6 +45,11 @@ School Day, Dashboard, Execution, Grades, Student compliance, and Planning / Sch
   - Schedule Blocks now shows assigned active-student count
   - Review Blocks filters to schedule blocks not assigned to any active student
   - unassigned blocks are highlighted and explained with an active filter strip
+- Deployed `37937e3` with Calendar workflow polish:
+  - Calendar filters collapse into a compact drawer
+  - Month/Week/Day use a segmented control instead of the View dropdown
+  - month/week student cards show every scheduled class with class names and hours
+  - active date range moved into a compact header pill
 - Updated Dashboard / Compliance / Required Subjects student-count links to match Dashboard / Overview / Missing Required Subjects behavior:
   - one matching student opens the student detail/enrollment workflow
   - multiple matching students open the Students list filtered to the relevant compliance set
@@ -52,9 +57,9 @@ School Day, Dashboard, Execution, Grades, Student compliance, and Planning / Sch
   - Apache config syntax OK
   - Apache active
   - public health endpoint returned `200`
-  - live cache keys are `styles.css?v=202605141537` and `app.js?v=202605141537`
+  - live cache keys are `styles.css?v=202605141559` and `app.js?v=202605141559`
   - remote hashes match local `web/index.html`, `web/app.js`, and `web/styles.css`
-- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141537.tgz`.
+- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141559.tgz`.
 
 ## Current Blockers
 
@@ -70,5 +75,5 @@ School Day, Dashboard, Execution, Grades, Student compliance, and Planning / Sch
 ## Next Actions
 
 1. User reviews the current production UI on `mitchell.navigrader.com`.
-2. Continue Calendar polish after user feedback.
+2. Continue the next UI polish surface after user feedback.
 3. Keep future UI changes in Web Preview first when visual judgment is needed, then promote after approval.

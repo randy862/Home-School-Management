@@ -4,17 +4,17 @@ Date: 2026-05-14
 
 ## Context
 
-UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Student required-subject compliance navigation on `saas-modern-redesign`.
+UI polish workstream for School Day, Dashboard/Execution gauges, Grades, Calendar, and Student required-subject compliance navigation on `saas-modern-redesign`.
 
 ## Current State
 
-- Latest production code commit: `252c535 Focus schedule block readiness review`.
+- Latest production code commit: `37937e3 Polish calendar workflow`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
-  - `styles.css?v=202605141537`
-  - `app.js?v=202605141537`
+  - `styles.css?v=202605141559`
+  - `app.js?v=202605141559`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605141537.tgz`
+  `/var/www/home-school-management/rollback/web-202605141559.tgz`
 - Production validation after latest deploy:
   - Apache config syntax OK
   - Apache active
@@ -53,11 +53,16 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
   - Attendance entry header/action is cleaner
   - Attendance filters collapse by default
   - attendance records show compact Present/Absent status pills
+- Calendar polish is now deployed:
+  - filters collapse into a compact drawer
+  - Month/Week/Day use a segmented view switch instead of a bulky dropdown
+  - month/week cells show all scheduled classes for each student with class names and hours
+  - active date range is shown as a compact header pill
 
 ## Next Action
 
 1. User reviews production UI at `mitchell.navigrader.com`.
-2. After feedback, continue Calendar polish in Web Preview before production promotion.
+2. After feedback, continue the next UI polish surface in Web Preview before production promotion.
 
 ## Risks
 
@@ -70,7 +75,7 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
 
 - `node --check web/app.js` passed during the UI pass.
 - `git diff --check` passed on touched web files before production deployment.
-- WEB001 deploy validation passed after `252c535`.
+- WEB001 deploy validation passed after `37937e3`.
 - Remote SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
 - Public health returned `200` for `https://mitchell.navigrader.com/health`.
 - Current documentation checkpoint records the deployed state; no service redeploy is required for the docs-only commit.
