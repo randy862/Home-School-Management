@@ -8,13 +8,13 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
 
 ## Current State
 
-- Latest production code commit: `dc7b234 Focus readiness review filters`.
+- Latest production code commit: `252c535 Focus schedule block readiness review`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
-  - `styles.css?v=202605141529`
-  - `app.js?v=202605141529`
+  - `styles.css?v=202605141537`
+  - `app.js?v=202605141537`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605141529.tgz`
+  `/var/www/home-school-management/rollback/web-202605141537.tgz`
 - Production validation after latest deploy:
   - Apache config syntax OK
   - Apache active
@@ -48,6 +48,7 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
   - Courses, Classes, Schedule Blocks, and Student Scheduled Items show compact School Day source metadata
   - School Day Readiness panels flag setup gaps for courses, classes, required subjects, students, and schedule blocks
   - Review Courses and Review Classes now filter to zero-enrollment rows and show active filter strips
+  - Review Blocks now filters to unassigned schedule blocks and Schedule Blocks shows assigned active-student count
 - Attendance search polish is now deployed:
   - Attendance entry header/action is cleaner
   - Attendance filters collapse by default
@@ -69,7 +70,7 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
 
 - `node --check web/app.js` passed during the UI pass.
 - `git diff --check` passed on touched web files before production deployment.
-- WEB001 deploy validation passed after `dc7b234`.
+- WEB001 deploy validation passed after `252c535`.
 - Remote SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
 - Public health returned `200` for `https://mitchell.navigrader.com/health`.
 - Current documentation checkpoint records the deployed state; no service redeploy is required for the docs-only commit.

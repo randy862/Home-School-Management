@@ -41,6 +41,10 @@ School Day, Dashboard, Execution, Grades, Student compliance, and Planning / Sch
   - Review Courses filters to flexible courses with zero enrolled students
   - Review Classes filters to classes with zero enrolled students
   - active filter strips and highlighted rows identify the exact setup gaps
+- Deployed `252c535` with Schedule Blocks readiness review filtering:
+  - Schedule Blocks now shows assigned active-student count
+  - Review Blocks filters to schedule blocks not assigned to any active student
+  - unassigned blocks are highlighted and explained with an active filter strip
 - Updated Dashboard / Compliance / Required Subjects student-count links to match Dashboard / Overview / Missing Required Subjects behavior:
   - one matching student opens the student detail/enrollment workflow
   - multiple matching students open the Students list filtered to the relevant compliance set
@@ -48,9 +52,9 @@ School Day, Dashboard, Execution, Grades, Student compliance, and Planning / Sch
   - Apache config syntax OK
   - Apache active
   - public health endpoint returned `200`
-  - live cache keys are `styles.css?v=202605141529` and `app.js?v=202605141529`
+  - live cache keys are `styles.css?v=202605141537` and `app.js?v=202605141537`
   - remote hashes match local `web/index.html`, `web/app.js`, and `web/styles.css`
-- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141529.tgz`.
+- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141537.tgz`.
 
 ## Current Blockers
 
