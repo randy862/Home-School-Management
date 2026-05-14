@@ -8,14 +8,13 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
 
 ## Current State
 
-- Latest production code commit: `745b119 Polish scheduled item readiness`.
-- Previous production UI commits in this pass include School Day, Dashboard/Execution, Grades, and Student compliance polish.
+- Latest production code commit: `dc7b234 Focus readiness review filters`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
-  - `styles.css?v=202605141512`
-  - `app.js?v=202605141512`
+  - `styles.css?v=202605141529`
+  - `app.js?v=202605141529`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605141512.tgz`
+  `/var/www/home-school-management/rollback/web-202605141529.tgz`
 - Production validation after latest deploy:
   - Apache config syntax OK
   - Apache active
@@ -48,6 +47,7 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
   - Instruction Plans surface is retired from the Schedule tabs while legacy data/API remain dormant
   - Courses, Classes, Schedule Blocks, and Student Scheduled Items show compact School Day source metadata
   - School Day Readiness panels flag setup gaps for courses, classes, required subjects, students, and schedule blocks
+  - Review Courses and Review Classes now filter to zero-enrollment rows and show active filter strips
 - Attendance search polish is now deployed:
   - Attendance entry header/action is cleaner
   - Attendance filters collapse by default
@@ -69,7 +69,7 @@ UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Stu
 
 - `node --check web/app.js` passed during the UI pass.
 - `git diff --check` passed on touched web files before production deployment.
-- WEB001 deploy validation passed after `745b119`.
+- WEB001 deploy validation passed after `dc7b234`.
 - Remote SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
 - Public health returned `200` for `https://mitchell.navigrader.com/health`.
 - Current documentation checkpoint records the deployed state; no service redeploy is required for the docs-only commit.

@@ -36,6 +36,11 @@ School Day, Dashboard, Execution, Grades, Student compliance, and Planning / Sch
   - added compact School Day source metadata to Courses, Classes, Schedule Blocks, Scheduled Item picker rows, and Student current schedule rows
   - added School Day Readiness panels for setup gaps affecting School Day generation and compliance
   - added Students work queue and Attendance search polish that had been approved in Web Preview
+- Deployed `dc7b234` with readiness review filtering:
+  - Configured Courses now shows enrolled student count
+  - Review Courses filters to flexible courses with zero enrolled students
+  - Review Classes filters to classes with zero enrolled students
+  - active filter strips and highlighted rows identify the exact setup gaps
 - Updated Dashboard / Compliance / Required Subjects student-count links to match Dashboard / Overview / Missing Required Subjects behavior:
   - one matching student opens the student detail/enrollment workflow
   - multiple matching students open the Students list filtered to the relevant compliance set
@@ -43,9 +48,9 @@ School Day, Dashboard, Execution, Grades, Student compliance, and Planning / Sch
   - Apache config syntax OK
   - Apache active
   - public health endpoint returned `200`
-  - live cache keys are `styles.css?v=202605141512` and `app.js?v=202605141512`
+  - live cache keys are `styles.css?v=202605141529` and `app.js?v=202605141529`
   - remote hashes match local `web/index.html`, `web/app.js`, and `web/styles.css`
-- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141512.tgz`.
+- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141529.tgz`.
 
 ## Current Blockers
 
