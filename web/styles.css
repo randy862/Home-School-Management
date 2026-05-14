@@ -11180,11 +11180,26 @@ tbody tr:hover {
 
 #app-shell .school-day-inline-grade-wrap th:last-child,
 #app-shell .school-day-inline-grade-wrap td:last-child {
+  min-width: 18rem;
   text-align: right;
+  width: 18rem;
 }
 
 #app-shell .school-day-inline-grade-wrap .school-day-inline-grade-actions {
+  display: inline-flex;
+  gap: 0.36rem;
   justify-content: flex-end;
+  white-space: nowrap;
+}
+
+#app-shell .school-day-inline-grade-wrap .school-day-inline-grade-actions button {
+  flex: 0 0 auto;
+  min-width: 5.4rem;
+  width: auto;
+}
+
+#app-shell .school-day-inline-grade-wrap .school-day-inline-grade-actions [data-grade-calc-toggle] {
+  min-width: 7.8rem;
 }
 
 #app-shell .school-day-inline-grade-wrap .grade-calc-row td {
