@@ -3516,6 +3516,15 @@ td {
   margin: 0;
 }
 
+.school-day-inline-grade-wrap tr[data-school-day-inline-grade] th:last-child,
+.school-day-inline-grade-wrap tr[data-school-day-inline-grade] td:last-child {
+  text-align: right;
+}
+
+.school-day-inline-grade-wrap .school-day-inline-grade-actions {
+  justify-content: flex-end;
+}
+
 .school-day-inline-grade-wrap tr[data-school-day-inline-grade] .grade-entry-action-row {
   display: flex;
   gap: 0.32rem;
@@ -11167,6 +11176,30 @@ tbody tr:hover {
 
 #app-shell .school-day-inline-grade-panel .school-day-inline-grade-wrap {
   margin-top: 0;
+}
+
+#app-shell .school-day-inline-grade-wrap th:last-child,
+#app-shell .school-day-inline-grade-wrap td:last-child {
+  text-align: right;
+}
+
+#app-shell .school-day-inline-grade-wrap .school-day-inline-grade-actions {
+  justify-content: flex-end;
+}
+
+#app-shell .school-day-inline-grade-wrap .grade-calc-row td {
+  padding-top: 0.35rem;
+}
+
+#app-shell .school-day-inline-grade-wrap .grade-calc-panel {
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+#app-shell .school-day-inline-grade-wrap .grade-calc-actions {
+  justify-content: flex-end;
 }
 
 #app-shell .school-day-empty-state {

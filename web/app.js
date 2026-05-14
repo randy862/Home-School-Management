@@ -12069,13 +12069,13 @@ function buildGradeEntryRow(existingGrade, preset = {}) {
     tr.setAttribute("data-edit-grade-id", existingGrade.id);
   }
 
-  const actionsMarkup = useSchoolDayInlineActions
-    ? `<div class="grade-entry-inline-placeholder"></div>`
-    : `<div class="table-action-row grade-entry-actions">
-        <button type="button" data-grade-save="1">${existingGrade ? "Update" : "Save"}</button>
-        <button type="button" data-grade-calc-toggle="1">Calculate</button>
-        <button type="button" data-grade-cancel="1">Cancel</button>
-      </div>`;
+  const saveLabel = useSchoolDayInlineActions ? "Save Grade" : (existingGrade ? "Update" : "Save");
+  const calculateLabel = useSchoolDayInlineActions ? "Calculate Score" : "Calculate";
+  const actionsMarkup = `<div class="table-action-row grade-entry-actions${useSchoolDayInlineActions ? " school-day-inline-grade-actions" : ""}">
+      <button type="button" data-grade-save="1">${saveLabel}</button>
+      <button type="button" data-grade-calc-toggle="1">${calculateLabel}</button>
+      <button type="button" data-grade-cancel="1">Cancel</button>
+    </div>`;
 
   tr.innerHTML = `
     <td><input class="grade-row-date" type="date" value="${dateValue}"></td>
@@ -12196,6 +12196,7 @@ function applyGradeCalculator(calcRow) {
   if (gradeInput) {
     gradeInput.value = String(percentage);
   }
+  setInlineGradeCalculateButtonVisibility(findInlineGradeActionRow(rowId, sourceRow) || sourceRow, true);
   calcRow.remove();
 }
 
@@ -17922,22 +17923,7 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
           schoolDayInline: true
         });
         gradeRow.setAttribute("data-school-day-inline-grade", "1");
-        const gradeRowId = gradeRow.getAttribute("data-grade-entry-row-id");
-        const calculateCell = gradeRow.querySelector("td:last-child");
-        if (calculateCell) {
-          calculateCell.innerHTML = `<div class="grade-entry-inline-placeholder"></div>`;
-        }
-        const inlineActionRows = `
-          <tr class="school-day-inline-grade-action-table-row" data-grade-action-for="${gradeRowId}">
-            <td colspan="7">
-              <div class="grade-entry-action-row">
-                <button type="button" data-grade-save="1">Save Grade</button>
-                <button type="button" data-grade-calc-toggle="1">Calculate Score</button>
-                <button type="button" data-grade-cancel="1">Cancel</button>
-              </div>
-            </td>
-          </tr>`;
-        renderedRows.push(`<tr data-school-day-inline-grade-container="${inlineGradeKey}" class="school-day-inline-grade-row"><td colspan="8"><div class="school-day-inline-grade-panel"><div class="school-day-inline-grade-context"><strong>Add grade</strong><span>${escapeHtml(block.student)} &middot; ${escapeHtml(block.label)} &middot; ${formatDisplayDate(dateKey)}</span></div><div class="table-wrap school-day-inline-grade-wrap"><table><thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead><tbody>${gradeRow.outerHTML}${inlineActionRows}</tbody></table></div></div></td></tr>`);
+        renderedRows.push(`<tr data-school-day-inline-grade-container="${inlineGradeKey}" class="school-day-inline-grade-row"><td colspan="8"><div class="school-day-inline-grade-panel"><div class="school-day-inline-grade-context"><strong>Add grade</strong><span>${escapeHtml(block.student)} &middot; ${escapeHtml(block.label)} &middot; ${formatDisplayDate(dateKey)}</span></div><div class="table-wrap school-day-inline-grade-wrap"><table><thead><tr><th>Date</th><th>Student Name</th><th>Subject</th><th>Course</th><th>Grade Type</th><th>Grade</th><th>Actions</th></tr></thead><tbody>${gradeRow.outerHTML}</tbody></table></div></div></td></tr>`);
       }
       return renderedRows;
     });
@@ -23042,7 +23028,7 @@ function bindEvents() {
       if (calcRow) {
         const rowId = calcRow.getAttribute("data-grade-calc-for");
         const sourceRow = rowId ? document.querySelector(`tr[data-grade-entry-row-id="${rowId}"]`) : null;
-        setInlineGradeCalculateButtonVisibility(findInlineGradeActionRow(rowId, sourceRow), true);
+        setInlineGradeCalculateButtonVisibility(findInlineGradeActionRow(rowId, sourceRow) || sourceRow, true);
         calcRow.remove();
       }
       return;
