@@ -1572,6 +1572,8 @@ let courseMaterialsDraft = [];
 let courseSectionFormOpen = false;
 let editingCourseSectionId = "";
 let currentManagementCoursesTab = "course-form";
+let courseReadinessFilter = "";
+let classReadinessFilter = "";
 let editingHolidayId = "";
 let editingPlanId = "";
 let editingSchoolYearId = "";
@@ -9565,11 +9567,16 @@ function renderCourses() {
   renderCourseMaterialsDraft();
   if (!tableBody) return;
   const rows = state.courses
+    .filter((c) => courseReadinessFilter !== "no-flex-enrollment" || courseNeedsEnrollmentReview(c))
     .map((c) => {
       const subjectCell = `${escapeHtml(getSubjectName(c.subjectId))} ${isRequiredSubject(c.subjectId) ? requiredSubjectBadge(c.subjectId) : ""}`;
-      return `<tr><td>${renderScheduleSourceCell(c.name, courseSchoolDayMeta(c))}</td><td>${subjectCell}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${escapeHtml(dailyMinutesSummary(c.hoursPerDay))}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`;
+      const enrolledCount = courseStudentIdsForReadiness(c.id).size;
+      const needsReview = courseNeedsEnrollmentReview(c);
+      const enrolledCell = `<span class="enrollment-count-pill${needsReview ? " empty" : ""}">${enrolledCount}</span>${needsReview ? `<span class="enrollment-count-note">No students enrolled</span>` : ""}`;
+      return `<tr class="${needsReview ? "readiness-review-row" : ""}"><td>${renderScheduleSourceCell(c.name, courseSchoolDayMeta(c))}</td><td>${subjectCell}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${escapeHtml(dailyMinutesSummary(c.hoursPerDay))}</td><td>${enrolledCell}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`;
     });
-  rowOrEmpty(tableBody, rows, "No courses added yet.", 5);
+  rowOrEmpty(tableBody, rows, courseReadinessFilter === "no-flex-enrollment" ? "No flexible courses need enrollment review." : "No courses added yet.", 6);
+  renderCourseReadinessFilterPanel(rows.length);
   renderCourseSections();
   renderManagementCoursesSectionVisibility();
   renderSchoolDayReadinessPanels();
@@ -9723,6 +9730,18 @@ function courseStudentIdsForReadiness(courseId) {
   return studentIds;
 }
 
+function courseHasClasses(courseId) {
+  return state.courseSections.some((section) => section.courseId === courseId);
+}
+
+function courseNeedsEnrollmentReview(course) {
+  return !!course && !courseHasClasses(course.id) && !courseStudentIdsForReadiness(course.id).size;
+}
+
+function classNeedsEnrollmentReview(section) {
+  return !!section && courseSectionEnrollmentCount(section.id) === 0;
+}
+
 function availableScheduledItemsForSubject(subjectId) {
   return state.courses
     .filter((course) => course.subjectId === subjectId)
@@ -9737,11 +9756,9 @@ function availableScheduledItemsForSubject(subjectId) {
 function buildSchoolDayReadinessSnapshot() {
   const activeStudents = visibleStudents();
   const classesWithoutStudents = sortedCourseSections()
-    .filter((section) => courseSectionEnrollmentCount(section.id) === 0);
-  const courseIdsWithClasses = new Set(state.courseSections.map((section) => section.courseId));
+    .filter((section) => classNeedsEnrollmentReview(section));
   const flexibleCoursesWithoutStudents = state.courses
-    .filter((course) => !courseIdsWithClasses.has(course.id))
-    .filter((course) => !courseStudentIdsForReadiness(course.id).size);
+    .filter((course) => courseNeedsEnrollmentReview(course));
   const requiredSubjectsWithoutItems = state.subjects
     .filter((subject) => subject.required && !availableScheduledItemsForSubject(subject.id).length)
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -9868,16 +9885,58 @@ function renderSchoolDayReadinessPanels() {
   }
 }
 
+function renderReadinessFilterPanel({ panelId, active, title, detail, clearAction }) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  panel.classList.toggle("hidden", !active);
+  if (!active) {
+    panel.innerHTML = "";
+    return;
+  }
+  panel.innerHTML = `
+    <div>
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(detail)}</span>
+    </div>
+    <button type="button" data-clear-readiness-filter="${escapeHtml(clearAction)}">Clear filter</button>`;
+}
+
+function renderCourseReadinessFilterPanel(visibleCount) {
+  const active = courseReadinessFilter === "no-flex-enrollment";
+  renderReadinessFilterPanel({
+    panelId: "course-readiness-filter-panel",
+    active,
+    title: `Showing ${visibleCount} flexible course${visibleCount === 1 ? "" : "s"} with no enrolled students`,
+    detail: "This is the same set counted by School Day Readiness > Flexible Courses.",
+    clearAction: "courses"
+  });
+}
+
+function renderClassReadinessFilterPanel(visibleCount) {
+  const active = classReadinessFilter === "no-enrollment";
+  renderReadinessFilterPanel({
+    panelId: "class-readiness-filter-panel",
+    active,
+    title: `Showing ${visibleCount} class${visibleCount === 1 ? "" : "es"} with no enrolled students`,
+    detail: "This is the same set counted by School Day Readiness > Classes.",
+    clearAction: "classes"
+  });
+}
+
 function openSchoolDayReadinessAction(action) {
   if (action === "courses") {
     currentManagementTab = "courses";
     currentManagementCoursesTab = "course-form";
+    courseReadinessFilter = "no-flex-enrollment";
+    classReadinessFilter = "";
     activateTab("management");
     return;
   }
   if (action === "classes") {
     currentManagementTab = "courses";
     currentManagementCoursesTab = "course-sections";
+    classReadinessFilter = "no-enrollment";
+    courseReadinessFilter = "";
     activateTab("management");
     return;
   }
@@ -9911,6 +9970,18 @@ function openSchoolDayReadinessAction(action) {
     studentsDashboardReturnContext = null;
     setStudentViewMode("list");
     activateTab("students");
+  }
+}
+
+function clearReadinessFilter(target) {
+  if (target === "courses") {
+    courseReadinessFilter = "";
+    renderCourses();
+    return;
+  }
+  if (target === "classes") {
+    classReadinessFilter = "";
+    renderCourseSections();
   }
 }
 
@@ -9990,16 +10061,22 @@ function renderCourseSections() {
   if (submitBtn) submitBtn.textContent = editingCourseSectionId ? "Update Class" : "Add Class";
   renderCourseSectionQuarterChecklist(getSelectedCourseSectionQuarterNames());
   if (!tableBody) return;
-  const rows = sortedCourseSections().map((section) => {
+  const rows = sortedCourseSections()
+  .filter((section) => classReadinessFilter !== "no-enrollment" || classNeedsEnrollmentReview(section))
+  .map((section) => {
     const course = getCourse(section.courseId);
     const resourceSummary = section.concurrentCapacity == null
       ? (section.resourceGroup || "Unrestricted")
       : `${section.resourceGroup || getCourseName(section.courseId)} (${section.concurrentCapacity})`;
     const courseMeta = [course ? getSubjectName(course.subjectId) : "Unknown Subject"];
     if (course?.subjectId && isRequiredSubject(course.subjectId)) courseMeta.push("Required subject");
-    return `<tr><td>${renderScheduleSourceCell(getCourseName(section.courseId), courseMeta)}</td><td>${renderScheduleSourceCell(section.label, ["Class row"])}</td><td>${renderScheduleSourceMeta(courseSectionSchoolDayMeta(section))}</td><td>${escapeHtml(resourceSummary)}</td><td>${courseSectionEnrollmentCount(section.id)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course-section='${section.id}' type='button'>Edit</button><button data-remove-course-section='${section.id}' type='button'>Remove</button></div></td></tr>`;
+    const enrolledCount = courseSectionEnrollmentCount(section.id);
+    const needsReview = classNeedsEnrollmentReview(section);
+    const enrolledCell = `<span class="enrollment-count-pill${needsReview ? " empty" : ""}">${enrolledCount}</span>${needsReview ? `<span class="enrollment-count-note">No students enrolled</span>` : ""}`;
+    return `<tr class="${needsReview ? "readiness-review-row" : ""}"><td>${renderScheduleSourceCell(getCourseName(section.courseId), courseMeta)}</td><td>${renderScheduleSourceCell(section.label, ["Class row"])}</td><td>${renderScheduleSourceMeta(courseSectionSchoolDayMeta(section))}</td><td>${escapeHtml(resourceSummary)}</td><td>${enrolledCell}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course-section='${section.id}' type='button'>Edit</button><button data-remove-course-section='${section.id}' type='button'>Remove</button></div></td></tr>`;
   });
-  rowOrEmpty(tableBody, rows, "No classes added yet.", 6);
+  rowOrEmpty(tableBody, rows, classReadinessFilter === "no-enrollment" ? "No classes need enrollment review." : "No classes added yet.", 6);
+  renderClassReadinessFilterPanel(rows.length);
 }
 
 function renderManagementCoursesSectionVisibility() {
@@ -23119,6 +23196,11 @@ function bindEvents() {
     const readinessAction = t.getAttribute("data-school-day-readiness-action");
     if (readinessAction) {
       openSchoolDayReadinessAction(readinessAction);
+      return;
+    }
+    const clearReadinessFilterTarget = t.getAttribute("data-clear-readiness-filter");
+    if (clearReadinessFilterTarget) {
+      clearReadinessFilter(clearReadinessFilterTarget);
       return;
     }
     const scheduleTab = t.getAttribute("data-schedule-tab");
