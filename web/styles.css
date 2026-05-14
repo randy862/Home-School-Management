@@ -13238,6 +13238,112 @@ tbody tr:hover {
   gap: 0.24rem;
 }
 
+#app-shell .calendar-student-expander {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+#app-shell .calendar-student-expander > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  color: #155bc3;
+  cursor: pointer;
+  font-weight: 800;
+  list-style: none;
+}
+
+#app-shell .calendar-student-expander > summary::-webkit-details-marker {
+  display: none;
+}
+
+#app-shell .calendar-student-expander > summary::before {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 999px;
+  background: #eaf2ff;
+  color: #155bc3;
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+#app-shell .calendar-student-expander[open] > summary::before {
+  content: "-";
+}
+
+#app-shell .calendar-student-expander > summary span:first-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app-shell .calendar-student-expander > summary .calendar-day-item-time {
+  margin-left: auto;
+}
+
+#app-shell .calendar-class-list {
+  display: grid;
+  gap: 0.26rem;
+  padding-top: 0.28rem;
+  border-top: 1px solid #e3edf9;
+}
+
+#app-shell .calendar-class-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.22rem 0.36rem;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+#app-shell .calendar-class-row strong {
+  display: block;
+  min-width: 0;
+  color: #17243d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app-shell .calendar-class-row small {
+  display: block;
+  color: #68778d;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+#app-shell .calendar-class-row > span:last-child {
+  color: #247446;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#app-shell .calendar-student-drill {
+  justify-self: start;
+  min-height: 26px;
+  width: auto;
+  padding: 0.22rem 0.48rem;
+  border-radius: 8px;
+  box-shadow: none;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 #app-shell .calendar-student-link {
   display: flex;
   align-items: center;

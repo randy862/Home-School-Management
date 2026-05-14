@@ -18239,14 +18239,15 @@ function renderCalendarScheduleItem(row, dateKey, drillTarget) {
   const { classes, subjects, totalHours } = calendarStudentScheduleSummary(row);
   if (!classes.length && !subjects.length) return "";
   const targetAttr = drillTarget === "day" ? "data-open-calendar-day" : "data-open-calendar-week";
-  const classChips = (classes.length
+  const drillLabel = drillTarget === "day" ? "Open Day" : "Open Week";
+  const classRows = (classes.length
     ? classes.map((entry) =>
-      `<span title="${escapeHtml(entry.subjectName)}">${escapeHtml(entry.courseName)} ${formatCalendarHours(entry.hours)}</span>`
+      `<div class="calendar-class-row"><span><strong>${escapeHtml(entry.courseName)}</strong><small>${escapeHtml(entry.subjectName)}</small></span><span>${formatCalendarHours(entry.hours)}</span></div>`
     )
     : subjects.map(([subjectName, data]) =>
-      `<span>${escapeHtml(subjectName)} ${formatCalendarHours(data.hours)}</span>`
+      `<div class="calendar-class-row"><span><strong>${escapeHtml(subjectName)}</strong></span><span>${formatCalendarHours(data.hours)}</span></div>`
     ));
-  return `<div class="calendar-day-item calendar-day-item-scheduled"><button type="button" class="calendar-student-link" ${targetAttr}="1" data-date="${dateKey}" data-student-id="${row.studentId}"><span>${escapeHtml(getStudentName(row.studentId))}</span><span class="calendar-day-item-time">${formatCalendarHours(totalHours)}</span></button><div class="calendar-subject-chip-row">${classChips.join("")}</div></div>`;
+  return `<div class="calendar-day-item calendar-day-item-scheduled"><details class="calendar-student-expander"><summary><span>${escapeHtml(getStudentName(row.studentId))}</span><span class="calendar-day-item-time">${formatCalendarHours(totalHours)}</span></summary><div class="calendar-class-list">${classRows.join("")}<button type="button" class="calendar-student-drill" ${targetAttr}="1" data-date="${dateKey}" data-student-id="${row.studentId}">${drillLabel}</button></div></details></div>`;
 }
 
 function calendarDayScheduleMeta(rows) {
