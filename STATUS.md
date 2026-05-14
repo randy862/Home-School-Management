@@ -1,70 +1,54 @@
 # Current Status
 
-Date: 2026-05-13
+Date: 2026-05-14
 
 ## Active Workstream
 
-Lab-hosted production readiness.
+UI polish and workflow refinement on `saas-modern-redesign`.
 
 ## Current Focus
 
-Creating the production-readiness foundation that future app changes can build on safely.
+School Day, Dashboard, Execution, and Compliance navigation polish are deployed to the lab production tenant site for user review.
 
 ## Completed Recently
 
-- SaaS redesign branch `saas-modern-redesign` remains the active hardening branch.
-- Live SaaS polish remains deployed at `https://www.navigrader.com/`; tenant app remains at `https://mitchell.navigrader.com/`.
-- Tenant/control APIs have security headers, CORS allowlists, production-safe 5xx responses, secure cookie defaults, and rate limits.
-- Tenant runtime fails closed when PostgreSQL tenant schema resolution fails.
-- Control environment jobs derive tenant identity from server-loaded environment rows.
-- Student account/subscription/admin data is role-scoped.
-- Legacy `/api/state` fails closed unless explicitly enabled.
-- APP001 tenant/control services run as `hsm-api` and `hsm-control-api` with hardened systemd units and protected env files.
-- SQL001 encrypted backup/restore validation succeeded and restore DB was dropped.
-- Lab security gate succeeded against tenant and control APIs.
-- Lab rate-limit, cookie, log-secret, and incident checklist checks passed.
-- Added/applied tenant schema repair migrations `028`, `029`, and `030`.
-- Fixed student-scoped PostgreSQL read queries that failed under `SELECT DISTINCT ... ORDER BY`.
-- Redacted shared daily-break `studentIds` from student responses.
-- Deeper student IDOR probe passed for 22 read endpoints and 10 admin-write denials.
-- Read-only control operator probe passed for 17 protected mutation denials.
-- Internal-auth rejection probe passed for 18 missing/invalid-auth checks.
-- SQL001 PostgreSQL TCP app access is limited in `pg_hba.conf` to `appuser` from APP001 `192.168.1.200/32`; tenant/control DB probes and health checks passed after reload.
-- Unsigned Stripe webhook probe returned `400`.
-- Tenant admin/student API smoke and control view API smoke passed with temporary accounts.
-- Final npm audits are clean for `server/` and `control-api/`.
-- Final user-rerun `scripts\Invoke-LabSecurityGate.ps1` succeeded end-to-end.
-- `CHECKLISTS/security-lab-hardening.md` is signed off with AWS-only controls deferred.
-- Added `RUNBOOKS/lab-production-readiness.md` with completed foundation items, change-class validation gates, deferred launch items, and next readiness tasks.
-- APP001 and WEB001 deploy paths are recorded in the readiness runbook and reference `RUNBOOKS/hosted-deployment.md`.
-- Fixed public tenant-domain login CORS for `https://*.navigrader.com` while preserving rejected-origin behavior.
-- Deployed the CORS middleware/config fix to APP001; tenant/control services restarted active.
-- User confirmed browser login works in both affected tenant domains after the CORS repair.
-- User-rerun `scripts\Invoke-LabSecurityGate.ps1` succeeded after the CORS repair.
-- Documented APP001 rollback commands, WEB001 rollback commands, and the minimum monitoring/alerting baseline in `RUNBOOKS/lab-production-readiness.md`.
-- Fixed commercial provisioning on the hardened APP001 path by disabling shared `.env.runtime` overwrite during tenant provisioning and adding retry-success request lookup by environment.
-- Recovered `may122026.navigrader.com`; provisioning and setup-token jobs succeeded, Postmark email was sent, and user confirmed admin access.
-- User completed a second fresh subscription after the fix and reported the full flow worked beautifully.
-- Added checkout preflight validation so duplicate organization names or tenant names return an error before Stripe checkout.
-- Live duplicate checkout probe for `May2026 Test` / `May-2026` returned `409` with both conflicts.
-- Documented operational secret custody without secret values, explicitly deferred apex DNS, and planned the production PostgreSQL role split.
-- Documented the Redis/Valkey-backed replacement plan for in-memory rate limits before distributed/public production.
+- Deployed `de008c8` to prevent inline School Day grade action buttons from crowding on smaller laptop screens.
+- Deployed `374648a` with the approved School Day workflow polish:
+  - collapsed filter section
+  - compact schedule meta strip with left view toggles, centered row count, and right date/view chips
+  - distinct Daily Schedule / Attendance / Grades mode tabs
+  - darker `+ Student Summaries` and `+ Side-by-Side` controls
+  - reordered next-action priority: Needs Attendance, Needs Grade, Resolve Past Due
+  - Add Grade Row action buttons aligned to the right and kept readable at 1366px width
+  - scheduled-class add control renamed to `Add Classes Without Grades`
+- Deployed `6f30caf` with Dashboard/Execution responsive gauge polish:
+  - laptop-width gauge compaction for Dashboard, Execution, and School Day surfaces
+  - original cleaner gauge value spacing restored
+  - original stacked Class Status distribution restored
+  - wide desktop behavior preserved
+- Updated Dashboard / Compliance / Required Subjects student-count links to match Dashboard / Overview / Missing Required Subjects behavior:
+  - one matching student opens the student detail/enrollment workflow
+  - multiple matching students open the Students list filtered to the relevant compliance set
+- Production validation passed after the latest WEB001 deploy:
+  - Apache config syntax OK
+  - Apache active
+  - public health endpoint returned `200`
+  - live cache keys are `styles.css?v=202605141800` and `app.js?v=202605141815`
+- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-20260514170419.tgz`.
 
 ## Current Blockers
 
-- None for commercial provisioning recovery, the CORS repair, or lab hardening.
+- None.
 
 ## Current Risks
 
-- AWS controls remain deferred until AWS/hosted production exists.
-- Apex `https://navigrader.com/` DNS is explicitly deferred; `www.navigrader.com` remains the lab canonical entrypoint.
-- Untracked scratch assets remain outside current security commits unless explicitly requested.
-- In-memory rate limits remain implemented in lab; Redis/Valkey-backed implementation is deferred until distributed/public production.
-- Lab DB uses shared non-superuser `appuser`; production should use split least-privilege roles.
-- App changes can continue on top of the readiness baseline; rerun validation gates according to the touched area.
-- `hsm-control-api` now uses `/var/lib/hsm-control-api` for WEB001 deployment SSH material; keep that directory locked down and out of git.
+- User still needs to finish reviewing the latest production UI in the browser.
+- Browser cache may require a hard refresh before the newest web assets display.
+- Untracked local scratch assets remain outside the committed work unless explicitly requested.
+- At 1366x768, the School Day Hour column may wrap more than on modern 1920x1080 displays; user accepted this as low concern.
 
 ## Next Actions
 
-1. Continue app/product changes or choose the next production-readiness workstream.
-2. Implement Redis/Valkey-backed rate limits when a distributed/public production target is chosen.
+1. User reviews the current production UI on `mitchell.navigrader.com`.
+2. Continue the next UI polish workstream after user feedback.
+3. Keep future UI changes in Web Preview first when visual judgment is needed, then promote after approval.

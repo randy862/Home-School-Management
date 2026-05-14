@@ -1,85 +1,61 @@
 # Session Handoff
 
-Date: 2026-05-13
+Date: 2026-05-14
 
-## Current Work
+## Context
 
-Lab-hosted production readiness after completed security hardening.
+UI polish workstream for School Day, Dashboard/Execution gauges, and Required Subjects compliance navigation on `saas-modern-redesign`.
 
 ## Current State
 
-- Repo hardening pass from `NOTES/commercial-security-hardening-plan.md` is implemented on `saas-modern-redesign`.
-- Lab hardening checklist is signed off for APP001/WEB001/SQL001.
-- Added `RUNBOOKS/lab-production-readiness.md` as the source of truth for continuing app changes safely on top of the hardened lab baseline.
-- APP001 and WEB001 deploy paths are recorded in the readiness runbook with `RUNBOOKS/hosted-deployment.md` as the detailed deployment reference.
-- Final user-rerun tenant/control security gate succeeded end-to-end against `https://192.168.1.210`.
-- APP001 tenant/control APIs run as dedicated service users with hardened systemd units and protected env files.
-- SQL001 encrypted backup and isolated restore validation succeeded; restore DB was dropped.
-- Lab rate-limit stress, cookie flag inspection, generic 5xx/log review, and incident checklist checks have passed.
-- Added/applied tenant schema repair migrations:
-  - `server/migrations/postgres/028_user_profile_fields_tenant_schemas.sql`
-  - `server/migrations/postgres/029_instructor_assignments_tenant_schemas.sql`
-  - `server/migrations/postgres/030_tenant_schema_feature_catchup.sql`
-- Fixed student-scoped instructor/curriculum/schedule-block PostgreSQL queries that failed on `SELECT DISTINCT ... ORDER BY`.
-- Redacted shared daily-break `studentIds` for student users.
-- Deeper student probe passed:
-  - 22 authenticated read endpoints checked with no other-student ID leakage.
-  - 10 tenant admin-write attempts returned `403`.
-- Temporary read-only control operator probe passed:
-  - 17 protected control mutations returned `403`.
-  - 18 internal-auth rejection checks returned `401`.
-- Unsigned Stripe webhook probe returned `400`.
-- SQL001 `pg_hba.conf` now limits TCP app DB access to `appuser` from APP001 `192.168.1.200/32` with `scram-sha-256`; backup is `/etc/postgresql/17/main/pg_hba.conf.bak-20260513015337`.
-- Tenant admin/student API smoke and control view API smoke passed with temporary accounts.
-- Final npm audits are clean for `server/` and `control-api/`.
-- Lab Stripe secret classification confirmed test-mode key material and configured webhook secret.
-- Latest APP001 deployed source backups use timestamped `.bak-*` copies beside replaced files.
-- Public tenant-domain login CORS was repaired:
-  - tenant API now supports configured wildcard origins such as `https://*.navigrader.com`
-  - APP001 live runtime CORS includes lab IP, apex/www, and Navigrader tenant subdomains
-  - `mitchell.navigrader.com` and `pj-cool.navigrader.com` now reach normal auth validation instead of blank `403`
-  - `not-allowed.example` remains rejected with `403`
-- User confirmed browser login works in both tenant domains after the CORS repair.
-- User-rerun `scripts\Invoke-LabSecurityGate.ps1` succeeded after the CORS repair.
-- `RUNBOOKS/lab-production-readiness.md` now documents rollback snapshot creation, exact APP001 rollback commands, exact WEB001 rollback commands, and the minimum monitoring/alerting baseline.
-- Commercial signup recovery for `may122026.navigrader.com` completed:
-  - original provisioning failed on hardened APP001 `.env.runtime` permissions
-  - control worker now supports `CONTROL_DEPLOY_APP_RUNTIME_ENV_ENABLED=false`
-  - retry provisioning succeeded with `runtimeEnvDeployed=false`
-  - `hsm-control-api` was given locked-down SSH home `/var/lib/hsm-control-api` for WEB001 deployment automation
-  - setup-token job succeeded, Postmark delivery was `sent`, and user confirmed admin setup/login worked
-- User completed a second fresh subscription after the provisioning fix and reported the end-to-end flow worked beautifully.
-- Duplicate signup-name validation now blocks checkout before Stripe when the organization name or tenant name is already in use.
-- Readiness runbook now records operational secret custody, apex DNS deferment, PostgreSQL role split, and distributed rate-limit replacement plans.
+- Latest production code commit: `6f30caf Polish dashboard responsive behavior`.
+- Previous production UI commits in this pass:
+  - `374648a Polish school day workflow layout`
+  - `de008c8 Prevent inline grade action crowding`
+  - `0121160 Align school day grade actions`
+  - `0de39cd Align school day schedule meta strip`
+- WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
+- Live asset cache keys:
+  - `styles.css?v=202605141800`
+  - `app.js?v=202605141815`
+- Latest WEB001 rollback snapshot:
+  `/var/www/home-school-management/rollback/web-20260514170419.tgz`
+- Production validation after latest deploy:
+  - Apache config syntax OK
+  - Apache active
+  - public health returned `200`
+  - live HTML references the latest CSS and JS cache keys
+- School Day improvements now deployed:
+  - collapsed filter area
+  - compact schedule command/meta row
+  - distinct mode tabs vs. filter chips
+  - compact responsive Daily Schedule rows
+  - right-aligned grade action controls
+  - grade buttons readable on smaller laptop width
+- Dashboard/Execution improvements now deployed:
+  - responsive laptop compaction for gauge rows
+  - original gauge value spacing restored
+  - stacked Class Status values restored
+  - wide desktop behavior left intact
+- Compliance Required Subjects links now mirror Missing Required Subjects navigation:
+  - one matching student opens that student's enrollment workflow
+  - multiple matching students open the filtered Students list
 
 ## Next Action
 
-1. Continue app/product changes or choose the next production-readiness workstream; the current lab readiness planning checklist is complete except launch-time deferred items.
-2. Implement Redis/Valkey-backed rate limits only when a distributed/public production target is chosen.
+1. User reviews production UI at `mitchell.navigrader.com`.
+2. After feedback, continue the next UI polish item in Web Preview before production promotion.
 
 ## Risks
 
-- AWS-only controls remain deferred until AWS/hosted production exists.
-- Apex `https://navigrader.com/` DNS is explicitly deferred; `www.navigrader.com` remains the lab canonical entrypoint.
-- Untracked scratch assets remain intentionally untouched.
-- In-memory rate limits remain implemented in lab; Redis/Valkey-backed implementation is deferred until distributed/public production.
-- Lab uses shared non-superuser DB role `appuser`; final production should split least-privilege roles.
-- Future app changes are allowed; rerun only the validation gates that match touched auth, API, DB, web, or infrastructure areas.
+- Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside the commit.
+- Browser cache may need a hard refresh to show current assets.
+- Multi-student compliance links intentionally route to the filtered Students list because only one specific student detail page can be opened at a time.
+- The 1366px School Day Hour column can wrap; user considered it acceptable for older low-resolution screens.
 
 ## Validation
 
-- `node --check` on touched tenant API files passed.
-- `git diff --check` passed for touched files.
-- APP001 `hsm-api.service` restarted active after deploy.
-- Tenant schema catch-up migration applied; active tenant has expected feature tables/columns.
-- Fresh `hsm-api.service` log scan found no error/secret/token keyword matches after reruns.
-- Control read-only mutation denial and internal-auth rejection probes passed.
-- APP001 tenant/control DB probes and tenant/control health checks passed after SQL001 `pg_hba.conf` reload.
-- APP001 `hsm-api.service` and `hsm-control-api.service` restarted active after public tenant-domain CORS repair.
-- Browser tenant-login retry passed for both reported tenants, and the lab security gate succeeded after repair.
-- Rollback and monitoring baseline documentation completed; no service changes were made for this docs-only step.
-- `may122026.navigrader.com` health returned `200`; provisioning request reached `ready`; setup email was delivered and user completed admin setup.
-- Fresh subscription flow was manually re-tested after the provisioning fix and completed successfully end to end.
-- Live duplicate checkout probe returned `409` with organization-name and tenant-name conflicts before Stripe session creation.
-- Docs-only readiness update completed; no service deploy or lab security gate required.
-- Distributed rate-limit replacement plan documented; no service deploy or lab security gate required.
+- `node --check web/app.js` passed during the UI pass.
+- `git diff --check` passed on touched web files before production deployment.
+- WEB001 deploy validation passed after `6f30caf`.
+- Current documentation checkpoint records the deployed state; no service redeploy is required for the docs-only commit.
