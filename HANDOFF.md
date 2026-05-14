@@ -4,22 +4,23 @@ Date: 2026-05-14
 
 ## Context
 
-UI polish workstream for School Day, Dashboard/Execution gauges, and Required Subjects compliance navigation on `saas-modern-redesign`.
+UI polish workstream for School Day, Dashboard/Execution gauges, Grades, and Student required-subject compliance navigation on `saas-modern-redesign`.
 
 ## Current State
 
-- Latest production code commit: `6f30caf Polish dashboard responsive behavior`.
+- Latest production code commit: `f1b9725 Polish grades and student compliance flows`.
 - Previous production UI commits in this pass:
+  - `6f30caf Polish dashboard responsive behavior`
   - `374648a Polish school day workflow layout`
   - `de008c8 Prevent inline grade action crowding`
   - `0121160 Align school day grade actions`
   - `0de39cd Align school day schedule meta strip`
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
-  - `styles.css?v=202605141800`
-  - `app.js?v=202605141815`
+  - `styles.css?v=202605142000`
+  - `app.js?v=202605142000`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-20260514170419.tgz`
+  `/var/www/home-school-management/rollback/web-20260514135007.tgz`
 - Production validation after latest deploy:
   - Apache config syntax OK
   - Apache active
@@ -37,6 +38,14 @@ UI polish workstream for School Day, Dashboard/Execution gauges, and Required Su
   - original gauge value spacing restored
   - stacked Class Status values restored
   - wide desktop behavior left intact
+- Grades improvements now deployed:
+  - compact Grade Entry workbench header
+  - `Add Grade Row` action aligned with the header
+  - Grade Search filters collapsed by default
+- Student compliance workflow improvements now deployed:
+  - missing required-subject chips are actionable
+  - missing required-subject rows include `Find Item`
+  - Scheduled Item picker opens with matching items highlighted
 - Compliance Required Subjects links now mirror Missing Required Subjects navigation:
   - one matching student opens that student's enrollment workflow
   - multiple matching students open the filtered Students list
@@ -57,5 +66,5 @@ UI polish workstream for School Day, Dashboard/Execution gauges, and Required Su
 
 - `node --check web/app.js` passed during the UI pass.
 - `git diff --check` passed on touched web files before production deployment.
-- WEB001 deploy validation passed after `6f30caf`.
+- WEB001 deploy validation passed after `f1b9725`.
 - Current documentation checkpoint records the deployed state; no service redeploy is required for the docs-only commit.

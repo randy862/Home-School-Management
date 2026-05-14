@@ -8,7 +8,7 @@ UI polish and workflow refinement on `saas-modern-redesign`.
 
 ## Current Focus
 
-School Day, Dashboard, Execution, and Compliance navigation polish are deployed to the lab production tenant site for user review.
+School Day, Dashboard, Execution, Grades, and Student compliance workflow polish are deployed to the lab production tenant site for user review.
 
 ## Completed Recently
 
@@ -26,6 +26,11 @@ School Day, Dashboard, Execution, and Compliance navigation polish are deployed 
   - original cleaner gauge value spacing restored
   - original stacked Class Status distribution restored
   - wide desktop behavior preserved
+- Deployed `f1b9725` with the approved Grades and Student compliance workflow polish:
+  - Grades entry header now keeps `Add Grade Row` in the workbench header
+  - Grade Search filters collapse so results sit higher on the page
+  - missing required subjects in Student Detail can focus the Scheduled Item picker
+  - matching scheduled items are highlighted with a clear focus note
 - Updated Dashboard / Compliance / Required Subjects student-count links to match Dashboard / Overview / Missing Required Subjects behavior:
   - one matching student opens the student detail/enrollment workflow
   - multiple matching students open the Students list filtered to the relevant compliance set
@@ -33,8 +38,8 @@ School Day, Dashboard, Execution, and Compliance navigation polish are deployed 
   - Apache config syntax OK
   - Apache active
   - public health endpoint returned `200`
-  - live cache keys are `styles.css?v=202605141800` and `app.js?v=202605141815`
-- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-20260514170419.tgz`.
+  - live cache keys are `styles.css?v=202605142000` and `app.js?v=202605142000`
+- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-20260514135007.tgz`.
 
 ## Current Blockers
 
