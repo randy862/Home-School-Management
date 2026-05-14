@@ -78,6 +78,9 @@ const LEGACY_BOOTSTRAP_ADMIN_PASSWORD = "ChangeMe123!";
 const STUDENT_ALLOWED_TABS = new Set(["dashboard", "calendar", "attendance", "grades"]);
 const HOSTED_MODE_STORAGE_KEY = "hsm_hosted_mode_v1";
 const SCHOOL_DAY_PREFS_STORAGE_KEY = "hsm_school_day_prefs_v1";
+const LEGACY_INSTRUCTION_PLANS_ACTIVE = false;
+const DEFAULT_SCHEDULE_TAB = "school-years";
+const ACTIVE_SCHEDULE_TABS = new Set(["school-years", "quarters", "school-day", "daily-breaks", "holidays"]);
 const WORKSPACE_CONFIG_PREFS_STORAGE_KEY = "hsm_workspace_config_prefs_v1";
 const ACTIVE_ACADEMIC_YEAR_STORAGE_KEY = "hsm_active_academic_year_v1";
 const ALERT_ACKNOWLEDGEMENTS_STORAGE_KEY = "hsm_alert_acknowledgements_v1";
@@ -3554,12 +3557,15 @@ function renderCurrentTabPanel() {
       renderGradingCriteria();
       break;
     case "planning":
+      currentScheduleTab = normalizeScheduleTab(currentScheduleTab);
       renderScheduleBlocks();
       renderHolidays();
       renderPlanningSettings();
-      renderPlans();
       renderScheduleSectionVisibility();
-      updatePlanFormMode();
+      if (legacyInstructionPlansActive() && currentScheduleTab === "plans") {
+        renderPlans();
+        updatePlanFormMode();
+      }
       break;
     case "attendance":
       renderAttendanceSectionVisibility();
@@ -8671,24 +8677,27 @@ function renderStudentEnrollmentCourseChecklist(preselectedCourseIds = [], stude
     const inputId = `student-enroll-section-${idx}-${section.id}`;
     const course = getCourse(section.courseId);
     const subjectId = course ? course.subjectId : "";
-    const weekdays = (section.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
-    const timeLabel = section.startTime ? formatClockTime(section.startTime) : "";
-    const suffix = [subjectId ? getSubjectName(subjectId) : "", timeLabel, weekdays].filter(Boolean).join(" | ");
+    const meta = [
+      subjectId ? getSubjectName(subjectId) : "",
+      ...courseSectionSchoolDayMeta(section).filter((item) => !/ enrolled$/.test(item))
+    ];
     const requiredBadge = subjectId && isRequiredSubject(subjectId) ? " <span class=\"subject-required-badge\">Required</span>" : "";
-    return `<div class="checklist-row${subjectFocusClass(subjectId)}"${subjectFocusAttr(subjectId)}><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" data-subject-id="${escapeHtml(subjectId)}" value="${key}"${checked}><label for="${inputId}">${escapeHtml(sectionDisplayName(section.id))}${suffix ? ` (${escapeHtml(suffix)})` : ""}${requiredBadge}</label></div>`;
+    return `<div class="checklist-row${subjectFocusClass(subjectId)}"${subjectFocusAttr(subjectId)}><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" data-subject-id="${escapeHtml(subjectId)}" value="${key}"${checked}><label for="${inputId}">${renderScheduleSourceCell(sectionDisplayName(section.id), meta, requiredBadge)}</label></div>`;
   }).join("");
   const courseCheckboxes = eligibleCourses.map((course, idx) => {
     const key = `course:${course.id}`;
     const checked = selected.has(key) ? " checked" : "";
     const inputId = `student-enroll-course-${idx}-${course.id}`;
     const subjectId = courseSubjectId(course);
-    return `<div class="checklist-row${subjectFocusClass(subjectId)}"${subjectFocusAttr(subjectId)}><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" data-subject-id="${escapeHtml(subjectId)}" value="${key}"${checked}><label for="${inputId}">${escapeHtml(course.name)} (${escapeHtml(getSubjectName(course.subjectId))})${isRequiredSubject(course.subjectId) ? " <span class=\"subject-required-badge\">Required</span>" : ""}</label></div>`;
+    const requiredBadge = isRequiredSubject(course.subjectId) ? " <span class=\"subject-required-badge\">Required</span>" : "";
+    return `<div class="checklist-row${subjectFocusClass(subjectId)}"${subjectFocusAttr(subjectId)}><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" data-subject-id="${escapeHtml(subjectId)}" value="${key}"${checked}><label for="${inputId}">${renderScheduleSourceCell(course.name, [getSubjectName(course.subjectId), ...courseSchoolDayMeta(course)], requiredBadge)}</label></div>`;
   }).join("");
   const blockCheckboxes = eligibleBlocks.map((block, idx) => {
     const key = `scheduleBlock:${block.id}`;
     const checked = selected.has(key) ? " checked" : "";
     const inputId = `student-enroll-block-${idx}-${block.id}`;
-    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${escapeHtml(block.name)} (${escapeHtml(SCHEDULE_BLOCK_TYPE_LABELS[block.type] || "Schedule Block")})</label></div>`;
+    const typeLabel = SCHEDULE_BLOCK_TYPE_LABELS[block.type] || "Schedule Block";
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-enroll-course-checkbox" value="${key}"${checked}><label for="${inputId}">${renderScheduleSourceCell(block.name, [typeLabel, ...scheduleBlockSchoolDayMeta(block)])}</label></div>`;
   }).join("");
   const sections = [];
   if (focusNotice) sections.push(focusNotice);
@@ -9232,6 +9241,58 @@ function buildAlertsConfigFromAdminForm() {
   };
 }
 
+function studentRequiredFocusForList(studentId) {
+  const focusSubject = studentTableRequiredSubjectFilterId ? getSubject(studentTableRequiredSubjectFilterId) : null;
+  const missingSubjects = focusSubject
+    ? (studentHasRequiredSubject(studentId, focusSubject.id) ? [] : [focusSubject])
+    : studentMissingRequiredSubjects(studentId);
+  return {
+    focusSubject,
+    missingSubjects,
+    requiredComplete: missingSubjects.length === 0
+  };
+}
+
+function renderStudentWorkQueueSummary(filteredStudents) {
+  const form = document.getElementById("student-table-filter-form");
+  if (!form) return;
+  let summary = document.getElementById("student-work-queue-summary");
+  if (!summary) {
+    summary = document.createElement("div");
+    summary.id = "student-work-queue-summary";
+    summary.className = "student-work-queue-summary hidden";
+    form.insertAdjacentElement("afterend", summary);
+  }
+  const focusSubject = studentTableRequiredSubjectFilterId ? getSubject(studentTableRequiredSubjectFilterId) : null;
+  const filterLabels = [];
+  if (studentsDashboardReturnContext) filterLabels.push("Dashboard Focus");
+  if (focusSubject) filterLabels.push(`Subject: ${focusSubject.name}`);
+  if (studentTableFilterRequired === "no") filterLabels.push("Not In Compliance");
+  if (studentTableFilterRequired === "yes") filterLabels.push("Compliant");
+  if (studentTableFilterGrade !== "all") filterLabels.push(`Grade: ${studentTableFilterGrade}`);
+  if (studentTableFilterStatus !== "all") filterLabels.push(`Status: ${studentTableFilterStatus === "archived" ? "Archived" : "Active"}`);
+  const searchValue = String(studentTableFilterStudent || "").trim();
+  if (searchValue) filterLabels.push("Student Filter");
+  if (!filterLabels.length) {
+    summary.classList.add("hidden");
+    summary.innerHTML = "";
+    return;
+  }
+  const missingCount = filteredStudents.filter((student) => !studentRequiredFocusForList(student.id).requiredComplete).length;
+  const contextText = missingCount
+    ? `${missingCount} need enrollment attention`
+    : "All shown students meet the current required-subject focus";
+  summary.classList.remove("hidden");
+  summary.innerHTML = `
+    <div class="student-work-queue-copy">
+      <strong>${filteredStudents.length.toLocaleString()} student${filteredStudents.length === 1 ? "" : "s"} shown</strong>
+      <span>${escapeHtml(contextText)}</span>
+    </div>
+    <div class="student-work-queue-chips">
+      ${filterLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("")}
+    </div>`;
+}
+
 function renderStudents() {
   if (!isAdminUser()) return;
   const gradeFilter = document.getElementById("student-table-filter-grade");
@@ -9259,7 +9320,7 @@ function renderStudents() {
     .split(",")
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
-  const rows = state.students
+  const filteredStudents = state.students
     .slice()
     .sort((a, b) => {
       const archivedDelta = Number(studentIsArchived(a)) - Number(studentIsArchived(b));
@@ -9268,9 +9329,7 @@ function renderStudents() {
     })
     .filter((student) => {
       const archived = studentIsArchived(student);
-      const requiredComplete = studentTableRequiredSubjectFilterId
-        ? studentHasRequiredSubject(student.id, studentTableRequiredSubjectFilterId)
-        : studentHasAllRequiredSubjects(student.id);
+      const { requiredComplete } = studentRequiredFocusForList(student.id);
       const fullName = `${student.firstName || ""} ${student.lastName || ""}`.toLowerCase();
       if (studentNeedles.length && !studentNeedles.some((needle) => fullName.includes(needle))) return false;
       if (studentTableFilterGrade !== "all" && student.grade !== studentTableFilterGrade) return false;
@@ -9279,24 +9338,29 @@ function renderStudents() {
       if (studentTableFilterRequired === "yes" && !requiredComplete) return false;
       if (studentTableFilterRequired === "no" && requiredComplete) return false;
       return true;
-    })
-    .map((s) => {
+    });
+  renderStudentWorkQueueSummary(filteredStudents);
+  const rows = filteredStudents.map((s) => {
     const ageNow = calculateAge(s.birthdate);
     const overallAvg = studentOverallAverage(s.id);
     const absences = studentAbsenceCount(s.id);
     const archived = studentIsArchived(s);
-    const missingRequiredSubjects = studentTableRequiredSubjectFilterId
-      ? (studentHasRequiredSubject(s.id, studentTableRequiredSubjectFilterId) ? [] : [getSubject(studentTableRequiredSubjectFilterId)].filter(Boolean))
-      : studentMissingRequiredSubjects(s.id);
-    const requiredComplete = missingRequiredSubjects.length === 0;
+    const { focusSubject, missingSubjects: missingRequiredSubjects, requiredComplete } = studentRequiredFocusForList(s.id);
     const status = archived
       ? `<span class="student-status-pill archived">Archived</span>`
       : `<span class="student-status-pill">Active</span>`;
+      const missingSubjectText = missingRequiredSubjects.map((subject) => subject.name).join(", ");
+      const rowReason = requiredComplete
+        ? (focusSubject ? `${focusSubject.name} is enrolled` : "Required subjects complete")
+        : (focusSubject ? `Missing ${focusSubject.name}` : `Missing ${missingRequiredSubjects.length} required subject${missingRequiredSubjects.length === 1 ? "" : "s"}`);
       const requiredCell = requiredComplete
-        ? "<span class=\"student-required-status yes\">Yes</span>"
-        : `<span class="student-required-status no" title="${escapeHtml(missingRequiredSubjects.map((subject) => subject.name).join(", "))}">No</span>`;
+        ? `<div class="student-required-cell"><span class="student-required-status yes">Compliant</span><small>${escapeHtml(rowReason)}</small></div>`
+        : `<div class="student-required-cell"><span class="student-required-status no" title="${escapeHtml(missingSubjectText)}">Not In Compliance</span><small>${escapeHtml(missingSubjectText || rowReason)}</small></div>`;
       const restoreButton = archived ? `<button data-restore-student='${s.id}' type='button'>Restore</button>` : "";
-      return `<tr><td>${escapeHtml(s.firstName)} ${escapeHtml(s.lastName)}</td><td>${escapeHtml(s.grade)}</td><td>${ageNow}</td><td>${status}</td><td>${requiredCell}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}' type='button'>Edit/Enroll</button>${restoreButton}</div></td></tr>`;
+      const actionLabel = requiredComplete ? "Edit/Enroll" : "Fix Enrollment";
+      const focusSubjectId = !requiredComplete ? (focusSubject?.id || missingRequiredSubjects[0]?.id || "") : "";
+      const focusAttr = focusSubjectId ? ` data-student-open-focus-subject="${escapeHtml(focusSubjectId)}"` : "";
+      return `<tr class="${requiredComplete ? "" : "student-work-queue-row"}"><td><div class="student-name-cell"><strong>${escapeHtml(s.firstName)} ${escapeHtml(s.lastName)}</strong><small>${escapeHtml(rowReason)}</small></div></td><td>${escapeHtml(s.grade)}</td><td>${ageNow}</td><td>${status}</td><td>${requiredCell}</td><td>${overallAvg.toFixed(1)}%</td><td>${absences}</td><td class="student-table-actions"><div class="table-action-row"><button data-edit-student='${s.id}'${focusAttr} type='button'>${actionLabel}</button>${restoreButton}</div></td></tr>`;
     });
   rowOrEmpty(document.getElementById("student-table"), rows, "No students match the selected filters.", 8);
 }
@@ -9444,27 +9508,46 @@ function isStudentEnrolledInCourse(studentId, courseId, sourceEnrollments = stat
   return !!courseSectionForStudentCourse(studentId, courseId);
 }
 
+function legacyInstructionPlansActive() {
+  return LEGACY_INSTRUCTION_PLANS_ACTIVE;
+}
+
+function normalizeScheduleTab(tab) {
+  return ACTIVE_SCHEDULE_TABS.has(tab) ? tab : DEFAULT_SCHEDULE_TAB;
+}
+
 function removePlansForStudentCourse(studentId, courseId) {
   state.plans = state.plans.filter((plan) =>
     !(plan.studentId === studentId && plan.courseId === courseId));
 }
 
 function renderScheduleSectionVisibility() {
+  currentScheduleTab = normalizeScheduleTab(currentScheduleTab);
   const mappings = [
     { wrapId: "schedule-school-years-wrap", tab: "school-years" },
     { wrapId: "schedule-quarters-wrap", tab: "quarters" },
     { wrapId: "schedule-school-day-wrap", tab: "school-day" },
     { wrapId: "schedule-daily-breaks-wrap", tab: "daily-breaks" },
-    { wrapId: "schedule-holidays-wrap", tab: "holidays" },
-    { wrapId: "schedule-plans-wrap", tab: "plans" }
+    { wrapId: "schedule-holidays-wrap", tab: "holidays" }
   ];
+  if (legacyInstructionPlansActive()) {
+    mappings.push({ wrapId: "schedule-plans-wrap", tab: "plans" });
+  }
   mappings.forEach((entry) => {
     const wrap = document.getElementById(entry.wrapId);
     if (!wrap) return;
     wrap.classList.toggle("hidden", entry.tab !== currentScheduleTab);
   });
+  if (!legacyInstructionPlansActive()) {
+    const planWrap = document.getElementById("schedule-plans-wrap");
+    if (planWrap) planWrap.classList.add("hidden");
+  }
   document.querySelectorAll("[data-schedule-tab]").forEach((btn) => {
-    btn.classList.toggle("active", btn.getAttribute("data-schedule-tab") === currentScheduleTab);
+    const tab = btn.getAttribute("data-schedule-tab");
+    const enabled = ACTIVE_SCHEDULE_TABS.has(tab) || (tab === "plans" && legacyInstructionPlansActive());
+    btn.classList.toggle("hidden", !enabled);
+    btn.disabled = !enabled;
+    btn.classList.toggle("active", enabled && tab === currentScheduleTab);
   });
 }
 
@@ -9482,10 +9565,14 @@ function renderCourses() {
   renderCourseMaterialsDraft();
   if (!tableBody) return;
   const rows = state.courses
-    .map((c) => `<tr><td>${escapeHtml(c.name)}<br><span class="muted">${escapeHtml(courseAvailabilitySummary(c))}</span></td><td>${escapeHtml(getSubjectName(c.subjectId))}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${Number(c.hoursPerDay).toFixed(2)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`);
+    .map((c) => {
+      const subjectCell = `${escapeHtml(getSubjectName(c.subjectId))} ${isRequiredSubject(c.subjectId) ? requiredSubjectBadge(c.subjectId) : ""}`;
+      return `<tr><td>${renderScheduleSourceCell(c.name, courseSchoolDayMeta(c))}</td><td>${subjectCell}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${escapeHtml(dailyMinutesSummary(c.hoursPerDay))}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`;
+    });
   rowOrEmpty(tableBody, rows, "No courses added yet.", 5);
   renderCourseSections();
   renderManagementCoursesSectionVisibility();
+  renderSchoolDayReadinessPanels();
 }
 
 function renderQuarterChecklist({ optionsWrapId, summaryId, checkboxClass, selectedNames = [] }) {
@@ -9546,10 +9633,285 @@ function setCourseWeekdaySelection(weekdays = [1, 2, 3, 4, 5]) {
   });
 }
 
-function courseAvailabilitySummary(course) {
-  const quarters = Array.isArray(course?.quarterNames) && course.quarterNames.length ? course.quarterNames.join(", ") : "All quarters";
-  const weekdays = normalizeWeekdays(course?.weekdays, [1, 2, 3, 4, 5]).map((day) => DAY_NAMES[day]).join(", ");
-  return `${quarters} | ${weekdays || "Mon-Fri"}`;
+function weekdaySummary(weekdays, fallback = [1, 2, 3, 4, 5]) {
+  const days = normalizeWeekdays(weekdays, fallback);
+  if (days.length === 5 && days.every((day, index) => day === index + 1)) return "Mon-Fri";
+  return days.map((day) => DAY_NAMES[day]).filter(Boolean).join(", ") || "No weekdays";
+}
+
+function quarterSummary(quarterNames, fallbackLabel = "All quarters") {
+  const names = Array.isArray(quarterNames) ? quarterNames.filter(Boolean) : [];
+  return names.length ? names.join(", ") : fallbackLabel;
+}
+
+function dailyMinutesSummary(hoursPerDay) {
+  const minutes = Math.round(Number(hoursPerDay || 0) * 60);
+  return minutes > 0 ? `${minutes} min/day` : "No daily minutes";
+}
+
+function durationMinutesSummary(durationMinutes) {
+  const minutes = Number(durationMinutes || 0);
+  return minutes > 0 ? `${minutes} min` : "No duration";
+}
+
+function renderScheduleSourceMeta(items = []) {
+  const filtered = items.map((item) => String(item || "").trim()).filter(Boolean);
+  if (!filtered.length) return "";
+  return `<div class="schedule-source-meta">${filtered.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>`;
+}
+
+function renderScheduleSourceCell(title, metaItems = [], extraHtml = "") {
+  return `<div class="schedule-source-cell"><strong>${escapeHtml(title)}</strong>${extraHtml || ""}${renderScheduleSourceMeta(metaItems)}</div>`;
+}
+
+function courseSchoolDayMeta(course) {
+  if (!course) return [];
+  const classCount = getCourseSectionsForCourse(course.id).length;
+  return [
+    classCount ? `${classCount} class${classCount === 1 ? "" : "es"}` : "Flexible order",
+    dailyMinutesSummary(course.hoursPerDay),
+    weekdaySummary(course.weekdays),
+    quarterSummary(course.quarterNames)
+  ];
+}
+
+function courseSectionSchoolDayMeta(section) {
+  if (!section) return [];
+  return [
+    `Fixed ${formatClockTime(section.startTime || "08:00")}`,
+    weekdaySummary(section.weekdays),
+    quarterSummary(section.quarterNames, "Course quarters"),
+    `${courseSectionEnrollmentCount(section.id)} enrolled`
+  ];
+}
+
+function scheduleBlockSchoolDayMeta(block) {
+  if (!block) return [];
+  return [
+    durationMinutesSummary(block.durationMinutes),
+    weekdaySummary(block.weekdays),
+    "Assigned per student"
+  ];
+}
+
+function studentScheduledEntrySchoolDayMeta(entry) {
+  if (!entry) return [];
+  if (entry.itemType === "scheduleBlock") {
+    return scheduleBlockSchoolDayMeta(getScheduleBlock(entry.scheduleBlockId));
+  }
+  if (entry.itemType === "courseSection") {
+    return courseSectionSchoolDayMeta(getCourseSection(entry.courseSectionId));
+  }
+  return courseSchoolDayMeta(getCourse(entry.courseId));
+}
+
+function activeStudentIdSetForReadiness() {
+  return new Set(visibleStudents().map((student) => student.id));
+}
+
+function courseStudentIdsForReadiness(courseId) {
+  const activeStudentIds = activeStudentIdSetForReadiness();
+  const studentIds = new Set();
+  state.enrollments
+    .filter((entry) => entry.courseId === courseId && activeStudentIds.has(entry.studentId))
+    .forEach((entry) => studentIds.add(entry.studentId));
+  state.sectionEnrollments.forEach((entry) => {
+    if (!activeStudentIds.has(entry.studentId)) return;
+    const section = getCourseSection(entry.courseSectionId);
+    if (section?.courseId === courseId) studentIds.add(entry.studentId);
+  });
+  return studentIds;
+}
+
+function availableScheduledItemsForSubject(subjectId) {
+  return state.courses
+    .filter((course) => course.subjectId === subjectId)
+    .flatMap((course) => {
+      const sections = getCourseSectionsForCourse(course.id);
+      return sections.length
+        ? sections.map((section) => ({ type: "class", id: section.id, label: sectionDisplayName(section.id) }))
+        : [{ type: "course", id: course.id, label: course.name }];
+    });
+}
+
+function buildSchoolDayReadinessSnapshot() {
+  const activeStudents = visibleStudents();
+  const classesWithoutStudents = sortedCourseSections()
+    .filter((section) => courseSectionEnrollmentCount(section.id) === 0);
+  const courseIdsWithClasses = new Set(state.courseSections.map((section) => section.courseId));
+  const flexibleCoursesWithoutStudents = state.courses
+    .filter((course) => !courseIdsWithClasses.has(course.id))
+    .filter((course) => !courseStudentIdsForReadiness(course.id).size);
+  const requiredSubjectsWithoutItems = state.subjects
+    .filter((subject) => subject.required && !availableScheduledItemsForSubject(subject.id).length)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const studentsMissingRequired = activeStudents
+    .map((student) => ({
+      student,
+      missingSubjects: studentMissingRequiredSubjects(student.id)
+    }))
+    .filter((entry) => entry.missingSubjects.length);
+  const assignedBlockIds = new Set((state.studentScheduleBlocks || []).map((entry) => entry.scheduleBlockId));
+  const unassignedScheduleBlocks = (state.scheduleBlocks || [])
+    .filter((block) => !assignedBlockIds.has(block.id));
+  const issues = [
+    {
+      id: "courses",
+      label: "Flexible Courses",
+      count: flexibleCoursesWithoutStudents.length,
+      detail: flexibleCoursesWithoutStudents.length
+        ? `${flexibleCoursesWithoutStudents.length} course${flexibleCoursesWithoutStudents.length === 1 ? "" : "s"} have no enrolled students.`
+        : "All flexible courses have enrolled students.",
+      action: "courses",
+      actionLabel: "Review Courses"
+    },
+    {
+      id: "classes",
+      label: "Classes",
+      count: classesWithoutStudents.length,
+      detail: classesWithoutStudents.length
+        ? `${classesWithoutStudents.length} class${classesWithoutStudents.length === 1 ? "" : "es"} have no enrolled students.`
+        : "All classes have enrolled students.",
+      action: "classes",
+      actionLabel: "Review Classes"
+    },
+    {
+      id: "required-items",
+      label: "Required Subjects",
+      count: requiredSubjectsWithoutItems.length,
+      detail: requiredSubjectsWithoutItems.length
+        ? `${requiredSubjectsWithoutItems.length} required subject${requiredSubjectsWithoutItems.length === 1 ? "" : "s"} have no scheduled item available.`
+        : "Every required subject has a scheduled item available.",
+      action: "subjects",
+      actionLabel: "Review Subjects"
+    },
+    {
+      id: "student-compliance",
+      label: "Student Compliance",
+      count: studentsMissingRequired.length,
+      detail: studentsMissingRequired.length
+        ? `${studentsMissingRequired.length} student${studentsMissingRequired.length === 1 ? "" : "s"} are missing required subjects.`
+        : "All active students meet required subject enrollment.",
+      action: "students-required",
+      actionLabel: "Review Students"
+    },
+    {
+      id: "blocks",
+      label: "Schedule Blocks",
+      count: unassignedScheduleBlocks.length,
+      detail: unassignedScheduleBlocks.length
+        ? `${unassignedScheduleBlocks.length} schedule block${unassignedScheduleBlocks.length === 1 ? "" : "s"} are not assigned to any student.`
+        : "All schedule blocks are assigned to at least one student.",
+      action: "schedule-blocks",
+      actionLabel: "Review Blocks"
+    }
+  ];
+  const issueCount = issues.reduce((sum, issue) => sum + issue.count, 0);
+  const clearCount = issues.filter((issue) => issue.count === 0).length;
+  return {
+    issues,
+    issueCount,
+    clearCount,
+    flexibleCoursesWithoutStudents,
+    classesWithoutStudents,
+    requiredSubjectsWithoutItems,
+    studentsMissingRequired,
+    unassignedScheduleBlocks
+  };
+}
+
+function renderReadinessIssueRow(issue) {
+  const stateLabel = issue.count ? "Review" : "Ready";
+  const stateClass = issue.count ? "needs-review" : "ready";
+  const action = issue.count
+    ? `<button type="button" data-school-day-readiness-action="${escapeHtml(issue.action)}">${escapeHtml(issue.actionLabel)}</button>`
+    : "";
+  return `<div class="school-day-readiness-row ${stateClass}">
+    <span class="school-day-readiness-status">${stateLabel}</span>
+    <div class="school-day-readiness-copy">
+      <strong>${escapeHtml(issue.label)}</strong>
+      <span>${escapeHtml(issue.detail)}</span>
+    </div>
+    ${action}
+  </div>`;
+}
+
+function renderSchoolDayReadinessPanels() {
+  const snapshot = buildSchoolDayReadinessSnapshot();
+  const panel = document.getElementById("school-day-readiness-panel");
+  if (panel) {
+    panel.innerHTML = `
+      <div class="school-day-readiness-header">
+        <div>
+          <strong>School Day Readiness</strong>
+          <span>${snapshot.issueCount ? `${snapshot.issueCount} setup item${snapshot.issueCount === 1 ? "" : "s"} need review before School Day is fully predictable.` : "Source setup looks ready for School Day."}</span>
+        </div>
+        <div class="school-day-readiness-score">${snapshot.clearCount}/5 clear</div>
+      </div>
+      <div class="school-day-readiness-grid">
+        ${snapshot.issues.map(renderReadinessIssueRow).join("")}
+      </div>`;
+  }
+
+  const blockPanel = document.getElementById("schedule-block-readiness-panel");
+  if (blockPanel) {
+    const blockIssue = snapshot.issues.find((issue) => issue.id === "blocks");
+    blockPanel.innerHTML = blockIssue
+      ? `<div class="school-day-readiness-header">
+          <div>
+            <strong>Schedule Block Readiness</strong>
+            <span>${escapeHtml(blockIssue.detail)}</span>
+          </div>
+          ${blockIssue.count ? `<button type="button" data-school-day-readiness-action="students">Review Student Assignments</button>` : `<div class="school-day-readiness-score">Ready</div>`}
+        </div>`
+      : "";
+  }
+}
+
+function openSchoolDayReadinessAction(action) {
+  if (action === "courses") {
+    currentManagementTab = "courses";
+    currentManagementCoursesTab = "course-form";
+    activateTab("management");
+    return;
+  }
+  if (action === "classes") {
+    currentManagementTab = "courses";
+    currentManagementCoursesTab = "course-sections";
+    activateTab("management");
+    return;
+  }
+  if (action === "subjects") {
+    currentManagementTab = "subjects";
+    activateTab("management");
+    return;
+  }
+  if (action === "schedule-blocks") {
+    currentScheduleTab = "daily-breaks";
+    activateTab("planning");
+    return;
+  }
+  if (action === "students-required") {
+    studentTableFilterStudent = "";
+    studentTableFilterGrade = "all";
+    studentTableFilterStatus = "active";
+    studentTableFilterRequired = "no";
+    studentTableRequiredSubjectFilterId = "";
+    studentsDashboardReturnContext = null;
+    setStudentViewMode("list");
+    activateTab("students");
+    return;
+  }
+  if (action === "students") {
+    studentTableFilterStudent = "";
+    studentTableFilterGrade = "all";
+    studentTableFilterStatus = "active";
+    studentTableFilterRequired = "all";
+    studentTableRequiredSubjectFilterId = "";
+    studentsDashboardReturnContext = null;
+    setStudentViewMode("list");
+    activateTab("students");
+  }
 }
 
 function syncCourseSectionFormFromCourse(courseId, { preserveExisting = true } = {}) {
@@ -9629,12 +9991,13 @@ function renderCourseSections() {
   renderCourseSectionQuarterChecklist(getSelectedCourseSectionQuarterNames());
   if (!tableBody) return;
   const rows = sortedCourseSections().map((section) => {
-    const weekdays = (section.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
-    const quarters = Array.isArray(section.quarterNames) && section.quarterNames.length ? section.quarterNames.join(", ") : "Course quarters";
+    const course = getCourse(section.courseId);
     const resourceSummary = section.concurrentCapacity == null
       ? (section.resourceGroup || "Unrestricted")
       : `${section.resourceGroup || getCourseName(section.courseId)} (${section.concurrentCapacity})`;
-    return `<tr><td>${escapeHtml(getCourseName(section.courseId))}</td><td>${escapeHtml(section.label)}</td><td>${escapeHtml(formatClockTime(section.startTime))}<br><span class="muted">${escapeHtml(weekdays || "Mon-Fri")} | ${escapeHtml(quarters)}</span></td><td>${escapeHtml(resourceSummary)}</td><td>${courseSectionEnrollmentCount(section.id)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course-section='${section.id}' type='button'>Edit</button><button data-remove-course-section='${section.id}' type='button'>Remove</button></div></td></tr>`;
+    const courseMeta = [course ? getSubjectName(course.subjectId) : "Unknown Subject"];
+    if (course?.subjectId && isRequiredSubject(course.subjectId)) courseMeta.push("Required subject");
+    return `<tr><td>${renderScheduleSourceCell(getCourseName(section.courseId), courseMeta)}</td><td>${renderScheduleSourceCell(section.label, ["Class row"])}</td><td>${renderScheduleSourceMeta(courseSectionSchoolDayMeta(section))}</td><td>${escapeHtml(resourceSummary)}</td><td>${courseSectionEnrollmentCount(section.id)}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course-section='${section.id}' type='button'>Edit</button><button data-remove-course-section='${section.id}' type='button'>Remove</button></div></td></tr>`;
   });
   rowOrEmpty(tableBody, rows, "No classes added yet.", 6);
 }
@@ -9888,7 +10251,7 @@ function renderStudentDetail() {
         ? `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button' disabled>Editing</button><button data-remove-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button'>Remove</button></div>`
         : `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button'>Edit</button></div>`;
       const requiredCell = course?.subjectId ? requiredSubjectBadge(course.subjectId) : "<span class=\"muted\">-</span>";
-      return `<tr><td>${escapeHtml(studentScheduledEntryDisplayName(e))}</td><td>${escapeHtml(subject)}</td><td>${requiredCell}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
+      return `<tr><td>${renderScheduleSourceCell(studentScheduledEntryDisplayName(e), studentScheduledEntrySchoolDayMeta(e))}</td><td>${escapeHtml(subject)}</td><td>${requiredCell}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
     });
   missingRequiredSubjects.forEach((subject) => {
     enrollmentRows.push(`<tr class="student-required-subject-missing"><td>${escapeHtml(subject.name)}</td><td>Missing required subject</td><td>${requiredSubjectBadge(subject.id)}</td><td>-</td><td>-</td><td><div class="table-action-row"><button type="button" class="student-detail-required-action-btn" data-student-required-subject-focus="${escapeHtml(subject.id)}">Find Item</button></div></td></tr>`);
@@ -9898,7 +10261,7 @@ function renderStudentDetail() {
     const averageDisplay = overallAverage > 0 ? `${overallAverage.toFixed(1)}%` : "No grades";
     enrollmentRows.push(`<tr><td colspan="4"><strong>Average</strong></td><td><strong>${averageDisplay}</strong></td><td></td></tr>`);
   }
-  rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No course enrollments for this student.", 6);
+  rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No scheduled items for this student.", 6);
 
   const summary = studentAttendanceSummaryByRange(student.id, rangeStart, rangeEnd);
   const requiredDaysDisplay = schoolYear.requiredInstructionalDays == null ? "-" : String(schoolYear.requiredInstructionalDays);
@@ -10024,9 +10387,10 @@ function renderScheduleBlocks() {
     .map((entry) => {
       const weekdays = (entry.weekdays || []).map((day) => DAY_NAMES[day]).join(", ");
       const typeLabel = SCHEDULE_BLOCK_TYPE_LABELS[entry.type] || "Schedule Block";
-      return `<tr><td>${escapeHtml(scheduleBlockLabel(entry))}</td><td>${escapeHtml(typeLabel)}</td><td>${escapeHtml(entry.description || "-")}</td><td>${Number(entry.durationMinutes || 0)} min</td><td>${escapeHtml(weekdays)}</td><td class="schedule-actions-cell"><div class="table-action-row"><button data-edit-schedule-block="${entry.id}" type="button">Edit</button><button data-remove-schedule-block="${entry.id}" type="button">Remove</button></div></td></tr>`;
+      return `<tr><td>${renderScheduleSourceCell(scheduleBlockLabel(entry), scheduleBlockSchoolDayMeta(entry))}</td><td>${escapeHtml(typeLabel)}</td><td>${escapeHtml(entry.description || "-")}</td><td>${Number(entry.durationMinutes || 0)} min</td><td>${escapeHtml(weekdays || "Mon-Fri")}</td><td class="schedule-actions-cell"><div class="table-action-row"><button data-edit-schedule-block="${entry.id}" type="button">Edit</button><button data-remove-schedule-block="${entry.id}" type="button">Remove</button></div></td></tr>`;
     });
   rowOrEmpty(tableBody, rows, "No ordered schedule blocks defined.", 6);
+  renderSchoolDayReadinessPanels();
   const submitBtn = document.getElementById("schedule-block-submit-btn");
   const cancelBtn = document.getElementById("schedule-block-cancel-edit-btn");
   if (submitBtn) submitBtn.textContent = editingScheduleBlockId ? "Update Block" : "Add Block";
@@ -10214,7 +10578,10 @@ function renderAttendance() {
       const actions = isAdminUser()
         ? `<button type='button' data-edit-attendance='${a.id}'>Edit</button> <button type='button' data-remove-attendance='${a.id}'>Remove</button>`
         : "View only";
-      const recordRow = `<tr><td>${formatDisplayDate(a.date)}</td><td>${getStudentName(a.studentId)}</td><td>${a.present ? "Present" : "Absent"}</td><td>${typeof actions === "string" && actions.includes("<button") ? `<div class="table-action-row">${actions}</div>` : actions}</td></tr>`;
+      const attendanceStatus = a.present
+        ? "<span class=\"attendance-status-pill present\">Present</span>"
+        : "<span class=\"attendance-status-pill absent\">Absent</span>";
+      const recordRow = `<tr><td>${formatDisplayDate(a.date)}</td><td>${getStudentName(a.studentId)}</td><td>${attendanceStatus}</td><td>${typeof actions === "string" && actions.includes("<button") ? `<div class="table-action-row">${actions}</div>` : actions}</td></tr>`;
       if (!useSearchFilters || editingSearchAttendanceId !== a.id) return [recordRow];
       const studentOptions = visibleStudents()
         .map((student) => `<option value="${student.id}"${student.id === a.studentId ? " selected" : ""}>${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</option>`)
@@ -16818,6 +17185,7 @@ function viewRange(view, refISO) {
 function calendarEvents(rangeStart, rangeEnd, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
   const excluded = holidaySet();
   const events = [];
+  if (!legacyInstructionPlansActive()) return events;
   const allowedStudentIds = new Set(studentFilterIds.length
     ? studentFilterIds
     : visibleStudents().map((student) => student.id));
@@ -16879,7 +17247,7 @@ function calendarEventsForDate(dateKey, studentFilterIds = [], subjectFilterIds 
         const pairKey = `${studentId}||${courseId}`;
         if (plannedPairSet.has(pairKey)) return;
 
-        const hasAnyPlanForCourse = state.plans.some((plan) =>
+        const hasAnyPlanForCourse = legacyInstructionPlansActive() && state.plans.some((plan) =>
           plan.studentId === studentId && plan.courseId === courseId
         );
         if (hasAnyPlanForCourse) return;
@@ -20801,6 +21169,7 @@ function bindEvents() {
 
   document.getElementById("plan-form").addEventListener("submit", (e) => {
     e.preventDefault();
+    if (!legacyInstructionPlansActive()) return;
     if (!ensureAdminAction()) return;
     const planType = document.getElementById("plan-type").value;
     const studentId = document.getElementById("plan-student").value;
@@ -22747,9 +23116,14 @@ function bindEvents() {
       renderManagementCoursesSectionVisibility();
       return;
     }
+    const readinessAction = t.getAttribute("data-school-day-readiness-action");
+    if (readinessAction) {
+      openSchoolDayReadinessAction(readinessAction);
+      return;
+    }
     const scheduleTab = t.getAttribute("data-schedule-tab");
     if (scheduleTab) {
-      currentScheduleTab = scheduleTab;
+      currentScheduleTab = normalizeScheduleTab(scheduleTab);
       renderScheduleSectionVisibility();
       return;
     }
@@ -22773,6 +23147,7 @@ function bindEvents() {
     }
     const editPlanId = t.getAttribute("data-edit-plan");
     if (editPlanId) {
+      if (!legacyInstructionPlansActive()) return;
       if (!ensureAdminAction()) return;
       beginPlanEdit(editPlanId);
       return;
@@ -23150,7 +23525,15 @@ function bindEvents() {
       renderAll();
       return;
     }
-    const editStudentId = t.getAttribute("data-edit-student"); if (editStudentId) { beginStudentDetail(editStudentId); renderAll(); return; }
+    const editStudentId = t.getAttribute("data-edit-student");
+    if (editStudentId) {
+      const focusSubjectId = t.getAttribute("data-student-open-focus-subject") || "";
+      beginStudentDetail(editStudentId);
+      if (focusSubjectId) studentEnrollmentSubjectFocusId = focusSubjectId;
+      renderAll();
+      if (focusSubjectId) window.setTimeout(() => focusStudentRequiredSubjectEnrollment(focusSubjectId), 0);
+      return;
+    }
     const editInstructorId = t.getAttribute("data-edit-instructor");
     if (editInstructorId) {
       if (!ensureAdminAction()) return;
@@ -23499,6 +23882,7 @@ function bindEvents() {
     }
     const planId = t.getAttribute("data-remove-plan");
     if (planId) {
+      if (!legacyInstructionPlansActive()) return;
       if (!ensureAdminAction()) return;
       if (hostedModeEnabled) {
         (async () => {
@@ -23537,8 +23921,8 @@ function renderAll() {
   const addGradeBtn = document.getElementById("add-grade-row-btn");
   const gradeEntryWrap = document.getElementById("grade-entry-wrap");
   const calendarForm = document.getElementById("calendar-form");
-  if (planForm) planForm.classList.toggle("hidden", studentMode);
-  if (planFilterForm) planFilterForm.classList.toggle("hidden", studentMode);
+  if (planForm) planForm.classList.toggle("hidden", studentMode || !legacyInstructionPlansActive());
+  if (planFilterForm) planFilterForm.classList.toggle("hidden", studentMode || !legacyInstructionPlansActive());
   if (attendanceForm) attendanceForm.classList.toggle("hidden", studentMode);
   if (addAttendanceRecordBtn) addAttendanceRecordBtn.classList.toggle("hidden", studentMode);
   if (addGradeBtn) addGradeBtn.classList.toggle("hidden", studentMode);

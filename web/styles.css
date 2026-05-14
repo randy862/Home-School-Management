@@ -2700,11 +2700,15 @@ td {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  justify-self: start;
   min-width: 3rem;
+  width: fit-content;
+  max-width: 100%;
   border-radius: 999px;
   padding: 0.15rem 0.55rem;
   font-size: 0.78rem;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .student-required-status.yes {
@@ -2732,6 +2736,83 @@ td {
 .student-table-filter-grid input,
 .student-table-filter-grid select {
   min-height: 2.35rem;
+}
+
+.student-work-queue-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.7rem;
+  padding: 0.58rem 0.7rem;
+  border: 1px solid #d9e5f2;
+  border-radius: 12px;
+  background: #f6faff;
+}
+
+.student-work-queue-summary.hidden {
+  display: none;
+}
+
+.student-work-queue-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.student-work-queue-copy strong {
+  color: #17243d;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+.student-work-queue-copy span {
+  color: #5d6d83;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.student-work-queue-chips {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.student-work-queue-chips span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.16rem 0.5rem;
+  border: 1px solid #c7d8ea;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #37536f;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.student-name-cell,
+.student-required-cell {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.student-name-cell strong {
+  color: #17243d;
+}
+
+.student-name-cell small,
+.student-required-cell small {
+  color: #65758a;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.student-work-queue-row td {
+  background: #fffaf0;
 }
 
 .students-toolbar,
@@ -2861,6 +2942,51 @@ td {
 
 .grades-section-title-row h3 {
   margin: 0;
+}
+
+.attendance-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.attendance-section-title-row h3 {
+  margin: 0;
+}
+
+.attendance-filter-panel {
+  overflow: hidden;
+}
+
+.attendance-filter-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.attendance-filter-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.attendance-filter-panel > summary::after {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid #c5d6e8;
+  border-radius: 999px;
+  color: #1f66bd;
+  font-weight: 700;
+}
+
+.attendance-filter-panel[open] > summary::after {
+  content: "-";
 }
 
 .grades-filter-panel {
@@ -11561,6 +11687,61 @@ tbody tr:hover {
   box-shadow: 0 18px 36px rgba(31, 47, 69, 0.14);
 }
 
+#app-shell .student-work-queue-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.7rem;
+  padding: 0.58rem 0.7rem;
+  border: 1px solid #d9e5f2;
+  border-radius: 12px;
+  background: #f6faff;
+}
+
+#app-shell .student-work-queue-summary.hidden {
+  display: none;
+}
+
+#app-shell .student-work-queue-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+#app-shell .student-work-queue-copy strong {
+  color: #17243d;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+#app-shell .student-work-queue-copy span {
+  color: #5d6d83;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+#app-shell .student-work-queue-chips {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+#app-shell .student-work-queue-chips span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.16rem 0.5rem;
+  border: 1px solid #c7d8ea;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #37536f;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 #app-shell .student-detail-subtabs {
   width: fit-content;
   margin: 0.55rem 0 0.65rem;
@@ -11755,6 +11936,25 @@ tbody tr:hover {
   box-shadow: inset 3px 0 0 #1f66bd;
 }
 
+#app-shell #student-enroll-course-options .checklist-row label {
+  align-items: start;
+  width: 100%;
+}
+
+#app-shell #student-enroll-course-options .schedule-source-cell {
+  gap: 0.22rem;
+}
+
+#app-shell #student-enroll-course-options .schedule-source-cell strong {
+  font-size: 0.86rem;
+}
+
+#app-shell #student-enroll-course-options .schedule-source-meta span {
+  min-height: 19px;
+  padding: 0.13rem 0.38rem;
+  font-size: 0.68rem;
+}
+
 #app-shell .student-detail-tab-panel {
   gap: 0.65rem;
 }
@@ -11807,9 +12007,32 @@ tbody tr:hover {
   background: #ffffff;
 }
 
+#app-shell #tab-students .student-work-queue-row td {
+  background: #fffaf0;
+}
+
 #app-shell #tab-students th,
 #app-shell #tab-students td {
   text-align: left;
+}
+
+#app-shell .student-name-cell,
+#app-shell .student-required-cell {
+  display: grid;
+  gap: 0.18rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+#app-shell .student-name-cell strong {
+  color: #17243d;
+}
+
+#app-shell .student-name-cell small,
+#app-shell .student-required-cell small {
+  color: #65758a;
+  font-size: 0.76rem;
+  line-height: 1.25;
 }
 
 #app-shell .student-status-pill {
@@ -11918,6 +12141,118 @@ tbody tr:hover {
   margin-top: 0.65rem;
 }
 
+#app-shell .school-day-readiness-panel {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.6rem 0 0;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid #d9e5f2;
+  border-radius: 14px;
+  background: #f7fbff;
+}
+
+#app-shell .school-day-readiness-panel:empty {
+  display: none;
+}
+
+#app-shell .school-day-readiness-panel-compact {
+  margin: 0.55rem 0 0;
+}
+
+#app-shell .school-day-readiness-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+#app-shell .school-day-readiness-header > div:first-child {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+#app-shell .school-day-readiness-header strong {
+  color: #17243d;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+#app-shell .school-day-readiness-header span,
+#app-shell .school-day-readiness-copy span {
+  color: #65758a;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+#app-shell .school-day-readiness-score,
+#app-shell .school-day-readiness-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0.16rem 0.52rem;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #52657d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#app-shell .school-day-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.38rem;
+}
+
+#app-shell .school-day-readiness-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid #e2eaf4;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+#app-shell .school-day-readiness-row.ready .school-day-readiness-status {
+  background: #e9f7ed;
+  color: #28613a;
+}
+
+#app-shell .school-day-readiness-row.needs-review .school-day-readiness-status {
+  background: #fff2cc;
+  color: #755000;
+}
+
+#app-shell .school-day-readiness-copy {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+#app-shell .school-day-readiness-copy strong {
+  color: #17243d;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+#app-shell .school-day-readiness-panel button,
+#app-shell .school-day-readiness-row button {
+  min-height: 30px;
+  width: fit-content;
+  padding: 0.32rem 0.54rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 #app-shell #subject-form,
 #app-shell #grade-type-form,
 #app-shell #course-form,
@@ -11990,6 +12325,46 @@ tbody tr:hover {
   line-height: 1;
 }
 
+#app-shell .schedule-source-cell {
+  display: grid;
+  gap: 0.28rem;
+  justify-items: start;
+  min-width: 0;
+}
+
+#app-shell .schedule-source-cell strong {
+  color: #17243d;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+#app-shell .schedule-source-cell > .subject-required-badge {
+  margin-top: 0.05rem;
+}
+
+#app-shell .schedule-source-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+#app-shell .schedule-source-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  max-width: 100%;
+  padding: 0.16rem 0.44rem;
+  border: 1px solid #d9e6f5;
+  border-radius: 999px;
+  background: #f5f9fe;
+  color: #52657d;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
 #app-shell .student-required-subject-missing td {
   background: #fff8e6;
   color: #6c4a00;
@@ -12002,6 +12377,15 @@ tbody tr:hover {
 
   #app-shell #subject-form button {
     grid-column: 1 / -1;
+  }
+
+  #app-shell .school-day-readiness-header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  #app-shell .school-day-readiness-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -12808,6 +13192,17 @@ tbody tr:hover {
   margin: 0;
 }
 
+#app-shell .attendance-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+#app-shell .attendance-section-title-row h3 {
+  margin: 0;
+}
+
 #app-shell .attendance-section-tracker {
   display: grid;
   grid-template-columns: 1fr;
@@ -12816,8 +13211,8 @@ tbody tr:hover {
 }
 
 #app-shell #add-attendance-record-btn {
-  order: 3;
-  justify-self: start;
+  order: initial;
+  justify-self: end;
   min-height: 34px;
   padding: 0.42rem 0.68rem;
   border-radius: 10px;
@@ -12827,11 +13222,11 @@ tbody tr:hover {
 }
 
 #app-shell #attendance-form {
-  order: 2;
+  order: initial;
   grid-column: 1 / -1;
   grid-template-columns: minmax(240px, 1.3fr) minmax(160px, 0.8fr) minmax(150px, 0.7fr) auto;
   gap: 0.55rem;
-  margin: 0.55rem 0 0;
+  margin: 0;
 }
 
 #app-shell #attendance-form label,
@@ -12879,13 +13274,56 @@ tbody tr:hover {
 }
 
 #app-shell .attendance-section-filters {
-  padding: 0.75rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+#app-shell .attendance-filter-panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 0.7rem 0.8rem;
+  cursor: pointer;
+  list-style: none;
+  color: #17243d;
+  font-size: 0.96rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+#app-shell .attendance-filter-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+#app-shell .attendance-filter-panel > summary::after {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.45rem;
+  height: 1.45rem;
+  border: 1px solid #c5d6e8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1f66bd;
+  font-weight: 700;
+  line-height: 1;
+}
+
+#app-shell .attendance-filter-panel[open] > summary {
+  border-bottom: 1px solid #e4ebf4;
+}
+
+#app-shell .attendance-filter-panel[open] > summary::after {
+  content: "-";
 }
 
 #app-shell #attendance-filter-form {
   grid-template-columns: minmax(190px, 1.3fr) minmax(160px, 0.8fr) minmax(150px, 0.75fr) minmax(150px, 0.75fr) auto;
   gap: 0.55rem;
-  margin: 0.65rem 0 0;
+  margin: 0;
+  padding: 0.75rem;
 }
 
 #app-shell #attendance-clear-filters-btn {
@@ -12928,6 +13366,30 @@ tbody tr:hover {
 
 #app-shell .attendance-section td {
   background: #ffffff;
+}
+
+#app-shell .attendance-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.55rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.16rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#app-shell .attendance-status-pill.present {
+  background: #e7f5ec;
+  color: #24613c;
+}
+
+#app-shell .attendance-status-pill.absent {
+  background: #fff1f1;
+  color: #a33a3a;
 }
 
 #app-shell .attendance-search-edit-row td {
@@ -13540,6 +14002,10 @@ tbody tr:hover {
   #app-shell .management-subtabs,
   #app-shell .management-courses-subtabs {
     width: 100%;
+  }
+
+  #app-shell .school-day-readiness-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   #app-shell .schedule-subtabs {

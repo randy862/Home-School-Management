@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605142000">
+  <link rel="stylesheet" href="styles.css?v=202605141512">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1512,7 +1512,7 @@
             <div id="student-detail-required-callout" class="student-detail-required-callout hidden" aria-live="polite"></div>
             <div id="student-detail-schedule-wrap" class="student-detail-tab-panel">
               <div class="student-detail-section student-detail-section-profile">
-                <h4>Course Enrollment</h4>
+                <h4>Student Scheduled Items</h4>
                 <h4>Add a Scheduled Item</h4>
                 <form id="student-detail-filter-form" class="inline-form">
                   <label>Quarter
@@ -1672,6 +1672,7 @@
             <button class="subtab-btn active" data-management-courses-tab="course-form" type="button">Courses</button>
             <button class="subtab-btn" data-management-courses-tab="course-sections" type="button">Classes</button>
           </div>
+          <div id="school-day-readiness-panel" class="school-day-readiness-panel"></div>
           <div id="management-course-form-wrap">
             <div class="course-management-actions">
               <button id="course-show-form-btn" type="button">Add Course</button>
@@ -1708,7 +1709,7 @@
             <h4>Configured Courses</h4>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th>Hours / Day</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th>Daily Time</th><th>Actions</th></tr></thead>
                 <tbody id="course-table"></tbody>
               </table>
             </div>
@@ -1831,7 +1832,7 @@
         <button class="subtab-btn" data-schedule-tab="school-day" type="button">School Day</button>
         <button class="subtab-btn" data-schedule-tab="daily-breaks" type="button">Schedule Blocks</button>
         <button class="subtab-btn" data-schedule-tab="holidays" type="button">Holidays and Breaks</button>
-        <button class="subtab-btn" data-schedule-tab="plans" type="button">Instruction Plans</button>
+        <button class="subtab-btn hidden" data-schedule-tab="plans" type="button" aria-hidden="true" tabindex="-1">Instruction Plans</button>
       </div>
 
       <div id="schedule-school-years-wrap" class="schedule-tab-panel schedule-section schedule-section-school-year">
@@ -1895,6 +1896,7 @@
 
       <div id="schedule-daily-breaks-wrap" class="schedule-tab-panel schedule-section schedule-section-daily-breaks hidden">
         <h3>Schedule Blocks</h3>
+          <div id="schedule-block-readiness-panel" class="school-day-readiness-panel school-day-readiness-panel-compact"></div>
           <form id="schedule-block-form" class="grid-form">
             <label class="schedule-block-name-field">Name<input id="schedule-block-name" type="text" required></label>
             <label class="schedule-block-type-field">Type
@@ -2103,8 +2105,10 @@
       </div>
       <div id="attendance-enter-wrap" class="attendance-tab-panel">
         <div class="attendance-section attendance-section-tracker">
-          <h3>Enter New Attendance Record</h3>
-          <button id="add-attendance-record-btn" type="button">Enter New Attendance</button>
+          <div class="attendance-section-title-row">
+            <h3>Attendance Entry</h3>
+            <button id="add-attendance-record-btn" type="button">Add Attendance Record</button>
+          </div>
           <form id="attendance-form" class="grid-form attendance-entry-form hidden">
             <label class="attendance-student-field">Student
               <details id="attendance-student-dropdown" class="multi-select-dropdown">
@@ -2128,8 +2132,8 @@
         <div id="attendance-enter-records-host"></div>
       </div>
       <div id="attendance-search-wrap" class="attendance-tab-panel hidden">
-        <div class="attendance-section attendance-section-filters">
-          <h3>Attendance Filters</h3>
+        <details id="attendance-filter-panel" class="attendance-section attendance-section-filters attendance-filter-panel">
+          <summary>Attendance Filters</summary>
           <form id="attendance-filter-form" class="grid-form">
             <label>Student
               <select id="attendance-filter-student">
@@ -2153,7 +2157,7 @@
             </label>
             <button id="attendance-clear-filters-btn" type="button">Clear Filters</button>
           </form>
-        </div>
+        </details>
         <div id="attendance-search-records-host"></div>
       </div>
       <div id="attendance-records-section" class="attendance-section attendance-section-records">
@@ -2442,6 +2446,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605142000"></script>
+  <script src="app.js?v=202605141512"></script>
   </body>
   </html>
