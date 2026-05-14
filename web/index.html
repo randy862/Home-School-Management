@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605141537">
+  <link rel="stylesheet" href="styles.css?v=202605141559">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -2010,38 +2010,50 @@
     </section>
 
     <section id="tab-calendar" class="tab-panel panel">
-      <h2>Calendar</h2>
+      <div class="calendar-page-header">
+        <h2>Calendar</h2>
+        <p id="calendar-range" class="muted"></p>
+      </div>
       <div class="calendar-filter-panel">
         <form id="calendar-form" class="grid-form">
-          <label>View
-            <select id="calendar-view">
-              <option value="day">Daily</option>
-              <option value="week">Weekly</option>
-              <option value="month" selected>Monthly</option>
-            </select>
-          </label>
-          <label>Reference Date<input id="calendar-date" type="date" required></label>
-          <label class="calendar-filter-field">Student Filter
-            <details id="calendar-student-dropdown" class="multi-select-dropdown">
-              <summary id="calendar-student-summary">Students (0 selected)</summary>
-              <div id="calendar-student-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label class="calendar-filter-field">Subject Filter
-            <details id="calendar-subject-dropdown" class="multi-select-dropdown">
-              <summary id="calendar-subject-summary">Subjects (0 selected)</summary>
-              <div id="calendar-subject-options" class="checklist-vertical"></div>
-            </details>
-          </label>
-          <label class="calendar-filter-field">Course Filter
-            <details id="calendar-course-dropdown" class="multi-select-dropdown">
-              <summary id="calendar-course-summary">Courses (0 selected)</summary>
-              <div id="calendar-course-options" class="checklist-vertical"></div>
-            </details>
-          </label>
+          <div class="calendar-command-row">
+            <div class="calendar-view-control">
+              <span class="calendar-control-label">View</span>
+              <div class="calendar-view-segment" role="group" aria-label="Calendar view">
+                <button class="active" type="button" data-calendar-view-option="month" aria-pressed="true">Month</button>
+                <button type="button" data-calendar-view-option="week" aria-pressed="false">Week</button>
+                <button type="button" data-calendar-view-option="day" aria-pressed="false">Day</button>
+              </div>
+              <input id="calendar-view" type="hidden" value="month">
+            </div>
+            <label>Reference Date<input id="calendar-date" type="date" required></label>
+            <button id="calendar-today-btn" type="button">Today</button>
+          </div>
+          <details id="calendar-filter-drawer" class="calendar-filter-drawer">
+            <summary><span>Filters</span><span id="calendar-filter-summary">All students | All subjects | All courses</span></summary>
+            <div class="calendar-filter-grid">
+              <label class="calendar-filter-field">Student Filter
+                <details id="calendar-student-dropdown" class="multi-select-dropdown">
+                  <summary id="calendar-student-summary">Students (All)</summary>
+                  <div id="calendar-student-options" class="checklist-vertical"></div>
+                </details>
+              </label>
+              <label class="calendar-filter-field">Subject Filter
+                <details id="calendar-subject-dropdown" class="multi-select-dropdown">
+                  <summary id="calendar-subject-summary">Subjects (All)</summary>
+                  <div id="calendar-subject-options" class="checklist-vertical"></div>
+                </details>
+              </label>
+              <label class="calendar-filter-field">Course Filter
+                <details id="calendar-course-dropdown" class="multi-select-dropdown">
+                  <summary id="calendar-course-summary">Courses (All)</summary>
+                  <div id="calendar-course-options" class="checklist-vertical"></div>
+                </details>
+              </label>
+            </div>
+          </details>
         </form>
       </div>
-      <p id="calendar-range" class="muted"></p>
       <div id="calendar-month-view" class="calendar-month-view calendar-surface">
         <div class="calendar-toolbar">
           <button id="calendar-prev-month" type="button">Prev Month</button>
@@ -2449,6 +2461,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605141537"></script>
+  <script src="app.js?v=202605141559"></script>
   </body>
   </html>

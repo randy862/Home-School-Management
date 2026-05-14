@@ -11437,14 +11437,30 @@ function getCalendarSelectedCourseIds() {
   return Array.from(document.querySelectorAll(".calendar-course-checkbox:checked")).map((el) => el.value);
 }
 
+function calendarSelectionSummary(selectedCount, totalCount, singularLabel, pluralLabel) {
+  if (!totalCount) return `No ${pluralLabel}`;
+  if (!selectedCount || selectedCount === totalCount) return `All ${pluralLabel}`;
+  return `${selectedCount} ${selectedCount === 1 ? singularLabel : pluralLabel}`;
+}
+
+function updateCalendarFilterSummary() {
+  const summary = document.getElementById("calendar-filter-summary");
+  if (!summary) return;
+  const studentSummary = calendarSelectionSummary(getCalendarSelectedStudentIds().length, visibleStudents().length, "student", "students");
+  const subjectSummary = calendarSelectionSummary(getCalendarSelectedSubjectIds().length, document.querySelectorAll(".calendar-subject-checkbox").length, "subject", "subjects");
+  const courseSummary = calendarSelectionSummary(getCalendarSelectedCourseIds().length, document.querySelectorAll(".calendar-course-checkbox").length, "course", "courses");
+  summary.textContent = `${studentSummary} | ${subjectSummary} | ${courseSummary}`;
+}
+
 function updateCalendarStudentSummary() {
   const summary = document.getElementById("calendar-student-summary");
   if (!summary) return;
   const selectedCount = getCalendarSelectedStudentIds().length;
   const totalCount = visibleStudents().length;
-  summary.textContent = selectedCount && selectedCount === totalCount
+  summary.textContent = (!selectedCount || selectedCount === totalCount)
     ? "Students (All)"
     : `Students (${selectedCount} selected)`;
+  updateCalendarFilterSummary();
 }
 
 function updateCalendarSubjectSummary() {
@@ -11452,9 +11468,10 @@ function updateCalendarSubjectSummary() {
   if (!summary) return;
   const selectedCount = getCalendarSelectedSubjectIds().length;
   const totalCount = document.querySelectorAll(".calendar-subject-checkbox").length;
-  summary.textContent = selectedCount && selectedCount === totalCount
+  summary.textContent = (!selectedCount || selectedCount === totalCount)
     ? "Subjects (All)"
     : `Subjects (${selectedCount} selected)`;
+  updateCalendarFilterSummary();
 }
 
 function updateCalendarCourseSummary() {
@@ -11462,9 +11479,10 @@ function updateCalendarCourseSummary() {
   if (!summary) return;
   const selectedCount = getCalendarSelectedCourseIds().length;
   const totalCount = document.querySelectorAll(".calendar-course-checkbox").length;
-  summary.textContent = selectedCount && selectedCount === totalCount
+  summary.textContent = (!selectedCount || selectedCount === totalCount)
     ? "Courses (All)"
     : `Courses (${selectedCount} selected)`;
+  updateCalendarFilterSummary();
 }
 
 function syncCalendarAllCheckbox(itemClassName, allClassName) {
@@ -18160,7 +18178,8 @@ function calendarDateStudentRows(rangeStart, rangeEnd, studentFilterIds = [], su
         date: dateKey,
         studentId: student.id,
         subjects: new Map(),
-        subjectOrder: []
+        subjectOrder: [],
+        classes: []
       };
       rows.push(entry);
       const blocks = blocksByStudent.get(student.id) || [];
@@ -18175,6 +18194,12 @@ function calendarDateStudentRows(rangeStart, rangeEnd, studentFilterIds = [], su
           current.hours += Number(block.actualMinutes || 0) / 60;
           current.courses.add(course.name);
           entry.subjects.set(subjectName, current);
+          entry.classes.push({
+            courseId: course.id,
+            courseName: course.name,
+            subjectName,
+            hours: Number(block.actualMinutes || 0) / 60
+          });
         });
     });
     cursor.setDate(cursor.getDate() + 1);
@@ -18191,6 +18216,43 @@ function buildDailyStudentScheduleMap(rangeStart, rangeEnd, studentFilterIds = [
     map.get(dateKey).push(entry);
   });
   return map;
+}
+
+function calendarStudentScheduleSummary(row) {
+  const subjects = row.subjectOrder
+    .map((subjectName) => [subjectName, row.subjects.get(subjectName)])
+    .filter(([, data]) => !!data && Number(data.hours || 0) > 0);
+  const classes = (row.classes || []).filter((entry) => Number(entry.hours || 0) > 0);
+  const totalHours = classes.length
+    ? classes.reduce((sum, entry) => sum + Number(entry.hours || 0), 0)
+    : subjects.reduce((sum, [, data]) => sum + Number(data.hours || 0), 0);
+  return { subjects, classes, totalHours };
+}
+
+function formatCalendarHours(hours) {
+  const value = Number(hours || 0);
+  if (value <= 0) return "0h";
+  return `${value.toFixed(value >= 1 ? 1 : 2)}h`;
+}
+
+function renderCalendarScheduleItem(row, dateKey, drillTarget) {
+  const { classes, subjects, totalHours } = calendarStudentScheduleSummary(row);
+  if (!classes.length && !subjects.length) return "";
+  const targetAttr = drillTarget === "day" ? "data-open-calendar-day" : "data-open-calendar-week";
+  const classChips = (classes.length
+    ? classes.map((entry) =>
+      `<span title="${escapeHtml(entry.subjectName)}">${escapeHtml(entry.courseName)} ${formatCalendarHours(entry.hours)}</span>`
+    )
+    : subjects.map(([subjectName, data]) =>
+      `<span>${escapeHtml(subjectName)} ${formatCalendarHours(data.hours)}</span>`
+    ));
+  return `<div class="calendar-day-item calendar-day-item-scheduled"><button type="button" class="calendar-student-link" ${targetAttr}="1" data-date="${dateKey}" data-student-id="${row.studentId}"><span>${escapeHtml(getStudentName(row.studentId))}</span><span class="calendar-day-item-time">${formatCalendarHours(totalHours)}</span></button><div class="calendar-subject-chip-row">${classChips.join("")}</div></div>`;
+}
+
+function calendarDayScheduleMeta(rows) {
+  const totalHours = rows.reduce((sum, row) => sum + calendarStudentScheduleSummary(row).totalHours, 0);
+  if (!rows.length) return "No instruction";
+  return `${rows.length} ${rows.length === 1 ? "student" : "students"} | ${formatCalendarHours(totalHours)}`;
 }
 
 function renderMonthCalendar(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
@@ -18216,25 +18278,20 @@ function renderMonthCalendar(referenceISO, studentFilterIds = [], subjectFilterI
   for (let i = 0; i < 42; i += 1) {
     const dateKey = toISO(cursor);
     const dayRows = (dailyMap.get(dateKey) || [])
+      .filter((row) => calendarStudentScheduleSummary(row).subjects.length)
       .sort((a, b) => getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)));
 
-    const items = dayRows.map((row) => {
-      const subjectParts = row.subjectOrder
-        .map((subjectName) => [subjectName, row.subjects.get(subjectName)])
-        .filter(([, data]) => !!data)
-        .map(([subjectName, data]) => `${subjectName} ${data.hours.toFixed(1)}h`);
-      const body = subjectParts.length ? subjectParts.join(", ") : "-";
-      return `<div class="calendar-day-item"><button type="button" class="calendar-student-link" data-open-calendar-week="1" data-date="${dateKey}" data-student-id="${row.studentId}">${getStudentName(row.studentId)}</button><br>${body}</div>`;
-    });
+    const items = dayRows.map((row) => renderCalendarScheduleItem(row, dateKey, "week")).filter(Boolean);
 
     if (!items.length) {
-      items.push("<div class='calendar-day-item'>No scheduled instruction</div>");
+      items.push("<div class='calendar-day-item calendar-day-item-empty'>No scheduled instruction</div>");
     }
 
     const inMonth = cursor.getMonth() === monthStart.getMonth();
     const cell = document.createElement("div");
-    cell.className = `calendar-day${inMonth ? "" : " muted-day"}`;
-    cell.innerHTML = `<div class="calendar-day-header">${cursor.getDate()}</div><div class="calendar-day-items">${items.join("")}</div>`;
+    const isToday = dateKey === todayISO();
+    cell.className = `calendar-day${inMonth ? "" : " muted-day"}${dayRows.length ? " has-schedule" : " empty-day"}${isToday ? " today" : ""}`;
+    cell.innerHTML = `<div class="calendar-day-header"><span class="calendar-day-number">${cursor.getDate()}</span><span class="calendar-day-meta">${calendarDayScheduleMeta(dayRows)}</span></div><div class="calendar-day-items">${items.join("")}</div>`;
     grid.appendChild(cell);
     cursor.setDate(cursor.getDate() + 1);
   }
@@ -18268,19 +18325,14 @@ function renderWeekCalendar(referenceISO, studentFilterIds = [], subjectFilterId
   for (let i = 0; i < 7; i += 1) {
     const dateKey = toISO(cursor);
     const rows = (grouped.get(dateKey) || [])
+      .filter((row) => calendarStudentScheduleSummary(row).subjects.length)
       .sort((a, b) => getStudentName(a.studentId).localeCompare(getStudentName(b.studentId)));
-    const items = rows.map((row) => {
-      const subjectParts = row.subjectOrder
-        .map((subjectName) => [subjectName, row.subjects.get(subjectName)])
-        .filter(([, data]) => !!data)
-        .map(([subjectName, data]) => `${subjectName} ${data.hours.toFixed(1)}h`);
-      const body = subjectParts.length ? subjectParts.join(", ") : "-";
-      return `<div class="calendar-day-item"><button type="button" class="calendar-student-link" data-open-calendar-day="1" data-date="${dateKey}" data-student-id="${row.studentId}">${getStudentName(row.studentId)}</button><br>${body}</div>`;
-    });
-    if (!items.length) items.push("<div class='calendar-day-item'>No scheduled instruction</div>");
+    const items = rows.map((row) => renderCalendarScheduleItem(row, dateKey, "day")).filter(Boolean);
+    if (!items.length) items.push("<div class='calendar-day-item calendar-day-item-empty'>No scheduled instruction</div>");
     const cell = document.createElement("div");
-    cell.className = "calendar-day";
-    cell.innerHTML = `<div class="calendar-day-header">${cursor.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</div><div class="calendar-day-items">${items.join("")}</div>`;
+    const isToday = dateKey === todayISO();
+    cell.className = `calendar-day${rows.length ? " has-schedule" : " empty-day"}${isToday ? " today" : ""}`;
+    cell.innerHTML = `<div class="calendar-day-header"><span class="calendar-day-number">${cursor.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span><span class="calendar-day-meta">${calendarDayScheduleMeta(rows)}</span></div><div class="calendar-day-items">${items.join("")}</div>`;
     grid.appendChild(cell);
     cursor.setDate(cursor.getDate() + 1);
   }
@@ -18477,17 +18529,27 @@ function renderDayCalendar(referenceISO, studentFilterIds = [], subjectFilterIds
   return { dateKey };
 }
 
+function updateCalendarViewControls(view) {
+  document.querySelectorAll("[data-calendar-view-option]").forEach((button) => {
+    const active = button.getAttribute("data-calendar-view-option") === view;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
 function renderCalendar() {
   const viewInput = document.getElementById("calendar-view");
   const requestedView = viewInput ? viewInput.value : "month";
   const view = ["day", "week", "month"].includes(requestedView) ? requestedView : "month";
   if (viewInput && viewInput.value !== view) viewInput.value = view;
+  updateCalendarViewControls(view);
   const calendarDateInput = document.getElementById("calendar-date");
   const ref = activeYearDateOrDefault(calendarDateInput?.value || "");
   if (calendarDateInput && calendarDateInput.value !== ref) calendarDateInput.value = ref;
   const studentFilterIds = getCalendarSelectedStudentIds();
   const subjectFilterIds = getCalendarSelectedSubjectIds();
   const courseFilterIds = getCalendarSelectedCourseIds();
+  updateCalendarFilterSummary();
   const monthView = document.getElementById("calendar-month-view");
   const detailView = document.getElementById("calendar-detail-view");
   const weekView = document.getElementById("calendar-week-view");
@@ -18508,7 +18570,7 @@ function renderCalendar() {
     const monthRange = renderMonthCalendar(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
     const monthStartIso = toISO(monthRange.start);
     const monthEndIso = toISO(monthRange.end);
-    document.getElementById("calendar-range").textContent = `Monthly calendar: ${monthStartIso} to ${monthEndIso}`;
+    document.getElementById("calendar-range").textContent = `Month | ${formatDisplayDate(monthStartIso)} - ${formatDisplayDate(monthEndIso)}`;
     return;
   }
 
@@ -18524,8 +18586,8 @@ function renderCalendar() {
     const weekRange = renderWeekCalendar(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
     const weekStartIso = toISO(weekRange.start);
     const weekEndIso = toISO(weekRange.end);
-    if (detailTitle) detailTitle.textContent = `Week of ${weekStartIso}`;
-    document.getElementById("calendar-range").textContent = `Weekly view: ${weekStartIso} to ${weekEndIso}`;
+    if (detailTitle) detailTitle.textContent = `Week of ${formatDisplayDate(weekStartIso)}`;
+    document.getElementById("calendar-range").textContent = `Week | ${formatDisplayDate(weekStartIso)} - ${formatDisplayDate(weekEndIso)}`;
     return;
   }
 
@@ -18538,8 +18600,8 @@ function renderCalendar() {
     if (backMonthBtn) backMonthBtn.classList.add("hidden");
     if (backWeekBtn) backWeekBtn.classList.toggle("hidden", !calendarBackToWeekContext);
     const dayRange = renderDayCalendar(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
-    if (detailTitle) detailTitle.textContent = dayRange.dateKey;
-    document.getElementById("calendar-range").textContent = `Daily view: ${dayRange.dateKey}`;
+    if (detailTitle) detailTitle.textContent = formatDisplayDate(dayRange.dateKey);
+    document.getElementById("calendar-range").textContent = `Day | ${formatDisplayDate(dayRange.dateKey)}`;
     return;
   }
 
@@ -21413,9 +21475,26 @@ function bindEvents() {
   if (calendarViewSelect) {
     calendarViewSelect.addEventListener("change", () => renderCalendar());
   }
+  document.querySelectorAll("[data-calendar-view-option]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const view = button.getAttribute("data-calendar-view-option") || "month";
+      if (!["day", "week", "month"].includes(view)) return;
+      const viewInput = document.getElementById("calendar-view");
+      if (viewInput) viewInput.value = view;
+      renderCalendar();
+    });
+  });
   const calendarDateInput = document.getElementById("calendar-date");
   if (calendarDateInput) {
     calendarDateInput.addEventListener("change", () => renderCalendar());
+  }
+  const calendarTodayBtn = document.getElementById("calendar-today-btn");
+  if (calendarTodayBtn) {
+    calendarTodayBtn.addEventListener("click", () => {
+      const input = document.getElementById("calendar-date");
+      if (input) input.value = defaultReferenceDateForActiveYear();
+      renderCalendar();
+    });
   }
   document.getElementById("calendar-prev-month").addEventListener("click", () => {
     const input = document.getElementById("calendar-date");
