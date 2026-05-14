@@ -11893,10 +11893,12 @@ function renderSchoolDayActiveQueue({ date, rowCount, statusFilter, studentIds =
       <strong>${emptyFilteredQueue ? "No matching rows" : `${rowCount} row${rowCount === 1 ? "" : "s"} shown`}</strong>
       <span>${emptyFilteredQueue ? "Active filters are hiding the queue" : "Daily Schedule work queue"}</span>
     </div>
-    <div class="school-day-active-queue-chips">
-      ${filterChips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
-    </div>
-    ${hasActiveFilters ? `<div class="school-day-active-queue-actions"><button type="button" data-school-day-clear-filters="1">Clear filters</button></div>` : ""}`;
+    <div class="school-day-active-queue-right">
+      <div class="school-day-active-queue-chips">
+        ${filterChips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}
+      </div>
+      ${hasActiveFilters ? `<div class="school-day-active-queue-actions"><button type="button" data-school-day-clear-filters="1">Clear filters</button></div>` : ""}
+    </div>`;
 }
 
 function resetSchoolDayQuickFilters() {
