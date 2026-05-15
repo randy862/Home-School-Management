@@ -4,14 +4,18 @@ Date: 2026-05-15
 
 ## Active Workstream
 
-Commercial subscription lifecycle planning on `saas-modern-redesign`.
+Public SaaS site polish on `saas-modern-redesign`.
 
 ## Current Focus
 
-Account Options copy polish is deployed to production and committed as `c042e07 Polish account options copy`.
+Public `www.navigrader.com` screenshots/contact/copyright update is deployed to production and committed as `8894a65 Refresh public site screenshots and footer`.
 
 ## Completed Recently
 
+- Deployed and committed `8894a65 Refresh public site screenshots and footer`:
+  - `www.navigrader.com` bottom CTA now uses five refreshed UI polish screenshots.
+  - Footer now includes `support@navigrader.com` and `Copyright 2026, Navigrader, LLC`.
+  - Header nav now includes Contact.
 - Deployed and committed `c042e07 Polish account options copy`:
   - Account Options copy now uses parent-facing language for Dormant Mode, Reactivation, and Data Export.
   - Internal terms such as tenant lifecycle, lower-frequency actions, runtime activity, and offboarding were removed from the customer-facing surface.
@@ -45,6 +49,10 @@ Account Options copy polish is deployed to production and committed as `c042e07 
 
 ## Production State
 
+- Public SaaS page:
+  - `saas-polish.css?v=202605151005`
+  - Latest WEB001 rollback snapshot:
+    `/var/www/home-school-management/rollback/web-202605151005.tgz`
 - Live asset cache keys:
   - `styles.css?v=202605150913`
   - `app.js?v=202605150933`
@@ -53,6 +61,9 @@ Account Options copy polish is deployed to production and committed as `c042e07 
 
 ## Validation
 
+- Public `https://www.navigrader.com/` returned HTTP 200 and includes the new screenshot references, contact email, copyright line, and `saas-polish.css?v=202605151005`.
+- New public screenshot assets each returned HTTP 200.
+- Remote WEB001 hashes matched local `web/saas.html`, `web/saas-polish.css`, and the five new public screenshot assets.
 - `node --check web/app.js`
 - `git diff --check -- web/app.js web/index.html web/styles.css STATUS.md HANDOFF.md`
 - Local Web Preview returned HTTP 200 at `http://127.0.0.1:5500/?seedPreview=1`

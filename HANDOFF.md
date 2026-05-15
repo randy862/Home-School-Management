@@ -4,10 +4,17 @@ Date: 2026-05-15
 
 ## Context
 
-Account Options copy polish on `saas-modern-redesign`, promoted to production after preview approval.
+Public SaaS site polish on `saas-modern-redesign`, promoted to `www.navigrader.com`.
 
 ## Current State
 
+- Public site update is live in production and committed as `8894a65 Refresh public site screenshots and footer`.
+- `www.navigrader.com` bottom CTA now uses five refreshed UI polish screenshots.
+- Public footer now includes `support@navigrader.com` and `Copyright 2026, Navigrader, LLC`.
+- Public page cache key:
+  - `saas-polish.css?v=202605151005`
+- Latest public WEB001 rollback snapshot:
+  `/var/www/home-school-management/rollback/web-202605151005.tgz`
 - Detailed dormant/data export execution plan added:
   `NOTES/dormant-data-export-end-to-end-plan.md`
 - Dormant current code records `pending_dormant`/`dormant`, can queue suspend/resume jobs, and blocks attendance/grade writes while dormant.
@@ -28,9 +35,9 @@ Account Options copy polish on `saas-modern-redesign`, promoted to production af
 
 ## Next Action
 
-1. Resume from `NOTES/dormant-data-export-end-to-end-plan.md`.
-2. Start with dormant billing: control-plane migration for dormant Stripe price metadata and transition timestamps.
-3. Add Stripe service methods for dormant price apply/restore with tests.
+1. If public site feedback arrives, review `web/saas.html` and `web/saas-polish.css`.
+2. Otherwise resume from `NOTES/dormant-data-export-end-to-end-plan.md`.
+3. Start dormant billing with control-plane migration and Stripe service methods.
 4. Confirm reactivation billing policy: immediate invoice, proration, or next-invoice adjustment.
 
 ## Risks
@@ -43,6 +50,9 @@ Account Options copy polish on `saas-modern-redesign`, promoted to production af
 
 ## Validation
 
+- Public `https://www.navigrader.com/` returned HTTP 200 and includes the refreshed screenshots, contact email, copyright line, and new CSS cache key.
+- New public screenshot assets each returned HTTP 200.
+- Remote WEB001 hashes matched local `web/saas.html`, `web/saas-polish.css`, and the five new public screenshot assets.
 - `node --check web/app.js`
 - `git diff --check -- web/app.js web/index.html web/styles.css STATUS.md HANDOFF.md`
 - Local Web Preview returned HTTP 200 at `http://127.0.0.1:5500/?seedPreview=1`
