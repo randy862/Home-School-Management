@@ -8,13 +8,15 @@ Public SaaS site polish on `saas-modern-redesign`.
 
 ## Current Focus
 
-Public `www.navigrader.com` footer/collage refinement is deployed to production and committed as `fce8f79 Refine public footer and screenshot collage`.
+Public `www.navigrader.com` footer layout tightening is deployed to production and committed as `7ff2e9e Tighten public footer layout`.
 
 ## Completed Recently
 
-- Deployed and committed `fce8f79 Refine public footer and screenshot collage`:
+- Deployed and committed `7ff2e9e Tighten public footer layout`:
+  - Footer now matches the polished page shell width, removes the duplicate footer logo, and uses three equal utility columns.
+  - Footer copy and spacing were tightened to reduce the card height.
+- Previously deployed public footer/collage polish remains active:
   - Bottom CTA screenshots are back to the layered collage style on desktop and stack cleanly on mobile.
-  - Footer card is widened to match the CTA card, with tighter spacing and columns aligned with the logo wordmark.
   - Footer includes section links, `support@navigrader.com`, `www.navigrader.com`, and `Copyright 2026, Navigrader, LLC. All rights reserved.`
 - Deployed and committed `c042e07 Polish account options copy`:
   - Account Options copy now uses parent-facing language for Dormant Mode, Reactivation, and Data Export.
@@ -50,9 +52,9 @@ Public `www.navigrader.com` footer/collage refinement is deployed to production 
 ## Production State
 
 - Public SaaS page:
-  - `saas-polish.css?v=202605151127`
+  - `saas-polish.css?v=202605151145`
   - Latest WEB001 rollback snapshot:
-    `/var/www/home-school-management/rollback/web-202605151127.tgz`
+    `/var/www/home-school-management/rollback/web-202605151145.tgz`
 - Live asset cache keys:
   - `styles.css?v=202605150913`
   - `app.js?v=202605150933`
@@ -61,8 +63,8 @@ Public `www.navigrader.com` footer/collage refinement is deployed to production 
 
 ## Validation
 
-- Public `https://www.navigrader.com/` returned HTTP 200 and includes the restored screenshot collage references, polished footer, footer section links, contact email, copyright line, and `saas-polish.css?v=202605151127`.
-- Public `https://www.navigrader.com/saas-polish.css?v=202605151127` returned HTTP 200 and includes the refined collage/footer styles.
+- Public `https://www.navigrader.com/` returned HTTP 200 and includes the tightened footer layout, no duplicate footer logo, contact email, copyright line, and `saas-polish.css?v=202605151145`.
+- Public `https://www.navigrader.com/saas-polish.css?v=202605151145` returned HTTP 200 and includes the full-width footer, equal utility columns, and tighter footer spacing.
 - The four intended public screenshot assets each returned HTTP 200.
 - Remote WEB001 hashes matched local `web/saas.html` and `web/saas-polish.css`.
 - `node --check web/app.js`
