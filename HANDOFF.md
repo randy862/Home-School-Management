@@ -8,13 +8,17 @@ Public SaaS site polish on `saas-modern-redesign`, promoted to `www.navigrader.c
 
 ## Current State
 
-- Public site update is live in production and committed as `8894a65 Refresh public site screenshots and footer`.
-- `www.navigrader.com` bottom CTA now uses five refreshed UI polish screenshots.
+- Public site screenshot correction is live in production.
+- `www.navigrader.com` bottom CTA now uses four refreshed UI polish screenshots: Screenshots 1, 2, 4, and 5.
+- Duplicate Screenshot 3 asset/reference was removed.
+- Public correction commits:
+  - `fd79a99 Remove duplicate public site screenshot`
+  - `ce5b90c Use four public site screenshots`
 - Public footer now includes `support@navigrader.com` and `Copyright 2026, Navigrader, LLC`.
 - Public page cache key:
-  - `saas-polish.css?v=202605151005`
+  - `saas-polish.css?v=202605151056`
 - Latest public WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605151005.tgz`
+  `/var/www/home-school-management/rollback/web-202605151056.tgz`
 - Detailed dormant/data export execution plan added:
   `NOTES/dormant-data-export-end-to-end-plan.md`
 - Dormant current code records `pending_dormant`/`dormant`, can queue suspend/resume jobs, and blocks attendance/grade writes while dormant.
@@ -50,9 +54,9 @@ Public SaaS site polish on `saas-modern-redesign`, promoted to `www.navigrader.c
 
 ## Validation
 
-- Public `https://www.navigrader.com/` returned HTTP 200 and includes the refreshed screenshots, contact email, copyright line, and new CSS cache key.
-- New public screenshot assets each returned HTTP 200.
-- Remote WEB001 hashes matched local `web/saas.html`, `web/saas-polish.css`, and the five new public screenshot assets.
+- Public `https://www.navigrader.com/` returned HTTP 200 and includes four refreshed screenshots, contact email, copyright line, and new CSS cache key.
+- The four intended public screenshot assets each returned HTTP 200; duplicate Screenshot 3 asset was removed from WEB001.
+- Remote WEB001 hashes matched local `web/saas.html`, `web/saas-polish.css`, and the four public screenshot assets.
 - `node --check web/app.js`
 - `git diff --check -- web/app.js web/index.html web/styles.css STATUS.md HANDOFF.md`
 - Local Web Preview returned HTTP 200 at `http://127.0.0.1:5500/?seedPreview=1`
