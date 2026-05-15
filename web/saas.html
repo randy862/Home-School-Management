@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Plans</title>
   <link rel="stylesheet" href="saas.css?v=202605051430">
-  <link rel="stylesheet" href="saas-polish.css?v=202605151056">
+  <link rel="stylesheet" href="saas-polish.css?v=202605151106">
 </head>
 <body>
   <main class="landing-shell">
@@ -57,6 +57,16 @@
       </symbol>
       <symbol id="icon-cloud" viewBox="0 0 24 24">
         <path d="M7 18h10.5a4.5 4.5 0 0 0 .4-9 6.5 6.5 0 0 0-12.3 2A3.5 3.5 0 0 0 7 18z"></path>
+      </symbol>
+      <symbol id="icon-mail" viewBox="0 0 24 24">
+        <rect x="4" y="6" width="16" height="12" rx="2"></rect>
+        <path d="m5 8 7 5 7-5"></path>
+      </symbol>
+      <symbol id="icon-globe" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M3.5 12h17"></path>
+        <path d="M12 3c2.3 2.4 3.5 5.4 3.5 9s-1.2 6.6-3.5 9"></path>
+        <path d="M12 3c-2.3 2.4-3.5 5.4-3.5 9s1.2 6.6 3.5 9"></path>
       </symbol>
       <symbol id="icon-clipboard" viewBox="0 0 24 24">
         <path d="M9 4h6l1 2h3v15H5V6h3l1-2z"></path>
@@ -493,13 +503,35 @@
     </section>
   </main>
   <footer id="contact" class="site-footer" aria-label="Site footer">
-    <div class="site-footer-brand">
-      <strong>Navigrader</strong>
-      <span>Teach more. Manage less.</span>
-    </div>
-    <div class="site-footer-meta">
-      <a href="mailto:support@navigrader.com">support@navigrader.com</a>
-      <span>Copyright 2026, Navigrader, LLC</span>
+    <div class="site-footer-card">
+      <div class="site-footer-brand">
+        <img src="assets/Navigrader_Logo_Transparent.png" alt="Navigrader teach more, manage less">
+        <p>The simple, powerful way to navigate homeschool record-keeping with confidence so you can teach more and manage less.</p>
+      </div>
+      <nav class="site-footer-column" aria-label="Product">
+        <h2>Product</h2>
+        <a href="#pricing">Plans / Pricing</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#features">Why It Helps</a>
+      </nav>
+      <nav class="site-footer-column" aria-label="Resources">
+        <h2>Resources</h2>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="site-footer-column site-footer-contact">
+        <h2>Get In Touch</h2>
+        <a href="mailto:support@navigrader.com">
+          <span class="footer-contact-icon" aria-hidden="true"><svg><use href="#icon-mail"></use></svg></span>
+          <span>support@navigrader.com</span>
+        </a>
+        <a href="https://www.navigrader.com/">
+          <span class="footer-contact-icon" aria-hidden="true"><svg><use href="#icon-globe"></use></svg></span>
+          <span>www.navigrader.com</span>
+        </a>
+      </div>
+      <div class="site-footer-bottom">
+        <span>Copyright 2026, Navigrader, LLC. All rights reserved.</span>
+      </div>
     </div>
   </footer>
   <div id="screenshot-preview-modal" class="screenshot-preview-modal hidden" role="dialog" aria-modal="true" aria-label="Product screenshot preview">
