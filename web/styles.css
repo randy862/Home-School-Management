@@ -12904,6 +12904,39 @@ tbody tr:hover {
   line-height: 1.2;
 }
 
+#app-shell .reports-page-header,
+#app-shell .administration-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+#app-shell .reports-page-header h2,
+#app-shell .administration-page-header h2 {
+  margin: 0;
+  color: #17243d;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+#app-shell #reports-active-summary,
+#app-shell #administration-active-summary {
+  flex: 0 1 auto;
+  max-width: 100%;
+  padding: 0.26rem 0.55rem;
+  border: 1px solid #d8e4f2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #52647d;
+  font-size: 0.8rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 #app-shell .calendar-page-header {
   display: flex;
   align-items: center;
@@ -13446,6 +13479,38 @@ tbody tr:hover {
   box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
 }
 
+#app-shell .administration-workspace-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem;
+}
+
+#app-shell .administration-workspace-summary {
+  display: grid;
+  gap: 0.38rem;
+  min-width: 180px;
+}
+
+#app-shell .administration-workspace-summary span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.32rem 0.48rem;
+  border: 1px solid #dbe6f4;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #5b6a80;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+#app-shell .administration-workspace-summary strong {
+  color: #155bc3;
+  font-size: 0.9rem;
+}
+
 #app-shell .administration-tab-panel,
 #app-shell .administration-config-form {
   gap: 0.65rem;
@@ -13476,6 +13541,68 @@ tbody tr:hover {
 
 #app-shell .dashboard-visibility-group + .dashboard-visibility-group {
   margin-top: 0.7rem;
+}
+
+#app-shell .administration-config-drawer {
+  display: grid;
+  gap: 0.65rem;
+}
+
+#app-shell .administration-config-drawer > summary,
+#app-shell .reports-content-drawer > summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  color: #17243d;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.2;
+  list-style: none;
+}
+
+#app-shell .administration-config-drawer > summary::-webkit-details-marker,
+#app-shell .reports-content-drawer > summary::-webkit-details-marker {
+  display: none;
+}
+
+#app-shell .administration-config-drawer > summary::before,
+#app-shell .reports-content-drawer > summary::before {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: #eaf2ff;
+  color: #155bc3;
+  font-size: 0.86rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+#app-shell .administration-config-drawer[open] > summary::before,
+#app-shell .reports-content-drawer[open] > summary::before {
+  content: "-";
+}
+
+#app-shell .administration-config-drawer > summary span:last-child,
+#app-shell .reports-content-drawer > summary span:last-child {
+  margin-left: auto;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  background: #f1f5fa;
+  color: #52647d;
+  font-size: 0.74rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#app-shell .administration-config-drawer[open] > summary {
+  padding-bottom: 0.62rem;
+  border-bottom: 1px solid #edf2f8;
 }
 
 #app-shell .dashboard-visibility-group h5 {
@@ -13558,6 +13685,22 @@ tbody tr:hover {
 
 #app-shell .reports-student-field {
   grid-column: span 2;
+}
+
+#app-shell .reports-content-drawer {
+  display: grid;
+  gap: 0.6rem;
+}
+
+#app-shell .reports-content-drawer[open] > summary {
+  padding-bottom: 0.58rem;
+  border-bottom: 1px solid #edf2f8;
+}
+
+#app-shell .reports-action-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 #app-shell #tab-attendance.active {
@@ -14461,6 +14604,15 @@ tbody tr:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  #app-shell .administration-workspace-header {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .administration-workspace-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
+  }
+
   #app-shell .calendar-filter-drawer {
     justify-self: stretch;
     width: 100%;
@@ -14487,6 +14639,17 @@ tbody tr:hover {
 }
 
 @media (max-width: 980px) {
+  #app-shell .reports-page-header,
+  #app-shell .administration-page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #app-shell #reports-active-summary,
+  #app-shell #administration-active-summary {
+    white-space: normal;
+  }
+
   #app-shell .school-day-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -14653,6 +14816,21 @@ tbody tr:hover {
   #app-shell .calendar-filter-drawer > summary {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  #app-shell .administration-workspace-summary {
+    grid-template-columns: 1fr;
+  }
+
+  #app-shell .administration-config-drawer > summary,
+  #app-shell .reports-content-drawer > summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  #app-shell .administration-config-drawer > summary span:last-child,
+  #app-shell .reports-content-drawer > summary span:last-child {
+    margin-left: 0;
   }
 
   #app-shell #calendar-filter-summary {

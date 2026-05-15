@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605141618">
+  <link rel="stylesheet" href="styles.css?v=202605142214">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1112,7 +1112,10 @@
     </section>
 
     <section id="tab-administration" class="tab-panel panel">
-      <h2>Administration</h2>
+      <div class="administration-page-header">
+        <h2>Administration</h2>
+        <p id="administration-active-summary" class="muted">Workspace controls and tenant setup.</p>
+      </div>
       <div class="subtabs administration-subtabs" aria-label="Administration sections">
         <button class="subtab-btn active" data-administration-tab="workspace-configuration" type="button">Workspace Configuration</button>
         <button class="subtab-btn" data-administration-tab="alerts" type="button">Alerts</button>
@@ -1121,14 +1124,17 @@
       </div>
 
       <div id="administration-workspace-configuration-wrap" class="administration-tab-panel">
-        <div class="administration-intro-card">
-          <h3>Workspace Configuration</h3>
-          <p class="muted">Prototype the tenant workspace layout for School Day and Dashboard. This first pass previews configuration in this browser session so we can shape the experience before wiring tenant-wide persistence.</p>
+        <div class="administration-intro-card administration-workspace-header">
+          <div>
+            <h3>Workspace Configuration</h3>
+            <p class="muted">Prototype the tenant workspace layout for School Day and Dashboard. This first pass previews configuration in this browser session so we can shape the experience before wiring tenant-wide persistence.</p>
+          </div>
+          <div id="administration-workspace-summary" class="administration-workspace-summary"></div>
         </div>
 
         <form id="administration-workspace-config-form" class="administration-config-form">
-          <section class="administration-config-card">
-            <h4>School Day Visibility</h4>
+          <details class="administration-config-card administration-config-drawer" open>
+            <summary><span>School Day Visibility</span><span id="admin-config-school-day-summary">0 enabled</span></summary>
             <div class="administration-config-grid">
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-reference-date"> <span>Show Reference Date filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-student-filter"> <span>Show Student filter</span></label>
@@ -1146,7 +1152,7 @@
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-past-due"> <span>Show Past Due filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-overridden"> <span>Show Overridden filter</span></label>
             </div>
-          </section>
+          </details>
 
           <section class="administration-config-card">
             <h4>School Day Defaults</h4>
@@ -1175,8 +1181,8 @@
             </div>
           </section>
 
-          <section class="administration-config-card">
-            <h4>Dashboard Visibility</h4>
+          <details class="administration-config-card administration-config-drawer">
+            <summary><span>Dashboard Visibility</span><span id="admin-config-dashboard-summary">0 enabled</span></summary>
             <div class="dashboard-visibility-group">
               <h5>Overview Tab</h5>
               <div class="administration-config-grid">
@@ -1236,7 +1242,7 @@
                 <label class="checklist-row"><input type="checkbox" id="admin-config-dashboard-show-required-subject-compliance"> <span>Show Required Subject Compliance</span></label>
               </div>
             </div>
-          </section>
+          </details>
 
           <div class="table-action-row administration-config-actions">
             <button id="administration-workspace-config-save-btn" type="submit">Save Prototype Configuration</button>
@@ -2344,7 +2350,10 @@
     </section>
 
     <section id="tab-reports" class="tab-panel panel">
-      <h2>Reports</h2>
+      <div class="reports-page-header">
+        <h2>Reports</h2>
+        <p id="reports-active-summary" class="muted">Student report | No students selected | All sections</p>
+      </div>
       <div class="reports-section">
         <form id="reports-form" class="grid-form">
           <section class="reports-filter-group">
@@ -2385,11 +2394,13 @@
               </label>
             </div>
           </section>
-          <section class="reports-filter-group">
-            <h3>Report Content</h3>
+          <details id="reports-content-drawer" class="reports-filter-group reports-content-drawer">
+            <summary><span>Report Content</span><span id="reports-content-summary">All sections selected</span></summary>
             <div id="reports-content-options" class="checklist-vertical reports-content-checklist"></div>
-          </section>
-          <button id="reports-generate-btn" type="submit">Generate Report</button>
+          </details>
+          <div class="reports-action-row">
+            <button id="reports-generate-btn" type="submit">Generate Report</button>
+          </div>
         </form>
         <p id="reports-message" class="muted">Select report criteria and content to generate a printable report.</p>
       </div>
@@ -2461,6 +2472,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605141618"></script>
+  <script src="app.js?v=202605142214"></script>
   </body>
   </html>

@@ -1641,9 +1641,9 @@ const STUDENT_REPORT_CONTENT_OPTIONS = [
   { id: "courseSummary", label: "Course Summary" },
   { id: "courseDetails", label: "Course Details" },
   { id: "requiredSubjects", label: "Required Subjects" },
+  { id: "instructionalHours", label: "Instructional Hours" },
   { id: "detailedGrades", label: "Detailed Grades" },
-  { id: "detailedAttendance", label: "Detailed Attendance" },
-  { id: "instructionalHours", label: "Instructional Hours" }
+  { id: "detailedAttendance", label: "Detailed Attendance" }
 ];
 const INSTRUCTOR_REPORT_CONTENT_OPTIONS = [
   { id: "instructorExecutiveSummary", label: "Executive Summary" },
@@ -6463,6 +6463,7 @@ function updateReportStudentSummary() {
   if (!summary) return;
   const selectedCount = document.querySelectorAll(".reports-student-checkbox:checked").length;
   summary.textContent = `Students (${selectedCount} selected)`;
+  updateReportsPreviewSummary();
 }
 
 function getSelectedReportStudentIds() {
@@ -6478,6 +6479,7 @@ function renderReportsFormMode() {
   if (typeSelect && typeSelect.value !== reportType) typeSelect.value = reportType;
   const studentWrap = document.getElementById("reports-student-filter-wrap");
   if (studentWrap) studentWrap.classList.toggle("hidden", reportType !== "student");
+  updateReportsPreviewSummary();
 }
 
 function syncReportsCriteriaFilterOptions() {
@@ -6511,6 +6513,7 @@ function syncReportsCriteriaFilterOptions() {
     });
     gradeSelect.value = grades.includes(current) ? current : "all";
   }
+  updateReportsPreviewSummary();
 }
 
 function renderReportContentChecklist(preselectedContentIds = []) {
@@ -6525,10 +6528,43 @@ function renderReportContentChecklist(preselectedContentIds = []) {
     return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="reports-content-checkbox" value="${option.id}"${checked}><label for="${inputId}">${option.label}</label></div>`;
   }).join("");
   optionsWrap.innerHTML = checkboxes;
+  updateReportsPreviewSummary();
 }
 
 function getSelectedReportContentIds() {
   return Array.from(document.querySelectorAll(".reports-content-checkbox:checked")).map((el) => el.value);
+}
+
+function selectedOptionText(selectId, fallback = "") {
+  const select = document.getElementById(selectId);
+  if (!(select instanceof HTMLSelectElement)) return fallback;
+  return select.selectedOptions[0]?.textContent?.trim() || fallback;
+}
+
+function updateReportsPreviewSummary() {
+  const activeSummary = document.getElementById("reports-active-summary");
+  const contentSummary = document.getElementById("reports-content-summary");
+  if (!activeSummary && !contentSummary) return;
+  const selectedContentCount = getSelectedReportContentIds().length;
+  const totalContentCount = reportContentOptionsForType().length;
+  const contentText = selectedContentCount === totalContentCount
+    ? "All sections"
+    : `${selectedContentCount}/${totalContentCount} sections`;
+  const subjectText = selectedOptionText("reports-subject", "All Subjects");
+  const gradeText = selectedOptionText("reports-grade", "All Grades");
+  const quarterText = selectedOptionText("reports-quarter", "Quarter");
+  const reportLabel = reportType === "instructor" ? "Instructor report" : "Student report";
+  const audienceText = reportType === "student"
+    ? `${getSelectedReportStudentIds().length} student${getSelectedReportStudentIds().length === 1 ? "" : "s"} selected`
+    : selectedOptionText("reports-instructor", "All Instructors");
+  if (activeSummary) {
+    activeSummary.textContent = `${reportLabel} | ${audienceText} | ${quarterText} | ${subjectText} | ${gradeText} | ${contentText}`;
+  }
+  if (contentSummary) {
+    contentSummary.textContent = selectedContentCount
+      ? `${contentText} selected`
+      : "No sections selected";
+  }
 }
 
 function setReportsMessage(kind, message) {
@@ -6545,7 +6581,10 @@ function syncReportsQuarterOptions() {
   const selectedSchoolYearId = schoolYearSelect.value || "";
   const currentQuarter = quarterSelect.value || "all";
   quarterSelect.innerHTML = "<option value=''>Select quarter</option>";
-  if (!selectedSchoolYearId) return;
+  if (!selectedSchoolYearId) {
+    updateReportsPreviewSummary();
+    return;
+  }
   const allOption = document.createElement("option");
   allOption.value = "all";
   allOption.textContent = "All Quarters";
@@ -6561,6 +6600,7 @@ function syncReportsQuarterOptions() {
     });
   if (Array.from(quarterSelect.options).some((option) => option.value === currentQuarter)) quarterSelect.value = currentQuarter;
   else quarterSelect.value = "all";
+  updateReportsPreviewSummary();
 }
 
 function reportRangeForSelection(schoolYearId, quarterName) {
@@ -8944,6 +8984,38 @@ function renderAdministrationSectionVisibility() {
   Object.entries(panels).forEach(([key, panel]) => {
     if (panel) panel.classList.toggle("hidden", key !== visibleTab);
   });
+  updateAdministrationActiveSummary(visibleTab);
+}
+
+function updateAdministrationActiveSummary(visibleTab = currentAdministrationTab || "workspace-configuration") {
+  const summary = document.getElementById("administration-active-summary");
+  if (!summary) return;
+  const labels = {
+    "workspace-configuration": "Workspace controls for School Day and Dashboard visibility.",
+    alerts: "Operational alert thresholds and alert visibility.",
+    instructors: "Instructor records used by classes, reports, and School Day.",
+    users: "Admin and student account access."
+  };
+  summary.textContent = labels[visibleTab] || labels["workspace-configuration"];
+}
+
+function updateAdministrationWorkspaceSummary(config) {
+  const schoolDayValues = Object.entries(config?.schoolDay || {})
+    .filter(([, value]) => typeof value === "boolean");
+  const dashboardValues = Object.entries(config?.dashboard || {})
+    .filter(([, value]) => typeof value === "boolean");
+  const schoolDayEnabled = schoolDayValues.filter(([, value]) => value).length;
+  const dashboardEnabled = dashboardValues.filter(([, value]) => value).length;
+  const schoolDaySummary = document.getElementById("admin-config-school-day-summary");
+  const dashboardSummary = document.getElementById("admin-config-dashboard-summary");
+  const workspaceSummary = document.getElementById("administration-workspace-summary");
+  if (schoolDaySummary) schoolDaySummary.textContent = `${schoolDayEnabled}/${schoolDayValues.length} shown`;
+  if (dashboardSummary) dashboardSummary.textContent = `${dashboardEnabled}/${dashboardValues.length} shown`;
+  if (workspaceSummary) {
+    workspaceSummary.innerHTML = `
+      <span><strong>${schoolDayEnabled}</strong> School Day controls</span>
+      <span><strong>${dashboardEnabled}</strong> Dashboard modules</span>`;
+  }
 }
 
 function renderDashboardSectionVisibility() {
@@ -9163,6 +9235,7 @@ function renderAdministration() {
   if (saveBtn) saveBtn.textContent = hostedTenantConfig ? "Save Configuration" : "Save Prototype Configuration";
   const resetBtn = document.getElementById("administration-workspace-config-reset-btn");
   if (resetBtn) resetBtn.textContent = hostedTenantConfig ? "Reset To Tenant Defaults" : "Reset To Defaults";
+  updateAdministrationWorkspaceSummary(config);
 
   setAdministrationWorkspaceConfigMessage(administrationWorkspaceConfigMessageState.kind, administrationWorkspaceConfigMessageState.text);
   setAdministrationAlertsConfigMessage(administrationAlertsConfigMessageState.kind, administrationAlertsConfigMessageState.text);
@@ -19679,12 +19752,14 @@ function bindEvents() {
     if (administrationWorkspaceConfigMessageState.text) {
       setAdministrationWorkspaceConfigMessage("", "");
     }
+    updateAdministrationWorkspaceSummary(buildWorkspaceConfigFromAdminForms());
   });
 
   document.getElementById("administration-workspace-config-form")?.addEventListener("change", () => {
     if (administrationWorkspaceConfigMessageState.text) {
       setAdministrationWorkspaceConfigMessage("", "");
     }
+    updateAdministrationWorkspaceSummary(buildWorkspaceConfigFromAdminForms());
   });
 
   document.getElementById("administration-workspace-config-form")?.addEventListener("submit", (e) => {
@@ -21011,6 +21086,7 @@ function bindEvents() {
   if (reportsSchoolYearSelect) {
     reportsSchoolYearSelect.addEventListener("change", () => {
       syncReportsQuarterOptions();
+      updateReportsPreviewSummary();
       setReportsMessage("", "Select report criteria and content to generate a printable report.");
     });
   }
@@ -21021,6 +21097,7 @@ function bindEvents() {
       reportSelectedContentIds = new Set(reportContentOptionsForType().map((option) => option.id));
       renderReportsFormMode();
       renderReportContentChecklist(Array.from(reportSelectedContentIds));
+      updateReportsPreviewSummary();
       setReportsMessage("", "Select report criteria and content to generate a printable report.");
     });
   }
@@ -21028,6 +21105,7 @@ function bindEvents() {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener("change", () => {
+        updateReportsPreviewSummary();
         setReportsMessage("", "Select report criteria and content to generate a printable report.");
       });
     }
@@ -22453,6 +22531,7 @@ function bindEvents() {
     }
     if (t.classList.contains("reports-content-checkbox")) {
       reportSelectedContentIds = new Set(getSelectedReportContentIds());
+      updateReportsPreviewSummary();
       return;
     }
     if (t.classList.contains("calendar-student-all-checkbox")) {
