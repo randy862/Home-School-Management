@@ -441,6 +441,91 @@ h1 {
   outline-offset: 4px;
 }
 
+.final-screenshot-collage {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: minmax(170px, 1.08fr) minmax(150px, 0.92fr);
+  gap: 0.9rem;
+  min-height: 430px;
+}
+
+.final-screenshot-card,
+.final-dashboard-shot,
+.final-school-day-shot,
+.final-grade-trending-shot,
+.final-report-shot,
+.final-dashboard-summary-shot {
+  position: relative;
+  inset: auto;
+  width: auto;
+  height: auto;
+}
+
+.final-screenshot-collage .final-screenshot-card img {
+  aspect-ratio: 16 / 9;
+  height: 100%;
+}
+
+.final-dashboard-shot {
+  grid-column: 1 / span 3;
+  grid-row: 1;
+}
+
+.final-school-day-shot {
+  grid-column: 4 / span 3;
+  grid-row: 1;
+}
+
+.final-grade-trending-shot {
+  grid-column: 1 / span 2;
+  grid-row: 2;
+}
+
+.final-report-shot {
+  grid-column: 3 / span 2;
+  grid-row: 2;
+}
+
+.final-dashboard-summary-shot {
+  grid-column: 5 / span 2;
+  grid-row: 2;
+}
+
+.site-footer {
+  width: min(100% - 2rem, 1240px);
+  margin: 1.25rem auto 0;
+  padding: 1.1rem 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.site-footer-brand,
+.site-footer-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.site-footer-brand strong {
+  color: var(--ink);
+}
+
+.site-footer a {
+  color: var(--blue);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.site-footer a:hover,
+.site-footer a:focus-visible {
+  text-decoration: underline;
+}
+
 .screenshot-preview-open {
   overflow: hidden;
 }
@@ -568,6 +653,27 @@ h1 {
   .screenshot-preview-close {
     top: 0.7rem;
     right: 0.7rem;
+  }
+
+  .final-screenshot-collage {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    min-height: auto;
+  }
+
+  .final-dashboard-shot,
+  .final-school-day-shot,
+  .final-grade-trending-shot,
+  .final-report-shot,
+  .final-dashboard-summary-shot {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .site-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    width: min(100% - 1rem, 640px);
   }
 
   .feature-grid,
