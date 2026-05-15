@@ -4,10 +4,13 @@ Date: 2026-05-15
 
 ## Context
 
-Public SaaS site polish on `saas-modern-redesign`, promoted to `www.navigrader.com`.
+Public SaaS site footer polish on `saas-modern-redesign`, promoted to `www.navigrader.com`.
 
 ## Current State
 
+- Public footer polish is live in production and committed as `cf8dcc7 Polish public site footer`.
+- Footer now uses a compact branded card with Product/Resources/Get In Touch columns.
+- Footer links point to `#pricing`, `#how-it-works`, `#features`, and `#faq`.
 - Public site screenshot correction is live in production.
 - `www.navigrader.com` bottom CTA now uses four refreshed UI polish screenshots: Screenshots 1, 2, 4, and 5.
 - Duplicate Screenshot 3 asset/reference was removed.
@@ -16,9 +19,9 @@ Public SaaS site polish on `saas-modern-redesign`, promoted to `www.navigrader.c
   - `ce5b90c Use four public site screenshots`
 - Public footer now includes `support@navigrader.com` and `Copyright 2026, Navigrader, LLC`.
 - Public page cache key:
-  - `saas-polish.css?v=202605151056`
+  - `saas-polish.css?v=202605151106`
 - Latest public WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605151056.tgz`
+  `/var/www/home-school-management/rollback/web-202605151106.tgz`
 - Detailed dormant/data export execution plan added:
   `NOTES/dormant-data-export-end-to-end-plan.md`
 - Dormant current code records `pending_dormant`/`dormant`, can queue suspend/resume jobs, and blocks attendance/grade writes while dormant.
@@ -54,7 +57,7 @@ Public SaaS site polish on `saas-modern-redesign`, promoted to `www.navigrader.c
 
 ## Validation
 
-- Public `https://www.navigrader.com/` returned HTTP 200 and includes four refreshed screenshots, contact email, copyright line, and new CSS cache key.
+- Public `https://www.navigrader.com/` returned HTTP 200 and includes the polished footer, four footer section links, contact email, copyright line, and new CSS cache key.
 - The four intended public screenshot assets each returned HTTP 200; duplicate Screenshot 3 asset was removed from WEB001.
 - Remote WEB001 hashes matched local `web/saas.html`, `web/saas-polish.css`, and the four public screenshot assets.
 - `node --check web/app.js`
