@@ -432,12 +432,53 @@ h1 {
   box-shadow: 0 30px 82px rgba(14, 35, 68, 0.11);
 }
 
+.final-scenic-mark {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 1;
+  width: min(360px, 38%);
+  height: auto;
+  opacity: 0.88;
+  pointer-events: none;
+}
+
+.scenic-skyline {
+  fill: rgba(167, 199, 236, 0.34);
+}
+
+.scenic-water {
+  fill: rgba(126, 174, 224, 0.34);
+}
+
+.scenic-shore {
+  fill: rgba(46, 92, 145, 0.42);
+}
+
+.scenic-trees {
+  fill: rgba(36, 78, 122, 0.72);
+}
+
+.scenic-lighthouse {
+  fill: #ffffff;
+  stroke: rgba(35, 78, 132, 0.78);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.scenic-lighthouse rect {
+  fill: rgba(62, 123, 250, 0.14);
+}
+
 .final-cta-copy {
+  position: relative;
+  z-index: 2;
   align-self: center;
 }
 
 .final-cta-card h2 {
-  max-width: 9.8ch;
+  max-width: 13ch;
   margin-bottom: 0.9rem;
 }
 
@@ -527,52 +568,62 @@ h1 {
 
 .site-footer {
   position: relative;
-  overflow: hidden;
-  width: 100%;
-  margin: 0;
+  overflow: visible;
+  width: min(1460px, calc(100% - 4rem));
+  margin: 1rem auto 2rem;
   padding: 0;
-  border-top: 1px solid rgba(198, 211, 231, 0.78);
-  background:
-    linear-gradient(180deg, rgba(247, 251, 255, 0.9), rgba(255, 255, 255, 0.96) 48%, rgba(242, 248, 255, 0.82)),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(238, 248, 234, 0.36));
+  border: 0;
+  background: transparent;
   color: var(--muted);
 }
 
 .site-footer::before,
 .site-footer::after {
+  content: none;
+}
+
+.site-footer-card {
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  display: grid;
+  width: 100%;
+  margin: 0 auto;
+  grid-template-columns: minmax(320px, 1.08fr) repeat(3, minmax(180px, 1fr));
+  column-gap: 0;
+  row-gap: 0.8rem;
+  padding: 1.65rem 2rem 0.95rem;
+  border: 1px solid rgba(202, 214, 232, 0.72);
+  border-radius: 32px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 255, 0.9) 56%, rgba(238, 248, 234, 0.76)),
+    linear-gradient(180deg, #ffffff, #f5faff);
+  box-shadow: 0 24px 62px rgba(16, 32, 59, 0.11);
+}
+
+.site-footer-card::before,
+.site-footer-card::after {
   content: "";
   position: absolute;
   pointer-events: none;
 }
 
-.site-footer::before {
+.site-footer-card::before {
   right: -4rem;
   bottom: -4.8rem;
   width: min(56rem, 58vw);
-  height: 12rem;
-  opacity: 0.3;
+  height: 11rem;
+  opacity: 0.22;
   background:
     repeating-radial-gradient(ellipse at 100% 110%, transparent 0 18px, rgba(62, 123, 250, 0.18) 19px 21px, transparent 22px 36px);
 }
 
-.site-footer::after {
-  left: 0;
-  right: 0;
-  bottom: 3.6rem;
+.site-footer-card::after {
+  left: 2rem;
+  right: 2rem;
+  bottom: 3.4rem;
   height: 1px;
   background: rgba(190, 204, 226, 0.62);
-}
-
-.site-footer-card {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  width: min(1460px, calc(100% - 4rem));
-  margin: 0 auto;
-  grid-template-columns: minmax(320px, 1.1fr) repeat(3, minmax(180px, 1fr));
-  column-gap: 0;
-  row-gap: 0.8rem;
-  padding: 2.15rem 0 1rem;
 }
 
 .site-footer-brand,
@@ -584,16 +635,16 @@ h1 {
 
 .site-footer-brand img {
   display: block;
-  width: min(260px, 100%);
-  margin: 0 0 1rem;
+  width: min(245px, 100%);
+  margin: 0 0 0.72rem;
 }
 
 .site-footer-brand p {
-  max-width: 36ch;
+  max-width: 38ch;
   margin: 0;
   color: #40516d;
-  font-size: 1rem;
-  line-height: 1.46;
+  font-size: 0.96rem;
+  line-height: 1.42;
 }
 
 .site-footer-column {
@@ -609,7 +660,7 @@ h1 {
   height: 2.9rem;
   display: inline-grid;
   place-items: center;
-  margin: -0.7rem 0 0.34rem;
+  margin: -0.2rem 0 0.26rem;
   border-radius: 999px;
   background: rgba(62, 123, 250, 0.12);
   color: var(--accent);
@@ -678,8 +729,8 @@ h1 {
 
 .site-footer-bottom {
   grid-column: 1 / -1;
-  margin-top: 1.2rem;
-  padding-top: 0.85rem;
+  margin-top: 0.82rem;
+  padding-top: 0.78rem;
   color: #63718a;
   font-size: 0.84rem;
   text-align: center;
@@ -783,6 +834,11 @@ h1 {
     max-width: none;
   }
 
+  .final-scenic-mark {
+    width: min(340px, 48%);
+    opacity: 0.34;
+  }
+
   .checkout-card,
   .pricing-card,
   .story-step,
@@ -838,6 +894,11 @@ h1 {
     grid-template-rows: none;
     gap: 0.9rem;
     min-height: auto;
+  }
+
+  .final-scenic-mark {
+    width: min(280px, 74%);
+    opacity: 0.22;
   }
 
   .final-dashboard-shot,
