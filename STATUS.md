@@ -8,17 +8,14 @@ Public SaaS site polish on `saas-modern-redesign`.
 
 ## Current Focus
 
-Public `www.navigrader.com` footer polish is deployed to production and committed as `cf8dcc7 Polish public site footer`.
+Public `www.navigrader.com` footer/collage refinement is deployed to production and committed as `fce8f79 Refine public footer and screenshot collage`.
 
 ## Completed Recently
 
-- Deployed and committed `cf8dcc7 Polish public site footer`:
-  - Footer now uses a compact branded card with section links, support email, site link, and copyright.
-- Deployed public site screenshot correction:
-  - Bottom CTA now uses Screenshots 1, 2, 4, and 5; duplicate Screenshot 3 was removed.
-- Deployed and committed `8894a65 Refresh public site screenshots and footer`:
-  - Footer now includes `support@navigrader.com` and `Copyright 2026, Navigrader, LLC`.
-  - Header nav now includes Contact.
+- Deployed and committed `fce8f79 Refine public footer and screenshot collage`:
+  - Bottom CTA screenshots are back to the layered collage style on desktop and stack cleanly on mobile.
+  - Footer card is widened to match the CTA card, with tighter spacing and columns aligned with the logo wordmark.
+  - Footer includes section links, `support@navigrader.com`, `www.navigrader.com`, and `Copyright 2026, Navigrader, LLC. All rights reserved.`
 - Deployed and committed `c042e07 Polish account options copy`:
   - Account Options copy now uses parent-facing language for Dormant Mode, Reactivation, and Data Export.
   - Internal terms such as tenant lifecycle, lower-frequency actions, runtime activity, and offboarding were removed from the customer-facing surface.
@@ -53,9 +50,9 @@ Public `www.navigrader.com` footer polish is deployed to production and committe
 ## Production State
 
 - Public SaaS page:
-  - `saas-polish.css?v=202605151106`
+  - `saas-polish.css?v=202605151127`
   - Latest WEB001 rollback snapshot:
-    `/var/www/home-school-management/rollback/web-202605151106.tgz`
+    `/var/www/home-school-management/rollback/web-202605151127.tgz`
 - Live asset cache keys:
   - `styles.css?v=202605150913`
   - `app.js?v=202605150933`
@@ -64,9 +61,10 @@ Public `www.navigrader.com` footer polish is deployed to production and committe
 
 ## Validation
 
-- Public `https://www.navigrader.com/` returned HTTP 200 and includes the polished footer, footer section links, contact email, copyright line, and `saas-polish.css?v=202605151106`.
-- The four intended public screenshot assets each returned HTTP 200; duplicate Screenshot 3 asset was removed from WEB001.
-- Remote WEB001 hashes matched local `web/saas.html`, `web/saas-polish.css`, and the four public screenshot assets.
+- Public `https://www.navigrader.com/` returned HTTP 200 and includes the restored screenshot collage references, polished footer, footer section links, contact email, copyright line, and `saas-polish.css?v=202605151127`.
+- Public `https://www.navigrader.com/saas-polish.css?v=202605151127` returned HTTP 200 and includes the refined collage/footer styles.
+- The four intended public screenshot assets each returned HTTP 200.
+- Remote WEB001 hashes matched local `web/saas.html` and `web/saas-polish.css`.
 - `node --check web/app.js`
 - `git diff --check -- web/app.js web/index.html web/styles.css STATUS.md HANDOFF.md`
 - Local Web Preview returned HTTP 200 at `http://127.0.0.1:5500/?seedPreview=1`

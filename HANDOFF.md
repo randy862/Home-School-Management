@@ -4,31 +4,31 @@ Date: 2026-05-15
 
 ## Context
 
-Public SaaS site footer polish on `saas-modern-redesign`, promoted to `www.navigrader.com`.
+Public SaaS site footer/collage refinement on `saas-modern-redesign`, promoted to `www.navigrader.com`.
 
 ## Current State
 
-- Public footer polish is live in production and committed as `cf8dcc7 Polish public site footer`.
-- Footer now uses a compact branded card with Product/Resources/Get In Touch columns.
+- Public footer/collage refinement is live in production and committed as `fce8f79 Refine public footer and screenshot collage`.
+- Footer now uses a compact branded card with Product/Resources/Get In Touch columns, widened to match the CTA card.
+- Footer columns align with the Navigrader wordmark top and use tighter vertical spacing.
 - Footer links point to `#pricing`, `#how-it-works`, `#features`, and `#faq`.
-- Public site screenshot correction is live in production.
-- `www.navigrader.com` bottom CTA now uses four refreshed UI polish screenshots: Screenshots 1, 2, 4, and 5.
+- `www.navigrader.com` bottom CTA uses four refreshed UI polish screenshots in the restored layered collage style.
 - Duplicate Screenshot 3 asset/reference was removed.
 - Public correction commits:
   - `fd79a99 Remove duplicate public site screenshot`
   - `ce5b90c Use four public site screenshots`
 - Public footer now includes `support@navigrader.com` and `Copyright 2026, Navigrader, LLC`.
 - Public page cache key:
-  - `saas-polish.css?v=202605151106`
+  - `saas-polish.css?v=202605151127`
 - Latest public WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605151106.tgz`
+  `/var/www/home-school-management/rollback/web-202605151127.tgz`
 - Detailed dormant/data export execution plan added:
   `NOTES/dormant-data-export-end-to-end-plan.md`
 - Dormant current code records `pending_dormant`/`dormant`, can queue suspend/resume jobs, and blocks attendance/grade writes while dormant.
 - Dormant does not yet update Stripe to a reduced recurring price, apply pending dormant at the billing boundary, or restore Stripe pricing on reactivation.
 - Data Export current code records a `$19.99` `pending_payment` request, but checkout/payment, export job, artifact generation, secure download, expiration, and retry handling are not complete.
 - Account Options copy polish is live in production and removes internal customer-facing terms around lifecycle/runtime/offboarding.
-- Latest production code commit: `c042e07 Polish account options copy`.
+- Latest production code commit: `fce8f79 Refine public footer and screenshot collage`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
   - `styles.css?v=202605150913`
@@ -57,9 +57,10 @@ Public SaaS site footer polish on `saas-modern-redesign`, promoted to `www.navig
 
 ## Validation
 
-- Public `https://www.navigrader.com/` returned HTTP 200 and includes the polished footer, four footer section links, contact email, copyright line, and new CSS cache key.
-- The four intended public screenshot assets each returned HTTP 200; duplicate Screenshot 3 asset was removed from WEB001.
-- Remote WEB001 hashes matched local `web/saas.html`, `web/saas-polish.css`, and the four public screenshot assets.
+- Public `https://www.navigrader.com/` returned HTTP 200 and includes the restored screenshot collage references, polished footer, four footer section links, contact email, copyright line, and new CSS cache key.
+- Public `https://www.navigrader.com/saas-polish.css?v=202605151127` returned HTTP 200 and includes the refined collage/footer styles.
+- The four intended public screenshot assets each returned HTTP 200.
+- Remote WEB001 hashes matched local `web/saas.html` and `web/saas-polish.css`.
 - `node --check web/app.js`
 - `git diff --check -- web/app.js web/index.html web/styles.css STATUS.md HANDOFF.md`
 - Local Web Preview returned HTTP 200 at `http://127.0.0.1:5500/?seedPreview=1`
