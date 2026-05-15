@@ -8,10 +8,13 @@ UI polish and workflow refinement on `saas-modern-redesign`.
 
 ## Current Focus
 
-Global consistency polish is deployed to production and committed as `34743f5 Polish workspace consistency surfaces`.
+Operational tab styling polish is deployed to production and committed as `677417b Polish operational tab styling`.
 
 ## Completed Recently
 
+- Deployed and committed `677417b Polish operational tab styling`:
+  - Dashboard, Dashboard Compliance, Grades, and Attendance tabs now use the flat underline tab style used by School Day.
+  - Calendar, Administration, Curriculum, and Schedule setup/config tab styles were intentionally left unchanged.
 - Deployed and committed `34743f5 Polish workspace consistency surfaces`:
   - Students now has active, required-gap, and archived summary chips.
   - Curriculum now has subject, course, class, and required-subject summary chips.
@@ -35,10 +38,10 @@ Global consistency polish is deployed to production and committed as `34743f5 Po
 ## Production State
 
 - Live asset cache keys:
-  - `styles.css?v=202605150849`
+  - `styles.css?v=202605150913`
   - `app.js?v=202605150849`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605150849.tgz`
+  `/var/www/home-school-management/rollback/web-202605150913.tgz`
 
 ## Validation
 
@@ -48,8 +51,8 @@ Global consistency polish is deployed to production and committed as `34743f5 Po
 - PowerShell parser checks for `scripts/Test-HostedSmoke.ps1` and `scripts/Invoke-HostedReleaseGate.ps1`
 - Public health endpoint returned `{"ok":true}`
 - WEB001 Apache config syntax OK and Apache service active
-- Remote WEB001 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`
-- Live HTML references `styles.css?v=202605150849` and `app.js?v=202605150849`
+- Remote WEB001 hashes matched local `web/index.html` and `web/styles.css`
+- Live HTML references `styles.css?v=202605150913` and `app.js?v=202605150849`
 
 ## Current Blockers
 
