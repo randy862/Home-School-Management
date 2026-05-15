@@ -4,71 +4,58 @@ Date: 2026-05-15
 
 ## Context
 
-Public SaaS site closing-card blend correction on `saas-modern-redesign`, promoted to `www.navigrader.com`.
+Public-site polish has been promoted to `www.navigrader.com`. The next phase moves back to product/platform priorities: authenticated release gates, Account Profile upgrade wiring, Dormant Mode, Data Export, backend hardening, tenant/runtime correctness, and deeper workflow QA.
 
 ## Current State
 
-- Public closing-card blend correction is live in production and committed as `6fd203e Blend public closing cards`.
-- Bottom CTA keeps the screenshot collage and removes the extra CTA logo.
-- Lighthouse/coastal graphic and extra line-pattern decoration were removed.
-- CTA and footer use connected top/bottom card corners so they read as one blended closing unit.
-- Footer keeps the Navigrader logo, Product/Resources/Get In Touch columns, icon badges, contact details, and copyright.
-- Footer links point to `#pricing`, `#how-it-works`, `#features`, and `#faq`.
-- `www.navigrader.com` bottom CTA uses four refreshed UI polish screenshots in the restored layered collage style.
-- Duplicate Screenshot 3 asset/reference was removed.
-- Public correction commits:
-  - `fd79a99 Remove duplicate public site screenshot`
-  - `ce5b90c Use four public site screenshots`
-- Public footer now includes `support@navigrader.com` and `Copyright 2026, Navigrader, LLC`.
+- Public SaaS closing-card blend correction is live in production and committed as `6fd203e Blend public closing cards`.
 - Public page cache key:
   - `saas-polish.css?v=202605151220`
 - Latest public WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605151220.tgz`
-- Detailed dormant/data export execution plan added:
-  `NOTES/dormant-data-export-end-to-end-plan.md`
-- Dormant current code records `pending_dormant`/`dormant`, can queue suspend/resume jobs, and blocks attendance/grade writes while dormant.
-- Dormant does not yet update Stripe to a reduced recurring price, apply pending dormant at the billing boundary, or restore Stripe pricing on reactivation.
-- Data Export current code records a `$19.99` `pending_payment` request, but checkout/payment, export job, artifact generation, secure download, expiration, and retry handling are not complete.
-- Account Options copy polish is live in production and removes internal customer-facing terms around lifecycle/runtime/offboarding.
-- Latest production code commit: `6fd203e Blend public closing cards`.
-- WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
-- Live asset cache keys:
-  - `styles.css?v=202605150913`
-  - `app.js?v=202605150933`
-- Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605150933.tgz`
-- Latest production changes:
-  - Account Options copy now uses parent-facing language for Dormant Mode, Reactivation, and Data Export.
-  - Dashboard, Dashboard Compliance, Grades, and Attendance tabs now use the flat underline tab style used by School Day.
-  - Calendar, Administration, Curriculum, and Schedule setup/config tab styles were intentionally left unchanged.
+  - `/var/www/home-school-management/rollback/web-202605151220.tgz`
+- Public footer includes `support@navigrader.com`, `www.navigrader.com`, and `Copyright 2026, Navigrader, LLC. All rights reserved.`
+- Public CTA/footer are visually blended, use the restored screenshot collage, and no longer include scenic/lighthouse graphics.
+- Account Options copy polish is live and removes internal terms around tenant lifecycle/runtime/offboarding.
+- Account Profile, Account Options, upgrade, dormant, and export UI surfaces exist, but commercial flows are not end-to-end complete.
+- Dormant currently records `pending_dormant`/`dormant`, can queue suspend/resume jobs, and blocks attendance/grade writes while dormant.
+- Dormant still needs reduced Stripe recurring pricing, billing-boundary processing, full reactivation billing restore, and broader write-block validation.
+- Data Export currently records a `$19.99` `pending_payment` request, but checkout/payment, export job, secure artifact, download, expiration, and retry handling remain incomplete.
+- Detailed dormant/export plan:
+  - `NOTES/dormant-data-export-end-to-end-plan.md`
+- Detailed next-efforts plan:
+  - `NOTES/product-platform-next-efforts-plan.md`
 
 ## Next Action
 
-1. If public site feedback arrives, review `web/saas.html` and `web/saas-polish.css`.
-2. Otherwise resume from `NOTES/dormant-data-export-end-to-end-plan.md`.
-3. Start dormant billing with control-plane migration and Stripe service methods.
-4. Confirm reactivation billing policy: immediate invoice, proration, or next-invoice adjustment.
+1. Set production-safe smoke credentials outside the repo:
+   - `HSM_HOSTED_SMOKE_USERNAME`
+   - `HSM_HOSTED_SMOKE_PASSWORD`
+   - `HSM_CONTROL_SMOKE_USERNAME`
+   - `HSM_CONTROL_SMOKE_PASSWORD`
+2. Run:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\Test-HostedSmoke.ps1 -BaseUrl https://mitchell.navigrader.com
+   powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -PublicBaseUrl https://mitchell.navigrader.com
+   ```
+3. Start implementation with Account Profile upgrade:
+   ```powershell
+   rg -n "subscription/upgrade|upgradeHostedSubscription|upgrade|stripe.*subscription|customer.subscription.updated" web server control-api
+   ```
+4. Then continue Dormant Mode and Data Export from `NOTES/product-platform-next-efforts-plan.md`.
 
 ## Risks
 
-- Dormant/Data Export backend flows are not end-to-end complete; continue from the execution plan before further lifecycle feature claims.
-- Authenticated hosted smoke still needs valid production tenant credentials.
-- Public production health passed, and live HTML references the expected cache keys.
+- Authenticated hosted smoke is blocked until valid production-safe credentials exist.
+- Do not use real family data for mutating QA.
+- Do not store smoke credentials or Stripe secrets in repo files.
+- Dormant/Data Export/Upgrade should not be described as complete until Stripe, webhook, backend state, UI, and QA gates are fully wired.
 - Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside commits.
-- Browser cache may need a hard refresh to show current assets.
 
 ## Validation
 
-- Public `https://www.navigrader.com/` returned HTTP 200 and includes no scenic mark, contained footer, footer logo, contact email, copyright line, and new CSS cache key.
-- Public `https://www.navigrader.com/saas-polish.css?v=202605151220` returned HTTP 200 and includes the connected CTA/footer card styling with no line-pattern graphic.
-- The four intended public screenshot assets each returned HTTP 200.
+- Public `https://www.navigrader.com/` returned HTTP 200 and includes the expected cache key, no scenic mark, footer logo, contact email, and copyright.
+- Public `https://www.navigrader.com/saas-polish.css?v=202605151220` returned HTTP 200 and includes connected CTA/footer card styling with no line-pattern graphic.
 - Remote WEB001 hashes matched local `web/saas.html` and `web/saas-polish.css`.
-- `node --check web/app.js`
-- `git diff --check -- web/app.js web/index.html web/styles.css STATUS.md HANDOFF.md`
-- Local Web Preview returned HTTP 200 at `http://127.0.0.1:5500/?seedPreview=1`
-- PowerShell parser checks for hosted smoke and release-gate scripts
-- Public health returned `{"ok":true}` for `https://mitchell.navigrader.com/health`
-- WEB001 Apache config syntax OK and Apache service active
-- Remote WEB001 hashes matched local `web/index.html` and `web/app.js`
-- Live HTML references `styles.css?v=202605150913` and `app.js?v=202605150933`
-- Authenticated hosted smoke was not run because `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` are not set in this shell.
+- WEB001 Apache config syntax OK and Apache service active.
+- Public health returned `{"ok":true}` for `https://mitchell.navigrader.com/health`.
+- Authenticated hosted smoke was not run because production smoke credentials are not set in this shell.
