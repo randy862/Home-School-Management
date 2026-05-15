@@ -4,7 +4,7 @@ Date: 2026-05-15
 
 ## Context
 
-Commercial subscription lifecycle planning on `saas-modern-redesign`, following Account Options copy review.
+Account Options copy polish on `saas-modern-redesign`, promoted to production after preview approval.
 
 ## Current State
 
@@ -13,15 +13,16 @@ Commercial subscription lifecycle planning on `saas-modern-redesign`, following 
 - Dormant current code records `pending_dormant`/`dormant`, can queue suspend/resume jobs, and blocks attendance/grade writes while dormant.
 - Dormant does not yet update Stripe to a reduced recurring price, apply pending dormant at the billing boundary, or restore Stripe pricing on reactivation.
 - Data Export current code records a `$19.99` `pending_payment` request, but checkout/payment, export job, artifact generation, secure download, expiration, and retry handling are not complete.
-- Account Options wording edits in `web/index.html` and `web/app.js` are local preview changes only and should be reviewed before staging because the backend feature set is incomplete.
-- Latest production code commit: `677417b Polish operational tab styling`.
+- Account Options copy polish is live in production and removes internal customer-facing terms around lifecycle/runtime/offboarding.
+- Latest production code commit: `c042e07 Polish account options copy`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
   - `styles.css?v=202605150913`
-  - `app.js?v=202605150849`
+  - `app.js?v=202605150933`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605150913.tgz`
+  `/var/www/home-school-management/rollback/web-202605150933.tgz`
 - Latest production changes:
+  - Account Options copy now uses parent-facing language for Dormant Mode, Reactivation, and Data Export.
   - Dashboard, Dashboard Compliance, Grades, and Attendance tabs now use the flat underline tab style used by School Day.
   - Calendar, Administration, Curriculum, and Schedule setup/config tab styles were intentionally left unchanged.
 
@@ -34,8 +35,7 @@ Commercial subscription lifecycle planning on `saas-modern-redesign`, following 
 
 ## Risks
 
-- Do not promise reduced dormant billing in production copy until Stripe-side dormant pricing is implemented.
-- Data Export is currently request tracking only, not paid checkout or downloadable export delivery.
+- Dormant/Data Export backend flows are not end-to-end complete; continue from the execution plan before further lifecycle feature claims.
 - Authenticated hosted smoke still needs valid production tenant credentials.
 - Public production health passed, and live HTML references the expected cache keys.
 - Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside commits.
@@ -49,6 +49,6 @@ Commercial subscription lifecycle planning on `saas-modern-redesign`, following 
 - PowerShell parser checks for hosted smoke and release-gate scripts
 - Public health returned `{"ok":true}` for `https://mitchell.navigrader.com/health`
 - WEB001 Apache config syntax OK and Apache service active
-- Remote WEB001 hashes matched local `web/index.html` and `web/styles.css`
-- Live HTML references `styles.css?v=202605150913` and `app.js?v=202605150849`
+- Remote WEB001 hashes matched local `web/index.html` and `web/app.js`
+- Live HTML references `styles.css?v=202605150913` and `app.js?v=202605150933`
 - Authenticated hosted smoke was not run because `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` are not set in this shell.

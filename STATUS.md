@@ -8,10 +8,14 @@ Commercial subscription lifecycle planning on `saas-modern-redesign`.
 
 ## Current Focus
 
-Dormant Mode and Data Export end-to-end execution plan is drafted in `NOTES/dormant-data-export-end-to-end-plan.md`.
+Account Options copy polish is deployed to production and committed as `c042e07 Polish account options copy`.
 
 ## Completed Recently
 
+- Deployed and committed `c042e07 Polish account options copy`:
+  - Account Options copy now uses parent-facing language for Dormant Mode, Reactivation, and Data Export.
+  - Internal terms such as tenant lifecycle, lower-frequency actions, runtime activity, and offboarding were removed from the customer-facing surface.
+  - Dormant/Data Export backend completion remains tracked in `NOTES/dormant-data-export-end-to-end-plan.md`.
 - Drafted dormant/data export execution plan:
   - Dormant gaps: Stripe reduced pricing, period-boundary processor, full reactivation billing restore, expanded write-block review.
   - Data Export gaps: one-time checkout, webhook, export job, CSV bundle, secure download, expiration, operator retry/status.
@@ -43,9 +47,9 @@ Dormant Mode and Data Export end-to-end execution plan is drafted in `NOTES/dorm
 
 - Live asset cache keys:
   - `styles.css?v=202605150913`
-  - `app.js?v=202605150849`
+  - `app.js?v=202605150933`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605150913.tgz`
+  `/var/www/home-school-management/rollback/web-202605150933.tgz`
 
 ## Validation
 
@@ -55,8 +59,8 @@ Dormant Mode and Data Export end-to-end execution plan is drafted in `NOTES/dorm
 - PowerShell parser checks for `scripts/Test-HostedSmoke.ps1` and `scripts/Invoke-HostedReleaseGate.ps1`
 - Public health endpoint returned `{"ok":true}`
 - WEB001 Apache config syntax OK and Apache service active
-- Remote WEB001 hashes matched local `web/index.html` and `web/styles.css`
-- Live HTML references `styles.css?v=202605150913` and `app.js?v=202605150849`
+- Remote WEB001 hashes matched local `web/index.html` and `web/app.js`
+- Live HTML references `styles.css?v=202605150913` and `app.js?v=202605150933`
 
 ## Current Blockers
 
@@ -64,8 +68,7 @@ Dormant Mode and Data Export end-to-end execution plan is drafted in `NOTES/dorm
 
 ## Current Risks
 
-- Account Options wording edits in `web/index.html` and `web/app.js` are local preview changes only and should be reviewed before staging because Dormant/Data Export are not end-to-end complete.
-- Do not promise reduced dormant billing in production copy until Stripe-side dormant pricing is implemented.
+- Dormant/Data Export backend flows are not end-to-end complete; continue from `NOTES/dormant-data-export-end-to-end-plan.md`.
 - Authenticated production smoke requires valid production tenant credentials.
 - Browser cache may require a hard refresh before the newest web assets display.
 - Untracked local scratch assets remain outside committed work.
