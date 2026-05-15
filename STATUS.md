@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-14
+Date: 2026-05-15
 
 ## Active Workstream
 
@@ -8,10 +8,17 @@ UI polish and workflow refinement on `saas-modern-redesign`.
 
 ## Current Focus
 
-Account/Billing polish is deployed to production and committed. The session is being closed with the next UI polish steps journaled for resume.
+Global consistency polish is deployed to production and committed as `34743f5 Polish workspace consistency surfaces`.
 
 ## Completed Recently
 
+- Deployed and committed `34743f5 Polish workspace consistency surfaces`:
+  - Students now has active, required-gap, and archived summary chips.
+  - Curriculum now has subject, course, class, and required-subject summary chips.
+  - Schedule now has current year, instructional day, and schedule block summary chips.
+  - Student Detail now has a compact student overview, schedule/required/grade/absence chips, and clearer add-scheduled-item actions.
+  - Curriculum and Schedule setup sections now have compact headings, concise operational copy, and live setup status badges.
+  - Shared responsive header styling was added for these setup surfaces.
 - Deployed and committed `2fa0b01 Polish account billing surfaces`:
   - Account modal now has a compact plan/subscription/site summary strip.
   - Local Web Preview shows a realistic Starter subscription and upgrade options.
@@ -28,18 +35,21 @@ Account/Billing polish is deployed to production and committed. The session is b
 ## Production State
 
 - Live asset cache keys:
-  - `styles.css?v=202605142310`
-  - `app.js?v=202605142310`
+  - `styles.css?v=202605150849`
+  - `app.js?v=202605150849`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605142316.tgz`
+  `/var/www/home-school-management/rollback/web-202605150849.tgz`
 
 ## Validation
 
 - `node --check web/app.js`
+- `git diff --check -- web/app.js web/index.html web/styles.css STATUS.md HANDOFF.md`
+- Local Web Preview returned HTTP 200 at `http://127.0.0.1:5500/?seedPreview=1`
 - PowerShell parser checks for `scripts/Test-HostedSmoke.ps1` and `scripts/Invoke-HostedReleaseGate.ps1`
-- `git diff --check` on touched release files
 - Public health endpoint returned `{"ok":true}`
-- Live HTML references the expected CSS and JS cache keys
+- WEB001 Apache config syntax OK and Apache service active
+- Remote WEB001 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`
+- Live HTML references `styles.css?v=202605150849` and `app.js?v=202605150849`
 
 ## Current Blockers
 
@@ -53,6 +63,4 @@ Account/Billing polish is deployed to production and committed. The session is b
 
 ## Next Actions
 
-1. Global consistency sweep in Web Preview.
-2. Student Detail deeper polish.
-3. Curriculum / Schedule setup microcopy and density pass.
+1. Continue polish from production/preview feedback.

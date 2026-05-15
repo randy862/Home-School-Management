@@ -1,33 +1,30 @@
 # Session Handoff
 
-Date: 2026-05-14
+Date: 2026-05-15
 
 ## Context
 
-UI polish workstream on `saas-modern-redesign`. The approved Account/Billing polish was promoted to production and committed.
+UI polish workstream on `saas-modern-redesign`. Global consistency polish was promoted to production.
 
 ## Current State
 
-- Latest production code commit: `2fa0b01 Polish account billing surfaces`.
+- Latest production code commit: `34743f5 Polish workspace consistency surfaces`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
-  - `styles.css?v=202605142310`
-  - `app.js?v=202605142310`
+  - `styles.css?v=202605150849`
+  - `app.js?v=202605150849`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605142316.tgz`
-- Account/Billing production changes now include:
-  - Preview-mode subscription summary with Starter, Growth, and Co-op Pro pricing.
-  - Compact Account summary strip for plan, subscription, and site status.
-  - Cleaner subscription card with usage, billing period, and pricing details.
-  - Richer Available Upgrades cards with plan-specific accents and stronger CTAs.
-  - Hosted smoke and release-gate scripts can read credentials from environment variables.
+  `/var/www/home-school-management/rollback/web-202605150849.tgz`
+- Global consistency production changes include:
+  - Students, Curriculum, Schedule, and Student Detail compact headers with live summary chips.
+  - Student Detail overview with scheduled/required/average/absence status.
+  - Curriculum and Schedule setup section headings with concise copy and live status badges.
+  - Responsive styling for the new compact headers and badges.
 
 ## Next Action
 
-1. Start Step 2: Global consistency sweep in Web Preview.
-2. Then Step 3: Student Detail deeper polish.
-3. Then Step 4: Curriculum / Schedule setup microcopy and density pass.
-4. Promote future UI changes only after Web Preview approval.
+1. Continue polish from production/preview feedback.
+2. Promote future UI changes only after Web Preview approval.
 
 ## Risks
 
@@ -39,7 +36,11 @@ UI polish workstream on `saas-modern-redesign`. The approved Account/Billing pol
 ## Validation
 
 - `node --check web/app.js`
+- `git diff --check -- web/app.js web/index.html web/styles.css STATUS.md HANDOFF.md`
+- Local Web Preview returned HTTP 200 at `http://127.0.0.1:5500/?seedPreview=1`
 - PowerShell parser checks for hosted smoke and release-gate scripts
-- `git diff --check` on touched release files
 - Public health returned `{"ok":true}` for `https://mitchell.navigrader.com/health`
-- Live HTML references `styles.css?v=202605142310` and `app.js?v=202605142310`
+- WEB001 Apache config syntax OK and Apache service active
+- Remote WEB001 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`
+- Live HTML references `styles.css?v=202605150849` and `app.js?v=202605150849`
+- Authenticated hosted smoke was not run because `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` are not set in this shell.
