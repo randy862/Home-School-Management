@@ -4,14 +4,18 @@ Date: 2026-05-15
 
 ## Active Workstream
 
-UI polish and workflow refinement on `saas-modern-redesign`.
+Commercial subscription lifecycle planning on `saas-modern-redesign`.
 
 ## Current Focus
 
-Operational tab styling polish is deployed to production and committed as `677417b Polish operational tab styling`.
+Dormant Mode and Data Export end-to-end execution plan is drafted in `NOTES/dormant-data-export-end-to-end-plan.md`.
 
 ## Completed Recently
 
+- Drafted dormant/data export execution plan:
+  - Dormant gaps: Stripe reduced pricing, period-boundary processor, full reactivation billing restore, expanded write-block review.
+  - Data Export gaps: one-time checkout, webhook, export job, CSV bundle, secure download, expiration, operator retry/status.
+  - Recommended next slice: dormant control-plane migration and Stripe service methods.
 - Deployed and committed `677417b Polish operational tab styling`:
   - Dashboard, Dashboard Compliance, Grades, and Attendance tabs now use the flat underline tab style used by School Day.
   - Calendar, Administration, Curriculum, and Schedule setup/config tab styles were intentionally left unchanged.
@@ -60,10 +64,14 @@ Operational tab styling polish is deployed to production and committed as `67741
 
 ## Current Risks
 
+- Account Options wording edits in `web/index.html` and `web/app.js` are local preview changes only and should be reviewed before staging because Dormant/Data Export are not end-to-end complete.
+- Do not promise reduced dormant billing in production copy until Stripe-side dormant pricing is implemented.
 - Authenticated production smoke requires valid production tenant credentials.
 - Browser cache may require a hard refresh before the newest web assets display.
 - Untracked local scratch assets remain outside committed work.
 
 ## Next Actions
 
-1. Continue polish from production/preview feedback.
+1. Resume from `NOTES/dormant-data-export-end-to-end-plan.md`.
+2. Confirm dormant reactivation billing policy.
+3. Start dormant implementation with control-plane migration and Stripe service methods.

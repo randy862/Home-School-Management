@@ -4,10 +4,16 @@ Date: 2026-05-15
 
 ## Context
 
-UI polish workstream on `saas-modern-redesign`. Operational tab styling polish was promoted to production.
+Commercial subscription lifecycle planning on `saas-modern-redesign`, following Account Options copy review.
 
 ## Current State
 
+- Detailed dormant/data export execution plan added:
+  `NOTES/dormant-data-export-end-to-end-plan.md`
+- Dormant current code records `pending_dormant`/`dormant`, can queue suspend/resume jobs, and blocks attendance/grade writes while dormant.
+- Dormant does not yet update Stripe to a reduced recurring price, apply pending dormant at the billing boundary, or restore Stripe pricing on reactivation.
+- Data Export current code records a `$19.99` `pending_payment` request, but checkout/payment, export job, artifact generation, secure download, expiration, and retry handling are not complete.
+- Account Options wording edits in `web/index.html` and `web/app.js` are local preview changes only and should be reviewed before staging because the backend feature set is incomplete.
 - Latest production code commit: `677417b Polish operational tab styling`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
@@ -21,11 +27,15 @@ UI polish workstream on `saas-modern-redesign`. Operational tab styling polish w
 
 ## Next Action
 
-1. Continue polish from production/preview feedback.
-2. Promote future UI changes only after Web Preview approval.
+1. Resume from `NOTES/dormant-data-export-end-to-end-plan.md`.
+2. Start with dormant billing: control-plane migration for dormant Stripe price metadata and transition timestamps.
+3. Add Stripe service methods for dormant price apply/restore with tests.
+4. Confirm reactivation billing policy: immediate invoice, proration, or next-invoice adjustment.
 
 ## Risks
 
+- Do not promise reduced dormant billing in production copy until Stripe-side dormant pricing is implemented.
+- Data Export is currently request tracking only, not paid checkout or downloadable export delivery.
 - Authenticated hosted smoke still needs valid production tenant credentials.
 - Public production health passed, and live HTML references the expected cache keys.
 - Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside commits.
