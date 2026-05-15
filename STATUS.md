@@ -8,13 +8,14 @@ Public SaaS site polish on `saas-modern-redesign`.
 
 ## Current Focus
 
-Public `www.navigrader.com` closing-section redesign is deployed to production and committed as `a8e6310 Redesign public site closing sections`.
+Public `www.navigrader.com` closing-section containment correction is deployed to production and committed as `cac294f Contain public footer closing section`.
 
 ## Completed Recently
 
-- Deployed and committed `a8e6310 Redesign public site closing sections`:
-  - Bottom CTA now emphasizes `Teach More.` / `Manage Less.` with green accent text, keeps the screenshot collage, and removes the extra CTA logo.
-  - Footer is now a full-width closing band with Navigrader logo, Product/Resources/Get In Touch columns, icon badges, contact details, and copyright.
+- Deployed and committed `cac294f Contain public footer closing section`:
+  - Bottom CTA now includes a subtle lighthouse/coastal scenic mark, keeps the screenshot collage, and removes the extra CTA logo.
+  - Footer is back inside the same site content width, with a contained blended card instead of a full-width white band.
+  - Footer keeps the Navigrader logo, Product/Resources/Get In Touch columns, icon badges, contact details, and copyright.
 - Previously deployed public footer/collage polish remains active:
   - Bottom CTA screenshots are back to the layered collage style on desktop and stack cleanly on mobile.
   - Footer includes section links, `support@navigrader.com`, `www.navigrader.com`, and `Copyright 2026, Navigrader, LLC. All rights reserved.`
@@ -52,9 +53,9 @@ Public `www.navigrader.com` closing-section redesign is deployed to production a
 ## Production State
 
 - Public SaaS page:
-  - `saas-polish.css?v=202605151201`
+  - `saas-polish.css?v=202605151211`
   - Latest WEB001 rollback snapshot:
-    `/var/www/home-school-management/rollback/web-202605151201.tgz`
+    `/var/www/home-school-management/rollback/web-202605151211.tgz`
 - Live asset cache keys:
   - `styles.css?v=202605150913`
   - `app.js?v=202605150933`
@@ -63,8 +64,8 @@ Public `www.navigrader.com` closing-section redesign is deployed to production a
 
 ## Validation
 
-- Public `https://www.navigrader.com/` returned HTTP 200 and includes `saas-polish.css?v=202605151201`, green CTA accent title, no CTA logo, footer logo, footer icon badges, contact email, and copyright.
-- Public `https://www.navigrader.com/saas-polish.css?v=202605151201` returned HTTP 200 and includes the closing CTA/footer redesign styles.
+- Public `https://www.navigrader.com/` returned HTTP 200 and includes `saas-polish.css?v=202605151211`, the scenic CTA mark, footer logo, contact email, and copyright.
+- Public `https://www.navigrader.com/saas-polish.css?v=202605151211` returned HTTP 200 and includes contained footer card styling and scenic CTA styles.
 - The four intended public screenshot assets each returned HTTP 200.
 - Remote WEB001 hashes matched local `web/saas.html` and `web/saas-polish.css`.
 - `node --check web/app.js`
