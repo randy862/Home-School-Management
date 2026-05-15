@@ -4716,7 +4716,7 @@ function renderAccountOptionsSurface() {
       <article class="account-option-tile">
         <div>
           <h4>Dormant Mode</h4>
-          <p class="muted">Pause normal tenant activity after the current billing period while preserving history.</p>
+          <p class="muted">Lower billing during inactive periods while keeping your records, settings, and history for next school year.</p>
         </div>
         <button id="account-dormant-btn" type="button">Make Account Dormant</button>
       </article>
@@ -4725,16 +4725,16 @@ function renderAccountOptionsSurface() {
       <article class="account-option-tile">
         <div>
           <h4>Reactivate Site</h4>
-          <p class="muted">Clear dormant handling and return the tenant to normal operating status.</p>
+          <p class="muted">Return your account to active use and resume regular billing and day-to-day features.</p>
         </div>
-        <button id="account-reactivate-btn" type="button">Make Account Active</button>
+        <button id="account-reactivate-btn" type="button">Reactivate Account</button>
       </article>
     ` : "",
     permissions.canRequestExport ? `
       <article class="account-option-tile">
         <div>
           <h4>Data Export</h4>
-          <p class="muted">Create an export request for offboarding, archive, or support follow-up.</p>
+          <p class="muted">Download a copy of your homeschool records for your own files, backup, or transfer.</p>
         </div>
         <button id="account-export-btn" type="button">Request Data Export</button>
       </article>
@@ -4745,7 +4745,7 @@ function renderAccountOptionsSurface() {
     <section class="account-card account-card-actions">
       <div class="account-card-heading">
         <h3>Account Options</h3>
-        <p class="muted">Lower-frequency lifecycle actions live here so the main account view can stay focused on profile and subscription detail.</p>
+        <p class="muted">Use these options when your homeschool is taking a break or you need a copy of your records.</p>
       </div>
       <div class="account-lifecycle-note">${escapeHtml(buildAccountLifecycleHelpText(dormantStatus))}</div>
       <div class="account-option-grid">${optionTiles}</div>
@@ -4758,7 +4758,7 @@ function renderAccountOptionsSurface() {
       renderAccountOptionsSurface();
       return;
     }
-    const confirmed = window.confirm("Make this tenant account dormant after the current billing period? Dormant status pauses normal academic activity until the subscription is reactivated.");
+    const confirmed = window.confirm("Make this account dormant after the current billing period? Dormant mode can lower billing during inactive periods while keeping your records and settings.");
     if (!confirmed) return;
     try {
       const result = await requestHostedDormantStatus();
@@ -4777,7 +4777,7 @@ function renderAccountOptionsSurface() {
       renderAccountOptionsSurface();
       return;
     }
-    const confirmed = window.confirm("Make this tenant account active again? This clears dormant handling and resumes normal activity immediately when the site is already dormant.");
+    const confirmed = window.confirm("Reactivate this account? This resumes regular billing and day-to-day features.");
     if (!confirmed) return;
     try {
       const result = await requestHostedReactivation();
@@ -4796,7 +4796,7 @@ function renderAccountOptionsSurface() {
       renderAccountOptionsSurface();
       return;
     }
-    const confirmed = window.confirm("Create a paid data export request for this account? The request will be recorded now and the payment/delivery flow will follow in a later slice.");
+    const confirmed = window.confirm("Request a data export for this account? We will record the request and follow up with payment and delivery details.");
     if (!confirmed) return;
     try {
       const result = await requestHostedExportRequest();
@@ -4813,9 +4813,9 @@ function renderAccountOptionsSurface() {
 
 function buildAccountLifecycleHelpText(dormantStatus) {
   if (["dormant", "pending_dormant", "pending_reactivation"].includes(dormantStatus)) {
-    return "This site is currently in dormant handling. Make Account Active to resume normal activity or clear a pending dormant transition. Export requests still create a paid offboarding/export record for follow-up processing.";
+    return "This account is in dormant mode. Your records and setup are being kept, billing is reduced for the inactive period, and you can reactivate when you are ready to use Navigrader again. Data export is still available if you need a copy of your records.";
   }
-  return "Dormant keeps the tenant history intact but pauses normal runtime activity. Export requests create a paid offboarding/export record for follow-up processing.";
+  return "Dormant mode can lower billing during inactive periods, such as summer break, while keeping your records, settings, and history ready for next school year. Data export lets you download your account records for your own files.";
 }
 
 function renderAccountUpgradeSurface() {
