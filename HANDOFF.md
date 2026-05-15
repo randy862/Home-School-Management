@@ -4,79 +4,46 @@ Date: 2026-05-14
 
 ## Context
 
-UI polish workstream for School Day, Dashboard/Execution gauges, Grades, Calendar, and Student required-subject compliance navigation on `saas-modern-redesign`.
+UI polish workstream on `saas-modern-redesign`, currently focused on approved Reports and Administration / Workspace Configuration polish.
 
 ## Current State
 
-- Latest production code commit: `c626fe4 Skip archived students in required compliance`.
+- Latest production code commit: `942968d Polish reports and administration workspace`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
-  - `styles.css?v=202605141618`
-  - `app.js?v=202605141618`
+  - `styles.css?v=202605142214`
+  - `app.js?v=202605142214`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605141618.tgz`
-- Production validation after latest deploy:
-  - Apache config syntax OK
-  - Apache active
-  - public health returned `200`
-  - live HTML references the latest CSS and JS cache keys
-- School Day improvements now deployed:
-  - collapsed filter area
-  - compact schedule command/meta row
-  - distinct mode tabs vs. filter chips
-  - compact responsive Daily Schedule rows
-  - right-aligned grade action controls
-  - grade buttons readable on smaller laptop width
-- Dashboard/Execution improvements now deployed:
-  - responsive laptop compaction for gauge rows
-  - original gauge value spacing restored
-  - stacked Class Status values restored
-  - wide desktop behavior left intact
-- Grades improvements now deployed:
-  - compact Grade Entry workbench header
-  - `Add Grade Row` action aligned with the header
-  - Grade Search filters collapsed by default
-- Student compliance workflow improvements now deployed:
-  - missing required-subject chips are actionable
-  - missing required-subject rows include `Find Item`
-  - Scheduled Item picker opens with matching items highlighted
-  - archived students are not evaluated for required-subject compliance or shown with Fix Enrollment
-- Compliance Required Subjects links now mirror Missing Required Subjects navigation:
-  - one matching student opens that student's enrollment workflow
-  - multiple matching students open the filtered Students list
-- Planning / Scheduled Items improvements now deployed:
-  - Instruction Plans surface is retired from the Schedule tabs while legacy data/API remain dormant
-  - Courses, Classes, Schedule Blocks, and Student Scheduled Items show compact School Day source metadata
-  - School Day Readiness panels flag setup gaps for courses, classes, required subjects, students, and schedule blocks
-  - Review Courses and Review Classes now filter to zero-enrollment rows and show active filter strips
-  - Review Blocks now filters to unassigned schedule blocks and Schedule Blocks shows assigned active-student count
-- Attendance search polish is now deployed:
-  - Attendance entry header/action is cleaner
-  - Attendance filters collapse by default
-  - attendance records show compact Present/Absent status pills
-- Calendar polish is now deployed:
-  - filters collapse into a compact drawer
-  - Month/Week/Day use a segmented view switch instead of a bulky dropdown
-  - month/week cells list scheduled students with expandable class details and drill-ins
-  - active date range is shown as a compact header pill
+  `/var/www/home-school-management/rollback/web-202605142214.tgz`
+- Recently deployed UI polish now includes:
+  - School Day workflow compaction and right-aligned grade actions
+  - Dashboard/Execution responsive gauge cleanup
+  - Grades and Attendance search compaction
+  - Student compliance workflow links and archived-student compliance exclusion
+  - Planning / Scheduled Items readiness review filters
+  - Calendar filters, segmented views, and expandable student rows
+  - Reports header summary, collapsed Report Content drawer, and content order ending with Detailed Grades / Detailed Attendance
+  - Administration page summary, workspace summary chips, and collapsible School Day / Dashboard visibility groups
 
 ## Next Action
 
-1. User reviews production UI at `mitchell.navigrader.com`.
-2. After feedback, continue the next UI polish surface in Web Preview before production promotion.
+1. User reviews Reports/Admin on `mitchell.navigrader.com`.
+2. Continue the next UI polish surface in Web Preview before production promotion.
 
 ## Risks
 
+- Authenticated hosted smoke could not complete with preview credentials; production returned invalid username/password.
+- Public production validation passed, and WEB001 file hashes matched local files.
 - Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside the commit.
 - Browser cache may need a hard refresh to show current assets.
-- Multi-student compliance links intentionally route to the filtered Students list because only one specific student detail page can be opened at a time.
-- The 1366px School Day Hour column can wrap; user considered it acceptable for older low-resolution screens.
 
 ## Validation
 
-- `node --check web/app.js` passed during the UI pass.
-- `git diff --check` passed on touched web files before production deployment.
-- WEB001 deploy validation passed after `c626fe4`.
-- Remote SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
-- Public health returned `200` for `https://mitchell.navigrader.com/health`.
-- Current documentation checkpoint records the deployed state; no service redeploy is required for the docs-only commit.
+- `node --check web/app.js`
+- `git diff --check -- web/app.js web/index.html web/styles.css`
+- Web Preview returned `200`
+- WEB001 Apache config syntax OK
+- WEB001 Apache service active
+- Public health returned `200` for `https://mitchell.navigrader.com/health`
+- Live HTML references `styles.css?v=202605142214` and `app.js?v=202605142214`
+- Remote SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`

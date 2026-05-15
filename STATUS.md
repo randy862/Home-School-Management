@@ -8,80 +8,57 @@ UI polish and workflow refinement on `saas-modern-redesign`.
 
 ## Current Focus
 
-School Day, Dashboard, Execution, Grades, Calendar, Student compliance, and Planning / Scheduled Items polish are deployed to the lab production tenant site for user review.
+Reports and Administration / Workspace Configuration polish was approved in Web Preview and deployed to production for review.
 
 ## Completed Recently
 
-- Deployed `de008c8` to prevent inline School Day grade action buttons from crowding on smaller laptop screens.
-- Deployed `374648a` with the approved School Day workflow polish:
-  - collapsed filter section
-  - compact schedule meta strip with left view toggles, centered row count, and right date/view chips
-  - distinct Daily Schedule / Attendance / Grades mode tabs
-  - darker `+ Student Summaries` and `+ Side-by-Side` controls
-  - reordered next-action priority: Needs Attendance, Needs Grade, Resolve Past Due
-  - Add Grade Row action buttons aligned to the right and kept readable at 1366px width
-  - scheduled-class add control renamed to `Add Classes Without Grades`
-- Deployed `6f30caf` with Dashboard/Execution responsive gauge polish:
-  - laptop-width gauge compaction for Dashboard, Execution, and School Day surfaces
-  - original cleaner gauge value spacing restored
-  - original stacked Class Status distribution restored
-  - wide desktop behavior preserved
-- Deployed `f1b9725` with the approved Grades and Student compliance workflow polish:
-  - Grades entry header now keeps `Add Grade Row` in the workbench header
-  - Grade Search filters collapse so results sit higher on the page
-  - missing required subjects in Student Detail can focus the Scheduled Item picker
-  - matching scheduled items are highlighted with a clear focus note
-- Deployed `745b119` with the approved Planning / Scheduled Items bundle:
-  - retired Instruction Plans from the visible Schedule tabs while keeping legacy plan data/API dormant
-  - added compact School Day source metadata to Courses, Classes, Schedule Blocks, Scheduled Item picker rows, and Student current schedule rows
-  - added School Day Readiness panels for setup gaps affecting School Day generation and compliance
-  - added Students work queue and Attendance search polish that had been approved in Web Preview
-- Deployed `dc7b234` with readiness review filtering:
-  - Configured Courses now shows enrolled student count
-  - Review Courses filters to flexible courses with zero enrolled students
-  - Review Classes filters to classes with zero enrolled students
-  - active filter strips and highlighted rows identify the exact setup gaps
-- Deployed `252c535` with Schedule Blocks readiness review filtering:
-  - Schedule Blocks now shows assigned active-student count
-  - Review Blocks filters to schedule blocks not assigned to any active student
-  - unassigned blocks are highlighted and explained with an active filter strip
-- Deployed `37937e3` with Calendar workflow polish:
-  - Calendar filters collapse into a compact drawer
-  - Month/Week/Day use a segmented control instead of the View dropdown
-  - month/week student cards show every scheduled class with class names and hours
-  - active date range moved into a compact header pill
-- Deployed `f8f2758` with Calendar expandable student rows:
-  - month/week days default to scheduled student names and total hours
-  - each student row expands to show class name, subject, and hours
-  - expanded rows keep the Open Week/Open Day drill-in action
-- Deployed `c626fe4` with archived-student required compliance handling:
-  - archived students show required compliance as not evaluated
-  - archived students are excluded from required compliance filtering
-  - archived students no longer show Fix Enrollment or missing-required callouts
-- Updated Dashboard / Compliance / Required Subjects student-count links to match Dashboard / Overview / Missing Required Subjects behavior:
-  - one matching student opens the student detail/enrollment workflow
-  - multiple matching students open the Students list filtered to the relevant compliance set
-- Production validation passed after the latest WEB001 deploy:
-  - Apache config syntax OK
-  - Apache active
-  - public health endpoint returned `200`
-  - live cache keys are `styles.css?v=202605141618` and `app.js?v=202605141618`
-  - remote hashes match local `web/index.html`, `web/app.js`, and `web/styles.css`
-- Latest WEB001 rollback snapshot: `/var/www/home-school-management/rollback/web-202605141618.tgz`.
+- Deployed `942968d` with Reports/Admin polish:
+  - Reports now has a compact active criteria summary.
+  - Report Content is a collapsed drawer with selected-section counts.
+  - Student Report content now ends with `Detailed Grades` and `Detailed Attendance`.
+  - Administration now has a compact active-section summary.
+  - Workspace Configuration shows School Day and Dashboard visibility counts.
+  - School Day Visibility and Dashboard Visibility are collapsible groups.
+- Previously deployed UI polish remains active:
+  - School Day compaction, distinct mode tabs, and right-aligned grade actions.
+  - Dashboard/Execution responsive gauge cleanup.
+  - Grades and Attendance search compaction.
+  - Student compliance workflow links and archived-student compliance exclusion.
+  - Planning / Scheduled Items readiness review filters.
+  - Calendar filters, segmented views, and expandable student rows.
+
+## Production State
+
+- Live asset cache keys:
+  - `styles.css?v=202605142214`
+  - `app.js?v=202605142214`
+- Latest WEB001 rollback snapshot:
+  `/var/www/home-school-management/rollback/web-202605142214.tgz`
+- WEB001 remote hashes match local `web/index.html`, `web/app.js`, and `web/styles.css`.
+
+## Validation
+
+- `node --check web/app.js`
+- `git diff --check -- web/app.js web/index.html web/styles.css`
+- Web Preview returned `200`
+- WEB001 Apache config syntax OK
+- WEB001 Apache service active
+- Public health endpoint returned `200`
+- Live HTML references the expected CSS and JS cache keys
+- Authenticated hosted smoke was attempted with preview credentials but production rejected them as invalid.
 
 ## Current Blockers
 
-- None.
+- None for the deployed frontend release.
 
 ## Current Risks
 
-- User still needs to finish reviewing the latest production UI in the browser.
 - Browser cache may require a hard refresh before the newest web assets display.
-- Untracked local scratch assets remain outside the committed work unless explicitly requested.
-- At 1366x768, the School Day Hour column may wrap more than on modern 1920x1080 displays; user accepted this as low concern.
+- Authenticated production smoke needs valid production tenant credentials if required.
+- Untracked local scratch assets remain outside committed work.
 
 ## Next Actions
 
-1. User reviews the current production UI on `mitchell.navigrader.com`.
-2. Continue the next UI polish surface after user feedback.
-3. Keep future UI changes in Web Preview first when visual judgment is needed, then promote after approval.
+1. User reviews Reports/Admin on `mitchell.navigrader.com`.
+2. Continue the next UI polish surface in Web Preview.
+3. Promote future UI changes only after preview approval.
