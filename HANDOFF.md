@@ -4,13 +4,14 @@ Date: 2026-05-15
 
 ## Context
 
-Public SaaS site closing-section containment correction on `saas-modern-redesign`, promoted to `www.navigrader.com`.
+Public SaaS site closing-card blend correction on `saas-modern-redesign`, promoted to `www.navigrader.com`.
 
 ## Current State
 
-- Public closing-section containment correction is live in production and committed as `cac294f Contain public footer closing section`.
-- Bottom CTA includes a subtle lighthouse/coastal scenic mark, keeps the screenshot collage, and removes the extra CTA logo.
-- Footer is back inside the same site content width, with a contained blended card instead of a full-width white band.
+- Public closing-card blend correction is live in production and committed as `6fd203e Blend public closing cards`.
+- Bottom CTA keeps the screenshot collage and removes the extra CTA logo.
+- Lighthouse/coastal graphic and extra line-pattern decoration were removed.
+- CTA and footer use connected top/bottom card corners so they read as one blended closing unit.
 - Footer keeps the Navigrader logo, Product/Resources/Get In Touch columns, icon badges, contact details, and copyright.
 - Footer links point to `#pricing`, `#how-it-works`, `#features`, and `#faq`.
 - `www.navigrader.com` bottom CTA uses four refreshed UI polish screenshots in the restored layered collage style.
@@ -20,16 +21,16 @@ Public SaaS site closing-section containment correction on `saas-modern-redesign
   - `ce5b90c Use four public site screenshots`
 - Public footer now includes `support@navigrader.com` and `Copyright 2026, Navigrader, LLC`.
 - Public page cache key:
-  - `saas-polish.css?v=202605151211`
+  - `saas-polish.css?v=202605151220`
 - Latest public WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605151211.tgz`
+  `/var/www/home-school-management/rollback/web-202605151220.tgz`
 - Detailed dormant/data export execution plan added:
   `NOTES/dormant-data-export-end-to-end-plan.md`
 - Dormant current code records `pending_dormant`/`dormant`, can queue suspend/resume jobs, and blocks attendance/grade writes while dormant.
 - Dormant does not yet update Stripe to a reduced recurring price, apply pending dormant at the billing boundary, or restore Stripe pricing on reactivation.
 - Data Export current code records a `$19.99` `pending_payment` request, but checkout/payment, export job, artifact generation, secure download, expiration, and retry handling are not complete.
 - Account Options copy polish is live in production and removes internal customer-facing terms around lifecycle/runtime/offboarding.
-- Latest production code commit: `cac294f Contain public footer closing section`.
+- Latest production code commit: `6fd203e Blend public closing cards`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
   - `styles.css?v=202605150913`
@@ -58,8 +59,8 @@ Public SaaS site closing-section containment correction on `saas-modern-redesign
 
 ## Validation
 
-- Public `https://www.navigrader.com/` returned HTTP 200 and includes the scenic CTA mark, contained footer, footer logo, contact email, copyright line, and new CSS cache key.
-- Public `https://www.navigrader.com/saas-polish.css?v=202605151211` returned HTTP 200 and includes contained footer card styling and scenic CTA styles.
+- Public `https://www.navigrader.com/` returned HTTP 200 and includes no scenic mark, contained footer, footer logo, contact email, copyright line, and new CSS cache key.
+- Public `https://www.navigrader.com/saas-polish.css?v=202605151220` returned HTTP 200 and includes the connected CTA/footer card styling with no line-pattern graphic.
 - The four intended public screenshot assets each returned HTTP 200.
 - Remote WEB001 hashes matched local `web/saas.html` and `web/saas-polish.css`.
 - `node --check web/app.js`
