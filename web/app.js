@@ -3959,9 +3959,119 @@ function roleDisplayLabel(role) {
   return role === "student" ? "Student" : "Administrator";
 }
 
+function previewAccountSubscriptionSummary(user) {
+  const activeStudentCount = visibleStudents().length;
+  const includedStudents = 3;
+  const currentStudents = Math.max(activeStudentCount, includedStudents);
+  const overageStudents = Math.max(0, currentStudents - includedStudents);
+  const isAdmin = isAdminUser(user);
+  return {
+    tenant: {
+      siteId: "PREVIEW",
+      internalSiteId: "LOCAL-PREVIEW",
+      tenantId: "preview-tenant"
+    },
+    permissions: {
+      canChangePassword: true,
+      canManageSubscription: isAdmin,
+      canRequestDormant: isAdmin,
+      canReactivate: false,
+      canRequestExport: isAdmin
+    },
+    subscription: {
+      id: "preview-starter-subscription",
+      status: "active",
+      dormantStatus: "active",
+      accountStatus: "active",
+      plan: {
+        id: "preview-starter-plan",
+        code: "starter_monthly",
+        name: "Starter",
+        billingInterval: "month",
+        basePriceCents: 999,
+        currency: "usd"
+      },
+      billingPeriod: {
+        start: "2026-04-18",
+        end: "2026-05-18"
+      },
+      billableStudents: {
+        included: includedStudents,
+        current: currentStudents,
+        overage: overageStudents,
+        perStudentOverageCents: 0,
+        usageStatus: overageStudents ? "over_limit" : currentStudents >= includedStudents ? "at_limit" : "within_limit",
+        lastCalculatedAt: "2026-05-14T16:00:00.000Z"
+      },
+      account: {
+        name: "Preview Family",
+        ownerFirstName: user?.firstName || "",
+        ownerLastName: user?.lastName || "",
+        ownerEmail: user?.email || "",
+        ownerPhone: user?.phone || "",
+        billingEmail: user?.email || ""
+      }
+    },
+    upgradeOptions: [
+      {
+        id: "preview-growth-plan",
+        code: "growth_monthly",
+        name: "Growth",
+        description: "For larger families and small learning groups.",
+        billingInterval: "month",
+        priceCents: 1499,
+        currency: "usd",
+        featureSummary: ["4-10 students", "Everything in Starter", "More room to grow"],
+        limits: {
+          includedBillableStudents: 10,
+          perStudentOverageCents: 0,
+          allowsOverage: false
+        }
+      },
+      {
+        id: "preview-coop-pro-plan",
+        code: "large_monthly",
+        name: "Co-op Pro",
+        description: "For co-ops and larger programs that need flexible student capacity.",
+        billingInterval: "month",
+        priceCents: 1599,
+        currency: "usd",
+        featureSummary: ["11 students included", "Add additional students as needed", "$0.99 for each additional student"],
+        limits: {
+          includedBillableStudents: 11,
+          perStudentOverageCents: 99,
+          allowsOverage: true
+        }
+      }
+    ],
+    activity: {
+      billingEvents: [
+        { eventType: "customer.subscription.created", occurredAt: "2026-04-18T12:00:00.000Z" }
+      ],
+      exportRequests: []
+    }
+  };
+}
+
 function accountSubscriptionSummary() {
   if (hostedModeEnabled) return accountSummary;
   const user = currentUser();
+  const previewSummary = user ? previewAccountSubscriptionSummary(user) : {
+    tenant: null,
+    permissions: {
+      canChangePassword: false,
+      canManageSubscription: false,
+      canRequestDormant: false,
+      canReactivate: false,
+      canRequestExport: false
+    },
+    subscription: null,
+    upgradeOptions: [],
+    activity: {
+      billingEvents: [],
+      exportRequests: []
+    }
+  };
   return {
     user: user ? {
       id: user.id,
@@ -3974,15 +4084,7 @@ function accountSubscriptionSummary() {
       phone: user.phone || "",
       mustChangePassword: !!user.mustChangePassword
     } : null,
-    tenant: null,
-    permissions: {
-      canChangePassword: false,
-      canManageSubscription: false,
-      canRequestDormant: false,
-      canReactivate: false,
-      canRequestExport: false
-    },
-    subscription: null
+    ...previewSummary
   };
 }
 
@@ -4083,6 +4185,36 @@ function buildBillableUsageCopy(subscription) {
     tone: "neutral",
     text: `You are using ${current} of ${included} included billable students.`
   };
+}
+
+function accountStatusToneClass(status) {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (["active", "trialing"].includes(normalized)) return "is-good";
+  if (["past_due", "unpaid", "incomplete", "pending_dormant", "pending_reactivation"].includes(normalized)) return "is-warning";
+  if (["canceled", "dormant"].includes(normalized)) return "is-danger";
+  return "is-neutral";
+}
+
+function accountDisplayName(user = {}, subscription = null) {
+  const fullName = [user.firstName || subscription?.account?.ownerFirstName, user.lastName || subscription?.account?.ownerLastName]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return fullName || user.username || "Account";
+}
+
+function accountBillableUsagePercent(subscription) {
+  const included = Number(subscription?.billableStudents?.included || 0);
+  const current = Number(subscription?.billableStudents?.current || 0);
+  if (!included || current <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((current / included) * 100)));
+}
+
+function accountUpgradePlanClass(planCode) {
+  const normalized = String(planCode || "").trim().toLowerCase();
+  if (normalized.includes("growth")) return "is-growth";
+  if (normalized.includes("large") || normalized.includes("coop") || normalized.includes("co-op")) return "is-coop";
+  return "is-default";
 }
 
 function formatBillingEventLabel(eventType) {
@@ -4315,8 +4447,24 @@ function renderAccountSurface() {
   const mayManageSubscription = !!permissions.canManageSubscription && !!subscription;
   const billingEvents = Array.isArray(activity.billingEvents) ? activity.billingEvents : [];
   const exportRequests = Array.isArray(activity.exportRequests) ? activity.exportRequests : [];
+  const displayName = accountDisplayName(user, subscription);
+  const planName = subscription?.plan?.name || (hostedModeEnabled ? "Hosted Workspace" : "Preview Workspace");
+  const subscriptionStatus = subscription ? formatSubscriptionStatusLabel(subscription.status) : (hostedModeEnabled ? "Pending" : "Preview");
+  const siteStatus = subscription ? formatDormantStatusLabel(subscription.dormantStatus) : (hostedModeEnabled ? "Pending" : "Local Preview");
+  const subscriptionTone = accountStatusToneClass(subscription?.status || subscriptionStatus);
+  const siteTone = accountStatusToneClass(subscription?.dormantStatus || siteStatus);
+  const includedStudents = Number(subscription?.billableStudents?.included || 0);
+  const currentStudents = Number(subscription?.billableStudents?.current || 0);
+  const overageStudents = Number(subscription?.billableStudents?.overage || 0);
+  const usagePercent = accountBillableUsagePercent(subscription);
+  const usageSummary = subscription
+    ? `${currentStudents} of ${includedStudents} billable students`
+    : "Hosted billing summary is not available in this preview.";
+  const usageHeadline = subscription
+    ? `${currentStudents} of ${includedStudents} included students`
+    : "Billing details unavailable";
   const activityHtml = billingEvents.length || exportRequests.length ? `
-    <section class="account-card account-card-history">
+    <section class="account-card account-card-history account-card-full">
       <div class="account-card-heading">
         <h3>Recent Billing Activity</h3>
         <p class="muted">Latest subscription and export-related events tied to this account.</p>
@@ -4347,7 +4495,7 @@ function renderAccountSurface() {
       </div>
     </section>
   ` : `
-    <section class="account-card account-card-history">
+    <section class="account-card account-card-history account-card-full">
       <div class="account-card-heading">
         <h3>Recent Billing Activity</h3>
         <p class="muted">Billing events and export requests will appear here once activity is recorded.</p>
@@ -4356,6 +4504,19 @@ function renderAccountSurface() {
   `;
 
   body.innerHTML = `
+    <section class="account-summary-strip">
+      <span class="account-profile-photo-preview account-summary-avatar${user.profilePhotoDataUrl ? " has-profile-photo" : ""}" style="${user.profilePhotoDataUrl ? `background-image: url('${escapeHtml(user.profilePhotoDataUrl)}')` : ""}" aria-hidden="true">${user.profilePhotoDataUrl ? "" : escapeHtml((user.username || "U").charAt(0).toUpperCase())}</span>
+      <div class="account-summary-copy">
+        <p class="account-mini-heading">Signed In</p>
+        <h3>${escapeHtml(displayName)}</h3>
+        <p class="muted">${escapeHtml(roleDisplayLabel(user.role))} | ${escapeHtml(user.username || "Unknown username")}</p>
+      </div>
+      <div class="account-summary-metrics">
+        <span><small>Plan</small><strong>${escapeHtml(planName)}</strong></span>
+        <span><small>Subscription</small><strong class="account-status-pill ${subscriptionTone}">${escapeHtml(subscriptionStatus)}</strong></span>
+        <span><small>Site</small><strong class="account-status-pill ${siteTone}">${escapeHtml(siteStatus)}</strong></span>
+      </div>
+    </section>
     <div class="account-overview-grid">
       <section class="account-card account-card-profile">
         <div class="account-card-heading">
@@ -4394,32 +4555,37 @@ function renderAccountSurface() {
           <h3>Subscription</h3>
           <p class="muted">Current plan, billing period, and billable-student usage.</p>
         </div>
-        ${subscription ? `
-          <div class="account-plan-banner">
-            <p class="account-plan-meta"><strong>Plan:</strong> ${escapeHtml(subscription.plan?.name || "Current Plan")}</p>
-            <p class="account-plan-meta"><strong>Subscription:</strong> ${escapeHtml(formatSubscriptionStatusLabel(subscription.status))}</p>
-            <p class="account-plan-meta"><strong>Site Status:</strong> ${escapeHtml(formatDormantStatusLabel(subscription.dormantStatus))}</p>
+        <div class="account-plan-banner">
+          <div class="account-plan-title-row">
+            <div>
+              <p class="account-mini-heading">Current Usage</p>
+              <h4 class="account-plan-name">${escapeHtml(usageHeadline)}</h4>
+            </div>
+            <span class="account-status-pill ${subscriptionTone}">${escapeHtml(subscriptionStatus)}</span>
           </div>
+          <div class="account-usage-meter" aria-label="${escapeHtml(usageSummary)}">
+            <span style="width: ${usagePercent}%"></span>
+          </div>
+          <p class="account-usage-note ${usageCopy.tone === "warning" ? "warning-text" : "muted"}">${escapeHtml(usageCopy.text)}</p>
+        </div>
+        ${subscription ? `
           <dl class="account-detail-list">
             <div><dt>Base Price</dt><dd>${formatMoneyCents(subscription.plan?.basePriceCents, subscription.plan?.currency || "usd")} / ${escapeHtml(subscription.plan?.billingInterval || "month")}</dd></div>
-            <div><dt>Included Billable Students</dt><dd>${Number(subscription.billableStudents?.included || 0)}</dd></div>
-            <div><dt>Current Billable Students</dt><dd>${Number(subscription.billableStudents?.current || 0)}</dd></div>
-            <div><dt>Current Over Plan</dt><dd>${Number(subscription.billableStudents?.overage || 0)}</dd></div>
+            <div><dt>Included Billable Students</dt><dd>${includedStudents}</dd></div>
+            <div><dt>Current Billable Students</dt><dd>${currentStudents}</dd></div>
+            <div><dt>Current Over Plan</dt><dd>${overageStudents}</dd></div>
             ${Number(subscription.billableStudents?.perStudentOverageCents || 0) > 0 ? `<div><dt>Estimated Overage This Period</dt><dd>${formatMoneyCents(overageEstimateCents, subscription.plan?.currency || "usd")}</dd></div>` : ""}
             <div><dt>Billing Period Start</dt><dd>${escapeHtml(formatAccountDateTime(subscription.billingPeriod?.start))}</dd></div>
             <div><dt>Billing Period End</dt><dd>${escapeHtml(formatAccountDateTime(subscription.billingPeriod?.end))}</dd></div>
           </dl>
-          <p class="account-usage-note ${usageCopy.tone === "warning" ? "warning-text" : "muted"}">${escapeHtml(usageCopy.text)}</p>
           ${mayManageSubscription ? `
             <div class="account-inline-actions">
-              <button id="account-upgrade-btn" type="button">Upgrade Subscription</button>
+              <button id="account-upgrade-btn" type="button">Review Upgrade Options</button>
             </div>
           ` : `
             <p class="muted">Only tenant administrators can manage subscription changes.</p>
           `}
-        ` : `
-          <p class="muted">${escapeHtml(usageCopy.text)}</p>
-        `}
+        ` : ""}
       </section>
     </div>
     ${activityHtml}
@@ -4493,18 +4659,44 @@ function renderAccountOptionsSurface() {
     return;
   }
 
+  const optionTiles = [
+    canRequestDormant ? `
+      <article class="account-option-tile">
+        <div>
+          <h4>Dormant Mode</h4>
+          <p class="muted">Pause normal tenant activity after the current billing period while preserving history.</p>
+        </div>
+        <button id="account-dormant-btn" type="button">Make Account Dormant</button>
+      </article>
+    ` : "",
+    canReactivate ? `
+      <article class="account-option-tile">
+        <div>
+          <h4>Reactivate Site</h4>
+          <p class="muted">Clear dormant handling and return the tenant to normal operating status.</p>
+        </div>
+        <button id="account-reactivate-btn" type="button">Make Account Active</button>
+      </article>
+    ` : "",
+    permissions.canRequestExport ? `
+      <article class="account-option-tile">
+        <div>
+          <h4>Data Export</h4>
+          <p class="muted">Create an export request for offboarding, archive, or support follow-up.</p>
+        </div>
+        <button id="account-export-btn" type="button">Request Data Export</button>
+      </article>
+    ` : ""
+  ].filter(Boolean).join("");
+
   body.innerHTML = `
     <section class="account-card account-card-actions">
       <div class="account-card-heading">
         <h3>Account Options</h3>
         <p class="muted">Lower-frequency lifecycle actions live here so the main account view can stay focused on profile and subscription detail.</p>
       </div>
-      <p class="muted">${escapeHtml(buildAccountLifecycleHelpText(dormantStatus))}</p>
-      <div class="account-inline-actions">
-        ${canRequestDormant ? `<button id="account-dormant-btn" type="button">Make Account Dormant</button>` : ""}
-        ${canReactivate ? `<button id="account-reactivate-btn" type="button">Make Account Active</button>` : ""}
-        ${permissions.canRequestExport ? `<button id="account-export-btn" type="button">Request Data Export</button>` : ""}
-      </div>
+      <div class="account-lifecycle-note">${escapeHtml(buildAccountLifecycleHelpText(dormantStatus))}</div>
+      <div class="account-option-grid">${optionTiles}</div>
     </section>
   `;
 
@@ -4607,12 +4799,19 @@ function renderAccountUpgradeSurface() {
       ${upgradeOptions.length ? `
         <div class="account-upgrade-grid">
           ${upgradeOptions.map((plan) => `
-            <article class="account-upgrade-option">
-              <h4>${escapeHtml(plan.name || "Upgrade Plan")}</h4>
-              <p class="account-upgrade-price">${escapeHtml(formatMoneyCents(plan.priceCents, plan.currency || "usd"))} / ${escapeHtml(plan.billingInterval || "month")}</p>
-              <p class="muted">${escapeHtml(plan.description || "")}</p>
-              <p class="account-plan-meta"><strong>Included Billable Students:</strong> ${Number(plan.limits?.includedBillableStudents || 0)}</p>
-              ${Number(plan.limits?.perStudentOverageCents || 0) > 0 ? `<p class="account-plan-meta"><strong>Overage:</strong> ${escapeHtml(formatMoneyCents(plan.limits?.perStudentOverageCents || 0, plan.currency || "usd"))} per billable student</p>` : ""}
+            <article class="account-upgrade-option ${accountUpgradePlanClass(plan.code)}">
+              <div class="account-upgrade-card-header">
+                <div>
+                  <p class="account-mini-heading">Upgrade Plan</p>
+                  <h4>${escapeHtml(plan.name || "Upgrade Plan")}</h4>
+                </div>
+                <p class="account-upgrade-price">${escapeHtml(formatMoneyCents(plan.priceCents, plan.currency || "usd"))}<span>/ ${escapeHtml(plan.billingInterval || "month")}</span></p>
+              </div>
+              <p class="account-upgrade-description">${escapeHtml(plan.description || "")}</p>
+              <div class="account-upgrade-meta-row">
+                <span><small>Included</small><strong>${Number(plan.limits?.includedBillableStudents || 0)} students</strong></span>
+                ${Number(plan.limits?.perStudentOverageCents || 0) > 0 ? `<span><small>Overage</small><strong>${escapeHtml(formatMoneyCents(plan.limits?.perStudentOverageCents || 0, plan.currency || "usd"))} / student</strong></span>` : `<span><small>Overage</small><strong>Not available</strong></span>`}
+              </div>
               ${Number(plan.limits?.perStudentOverageCents || 0) > 0 ? `<p class="muted">After the included students are used, additional billable students are added automatically and billed through the hosted subscription.</p>` : ""}
               ${Array.isArray(plan.featureSummary) && plan.featureSummary.length ? `
                 <ul class="account-feature-list">

@@ -45,7 +45,8 @@ This runbook reflects the current staged production-like shape, not the original
 ### 1. Pre-Deploy Checks
 - Confirm repo is at the intended commit.
 - Preferred quick gate from this workstation:
-  - `powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -HostedUsername <tenant-user> -HostedPassword <tenant-password>`
+  - `powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1`
+  - Credentials can be passed with `-HostedUsername` / `-HostedPassword`, but prefer setting `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` in the local shell/session.
 - Confirm `APP001` app health before touching anything:
   - `ssh debian@192.168.1.200 "curl -s http://127.0.0.1:3000/health"`
 - Confirm public hosted health:
@@ -113,7 +114,8 @@ Do not restart midway through a partial copy. One real staged failure came from 
   - `/api/attendance`
   - `/api/tests`
 - Preferred smoke command from this workstation:
-  - `powershell -ExecutionPolicy Bypass -File .\scripts\Test-HostedSmoke.ps1 -Username <tenant-user> -Password <tenant-password>`
+  - `powershell -ExecutionPolicy Bypass -File .\scripts\Test-HostedSmoke.ps1`
+  - Credentials can be passed with `-Username` / `-Password`, but prefer setting `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` in the local shell/session.
 
 ### Control Plane Checks When Included
 - `curl http://192.168.1.210/control-api/health`
@@ -121,7 +123,8 @@ Do not restart midway through a partial copy. One real staged failure came from 
 - Verify expected operator workspace loads
 - If deployment touched provisioning/release execution, verify the latest job detail renders cleanly
 - Preferred combined gate when control-plane changes are included:
-  - `powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -HostedUsername <tenant-user> -HostedPassword <tenant-password> -IncludeControlPlane -ControlUsername <operator-user> -ControlPassword <operator-password>`
+  - `powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -IncludeControlPlane`
+  - Tenant smoke credentials can come from `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD`; control-plane smoke credentials can come from `HSM_CONTROL_SMOKE_USERNAME` and `HSM_CONTROL_SMOKE_PASSWORD`.
 
 ## Tenant Runtime Checks
 
@@ -226,9 +229,9 @@ Treat a hosted release as acceptable only when:
 ### `scripts\Test-HostedSmoke.ps1`
 Runs the tenant-app login plus authenticated smoke reads for the currently served hosted runtime.
 
-Required parameters:
-- `-Username`
-- `-Password`
+Credential input:
+- `-Username` or `HSM_HOSTED_SMOKE_USERNAME`
+- `-Password` or `HSM_HOSTED_SMOKE_PASSWORD`
 
 Optional parameters:
 - `-BaseUrl`
@@ -254,9 +257,9 @@ Runs the staged release gate in one command:
 - tenant-app smoke login and domain reads
 - optional control-plane health and operator login/session validation
 
-Required parameters:
-- `-HostedUsername`
-- `-HostedPassword`
+Credential input:
+- `-HostedUsername` or `HSM_HOSTED_SMOKE_USERNAME`
+- `-HostedPassword` or `HSM_HOSTED_SMOKE_PASSWORD`
 
 Optional parameters:
 - `-PublicBaseUrl`
@@ -264,8 +267,8 @@ Optional parameters:
 - `-AppHost`
 - `-AppPort`
 - `-IncludeControlPlane`
-- `-ControlUsername`
-- `-ControlPassword`
+- `-ControlUsername` or `HSM_CONTROL_SMOKE_USERNAME`
+- `-ControlPassword` or `HSM_CONTROL_SMOKE_PASSWORD`
 
 ## Rehearsed Release / Rollback Drill
 The current release path has been exercised on staging with a controlled backend-only control-api change:

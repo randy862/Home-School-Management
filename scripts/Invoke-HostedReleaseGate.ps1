@@ -3,14 +3,34 @@ param(
   [string]$ControlBaseUrl = "http://192.168.1.210/control-api",
   [string]$AppHost = "debian@192.168.1.200",
   [int]$AppPort = 3000,
-  [Parameter(Mandatory = $true)][string]$HostedUsername,
-  [Parameter(Mandatory = $true)][string]$HostedPassword,
+  [string]$HostedUsername,
+  [string]$HostedPassword,
   [switch]$IncludeControlPlane,
   [string]$ControlUsername,
   [string]$ControlPassword
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($HostedUsername)) {
+  $HostedUsername = $env:HSM_HOSTED_SMOKE_USERNAME
+}
+
+if ([string]::IsNullOrWhiteSpace($HostedPassword)) {
+  $HostedPassword = $env:HSM_HOSTED_SMOKE_PASSWORD
+}
+
+if ([string]::IsNullOrWhiteSpace($ControlUsername)) {
+  $ControlUsername = $env:HSM_CONTROL_SMOKE_USERNAME
+}
+
+if ([string]::IsNullOrWhiteSpace($ControlPassword)) {
+  $ControlPassword = $env:HSM_CONTROL_SMOKE_PASSWORD
+}
+
+if ([string]::IsNullOrWhiteSpace($HostedUsername) -or [string]::IsNullOrWhiteSpace($HostedPassword)) {
+  throw "Hosted release gate credentials are required. Pass -HostedUsername/-HostedPassword or set HSM_HOSTED_SMOKE_USERNAME and HSM_HOSTED_SMOKE_PASSWORD."
+}
 
 function Write-Step {
   param([string]$Message)
@@ -58,7 +78,7 @@ Assert-CommandSucceeded "Hosted smoke pass"
 
 if ($IncludeControlPlane) {
   if (-not $ControlUsername -or -not $ControlPassword) {
-    throw "IncludeControlPlane was specified, but control-plane credentials were not provided."
+    throw "IncludeControlPlane was specified, but control-plane credentials were not provided. Pass -ControlUsername/-ControlPassword or set HSM_CONTROL_SMOKE_USERNAME and HSM_CONTROL_SMOKE_PASSWORD."
   }
 
   $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession

@@ -1,7 +1,7 @@
 param(
   [string]$BaseUrl = "http://192.168.1.210",
-  [Parameter(Mandatory = $true)][string]$Username,
-  [Parameter(Mandatory = $true)][string]$Password,
+  [string]$Username,
+  [string]$Password,
   [string[]]$Endpoints = @(
     "/api/me",
     "/api/subjects",
@@ -20,6 +20,18 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($Username)) {
+  $Username = $env:HSM_HOSTED_SMOKE_USERNAME
+}
+
+if ([string]::IsNullOrWhiteSpace($Password)) {
+  $Password = $env:HSM_HOSTED_SMOKE_PASSWORD
+}
+
+if ([string]::IsNullOrWhiteSpace($Username) -or [string]::IsNullOrWhiteSpace($Password)) {
+  throw "Hosted smoke credentials are required. Pass -Username/-Password or set HSM_HOSTED_SMOKE_USERNAME and HSM_HOSTED_SMOKE_PASSWORD."
+}
 
 function Write-Step {
   param([string]$Message)
