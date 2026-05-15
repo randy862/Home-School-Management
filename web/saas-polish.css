@@ -443,8 +443,8 @@ h1 {
 
 .final-screenshot-collage {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  grid-template-rows: minmax(170px, 1.08fr) minmax(150px, 0.92fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(170px, 1fr));
   gap: 0.9rem;
   min-height: 430px;
 }
@@ -453,8 +453,7 @@ h1 {
 .final-dashboard-shot,
 .final-school-day-shot,
 .final-grade-trending-shot,
-.final-report-shot,
-.final-dashboard-summary-shot {
+.final-report-shot {
   position: relative;
   inset: auto;
   width: auto;
@@ -467,27 +466,22 @@ h1 {
 }
 
 .final-dashboard-shot {
-  grid-column: 1 / span 3;
+  grid-column: 1;
   grid-row: 1;
 }
 
 .final-school-day-shot {
-  grid-column: 4 / span 3;
+  grid-column: 2;
   grid-row: 1;
 }
 
 .final-grade-trending-shot {
-  grid-column: 1 / span 2;
+  grid-column: 1;
   grid-row: 2;
 }
 
 .final-report-shot {
-  grid-column: 3 / span 2;
-  grid-row: 2;
-}
-
-.final-dashboard-summary-shot {
-  grid-column: 5 / span 2;
+  grid-column: 2;
   grid-row: 2;
 }
 
@@ -664,8 +658,7 @@ h1 {
   .final-dashboard-shot,
   .final-school-day-shot,
   .final-grade-trending-shot,
-  .final-report-shot,
-  .final-dashboard-summary-shot {
+  .final-report-shot {
     grid-column: auto;
     grid-row: auto;
   }
