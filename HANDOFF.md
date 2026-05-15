@@ -4,46 +4,42 @@ Date: 2026-05-14
 
 ## Context
 
-UI polish workstream on `saas-modern-redesign`, currently focused on approved Reports and Administration / Workspace Configuration polish.
+UI polish workstream on `saas-modern-redesign`. The approved Account/Billing polish was promoted to production and committed.
 
 ## Current State
 
-- Latest production code commit: `942968d Polish reports and administration workspace`.
+- Latest production code commit: `2fa0b01 Polish account billing surfaces`.
 - WEB001 has the latest web bundle deployed under `/var/www/home-school-management/web`.
 - Live asset cache keys:
-  - `styles.css?v=202605142214`
-  - `app.js?v=202605142214`
+  - `styles.css?v=202605142310`
+  - `app.js?v=202605142310`
 - Latest WEB001 rollback snapshot:
-  `/var/www/home-school-management/rollback/web-202605142214.tgz`
-- Recently deployed UI polish now includes:
-  - School Day workflow compaction and right-aligned grade actions
-  - Dashboard/Execution responsive gauge cleanup
-  - Grades and Attendance search compaction
-  - Student compliance workflow links and archived-student compliance exclusion
-  - Planning / Scheduled Items readiness review filters
-  - Calendar filters, segmented views, and expandable student rows
-  - Reports header summary, collapsed Report Content drawer, and content order ending with Detailed Grades / Detailed Attendance
-  - Administration page summary, workspace summary chips, and collapsible School Day / Dashboard visibility groups
+  `/var/www/home-school-management/rollback/web-202605142316.tgz`
+- Account/Billing production changes now include:
+  - Preview-mode subscription summary with Starter, Growth, and Co-op Pro pricing.
+  - Compact Account summary strip for plan, subscription, and site status.
+  - Cleaner subscription card with usage, billing period, and pricing details.
+  - Richer Available Upgrades cards with plan-specific accents and stronger CTAs.
+  - Hosted smoke and release-gate scripts can read credentials from environment variables.
 
 ## Next Action
 
-1. User reviews Reports/Admin on `mitchell.navigrader.com`.
-2. Continue the next UI polish surface in Web Preview before production promotion.
+1. Start Step 2: Global consistency sweep in Web Preview.
+2. Then Step 3: Student Detail deeper polish.
+3. Then Step 4: Curriculum / Schedule setup microcopy and density pass.
+4. Promote future UI changes only after Web Preview approval.
 
 ## Risks
 
-- Authenticated hosted smoke could not complete with preview credentials; production returned invalid username/password.
-- Public production validation passed, and WEB001 file hashes matched local files.
-- Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside the commit.
+- Authenticated hosted smoke still needs valid production tenant credentials.
+- Public production health passed, and live HTML references the expected cache keys.
+- Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside commits.
 - Browser cache may need a hard refresh to show current assets.
 
 ## Validation
 
 - `node --check web/app.js`
-- `git diff --check -- web/app.js web/index.html web/styles.css`
-- Web Preview returned `200`
-- WEB001 Apache config syntax OK
-- WEB001 Apache service active
-- Public health returned `200` for `https://mitchell.navigrader.com/health`
-- Live HTML references `styles.css?v=202605142214` and `app.js?v=202605142214`
-- Remote SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`
+- PowerShell parser checks for hosted smoke and release-gate scripts
+- `git diff --check` on touched release files
+- Public health returned `{"ok":true}` for `https://mitchell.navigrader.com/health`
+- Live HTML references `styles.css?v=202605142310` and `app.js?v=202605142310`
