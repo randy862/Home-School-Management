@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605142310">
+  <link rel="stylesheet" href="styles.css?v=202605150849">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1462,7 +1462,17 @@
     </section>
 
     <section id="tab-students" class="tab-panel panel">
-      <h2>Students</h2>
+      <div class="workspace-page-header students-page-header">
+        <div>
+          <p class="workspace-page-eyebrow">Roster</p>
+          <h2>Students</h2>
+        </div>
+        <div class="workspace-page-metrics" aria-label="Student totals">
+          <span><strong id="students-header-active-count">0</strong><em>Active</em></span>
+          <span><strong id="students-header-required-count">0</strong><em>Required Gaps</em></span>
+          <span><strong id="students-header-archived-count">0</strong><em>Archived</em></span>
+        </div>
+      </div>
       <div id="students-dashboard-return" class="callout dashboard-origin-return hidden">
         <div>
           <p class="dashboard-origin-title">From Dashboard</p>
@@ -1510,7 +1520,22 @@
 
       <div id="students-detail-view" class="hidden">
           <div id="student-detail-panel" class="detail-panel">
-            <p id="student-detail-title" class="detail-title"></p>
+            <div class="student-detail-overview">
+              <div class="student-detail-identity">
+                <span id="student-detail-avatar" class="student-detail-avatar" aria-hidden="true">S</span>
+                <div>
+                  <p class="workspace-page-eyebrow">Student Detail</p>
+                  <h3 id="student-detail-title" class="detail-title"></h3>
+                  <p id="student-detail-subtitle" class="student-detail-subtitle"></p>
+                </div>
+              </div>
+              <div class="student-detail-metrics" aria-label="Student detail summary">
+                <span><strong id="student-detail-scheduled-count">0</strong><em>Scheduled</em></span>
+                <span id="student-detail-required-metric"><strong id="student-detail-required-status">Complete</strong><em>Required</em></span>
+                <span><strong id="student-detail-average">No grades</strong><em>Average</em></span>
+                <span><strong id="student-detail-absence-count">0</strong><em>Absences</em></span>
+              </div>
+            </div>
             <div class="subtab-row student-detail-subtabs" role="tablist" aria-label="Student detail sections">
               <button class="subtab-btn active" data-student-detail-tab="schedule" type="button">Schedule</button>
               <button class="subtab-btn" data-student-detail-tab="summary" type="button">Summary</button>
@@ -1518,15 +1543,16 @@
             <div id="student-detail-required-callout" class="student-detail-required-callout hidden" aria-live="polite"></div>
             <div id="student-detail-schedule-wrap" class="student-detail-tab-panel">
               <div class="student-detail-section student-detail-section-profile">
-                <h4>Student Scheduled Items</h4>
-                <h4>Add a Scheduled Item</h4>
-                <form id="student-detail-filter-form" class="inline-form">
-                  <label>Quarter
-                    <select id="student-detail-quarter-filter">
-                      <option value="all">All Quarters</option>
-                    </select>
-                  </label>
-                </form>
+                <div class="student-detail-section-heading">
+                  <h4>Add Scheduled Item</h4>
+                  <form id="student-detail-filter-form" class="inline-form">
+                    <label>Quarter
+                      <select id="student-detail-quarter-filter">
+                        <option value="all">All Quarters</option>
+                      </select>
+                    </label>
+                  </form>
+                </div>
                 <form id="student-enrollment-form" class="grid-form">
                   <label class="student-enrollment-course-field">Scheduled Item
                     <details id="student-enroll-course-dropdown" class="multi-select-dropdown">
@@ -1535,9 +1561,9 @@
                     </details>
                   </label>
                   <div class="student-detail-action-row">
-                    <button type="submit">Enroll Student</button>
+                    <button type="submit">Add Selected Items</button>
                     <button id="student-detail-apply-btn" type="button" class="hidden">Apply Changes</button>
-                    <button id="student-detail-cancel-btn" type="button">Cancel</button>
+                    <button id="student-detail-cancel-btn" type="button">Back to Students</button>
                   </div>
                 </form>
               </div>
@@ -1648,7 +1674,18 @@
     </section>
 
     <section id="tab-management" class="tab-panel panel">
-      <h2>Curriculum</h2>
+      <div class="workspace-page-header management-page-header">
+        <div>
+          <p class="workspace-page-eyebrow">Setup</p>
+          <h2>Curriculum</h2>
+        </div>
+        <div class="workspace-page-metrics" aria-label="Curriculum totals">
+          <span><strong id="curriculum-header-subject-count">0</strong><em>Subjects</em></span>
+          <span><strong id="curriculum-header-course-count">0</strong><em>Courses</em></span>
+          <span><strong id="curriculum-header-class-count">0</strong><em>Classes</em></span>
+          <span><strong id="curriculum-header-required-count">0</strong><em>Required</em></span>
+        </div>
+      </div>
       <div class="subtabs management-subtabs" aria-label="Curriculum sections">
         <button class="subtab-btn active" data-management-tab="subjects" type="button">Subjects</button>
         <button class="subtab-btn" data-management-tab="courses" type="button">Courses/Classes</button>
@@ -1657,7 +1694,13 @@
       </div>
 
       <div id="management-subjects-wrap" class="management-tab-panel management-section management-section-subjects">
-        <h3>Subjects</h3>
+        <div class="setup-section-heading">
+          <div>
+            <h3>Subjects</h3>
+            <p>Required subjects drive compliance checks.</p>
+          </div>
+          <span id="curriculum-subjects-summary" class="setup-section-badge">0 subjects</span>
+        </div>
           <form id="subject-form" class="inline-form">
             <input id="subject-name" type="text" placeholder="Math" required>
             <label class="checklist-row subject-required-field"><input id="subject-required" type="checkbox"> <span>Required</span></label>
@@ -1673,7 +1716,13 @@
       </div>
 
       <div id="management-courses-wrap" class="management-tab-panel management-section management-section-courses hidden">
-        <h3>Courses</h3>
+        <div class="setup-section-heading">
+          <div>
+            <h3>Courses and Classes</h3>
+            <p>Courses set the subject load; classes lock shared meeting times.</p>
+          </div>
+          <span id="curriculum-courses-summary" class="setup-section-badge">0 courses</span>
+        </div>
           <div class="subtabs management-courses-subtabs" aria-label="Course setup sections">
             <button class="subtab-btn active" data-management-courses-tab="course-form" type="button">Courses</button>
             <button class="subtab-btn" data-management-courses-tab="course-sections" type="button">Classes</button>
@@ -1765,7 +1814,13 @@
       </div>
 
       <div id="management-grade-types-wrap" class="management-tab-panel management-section management-section-grade-types hidden">
-        <h3>Grade Types</h3>
+        <div class="setup-section-heading">
+          <div>
+            <h3>Grade Types</h3>
+            <p>Weights shape course and student averages.</p>
+          </div>
+          <span id="curriculum-grade-types-summary" class="setup-section-badge">0 grade types</span>
+        </div>
           <div class="grade-types-apply-row">
             <button id="grade-type-apply-btn" type="button">Apply Changes</button>
             <button id="grade-type-cancel-changes-btn" type="button" class="hidden">Cancel Changes</button>
@@ -1790,7 +1845,13 @@
       </div>
 
       <div id="management-grading-criteria-wrap" class="management-tab-panel management-section management-section-grading-criteria hidden">
-        <h3>Grading Criteria</h3>
+        <div class="setup-section-heading">
+          <div>
+            <h3>Grading Criteria</h3>
+            <p>Letter and GPA settings apply across reports.</p>
+          </div>
+          <span id="curriculum-grading-summary" class="setup-section-badge">Default scale</span>
+        </div>
           <form id="grading-criteria-form">
             <div class="grading-criteria-grid">
               <div class="grading-criteria-card">
@@ -1833,7 +1894,17 @@
     </section>
 
     <section id="tab-planning" class="tab-panel panel">
-      <h2>Schedule</h2>
+      <div class="workspace-page-header schedule-page-header">
+        <div>
+          <p class="workspace-page-eyebrow">Calendar Setup</p>
+          <h2>Schedule</h2>
+        </div>
+        <div class="workspace-page-metrics" aria-label="Schedule totals">
+          <span><strong id="schedule-header-year-label">-</strong><em>Current Year</em></span>
+          <span><strong id="schedule-header-day-count">0</strong><em>Instruction Days</em></span>
+          <span><strong id="schedule-header-block-count">0</strong><em>Blocks</em></span>
+        </div>
+      </div>
       <div class="subtabs schedule-subtabs" aria-label="Schedule sections">
         <button class="subtab-btn active" data-schedule-tab="school-years" type="button">School Years</button>
         <button class="subtab-btn" data-schedule-tab="quarters" type="button">Quarters</button>
@@ -1844,7 +1915,13 @@
       </div>
 
       <div id="schedule-school-years-wrap" class="schedule-tab-panel schedule-section schedule-section-school-year">
-        <h3>School Years</h3>
+        <div class="setup-section-heading">
+          <div>
+            <h3>School Years</h3>
+            <p>Set annual dates and compliance requirements.</p>
+          </div>
+          <span id="schedule-school-years-summary" class="setup-section-badge">No current year</span>
+        </div>
           <form id="school-year-form" class="grid-form">
             <label>Year Label<input id="school-year-label" type="text" required></label>
             <label>Start Date<input id="school-year-start" type="date" required></label>
@@ -1864,7 +1941,13 @@
       </div>
 
       <div id="schedule-quarters-wrap" class="schedule-tab-panel schedule-section schedule-section-quarters hidden">
-        <h3>Quarters</h3>
+        <div class="setup-section-heading">
+          <div>
+            <h3>Quarters</h3>
+            <p>Quarter ranges scope grades, reports, and pacing views.</p>
+          </div>
+          <span id="schedule-quarters-summary-chip" class="setup-section-badge">0 quarters</span>
+        </div>
           <form id="quarters-form" class="quarter-grid">
             <label>School Year<select id="quarter-school-year" required></select></label>
             <label>Q1 Start<input id="q1-start" type="date" required></label>
@@ -1888,8 +1971,13 @@
       </div>
 
       <div id="schedule-school-day-wrap" class="schedule-tab-panel schedule-section schedule-section-school-day hidden">
-        <h3>School Day</h3>
-          <p class="muted">Set the automatic school day start and the spacing used between classes for each school year.</p>
+        <div class="setup-section-heading">
+          <div>
+            <h3>School Day</h3>
+            <p>Start time and class spacing shape generated schedules.</p>
+          </div>
+          <span id="schedule-school-day-summary-chip" class="setup-section-badge">Not set</span>
+        </div>
           <form id="school-day-settings-form" class="grid-form school-day-settings-form">
             <label>School Year<select id="school-day-school-year" required></select></label>
             <label>School Day Start Time<input id="school-day-start-time" type="time" required></label>
@@ -1903,7 +1991,13 @@
       </div>
 
       <div id="schedule-daily-breaks-wrap" class="schedule-tab-panel schedule-section schedule-section-daily-breaks hidden">
-        <h3>Schedule Blocks</h3>
+        <div class="setup-section-heading">
+          <div>
+            <h3>Schedule Blocks</h3>
+            <p>Reusable lunch, recess, and break blocks can be assigned per student.</p>
+          </div>
+          <span id="schedule-blocks-summary-chip" class="setup-section-badge">0 blocks</span>
+        </div>
           <div id="schedule-block-readiness-panel" class="school-day-readiness-panel school-day-readiness-panel-compact"></div>
           <form id="schedule-block-form" class="grid-form">
             <label class="schedule-block-name-field">Name<input id="schedule-block-name" type="text" required></label>
@@ -1939,7 +2033,13 @@
       </div>
 
       <div id="schedule-holidays-wrap" class="schedule-tab-panel schedule-section schedule-section-holidays hidden">
-        <h3>Holidays and Breaks</h3>
+        <div class="setup-section-heading">
+          <div>
+            <h3>Holidays and Breaks</h3>
+            <p>Non-instructional dates stay out of generated plans.</p>
+          </div>
+          <span id="schedule-holidays-summary-chip" class="setup-section-badge">0 dates</span>
+        </div>
           <form id="holiday-form" class="grid-form">
             <label>Name<input id="holiday-name" type="text" required></label>
             <label>Type<select id="holiday-type"><option value="holiday">Holiday</option><option value="break">Break</option></select></label>
@@ -2472,6 +2572,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605142310"></script>
+  <script src="app.js?v=202605150849"></script>
   </body>
   </html>

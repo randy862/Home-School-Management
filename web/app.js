@@ -3594,6 +3594,58 @@ function renderCurrentTabPanel() {
     default:
       break;
   }
+  renderWorkspacePageSummaries();
+}
+
+function setTextById(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function renderWorkspacePageSummaries() {
+  const allStudents = visibleStudents(true);
+  const activeStudents = allStudents.filter((student) => !studentIsArchived(student));
+  const archivedStudents = allStudents.length - activeStudents.length;
+  const studentsMissingRequired = activeStudents.filter((student) => studentMissingRequiredSubjects(student.id).length).length;
+  setTextById("students-header-active-count", activeStudents.length.toLocaleString());
+  setTextById("students-header-required-count", studentsMissingRequired.toLocaleString());
+  setTextById("students-header-archived-count", archivedStudents.toLocaleString());
+
+  const requiredSubjects = state.subjects.filter((subject) => subject.required).length;
+  const optionalSubjects = state.subjects.length - requiredSubjects;
+  const gradeTypes = state.settings.gradeTypes || [];
+  const weightedGradeTypes = gradeTypes.filter((gradeType) => gradeType.weight != null).length;
+  const gradingCriteria = gradingCriteriaSettings();
+  const gpaScale = gradingCriteria.gpaScaleOption === "other" ? gradingCriteria.gpaMax : gradingCriteria.gpaScaleOption;
+  setTextById("curriculum-header-subject-count", state.subjects.length.toLocaleString());
+  setTextById("curriculum-header-course-count", state.courses.length.toLocaleString());
+  setTextById("curriculum-header-class-count", state.courseSections.length.toLocaleString());
+  setTextById("curriculum-header-required-count", requiredSubjects.toLocaleString());
+  setTextById("curriculum-subjects-summary", `${requiredSubjects.toLocaleString()} required / ${optionalSubjects.toLocaleString()} optional`);
+  setTextById("curriculum-courses-summary", `${state.courses.length.toLocaleString()} courses / ${state.courseSections.length.toLocaleString()} classes`);
+  setTextById("curriculum-grade-types-summary", `${gradeTypes.length.toLocaleString()} types${weightedGradeTypes ? ` / ${weightedGradeTypes.toLocaleString()} weighted` : ""}`);
+  setTextById("curriculum-grading-summary", `GPA ${gpaScale || "4"}`);
+
+  const schoolYear = currentSchoolYear();
+  const instructionalDays = schoolYear ? instructionalDaysCountForRange(schoolYear.startDate, schoolYear.endDate) : 0;
+  const schoolYears = state.settings.schoolYears || [];
+  const allQuarters = state.settings.allQuarters || [];
+  const currentYearQuarters = schoolYear
+    ? allQuarters.filter((quarter) => quarter.schoolYearId === schoolYear.id)
+    : [];
+  const quarterCount = currentYearQuarters.length || (state.settings.quarters || []).length;
+  const gapMinutes = normalizeMinutesBetweenClasses(schoolYear?.minutesBetweenClasses);
+  const scheduleBlocks = state.scheduleBlocks || [];
+  const unassignedBlocks = scheduleBlocks.filter((block) => scheduleBlockNeedsAssignmentReview(block)).length;
+  const holidays = state.settings.holidays || [];
+  setTextById("schedule-header-year-label", schoolYear?.label || "-");
+  setTextById("schedule-header-day-count", instructionalDays.toLocaleString());
+  setTextById("schedule-header-block-count", scheduleBlocks.length.toLocaleString());
+  setTextById("schedule-school-years-summary", schoolYear ? `${schoolYear.label} current / ${schoolYears.length.toLocaleString()} saved` : "No current year");
+  setTextById("schedule-quarters-summary-chip", `${quarterCount.toLocaleString()} quarter${quarterCount === 1 ? "" : "s"}`);
+  setTextById("schedule-school-day-summary-chip", `${formatClockTime(schoolYear?.schoolDayStartTime || DEFAULT_SCHOOL_DAY_START_TIME)} / ${gapMinutes} min gap`);
+  setTextById("schedule-blocks-summary-chip", `${scheduleBlocks.length.toLocaleString()} block${scheduleBlocks.length === 1 ? "" : "s"}${unassignedBlocks ? ` / ${unassignedBlocks.toLocaleString()} unassigned` : ""}`);
+  setTextById("schedule-holidays-summary-chip", `${holidays.length.toLocaleString()} date${holidays.length === 1 ? "" : "s"}`);
 }
 
 function buildAlertsSnapshot() {
@@ -10567,6 +10619,38 @@ function cancelGradeTypeEdit() {
   renderGradeTypes();
 }
 
+function renderStudentDetailOverview({ student, archived, selectedQuarter, studentEnrollments, missingRequiredSubjects, gradeSummary, attendanceSummary }) {
+  const studentName = `${student.firstName || ""} ${student.lastName || ""}`.trim();
+  const gradeLabel = student.grade ? `Grade ${student.grade}` : "Grade not set";
+  const ageLabel = student.birthdate ? `Age ${calculateAge(student.birthdate)}` : "Age not set";
+  const quarterLabel = selectedQuarter === "all" ? "All quarters" : selectedQuarter;
+  const statusLabel = archived ? "Archived" : "Active";
+  const averageDisplay = gradeSummary.overallAverage > 0 ? `${gradeSummary.overallAverage.toFixed(1)}%` : "No grades";
+  const requiredDisplay = archived
+    ? "N/A"
+    : missingRequiredSubjects.length
+      ? `${missingRequiredSubjects.length} gap${missingRequiredSubjects.length === 1 ? "" : "s"}`
+      : "Complete";
+
+  setTextById("student-detail-title", studentName || "Student");
+  setTextById("student-detail-subtitle", `${gradeLabel} | ${ageLabel} | ${statusLabel} | ${quarterLabel}`);
+  setTextById("student-detail-scheduled-count", studentEnrollments.length.toLocaleString());
+  setTextById("student-detail-required-status", requiredDisplay);
+  setTextById("student-detail-average", averageDisplay);
+  setTextById("student-detail-absence-count", Number(attendanceSummary.absent || 0).toLocaleString());
+
+  const avatar = document.getElementById("student-detail-avatar");
+  if (avatar) {
+    avatar.textContent = (student.firstName || student.lastName || "S").charAt(0).toUpperCase();
+    avatar.classList.toggle("archived", archived);
+  }
+  const requiredMetric = document.getElementById("student-detail-required-metric");
+  if (requiredMetric) {
+    requiredMetric.classList.toggle("attention", !archived && missingRequiredSubjects.length > 0);
+    requiredMetric.classList.toggle("neutral", archived);
+  }
+}
+
 function renderStudentDetail() {
   const panel = document.getElementById("student-detail-panel");
   if (!panel) return;
@@ -10581,7 +10665,6 @@ function renderStudentDetail() {
   }
 
   const archived = studentIsArchived(student);
-  document.getElementById("student-detail-title").textContent = `${student.firstName} ${student.lastName} | Grade ${student.grade} | Age ${calculateAge(student.birthdate)}${archived ? " | Archived" : ""}`;
   renderStudentDetailSectionVisibility();
   const summaryFirst = document.getElementById("student-summary-first");
   const summaryLast = document.getElementById("student-summary-last");
@@ -10627,6 +10710,16 @@ function renderStudentDetail() {
   if (studentEnrollmentSubjectFocusId && !missingRequiredSubjects.some((subject) => subject.id === studentEnrollmentSubjectFocusId)) {
     studentEnrollmentSubjectFocusId = "";
   }
+  const summary = studentAttendanceSummaryByRange(student.id, rangeStart, rangeEnd);
+  renderStudentDetailOverview({
+    student,
+    archived,
+    selectedQuarter,
+    studentEnrollments,
+    missingRequiredSubjects,
+    gradeSummary,
+    attendanceSummary: summary
+  });
   renderStudentDetailRequiredCallout(student, missingRequiredSubjects);
   renderStudentEnrollmentCourseChecklist(getSelectedStudentEnrollmentCourseIds(), student.id);
   const enrollmentRows = studentEnrollments
@@ -10666,7 +10759,6 @@ function renderStudentDetail() {
   }
   rowOrEmpty(document.getElementById("student-enrollment-table"), enrollmentRows, "No scheduled items for this student.", 6);
 
-  const summary = studentAttendanceSummaryByRange(student.id, rangeStart, rangeEnd);
   const requiredDaysDisplay = schoolYear.requiredInstructionalDays == null ? "-" : String(schoolYear.requiredInstructionalDays);
   const attendanceRows = [
     `<tr><td>${student.firstName} ${student.lastName}</td><td>${requiredDaysDisplay}</td><td>${summary.attended}</td><td>${summary.absent}</td></tr>`

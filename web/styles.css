@@ -7397,6 +7397,91 @@ tbody tr:hover {
   margin-bottom: 1.25rem;
 }
 
+#app-shell .workspace-page-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #dfe7f1;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  box-shadow: 0 14px 34px rgba(25, 42, 70, 0.06);
+}
+
+#app-shell .workspace-page-header > div:first-child {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+#app-shell .workspace-page-eyebrow {
+  margin: 0;
+  color: #6b778c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+#app-shell .workspace-page-header h2 {
+  margin: 0;
+  color: #17243d;
+  font-size: 1.38rem;
+  line-height: 1.1;
+}
+
+#app-shell .workspace-page-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+#app-shell .workspace-page-metrics span {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 5.6rem;
+  padding: 0.45rem 0.58rem;
+  border: 1px solid #d9e6f5;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+#app-shell .workspace-page-metrics strong {
+  color: #155bc3;
+  font-size: 0.98rem;
+  line-height: 1.1;
+}
+
+#app-shell .workspace-page-metrics em {
+  color: #627286;
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  #app-shell .workspace-page-header {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  #app-shell .workspace-page-metrics {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  #app-shell .workspace-page-metrics span {
+    flex: 1 1 8rem;
+  }
+}
+
 #app-shell #tab-dashboard.active {
   display: grid;
   gap: 1rem;
@@ -12114,6 +12199,106 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
+#app-shell .student-detail-overview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  padding: 0.1rem 0 0.75rem;
+  border-bottom: 1px solid #e3eaf4;
+}
+
+#app-shell .student-detail-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+  min-width: 0;
+}
+
+#app-shell .student-detail-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 14px;
+  background: #eaf3ff;
+  color: #155bc3;
+  font-size: 1.12rem;
+  font-weight: 850;
+}
+
+#app-shell .student-detail-avatar.archived {
+  background: #eef1f5;
+  color: #66758a;
+}
+
+#app-shell #student-detail-panel .detail-title {
+  margin: 0;
+  color: #17243d;
+  font-size: 1.25rem;
+  line-height: 1.12;
+}
+
+#app-shell .student-detail-subtitle {
+  margin: 0.18rem 0 0;
+  color: #627286;
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+#app-shell .student-detail-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+#app-shell .student-detail-metrics span {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 5.1rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #d9e6f5;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+#app-shell .student-detail-metrics span.attention {
+  border-color: #efc46a;
+  background: #fff8e6;
+}
+
+#app-shell .student-detail-metrics span.neutral {
+  background: #f4f6f8;
+}
+
+#app-shell .student-detail-metrics strong {
+  color: #155bc3;
+  font-size: 0.9rem;
+  line-height: 1.1;
+}
+
+#app-shell .student-detail-metrics span.attention strong {
+  color: #755000;
+}
+
+#app-shell .student-detail-metrics span.neutral strong {
+  color: #66758a;
+}
+
+#app-shell .student-detail-metrics em {
+  color: #627286;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
 #app-shell .student-detail-subtabs {
   width: fit-content;
   margin: 0.55rem 0 0.65rem;
@@ -12148,12 +12333,6 @@ tbody tr:hover {
   background: #ffffff;
   color: #155bc3;
   box-shadow: 0 8px 18px rgba(31, 47, 69, 0.08);
-}
-
-#app-shell #student-detail-panel .detail-title {
-  color: #17243d;
-  font-size: 1.05rem;
-  line-height: 1.2;
 }
 
 #app-shell .student-detail-required-callout {
@@ -12342,13 +12521,46 @@ tbody tr:hover {
   font-weight: 600;
 }
 
+#app-shell .student-detail-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
 #app-shell #student-detail-filter-form {
   grid-template-columns: minmax(180px, 240px);
-  margin: 0.55rem 0 0;
+  margin: 0;
 }
 
 #app-shell #student-enrollment-form {
   grid-template-columns: minmax(280px, 1fr) auto;
+}
+
+@media (max-width: 760px) {
+  #app-shell .student-detail-overview,
+  #app-shell .student-detail-section-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  #app-shell .student-detail-metrics,
+  #app-shell #student-detail-filter-form {
+    width: 100%;
+  }
+
+  #app-shell .student-detail-metrics {
+    justify-content: flex-start;
+  }
+
+  #app-shell .student-detail-metrics span {
+    flex: 1 1 7.2rem;
+  }
+
+  #app-shell #student-enrollment-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 #app-shell .student-detail-action-row {
@@ -12511,6 +12723,45 @@ tbody tr:hover {
 #app-shell .management-section h4,
 #app-shell .course-sections-wrap h4 {
   margin-top: 0.65rem;
+}
+
+#app-shell .setup-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+#app-shell .setup-section-heading > div {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+#app-shell .setup-section-heading p {
+  margin: 0;
+  color: #65758a;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+#app-shell .setup-section-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  max-width: 100%;
+  padding: 0.24rem 0.6rem;
+  border: 1px solid #d9e6f5;
+  border-radius: 999px;
+  background: #f7fbff;
+  color: #35516e;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 #app-shell .school-day-readiness-panel {
@@ -12842,6 +13093,15 @@ tbody tr:hover {
   #app-shell .readiness-filter-panel {
     align-items: start;
     flex-direction: column;
+  }
+
+  #app-shell .setup-section-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  #app-shell .setup-section-badge {
+    white-space: normal;
   }
 
   #app-shell .school-day-readiness-grid {
