@@ -423,52 +423,11 @@ h1 {
   min-height: 470px;
   padding: 2.25rem 2rem 2rem;
   border: 0;
-  border-radius: 36px;
+  border-radius: 36px 36px 0 0;
   background:
-    linear-gradient(172deg, transparent 65%, rgba(255, 255, 255, 0.68) 65.3%, transparent 75%),
-    repeating-radial-gradient(ellipse at 88% 116%, transparent 0 22px, rgba(62, 123, 250, 0.1) 23px 25px, transparent 26px 44px),
     radial-gradient(circle at 72% 28%, rgba(255, 255, 255, 0.78), transparent 20rem),
     linear-gradient(135deg, rgba(241, 248, 255, 0.92), rgba(235, 246, 232, 0.76));
-  box-shadow: 0 30px 82px rgba(14, 35, 68, 0.11);
-}
-
-.final-scenic-mark {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  z-index: 1;
-  width: min(360px, 38%);
-  height: auto;
-  opacity: 0.88;
-  pointer-events: none;
-}
-
-.scenic-skyline {
-  fill: rgba(167, 199, 236, 0.34);
-}
-
-.scenic-water {
-  fill: rgba(126, 174, 224, 0.34);
-}
-
-.scenic-shore {
-  fill: rgba(46, 92, 145, 0.42);
-}
-
-.scenic-trees {
-  fill: rgba(36, 78, 122, 0.72);
-}
-
-.scenic-lighthouse {
-  fill: #ffffff;
-  stroke: rgba(35, 78, 132, 0.78);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.scenic-lighthouse rect {
-  fill: rgba(62, 123, 250, 0.14);
+  box-shadow: 0 24px 64px rgba(14, 35, 68, 0.1);
 }
 
 .final-cta-copy {
@@ -570,7 +529,7 @@ h1 {
   position: relative;
   overflow: visible;
   width: min(1460px, calc(100% - 4rem));
-  margin: 1rem auto 2rem;
+  margin: 0 auto 2rem;
   padding: 0;
   border: 0;
   background: transparent;
@@ -594,11 +553,12 @@ h1 {
   row-gap: 0.8rem;
   padding: 1.65rem 2rem 0.95rem;
   border: 1px solid rgba(202, 214, 232, 0.72);
-  border-radius: 32px;
+  border-top: 0;
+  border-radius: 0 0 32px 32px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(247, 251, 255, 0.9) 56%, rgba(238, 248, 234, 0.76)),
-    linear-gradient(180deg, #ffffff, #f5faff);
-  box-shadow: 0 24px 62px rgba(16, 32, 59, 0.11);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(247, 251, 255, 0.9) 58%, rgba(238, 248, 234, 0.72)),
+    linear-gradient(180deg, rgba(251, 253, 255, 0.96), #f5faff);
+  box-shadow: 0 30px 68px rgba(16, 32, 59, 0.11);
 }
 
 .site-footer-card::before,
@@ -609,13 +569,7 @@ h1 {
 }
 
 .site-footer-card::before {
-  right: -4rem;
-  bottom: -4.8rem;
-  width: min(56rem, 58vw);
-  height: 11rem;
-  opacity: 0.22;
-  background:
-    repeating-radial-gradient(ellipse at 100% 110%, transparent 0 18px, rgba(62, 123, 250, 0.18) 19px 21px, transparent 22px 36px);
+  content: none;
 }
 
 .site-footer-card::after {
@@ -834,11 +788,6 @@ h1 {
     max-width: none;
   }
 
-  .final-scenic-mark {
-    width: min(340px, 48%);
-    opacity: 0.34;
-  }
-
   .checkout-card,
   .pricing-card,
   .story-step,
@@ -894,11 +843,6 @@ h1 {
     grid-template-rows: none;
     gap: 0.9rem;
     min-height: auto;
-  }
-
-  .final-scenic-mark {
-    width: min(280px, 74%);
-    opacity: 0.22;
   }
 
   .final-dashboard-shot,
