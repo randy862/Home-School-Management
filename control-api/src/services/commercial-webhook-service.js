@@ -4,6 +4,8 @@ async function processStripeBillingEvent(event, deps) {
     createBillingEvent,
     getBillingEventByStripeEventId,
     getCheckoutSessionByStripeSessionId,
+    getCommercialPlanById,
+    getCommercialPlanByStripePriceId,
     getSubscriptionByStripeCheckoutSessionId,
     getSubscriptionByStripeSubscriptionId,
     markCheckoutSessionCompleted,
@@ -32,6 +34,8 @@ async function processStripeBillingEvent(event, deps) {
     const result = await handleStripeEventByType(event, {
       ensureCommercialProvisioningForSubscription,
       getCheckoutSessionByStripeSessionId,
+      getCommercialPlanById,
+      getCommercialPlanByStripePriceId,
       getSubscriptionByStripeCheckoutSessionId,
       getSubscriptionByStripeSubscriptionId,
       markCheckoutSessionCompleted,
@@ -104,7 +108,8 @@ async function handleStripeEventByType(event, deps) {
       };
     }
 
-    const subscription = await deps.updateSubscriptionByStripeSubscriptionId(stripeSubscriptionId, {
+    const plan = await resolvePlanForStripeSubscription(object, deps);
+    const updates = {
       status: normalizeStripeSubscriptionStatus(object.status),
       stripeCheckoutSessionId: existingSubscription.stripeCheckoutSessionId || String(object.metadata?.checkout_session_id || "").trim() || null,
       currentPeriodStart: toIsoFromUnixSeconds(object.current_period_start),
@@ -112,7 +117,15 @@ async function handleStripeEventByType(event, deps) {
       cancelAtPeriodEnd: typeof object.cancel_at_period_end === "boolean" ? object.cancel_at_period_end : null,
       canceledAt: toIsoFromUnixSeconds(object.canceled_at),
       trialEndsAt: toIsoFromUnixSeconds(object.trial_end)
-    });
+    };
+    if (plan) {
+      updates.commercialPlanId = plan.id;
+      updates.basePriceCents = Number(plan.priceCents || 0);
+      updates.includedBillableStudents = Number(plan.limits?.includedBillableStudents || 0);
+      updates.perStudentOverageCents = Number(plan.limits?.perStudentOverageCents || 0);
+    }
+
+    const subscription = await deps.updateSubscriptionByStripeSubscriptionId(stripeSubscriptionId, updates);
 
     if (subscription?.customerAccountId && subscription?.status) {
       await deps.updateCustomerAccountStatus(subscription.customerAccountId, mapAccountStatusFromSubscriptionStatus(subscription.status));
@@ -219,4 +232,25 @@ function mapAccountStatusFromSubscriptionStatus(value) {
   if (normalized === "canceled") return "canceled";
   if (["past_due", "unpaid"].includes(normalized)) return "past_due";
   return "active";
+}
+
+async function resolvePlanForStripeSubscription(subscription, deps) {
+  const metadataPlanId = String(subscription?.metadata?.commercialPlanId || "").trim();
+  if (metadataPlanId && deps.getCommercialPlanById) {
+    const plan = await deps.getCommercialPlanById(metadataPlanId);
+    if (plan) return plan;
+  }
+
+  if (!deps.getCommercialPlanByStripePriceId) return null;
+  const items = Array.isArray(subscription?.items?.data) ? subscription.items.data : [];
+  for (const item of items) {
+    const billingRole = String(item?.metadata?.billing_role || "").trim().toLowerCase();
+    if (billingRole === "overage") continue;
+    const priceId = String(item?.price?.id || "").trim();
+    if (!priceId) continue;
+    const plan = await deps.getCommercialPlanByStripePriceId(priceId);
+    if (plan) return plan;
+  }
+
+  return null;
 }

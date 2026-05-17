@@ -754,18 +754,22 @@ async function updateSubscriptionByStripeSubscriptionId(stripeSubscriptionId, up
   const result = await pool.query(`
     UPDATE customer_subscriptions
     SET
-      status = COALESCE($2, status),
-      stripe_checkout_session_id = COALESCE($3, stripe_checkout_session_id),
-      current_period_start = COALESCE($4, current_period_start),
-      current_period_end = COALESCE($5, current_period_end),
-      cancel_at_period_end = COALESCE($6, cancel_at_period_end),
-      canceled_at = COALESCE($7, canceled_at),
-      trial_ends_at = COALESCE($8, trial_ends_at),
-      grace_period_ends_at = COALESCE($9, grace_period_ends_at),
-      dormant_status = COALESCE($10, dormant_status),
-      current_billable_student_count = COALESCE($11, current_billable_student_count),
-      current_overage_student_count = COALESCE($12, current_overage_student_count),
-      last_billable_count_calculated_at = COALESCE($13, last_billable_count_calculated_at),
+      commercial_plan_id = COALESCE($2, commercial_plan_id),
+      status = COALESCE($3, status),
+      stripe_checkout_session_id = COALESCE($4, stripe_checkout_session_id),
+      current_period_start = COALESCE($5, current_period_start),
+      current_period_end = COALESCE($6, current_period_end),
+      cancel_at_period_end = COALESCE($7, cancel_at_period_end),
+      canceled_at = COALESCE($8, canceled_at),
+      trial_ends_at = COALESCE($9, trial_ends_at),
+      grace_period_ends_at = COALESCE($10, grace_period_ends_at),
+      dormant_status = COALESCE($11, dormant_status),
+      base_price_cents = COALESCE($12, base_price_cents),
+      included_billable_students = COALESCE($13, included_billable_students),
+      per_student_overage_cents = COALESCE($14, per_student_overage_cents),
+      current_billable_student_count = COALESCE($15, current_billable_student_count),
+      current_overage_student_count = COALESCE($16, current_overage_student_count),
+      last_billable_count_calculated_at = COALESCE($17, last_billable_count_calculated_at),
       updated_at = NOW()
     WHERE stripe_subscription_id = $1
     RETURNING
@@ -792,6 +796,7 @@ async function updateSubscriptionByStripeSubscriptionId(stripeSubscriptionId, up
       updated_at AS "updatedAt"
   `, [
     stripeSubscriptionId,
+    updates.commercialPlanId || null,
     updates.status || null,
     updates.stripeCheckoutSessionId || null,
     updates.currentPeriodStart || null,
@@ -801,6 +806,9 @@ async function updateSubscriptionByStripeSubscriptionId(stripeSubscriptionId, up
     updates.trialEndsAt || null,
     updates.gracePeriodEndsAt || null,
     updates.dormantStatus || null,
+    Number.isInteger(updates.basePriceCents) ? updates.basePriceCents : null,
+    Number.isInteger(updates.includedBillableStudents) ? updates.includedBillableStudents : null,
+    Number.isInteger(updates.perStudentOverageCents) ? updates.perStudentOverageCents : null,
     Number.isInteger(updates.currentBillableStudentCount) ? updates.currentBillableStudentCount : null,
     Number.isInteger(updates.currentOverageStudentCount) ? updates.currentOverageStudentCount : null,
     updates.lastBillableCountCalculatedAt || null
