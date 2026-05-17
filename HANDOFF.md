@@ -24,6 +24,8 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
   - `control-api/src/postgres-commercial-store.js`
 - Patch makes `customer.subscription.created/updated` resolve the commercial plan from Stripe subscription metadata or item price and persist plan/pricing fields locally.
 - Stripe billing webhook endpoint now enables subscription created/updated/deleted events.
+- Account Profile upgrade reconciliation is committed as `9147a2c Complete account upgrade webhook reconciliation`.
+- Post-commit hosted release gate passed for `https://mitchell.navigrader.com`.
 - Control API rollback snapshot:
   - `/home/debian/rollback/hsm/control-api-upgrade-webhook-20260517031559/control-api`
 - `smoketest.navigrader.com` upgraded from Starter to Growth and is active, Stripe-linked, and ready for later commercial QA.
@@ -32,8 +34,7 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 
 ## Next Action
 
-1. Run hosted release gate again once smoke credentials are available in the shell.
-2. Continue Dormant Mode and Data Export implementation.
+1. Continue Dormant Mode and Data Export implementation.
 
 ## Risks
 
@@ -58,3 +59,4 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 - Stripe endpoint now enables `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_failed`.
 - Real `customer.subscription.updated` webhook processed successfully for the smoke subscription after a metadata-only validation update.
 - Control DB shows `smoketest.navigrader.com` on `growth_monthly`, `$14.99/month`, 10 included billable students.
+- Post-commit `Invoke-HostedReleaseGate.ps1 -PublicBaseUrl https://mitchell.navigrader.com` passed.

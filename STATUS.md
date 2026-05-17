@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Authenticated release gate is repeatable. Account Profile upgrade is validated end-to-end on the Stripe-linked smoke tenant.
+Authenticated release gate is repeatable. Account Profile upgrade is validated end-to-end on the Stripe-linked smoke tenant and committed.
 
 ## Completed Recently
 
@@ -20,6 +20,8 @@ Authenticated release gate is repeatable. Account Profile upgrade is validated e
 - Deployed control-api patch adds Stripe subscription webhook plan/pricing reconciliation for Account Profile upgrades.
 - Stripe billing webhook endpoint now includes subscription created/updated/deleted events.
 - `smoketest.navigrader.com` upgraded from Starter to Growth and remains active.
+- Committed `9147a2c Complete account upgrade webhook reconciliation`.
+- Post-commit hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -51,6 +53,7 @@ Authenticated release gate is repeatable. Account Profile upgrade is validated e
 - Stripe webhook endpoint `https://www.navigrader.com/control-api/api/public/billing/webhook` now enables `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_failed`.
 - Real `customer.subscription.updated` webhook processed successfully for the smoke subscription after a metadata-only validation update.
 - Control DB shows `smoketest.navigrader.com` on `growth_monthly`, `$14.99/month`, 10 included billable students.
+- Post-commit `Invoke-HostedReleaseGate.ps1 -PublicBaseUrl https://mitchell.navigrader.com` passed.
 
 ## Current Blockers
 
@@ -66,6 +69,5 @@ Authenticated release gate is repeatable. Account Profile upgrade is validated e
 
 ## Next Actions
 
-1. Run hosted release gate again once smoke credentials are available in the shell.
-2. Continue Dormant Mode reduced billing/reactivation work.
-3. Continue Data Export checkout/job/download/expiration work.
+1. Continue Dormant Mode reduced billing/reactivation work.
+2. Continue Data Export checkout/job/download/expiration work.
