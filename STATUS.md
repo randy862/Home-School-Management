@@ -23,6 +23,7 @@ Data Export first slice is deployed; live checkout/download QA passed, and the a
 - Dormant Mode is deployed; smoke UI dormant/reactivation, write-blocking, final control DB, and final Stripe checks passed.
 - Committed `57150b0 Complete dormant mode billing flow`.
 - Data Export first slice deployed and live-QA passed: Stripe Checkout request, webhook queueing, CSV ZIP artifact generation, secure admin download, and expiration handling.
+- Committed and pushed `ca5fa2d Complete customer data export package`.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -73,4 +74,4 @@ Data Export first slice is deployed; live checkout/download QA passed, and the a
 ## Next Actions
 
 1. Have user QA a CSV ZIP export from `mitchell.navigrader.com`.
-2. Move to backend/platform hardening or tenant/runtime correctness.
+2. Resume with backend/platform hardening or tenant/runtime correctness.

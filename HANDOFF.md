@@ -18,7 +18,8 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 - `smoketest.navigrader.com` is Growth, active, Stripe-linked, and ready for commercial QA.
 - Dormant Mode is deployed, live-QA passed, write-blocking passed, final control DB/Stripe state restored active at Growth `1499`.
 - Dormant Mode is committed as `57150b0 Complete dormant mode billing flow`.
-- Data Export first slice is implemented, deployed, live-QA passed, and accepted:
+- Data Export first slice is implemented, deployed, live-QA passed, accepted, committed, and pushed:
+  - `ca5fa2d Complete customer data export package`
   - Account Profile export request creates a one-time Stripe Checkout session
   - `checkout.session.completed` queues `archive_tenant_data`
   - archive job writes a parent-readable ZIP of CSV records and marks request ready
@@ -33,7 +34,7 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 ## Next Action
 
 1. Have user QA a CSV ZIP export from `mitchell.navigrader.com`.
-2. Move to backend/platform hardening or tenant/runtime correctness.
+2. Resume with backend/platform hardening or tenant/runtime correctness.
 
 ## Risks
 
