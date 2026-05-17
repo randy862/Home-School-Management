@@ -12,6 +12,7 @@ const API_ACCOUNT_SUBSCRIPTION_UPGRADE_ENDPOINT = `${API_BASE_URL}/api/account/s
 const API_ACCOUNT_DORMANT_ENDPOINT = `${API_BASE_URL}/api/account/options/dormant`;
 const API_ACCOUNT_REACTIVATE_ENDPOINT = `${API_BASE_URL}/api/account/options/reactivate`;
 const API_ACCOUNT_EXPORT_REQUEST_ENDPOINT = `${API_BASE_URL}/api/account/options/export-request`;
+const accountExportDownloadEndpoint = (id) => `${API_BASE_URL}/api/account/options/export-requests/${encodeURIComponent(id)}/download`;
 const API_SETUP_STATUS_ENDPOINT = `${API_BASE_URL}/api/setup/status`;
 const API_SETUP_INITIALIZE_ENDPOINT = `${API_BASE_URL}/api/setup/initialize`;
 const API_USERS_ENDPOINT = `${API_BASE_URL}/api/users`;
@@ -4539,7 +4540,9 @@ function renderAccountSurface() {
             ${exportRequests.length ? exportRequests.map((request) => `
               <li>
                 <strong>${escapeHtml(formatExportRequestStatusLabel(request.status))}</strong>
-                <span>${escapeHtml(formatMoneyCents(request.priceCents, request.currency || "usd"))} | ${escapeHtml(formatAccountDateTime(request.createdAt))}</span>
+                <span>${escapeHtml(formatMoneyCents(request.priceCents, request.currency || "usd"))} | ${escapeHtml(formatAccountDateTime(request.createdAt))}${request.artifactExpiresAt ? ` | Expires ${escapeHtml(formatAccountDateTime(request.artifactExpiresAt))}` : ""}</span>
+                ${request.canDownload ? `<button class="account-export-download-btn" type="button" data-export-request-id="${escapeHtml(request.id)}">Download</button>` : ""}
+                ${request.failureReason ? `<span class="warning-text">${escapeHtml(request.failureReason)}</span>` : ""}
               </li>
             `).join("") : `<li><span>No export requests have been recorded yet.</span></li>`}
           </ul>
@@ -4669,6 +4672,13 @@ function renderAccountSurface() {
   document.getElementById("account-upgrade-btn")?.addEventListener("click", () => {
     openAccountUpgradeView();
   });
+  document.querySelectorAll(".account-export-download-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      const exportRequestId = button.getAttribute("data-export-request-id");
+      if (!exportRequestId) return;
+      window.location.href = accountExportDownloadEndpoint(exportRequestId);
+    });
+  });
 }
 
 function renderAccountPasswordSurface() {
@@ -4796,11 +4806,15 @@ function renderAccountOptionsSurface() {
       renderAccountOptionsSurface();
       return;
     }
-    const confirmed = window.confirm("Request a data export for this account? We will record the request and follow up with payment and delivery details.");
+    const confirmed = window.confirm("Request a data export for this account? You will continue to checkout, and the export will be generated after payment.");
     if (!confirmed) return;
     try {
       const result = await requestHostedExportRequest();
       await refreshHostedAccountSummary();
+      if (result?.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+        return;
+      }
       setAccountOptionsMessage("success", result?.message || "Export request recorded.");
       renderAccountOptionsSurface();
       renderAccountSurface();

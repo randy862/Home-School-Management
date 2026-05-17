@@ -1,4 +1,6 @@
 const { randomUUID } = require("crypto");
+const fs = require("fs/promises");
+const path = require("path");
 const { ensurePermission, sendRouteError } = require("./route-auth");
 const { parseBearerToken, verifyInternalServiceToken } = require("../internal-service-auth");
 
@@ -6,6 +8,7 @@ function registerControlCommercialRoutes(app, deps) {
   const {
     createCancellationExportRequest,
     createOperatorAuditEntry,
+    getCancellationExportRequestById,
     getCommercialSubscriptionById,
     getCommercialOverviewBySubscriptionId,
     getCommercialPlanById,
@@ -16,6 +19,7 @@ function registerControlCommercialRoutes(app, deps) {
     listOperatorAuditLog,
     queueProvisioningJob,
     stripeService,
+    updateCancellationExportRequest,
     updateCommercialSubscription
   } = deps;
 
@@ -399,11 +403,32 @@ function registerControlCommercialRoutes(app, deps) {
         return;
       }
 
+      const requestedByEmail = req.body?.requestedByEmail || req.body?.requestedByUsername || overview.billingEmail || overview.ownerEmail || null;
       const exportRequest = await createCancellationExportRequest({
         customerAccountId: subscription.customerAccountId,
         customerSubscriptionId: subscription.id,
-        requestedByEmail: req.body?.requestedByEmail || req.body?.requestedByUsername || null,
+        requestedByEmail,
         priceCents: 1999
+      });
+      const stripeSession = await stripeService.createPaymentCheckoutSession({
+        amountCents: exportRequest.priceCents,
+        currency: exportRequest.currency,
+        productName: "Navigrader Data Export",
+        successUrl: normalizeRequiredCheckoutUrl(req.body?.successUrl),
+        cancelUrl: normalizeRequiredCheckoutUrl(req.body?.cancelUrl),
+        clientReferenceId: exportRequest.id,
+        customerEmail: requestedByEmail,
+        metadata: {
+          purpose: "data_export",
+          exportRequestId: exportRequest.id,
+          customerAccountId: subscription.customerAccountId,
+          customerSubscriptionId: subscription.id,
+          tenantId: overview.tenantId || "",
+          tenantEnvironmentId: overview.tenantEnvironmentId || ""
+        }
+      });
+      const updatedExportRequest = await updateCancellationExportRequest(exportRequest.id, {
+        paymentReference: stripeSession.id
       });
       await createOperatorAuditEntry({
         operatorUserId: null,
@@ -415,13 +440,53 @@ function registerControlCommercialRoutes(app, deps) {
           requestedByUserId: req.body?.requestedByUserId || null,
           requestedByUsername: req.body?.requestedByUsername || null,
           exportRequestId: exportRequest.id,
-          priceCents: exportRequest.priceCents,
-          requestedByEmail: exportRequest.requestedByEmail || null
+          priceCents: updatedExportRequest.priceCents,
+          requestedByEmail: updatedExportRequest.requestedByEmail || null,
+          stripeCheckoutSessionId: stripeSession.id
         }
       });
       res.status(201).json({
-        message: "Export request recorded. A follow-up payment and delivery flow will be attached in a later slice.",
-        exportRequest
+        message: "Export checkout created. Complete payment to generate the export.",
+        checkoutUrl: stripeSession.url,
+        checkoutSessionId: stripeSession.id,
+        exportRequest: updatedExportRequest
+      });
+    } catch (error) {
+      sendRouteError(res, error);
+    }
+  });
+
+  app.get("/api/internal/commercial/subscriptions/:id/cancellation-export/:exportRequestId/download", async (req, res) => {
+    if (!ensureInternalCommercialRequest(req, res, internalConfig)) return;
+
+    try {
+      const subscription = await getCommercialSubscriptionById(req.params.id);
+      const exportRequest = await getCancellationExportRequestById(req.params.exportRequestId);
+      if (!subscription || !exportRequest || exportRequest.customerSubscriptionId !== subscription.id) {
+        res.status(404).json({ error: "Export request not found." });
+        return;
+      }
+      if (exportRequest.status !== "ready" || !exportRequest.artifactPath) {
+        res.status(409).json({ error: "Export artifact is not ready for download." });
+        return;
+      }
+      const expiresAtMs = exportRequest.artifactExpiresAt ? Date.parse(exportRequest.artifactExpiresAt) : Number.NaN;
+      if (Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()) {
+        await updateCancellationExportRequest(exportRequest.id, {
+          status: "expired",
+          failureReason: "Export artifact expired."
+        });
+        res.status(410).json({ error: "Export artifact has expired." });
+        return;
+      }
+
+      const artifactPath = resolveExportArtifactPath(exportRequest.artifactPath);
+      const content = await fs.readFile(artifactPath);
+      res.json({
+        fileName: path.basename(artifactPath),
+        contentType: exportArtifactContentType(artifactPath),
+        contentBase64: content.toString("base64"),
+        artifactExpiresAt: exportRequest.artifactExpiresAt || null
       });
     } catch (error) {
       sendRouteError(res, error);
@@ -726,7 +791,7 @@ function ensureInternalCommercialRequest(req, res, internalConfig) {
   return false;
 }
 
-function createLifecycleJobPayload({ tenantId, tenantEnvironmentId, jobType, message, notes }) {
+function createLifecycleJobPayload({ tenantId, tenantEnvironmentId, jobType, idempotencyKey, message, notes, payload = {} }) {
   if (!tenantEnvironmentId) {
     const error = new Error("Environment id is required.");
     error.statusCode = 400;
@@ -737,13 +802,47 @@ function createLifecycleJobPayload({ tenantId, tenantEnvironmentId, jobType, mes
     tenantId: tenantId || null,
     tenantEnvironmentId,
     jobType,
-    idempotencyKey: null,
+    idempotencyKey: idempotencyKey || null,
     maxAttempts: 3,
     message,
     payload: {
-      notes: notes || ""
+      notes: notes || "",
+      ...payload
     }
   };
+}
+
+function normalizeRequiredCheckoutUrl(value) {
+  const normalized = String(value || "").trim();
+  if (!/^https?:\/\/[^ ]+$/i.test(normalized)) {
+    const error = new Error("Checkout return URL is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return normalized;
+}
+
+function resolveExportArtifactPath(artifactPath) {
+  const exportDir = getExportArtifactDir();
+  const resolved = path.resolve(String(artifactPath || ""));
+  const relative = path.relative(exportDir, resolved);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    const error = new Error("Export artifact path is outside the configured export directory.");
+    error.statusCode = 403;
+    throw error;
+  }
+  return resolved;
+}
+
+function getExportArtifactDir() {
+  return path.resolve(process.env.CONTROL_DATA_EXPORT_DIR || path.resolve(__dirname, "../../../runtime-bundles/data-exports"));
+}
+
+function exportArtifactContentType(artifactPath) {
+  const extension = path.extname(String(artifactPath || "")).toLowerCase();
+  if (extension === ".zip") return "application/zip";
+  if (extension === ".csv") return "text/csv";
+  return "application/json";
 }
 
 function calculateDormantBasePriceCents(plan) {

@@ -5,6 +5,7 @@ async function processStripeBillingEvent(event, deps) {
     ensureCommercialProvisioningForSubscription,
     createBillingEvent,
     createOperatorAuditEntry,
+    getCancellationExportRequestByPaymentReference,
     getBillingEventByStripeEventId,
     getCheckoutSessionByStripeSessionId,
     getCommercialOverviewBySubscriptionId,
@@ -14,6 +15,7 @@ async function processStripeBillingEvent(event, deps) {
     getSubscriptionByStripeSubscriptionId,
     markCheckoutSessionCompleted,
     queueProvisioningJob,
+    updateCancellationExportRequest,
     updateBillingEventProcessing,
     updateCustomerAccountStatus,
     updateSubscriptionByStripeCheckoutSessionId,
@@ -39,6 +41,7 @@ async function processStripeBillingEvent(event, deps) {
     const result = await handleStripeEventByType(event, {
       ensureCommercialProvisioningForSubscription,
       createOperatorAuditEntry,
+      getCancellationExportRequestByPaymentReference,
       getCheckoutSessionByStripeSessionId,
       getCommercialOverviewBySubscriptionId,
       getCommercialPlanById,
@@ -47,6 +50,7 @@ async function processStripeBillingEvent(event, deps) {
       getSubscriptionByStripeSubscriptionId,
       markCheckoutSessionCompleted,
       queueProvisioningJob,
+      updateCancellationExportRequest,
       updateCustomerAccountStatus,
       updateSubscriptionByStripeCheckoutSessionId,
       updateSubscriptionByStripeSubscriptionId
@@ -74,6 +78,10 @@ async function handleStripeEventByType(event, deps) {
 
   if (event.type === "checkout.session.completed") {
     const checkoutSessionId = String(object.id || "").trim();
+    if (String(object.metadata?.purpose || "").trim() === "data_export") {
+      return handleDataExportCheckoutCompleted(object, deps);
+    }
+
     const checkoutSession = await deps.getCheckoutSessionByStripeSessionId(checkoutSessionId);
     if (!checkoutSession) {
       return {
@@ -219,6 +227,100 @@ async function handleStripeEventByType(event, deps) {
   };
 }
 
+async function handleDataExportCheckoutCompleted(checkoutSession, deps) {
+  const checkoutSessionId = String(checkoutSession.id || "").trim();
+  if (!checkoutSessionId) {
+    return {
+      processingStatus: "ignored",
+      reason: "checkout_session_id_missing"
+    };
+  }
+  if (!deps.getCancellationExportRequestByPaymentReference || !deps.updateCancellationExportRequest) {
+    return {
+      processingStatus: "ignored",
+      reason: "data_export_dependencies_missing"
+    };
+  }
+
+  const exportRequest = await deps.getCancellationExportRequestByPaymentReference(checkoutSessionId);
+  if (!exportRequest) {
+    return {
+      processingStatus: "ignored",
+      reason: "data_export_request_not_found"
+    };
+  }
+
+  let lifecycleJob = null;
+  if (exportRequest.exportJobId) {
+    await deps.updateCancellationExportRequest(exportRequest.id, {
+      status: ["ready", "processing", "queued"].includes(exportRequest.status) ? exportRequest.status : "queued",
+      failureReason: null
+    });
+  } else if (deps.getCommercialOverviewBySubscriptionId && deps.queueProvisioningJob) {
+    const overview = await deps.getCommercialOverviewBySubscriptionId(exportRequest.customerSubscriptionId);
+    if (!overview?.tenantEnvironmentId) {
+      await deps.updateCancellationExportRequest(exportRequest.id, {
+        status: "failed",
+        failureReason: "Tenant environment was not found for export generation."
+      });
+      return {
+        processingStatus: "processed",
+        customerAccountId: exportRequest.customerAccountId || null,
+        customerSubscriptionId: exportRequest.customerSubscriptionId || null,
+        reason: "tenant_environment_not_found"
+      };
+    }
+    lifecycleJob = await deps.queueProvisioningJob(createLifecycleJobPayload({
+      tenantId: overview.tenantId,
+      tenantEnvironmentId: overview.tenantEnvironmentId,
+      jobType: "archive_tenant_data",
+      idempotencyKey: `data-export:${exportRequest.id}`,
+      message: "Tenant data export queued",
+      notes: "Queued automatically after data export checkout payment.",
+      payload: {
+        exportRequestId: exportRequest.id,
+        requestedByEmail: exportRequest.requestedByEmail || ""
+      }
+    }), {
+      operatorUserId: null
+    });
+    await deps.updateCancellationExportRequest(exportRequest.id, {
+      status: "queued",
+      exportJobId: lifecycleJob.id,
+      failureReason: null
+    });
+    if (deps.createOperatorAuditEntry) {
+      await deps.createOperatorAuditEntry({
+        operatorUserId: null,
+        actionType: "stripe_queue_data_export",
+        targetType: "cancellation_export_request",
+        targetId: exportRequest.id,
+        tenantId: overview.tenantId || null,
+        details: {
+          customerSubscriptionId: exportRequest.customerSubscriptionId,
+          stripeCheckoutSessionId: checkoutSessionId,
+          lifecycleJobId: lifecycleJob.id,
+          priceCents: exportRequest.priceCents,
+          currency: exportRequest.currency
+        }
+      });
+    }
+  } else {
+    await deps.updateCancellationExportRequest(exportRequest.id, {
+      status: "paid",
+      failureReason: null
+    });
+  }
+
+  return {
+    processingStatus: "processed",
+    customerAccountId: exportRequest.customerAccountId || null,
+    customerSubscriptionId: exportRequest.customerSubscriptionId || null,
+    exportRequestId: exportRequest.id,
+    exportJobId: lifecycleJob?.id || exportRequest.exportJobId || null
+  };
+}
+
 module.exports = {
   processStripeBillingEvent
 };
@@ -331,7 +433,7 @@ async function resolveDormantWebhookTransition(existingSubscription, stripeSubsc
   return { dormantStatus: "dormant", lifecycleJob };
 }
 
-function createLifecycleJobPayload({ tenantId, tenantEnvironmentId, jobType, idempotencyKey, message, notes }) {
+function createLifecycleJobPayload({ tenantId, tenantEnvironmentId, jobType, idempotencyKey, message, notes, payload = {} }) {
   return {
     id: `job-${randomUUID()}`,
     tenantId: tenantId || null,
@@ -341,7 +443,8 @@ function createLifecycleJobPayload({ tenantId, tenantEnvironmentId, jobType, ide
     maxAttempts: 3,
     message,
     payload: {
-      notes: notes || ""
+      notes: notes || "",
+      ...payload
     }
   };
 }

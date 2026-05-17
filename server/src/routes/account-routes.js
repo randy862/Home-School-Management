@@ -298,14 +298,43 @@ function registerAccountRoutes(app, deps) {
         body: JSON.stringify({
           requestedByUserId: req.auth.user.id,
           requestedByUsername: req.auth.user.username,
-          requestedByEmail: req.auth.user.email || commercialSummary?.ownerEmail || req.auth.user.username
+          requestedByEmail: req.auth.user.email || commercialSummary?.ownerEmail || req.auth.user.username,
+          successUrl: buildAccountReturnUrl(req, "export=success"),
+          cancelUrl: buildAccountReturnUrl(req, "export=cancel")
         })
       });
       res.status(201).json({
         ok: true,
-        message: payload?.message || "Export request recorded.",
+        message: payload?.message || "Export checkout created.",
+        checkoutUrl: payload?.checkoutUrl || "",
+        checkoutSessionId: payload?.checkoutSessionId || "",
         exportRequest: payload?.exportRequest ? mapExportRequest(payload.exportRequest) : null
       });
+    } catch (error) {
+      sendAccountRouteError(res, error);
+    }
+  });
+
+  app.get("/api/account/options/export-requests/:id/download", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode)) return;
+    if (!ensureAuthenticated(req, res)) return;
+    if (!ensureAdminUser(req, res, "Only tenant administrators can download exports.")) return;
+
+    try {
+      const commercialSummary = commercialPolicyService
+        ? await commercialPolicyService.getTenantCommercialSummary()
+        : null;
+      if (!commercialSummary?.subscriptionId) {
+        const error = new Error("No active commercial subscription was found for this tenant.");
+        error.statusCode = 404;
+        throw error;
+      }
+      const payload = await controlPlaneClient.request(`/api/internal/commercial/subscriptions/${encodeURIComponent(commercialSummary.subscriptionId)}/cancellation-export/${encodeURIComponent(req.params.id)}/download`);
+      const fileName = sanitizeDownloadFileName(payload?.fileName || `navigrader-export-${req.params.id}.json`);
+      const content = Buffer.from(String(payload?.contentBase64 || ""), "base64");
+      res.setHeader("Content-Type", payload?.contentType || "application/json");
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      res.send(content);
     } catch (error) {
       sendAccountRouteError(res, error);
     }
@@ -390,17 +419,32 @@ function mapBillingEvent(event) {
 }
 
 function mapExportRequest(request) {
+  const expiresAtMs = request.artifactExpiresAt ? Date.parse(request.artifactExpiresAt) : Number.NaN;
+  const canDownload = request.status === "ready" && (!Number.isFinite(expiresAtMs) || expiresAtMs > Date.now());
   return {
     id: request.id,
     status: request.status || "",
     priceCents: Number(request.priceCents || 0),
     currency: request.currency || "usd",
     requestedByEmail: request.requestedByEmail || "",
+    canDownload,
     artifactExpiresAt: request.artifactExpiresAt || null,
     failureReason: request.failureReason || "",
     createdAt: request.createdAt || null,
     updatedAt: request.updatedAt || null
   };
+}
+
+function buildAccountReturnUrl(req, query) {
+  const host = req.get("host");
+  const protocol = req.protocol || "https";
+  const normalizedQuery = String(query || "").replace(/^\?+/, "");
+  return `${protocol}://${host}/${normalizedQuery ? `?${normalizedQuery}` : ""}`;
+}
+
+function sanitizeDownloadFileName(value) {
+  const normalized = String(value || "navigrader-export.json").trim().replace(/[^a-zA-Z0-9._-]+/g, "-");
+  return normalized || "navigrader-export.json";
 }
 
 function ensurePostgresMode(res, isPostgresMode) {

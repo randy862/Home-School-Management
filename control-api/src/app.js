@@ -80,6 +80,9 @@ const {
   markCheckoutSessionCompleted,
   updateAccessHandoffByProvisioningRequestId,
   updateBillingEventProcessing,
+  getCancellationExportRequestById,
+  getCancellationExportRequestByPaymentReference,
+  updateCancellationExportRequest,
   updateCommercialSubscription,
   updateCustomerAccountStatus,
   updateProvisioningRequest,
@@ -184,6 +187,7 @@ registerPublicSaasRoutes(app, {
     ensureCommercialProvisioningForSubscription: (checkoutSession, subscription) => commercialProvisioningService.ensureProvisioningForSubscription(checkoutSession, subscription),
     createBillingEvent,
     createOperatorAuditEntry,
+    getCancellationExportRequestByPaymentReference,
     getBillingEventByStripeEventId,
     getCheckoutSessionByStripeSessionId,
     getCommercialOverviewBySubscriptionId,
@@ -193,6 +197,7 @@ registerPublicSaasRoutes(app, {
     getSubscriptionByStripeSubscriptionId,
     markCheckoutSessionCompleted,
     queueProvisioningJob,
+    updateCancellationExportRequest,
     updateBillingEventProcessing,
     updateCustomerAccountStatus,
     updateSubscriptionByStripeCheckoutSessionId,
@@ -210,6 +215,7 @@ registerAuditRoutes(app, {
 registerControlCommercialRoutes(app, {
   createCancellationExportRequest,
   createOperatorAuditEntry,
+  getCancellationExportRequestById,
   getCommercialSubscriptionById,
   getCommercialOverviewBySubscriptionId,
   getCommercialPlanById,
@@ -221,6 +227,7 @@ registerControlCommercialRoutes(app, {
   listOperatorAuditLog,
   queueProvisioningJob,
   stripeService,
+  updateCancellationExportRequest,
   updateCommercialSubscription
 });
 registerOperatorAuthRoutes(app, {

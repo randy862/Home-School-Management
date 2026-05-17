@@ -45,6 +45,49 @@ class StripeService {
     };
   }
 
+  async createPaymentCheckoutSession(input) {
+    this.ensureConfigured();
+
+    const amountCents = Number.parseInt(input?.amountCents, 10);
+    const currency = String(input?.currency || "usd").trim().toLowerCase();
+    const productName = String(input?.productName || "Data Export").trim();
+    if (!Number.isInteger(amountCents) || amountCents <= 0 || !currency || !productName) {
+      const error = new Error("Stripe payment checkout details are not fully configured.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const params = new URLSearchParams();
+    params.set("mode", "payment");
+    params.set("success_url", input.successUrl);
+    params.set("cancel_url", input.cancelUrl);
+    params.set("line_items[0][price_data][currency]", currency);
+    params.set("line_items[0][price_data][unit_amount]", String(amountCents));
+    params.set("line_items[0][price_data][product_data][name]", productName);
+    params.set("line_items[0][quantity]", "1");
+    params.set("client_reference_id", input.clientReferenceId);
+    if (input.customerEmail) {
+      params.set("customer_email", input.customerEmail);
+    }
+
+    Object.entries(input.metadata || {}).forEach(([key, value]) => {
+      if (value == null || value === "") return;
+      params.set(`metadata[${key}]`, String(value));
+      params.set(`payment_intent_data[metadata][${key}]`, String(value));
+    });
+
+    const payload = await this.requestStripe("/checkout/sessions", {
+      method: "POST",
+      body: params
+    }, "Stripe payment checkout session creation failed");
+
+    return {
+      id: payload.id,
+      url: payload.url,
+      expiresAt: payload.expires_at ? new Date(payload.expires_at * 1000).toISOString() : null
+    };
+  }
+
   async getSubscription(subscriptionId) {
     this.ensureConfigured();
     const normalizedId = String(subscriptionId || "").trim();

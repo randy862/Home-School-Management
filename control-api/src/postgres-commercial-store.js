@@ -1043,6 +1043,96 @@ async function listCancellationExportRequestsBySubscriptionId(customerSubscripti
   return result.rows.map(mapCancellationExportRequestRow);
 }
 
+async function getCancellationExportRequestById(id) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      status,
+      price_cents AS "priceCents",
+      currency,
+      requested_by_email AS "requestedByEmail",
+      payment_reference AS "paymentReference",
+      export_job_id AS "exportJobId",
+      artifact_path AS "artifactPath",
+      artifact_expires_at AS "artifactExpiresAt",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM cancellation_export_requests
+    WHERE id = $1
+    LIMIT 1
+  `, [id]);
+  return mapCancellationExportRequestRow(result.rows[0]);
+}
+
+async function getCancellationExportRequestByPaymentReference(paymentReference) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      status,
+      price_cents AS "priceCents",
+      currency,
+      requested_by_email AS "requestedByEmail",
+      payment_reference AS "paymentReference",
+      export_job_id AS "exportJobId",
+      artifact_path AS "artifactPath",
+      artifact_expires_at AS "artifactExpiresAt",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM cancellation_export_requests
+    WHERE payment_reference = $1
+    LIMIT 1
+  `, [paymentReference]);
+  return mapCancellationExportRequestRow(result.rows[0]);
+}
+
+async function updateCancellationExportRequest(id, updates = {}) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    UPDATE cancellation_export_requests
+    SET
+      status = COALESCE($2, status),
+      payment_reference = COALESCE($3, payment_reference),
+      export_job_id = COALESCE($4, export_job_id),
+      artifact_path = COALESCE($5, artifact_path),
+      artifact_expires_at = COALESCE($6, artifact_expires_at),
+      failure_reason = $7,
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      status,
+      price_cents AS "priceCents",
+      currency,
+      requested_by_email AS "requestedByEmail",
+      payment_reference AS "paymentReference",
+      export_job_id AS "exportJobId",
+      artifact_path AS "artifactPath",
+      artifact_expires_at AS "artifactExpiresAt",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+  `, [
+    id,
+    updates.status || null,
+    updates.paymentReference || null,
+    updates.exportJobId || null,
+    updates.artifactPath || null,
+    updates.artifactExpiresAt || null,
+    Object.prototype.hasOwnProperty.call(updates, "failureReason") ? updates.failureReason || null : null
+  ]);
+  return mapCancellationExportRequestRow(result.rows[0]);
+}
+
 async function updateCustomerAccountStatus(customerAccountId, status) {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -1834,6 +1924,8 @@ module.exports = {
   createProvisioningRequest,
   findCheckoutNameConflicts,
   getBillingEventByStripeEventId,
+  getCancellationExportRequestById,
+  getCancellationExportRequestByPaymentReference,
   getCommercialPlanById,
   getCommercialPlanByStripePriceId,
   getCommercialSubscriptionById,
@@ -1856,6 +1948,7 @@ module.exports = {
   markCheckoutSessionCompleted,
   updateAccessHandoffByProvisioningRequestId,
   updateBillingEventProcessing,
+  updateCancellationExportRequest,
   updateCommercialSubscription,
   updateCustomerAccountStatus,
   updateProvisioningRequest,

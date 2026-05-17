@@ -1,6 +1,9 @@
 const { getPostgresPool } = require("./postgres-db");
-const { randomUUID } = require("crypto");
+const fs = require("fs/promises");
+const path = require("path");
+const { createHash, randomUUID } = require("crypto");
 const { normalizeOperatorPermissions, deriveOperatorAccountType, isFullAccessPermissionSet } = require("./auth-service");
+const { buildCustomerExportPackage } = require("./services/customer-export-package");
 
 function mapOperatorRow(row) {
   if (!row) return null;
@@ -2289,6 +2292,7 @@ async function completeArchiveTenantDataJob(job, environment) {
     }
 
     const archiveId = `tenant-archive-${randomUUID()}`;
+    const artifact = await writeTenantDataExportArtifact(client, current, archiveId, job);
     const archiveResult = await client.query(`
       INSERT INTO tenant_data_archives (
         id,
@@ -2307,7 +2311,7 @@ async function completeArchiveTenantDataJob(job, environment) {
         created_at,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, 'internal', 'metadata_recorded', $5, $6, $7, NULL, NULL, $8, $9, NOW(), NOW())
+      VALUES ($1, $2, $3, $4, 'internal', 'exported', $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
       RETURNING
         id,
         tenant_id AS "tenantId",
@@ -2332,13 +2336,15 @@ async function completeArchiveTenantDataJob(job, environment) {
       current.databaseHost || null,
       current.databaseName || null,
       current.databaseSchema || null,
+      artifact.path,
+      artifact.checksum,
       String(job.payload?.notes || "").trim() || null,
       job.requestedByOperatorUserId || null
     ]);
 
     const resultPayload = {
       archiveId,
-      archiveStatus: "metadata_recorded",
+      archiveStatus: "exported",
       archiveType: "internal",
       tenantId: current.tenantId,
       tenantSlug: current.tenantSlug,
@@ -2348,10 +2354,31 @@ async function completeArchiveTenantDataJob(job, environment) {
       databaseHost: current.databaseHost || null,
       databaseName: current.databaseName || null,
       databaseSchema: current.databaseSchema || null,
-      artifactPath: null,
-      artifactChecksum: null,
+      artifactPath: artifact.path,
+      artifactChecksum: artifact.checksum,
+      artifactBytes: artifact.bytes,
+      artifactExpiresAt: artifact.expiresAt,
       notes: String(job.payload?.notes || "").trim() || null
     };
+
+    if (job.payload?.exportRequestId) {
+      await client.query(`
+        UPDATE cancellation_export_requests
+        SET
+          status = 'ready',
+          export_job_id = COALESCE(export_job_id, $2),
+          artifact_path = $3,
+          artifact_expires_at = $4,
+          failure_reason = NULL,
+          updated_at = NOW()
+        WHERE id = $1
+      `, [
+        job.payload.exportRequestId,
+        job.id,
+        artifact.path,
+        artifact.expiresAt
+      ]);
+    }
 
     const completedJobResult = await client.query(`
       UPDATE provisioning_jobs
@@ -2384,7 +2411,7 @@ async function completeArchiveTenantDataJob(job, environment) {
 
     await client.query(`
       INSERT INTO provisioning_job_events (provisioning_job_id, event_type, message, details_json)
-      VALUES ($1, 'succeeded', 'Internal tenant archive metadata recorded', $2::jsonb)
+      VALUES ($1, 'succeeded', 'Tenant data export artifact generated', $2::jsonb)
     `, [job.id, JSON.stringify(resultPayload)]);
 
     await client.query(`
@@ -2404,10 +2431,42 @@ async function completeArchiveTenantDataJob(job, environment) {
     };
   } catch (error) {
     await client.query("ROLLBACK");
+    if (job.payload?.exportRequestId) {
+      await client.query(`
+        UPDATE cancellation_export_requests
+        SET
+          status = 'failed',
+          failure_reason = $2,
+          updated_at = NOW()
+        WHERE id = $1
+      `, [
+        job.payload.exportRequestId,
+        error.message || "Data export generation failed."
+      ]);
+    }
     throw error;
   } finally {
     client.release();
   }
+}
+
+async function writeTenantDataExportArtifact(client, environment, archiveId, job) {
+  const artifact = await buildCustomerExportPackage(client, environment, archiveId, job);
+  const exportDir = getDataExportDir();
+  await fs.mkdir(exportDir, { recursive: true, mode: 0o700 });
+  const safeSlug = String(environment.tenantSlug || environment.tenantId || "tenant").replace(/[^a-zA-Z0-9_-]+/g, "-");
+  const filePath = path.join(exportDir, `${safeSlug}-${archiveId}.${artifact.extension || "zip"}`);
+  await fs.writeFile(filePath, artifact.buffer, { mode: 0o600 });
+  return {
+    path: filePath,
+    checksum: createHash("sha256").update(artifact.buffer).digest("hex"),
+    bytes: artifact.buffer.length,
+    expiresAt: artifact.expiresAt
+  };
+}
+
+function getDataExportDir() {
+  return path.resolve(process.env.CONTROL_DATA_EXPORT_DIR || path.resolve(__dirname, "../../runtime-bundles/data-exports"));
 }
 
 async function retryProvisioningJob(jobId, options = {}, context = {}) {
