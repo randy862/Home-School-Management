@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Dormant Mode backend implementation is deployed; smoke UI dormant/reactivation passed after one metadata fix.
+Dormant Mode is deployed, validated end-to-end, and committed. Data Export is next.
 
 ## Completed Recently
 
@@ -29,6 +29,7 @@ Dormant Mode backend implementation is deployed; smoke UI dormant/reactivation p
 - Dormant write-block QA passed in the smoke tenant.
 - Final control DB verification shows smoke tenant active on `growth_monthly`, subscription active, dormant status active, base price `1499`.
 - Final Stripe verification shows smoke subscription active on Growth price `1499`, `dormantStatus=active`, `dormantBilling=false`.
+- Committed `57150b0 Complete dormant mode billing flow`.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -79,7 +80,6 @@ Dormant Mode backend implementation is deployed; smoke UI dormant/reactivation p
 ## Current Blockers
 
 - Optional control-plane release gate requires production-safe control credentials.
-- Dormant Mode is ready to commit.
 - Data Export flow is not end-to-end complete.
 
 ## Current Risks
@@ -91,5 +91,4 @@ Dormant Mode backend implementation is deployed; smoke UI dormant/reactivation p
 
 ## Next Actions
 
-1. Commit Dormant Mode.
-2. Continue Data Export checkout/job/download/expiration work.
+1. Continue Data Export checkout/job/download/expiration work.

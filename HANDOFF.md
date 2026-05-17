@@ -31,12 +31,12 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 - Dormant write-block QA passed: while dormant, smoke tenant could not make academic/workspace changes.
 - Final read-only control DB check shows `SmokeTest` active on `growth_monthly`, subscription active, dormant status active, base price `1499`.
 - Final read-only Stripe check shows smoke subscription active on Growth price `1499`, `dormantStatus=active`, `dormantBilling=false`.
+- Dormant Mode is committed as `57150b0 Complete dormant mode billing flow`.
 - Data Export still needs checkout/payment, export job, secure artifact, download, expiration, and retry handling.
 
 ## Next Action
 
-1. Commit Dormant Mode.
-2. Continue Data Export implementation.
+1. Continue Data Export implementation.
 
 ## Risks
 
