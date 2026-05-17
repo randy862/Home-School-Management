@@ -71,7 +71,6 @@ class StripeService {
   }
 
   async updateSubscriptionPlan(input) {
-    this.ensureConfigured();
     const subscriptionId = String(input?.subscriptionId || "").trim();
     const priceId = String(input?.priceId || "").trim();
     if (!subscriptionId || !priceId) {
@@ -80,8 +79,30 @@ class StripeService {
       throw error;
     }
 
+    return this.updateSubscriptionBaseItem({
+      subscriptionId,
+      priceId,
+      prorationBehavior: input.prorationBehavior || "create_prorations",
+      cancelAtPeriodEnd: false,
+      metadata: input.metadata
+    });
+  }
+
+  async updateSubscriptionBasePrice(input) {
+    return this.updateSubscriptionBaseItem(input);
+  }
+
+  async updateSubscriptionBaseItem(input) {
+    this.ensureConfigured();
+    const subscriptionId = String(input?.subscriptionId || "").trim();
+    if (!subscriptionId) {
+      const error = new Error("Stripe subscription id is required.");
+      error.statusCode = 400;
+      throw error;
+    }
+
     const subscription = await this.getSubscription(subscriptionId);
-    const primaryItem = subscription?.items?.data?.[0];
+    const primaryItem = findBaseSubscriptionItem(subscription);
     if (!primaryItem?.id) {
       const error = new Error("Stripe subscription item details were not available for this subscription.");
       error.statusCode = 502;
@@ -90,9 +111,28 @@ class StripeService {
 
     const params = new URLSearchParams();
     params.set("items[0][id]", primaryItem.id);
-    params.set("items[0][price]", priceId);
+    const priceId = String(input?.priceId || "").trim();
+    if (priceId) {
+      params.set("items[0][price]", priceId);
+    } else {
+      const productId = String(input?.productId || resolveStripeSubscriptionProductId(subscription) || "").trim();
+      const unitAmountCents = Number.parseInt(input?.unitAmountCents, 10);
+      const currency = String(input?.currency || "").trim().toLowerCase();
+      const interval = String(input?.interval || "").trim().toLowerCase();
+      if (!productId || !Number.isInteger(unitAmountCents) || unitAmountCents < 0 || !currency || !interval) {
+        const error = new Error("Stripe subscription base pricing is not fully configured.");
+        error.statusCode = 409;
+        throw error;
+      }
+      params.set("items[0][price_data][product]", productId);
+      params.set("items[0][price_data][currency]", currency);
+      params.set("items[0][price_data][unit_amount]", String(unitAmountCents));
+      params.set("items[0][price_data][recurring][interval]", interval);
+    }
     params.set("proration_behavior", input.prorationBehavior || "create_prorations");
-    params.set("cancel_at_period_end", "false");
+    if (typeof input.cancelAtPeriodEnd === "boolean") {
+      params.set("cancel_at_period_end", input.cancelAtPeriodEnd ? "true" : "false");
+    }
 
     Object.entries(input.metadata || {}).forEach(([key, value]) => {
       if (value == null || value === "") return;
@@ -290,11 +330,17 @@ function buildSubscriptionItemMutationParams(input = {}) {
 }
 
 function resolveStripeSubscriptionProductId(subscription) {
-  const primaryItem = subscription?.items?.data?.[0];
+  const primaryItem = findBaseSubscriptionItem(subscription);
   const product = primaryItem?.price?.product;
   if (typeof product === "string") return product;
   if (product && typeof product === "object" && product.id) return String(product.id);
   return "";
+}
+
+function findBaseSubscriptionItem(subscription) {
+  const items = Array.isArray(subscription?.items?.data) ? subscription.items.data : [];
+  const baseItem = items.find((item) => String(item?.metadata?.billing_role || "").trim().toLowerCase() !== "overage");
+  return baseItem || items[0] || null;
 }
 
 function findOverageSubscriptionItem(subscription, input = {}) {

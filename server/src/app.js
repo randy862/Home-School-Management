@@ -199,6 +199,19 @@ app.use(createAuthContextMiddleware({
   isPostgresMode,
   sessionConfig
 }));
+app.use("/api", async (req, _res, next) => {
+  if (!commercialPolicyService || !isTenantMutationMethod(req.method) || isDormantWriteAllowedPath(req.path)) {
+    next();
+    return;
+  }
+
+  try {
+    await commercialPolicyService.assertTenantWriteAllowed("Workspace changes cannot be saved");
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 registerInfraRoutes(app, {
   ...infraRouteDeps
@@ -227,3 +240,14 @@ app.listen(appConfig.port, () => {
   // Minimal bootstrap log for local operations.
   console.log(`API listening on port ${appConfig.port} using ${appConfig.dbClient}`);
 });
+
+function isTenantMutationMethod(method) {
+  return ["POST", "PUT", "PATCH", "DELETE"].includes(String(method || "").toUpperCase());
+}
+
+function isDormantWriteAllowedPath(path) {
+  const normalized = String(path || "").trim().toLowerCase();
+  return normalized.startsWith("/account")
+    || normalized.startsWith("/auth")
+    || normalized.startsWith("/setup");
+}

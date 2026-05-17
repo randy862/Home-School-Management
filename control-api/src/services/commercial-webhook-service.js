@@ -1,14 +1,19 @@
+const { randomUUID } = require("crypto");
+
 async function processStripeBillingEvent(event, deps) {
   const {
     ensureCommercialProvisioningForSubscription,
     createBillingEvent,
+    createOperatorAuditEntry,
     getBillingEventByStripeEventId,
     getCheckoutSessionByStripeSessionId,
+    getCommercialOverviewBySubscriptionId,
     getCommercialPlanById,
     getCommercialPlanByStripePriceId,
     getSubscriptionByStripeCheckoutSessionId,
     getSubscriptionByStripeSubscriptionId,
     markCheckoutSessionCompleted,
+    queueProvisioningJob,
     updateBillingEventProcessing,
     updateCustomerAccountStatus,
     updateSubscriptionByStripeCheckoutSessionId,
@@ -33,12 +38,15 @@ async function processStripeBillingEvent(event, deps) {
   try {
     const result = await handleStripeEventByType(event, {
       ensureCommercialProvisioningForSubscription,
+      createOperatorAuditEntry,
       getCheckoutSessionByStripeSessionId,
+      getCommercialOverviewBySubscriptionId,
       getCommercialPlanById,
       getCommercialPlanByStripePriceId,
       getSubscriptionByStripeCheckoutSessionId,
       getSubscriptionByStripeSubscriptionId,
       markCheckoutSessionCompleted,
+      queueProvisioningJob,
       updateCustomerAccountStatus,
       updateSubscriptionByStripeCheckoutSessionId,
       updateSubscriptionByStripeSubscriptionId
@@ -109,6 +117,7 @@ async function handleStripeEventByType(event, deps) {
     }
 
     const plan = await resolvePlanForStripeSubscription(object, deps);
+    const dormantTransition = await resolveDormantWebhookTransition(existingSubscription, object, deps);
     const updates = {
       status: normalizeStripeSubscriptionStatus(object.status),
       stripeCheckoutSessionId: existingSubscription.stripeCheckoutSessionId || String(object.metadata?.checkout_session_id || "").trim() || null,
@@ -116,11 +125,12 @@ async function handleStripeEventByType(event, deps) {
       currentPeriodEnd: toIsoFromUnixSeconds(object.current_period_end),
       cancelAtPeriodEnd: typeof object.cancel_at_period_end === "boolean" ? object.cancel_at_period_end : null,
       canceledAt: toIsoFromUnixSeconds(object.canceled_at),
-      trialEndsAt: toIsoFromUnixSeconds(object.trial_end)
+      trialEndsAt: toIsoFromUnixSeconds(object.trial_end),
+      dormantStatus: dormantTransition.dormantStatus || null
     };
     if (plan) {
       updates.commercialPlanId = plan.id;
-      updates.basePriceCents = Number(plan.priceCents || 0);
+      updates.basePriceCents = resolveWebhookBasePriceCents(object, plan);
       updates.includedBillableStudents = Number(plan.limits?.includedBillableStudents || 0);
       updates.perStudentOverageCents = Number(plan.limits?.perStudentOverageCents || 0);
     }
@@ -134,7 +144,8 @@ async function handleStripeEventByType(event, deps) {
     return {
       processingStatus: "processed",
       customerAccountId: subscription?.customerAccountId || null,
-      customerSubscriptionId: subscription?.id || null
+      customerSubscriptionId: subscription?.id || null,
+      dormantLifecycleJobId: dormantTransition.lifecycleJob?.id || null
     };
   }
 
@@ -253,4 +264,84 @@ async function resolvePlanForStripeSubscription(subscription, deps) {
   }
 
   return null;
+}
+
+function resolveWebhookBasePriceCents(subscription, plan) {
+  const metadata = subscription?.metadata || {};
+  const dormantBilling = String(metadata.dormantBilling || "").trim().toLowerCase() === "true";
+  const dormantPriceCents = Number.parseInt(metadata.dormantBasePriceCents, 10);
+  if (dormantBilling && Number.isInteger(dormantPriceCents) && dormantPriceCents >= 0) {
+    return dormantPriceCents;
+  }
+  return Number(plan.priceCents || 0);
+}
+
+async function resolveDormantWebhookTransition(existingSubscription, stripeSubscription, deps) {
+  const currentDormantStatus = String(existingSubscription?.dormantStatus || "active").trim().toLowerCase();
+  const metadataDormantStatus = String(stripeSubscription?.metadata?.dormantStatus || "").trim().toLowerCase();
+  if (metadataDormantStatus === "active" && currentDormantStatus !== "active") {
+    return { dormantStatus: "active", lifecycleJob: null };
+  }
+
+  if (currentDormantStatus !== "pending_dormant") {
+    return { dormantStatus: null, lifecycleJob: null };
+  }
+
+  const previousPeriodEnd = existingSubscription?.currentPeriodEnd ? Date.parse(existingSubscription.currentPeriodEnd) : Number.NaN;
+  const stripePeriodStart = Number(stripeSubscription?.current_period_start || 0) * 1000;
+  const reachedBoundary = Number.isFinite(previousPeriodEnd)
+    && Number.isFinite(stripePeriodStart)
+    && stripePeriodStart >= previousPeriodEnd - 60000;
+  if (!reachedBoundary) {
+    return { dormantStatus: metadataDormantStatus === "pending_dormant" ? "pending_dormant" : null, lifecycleJob: null };
+  }
+
+  let lifecycleJob = null;
+  if (deps.getCommercialOverviewBySubscriptionId && deps.queueProvisioningJob) {
+    const overview = await deps.getCommercialOverviewBySubscriptionId(existingSubscription.id);
+    if (overview?.tenantEnvironmentId) {
+      lifecycleJob = await deps.queueProvisioningJob(createLifecycleJobPayload({
+        tenantId: overview.tenantId,
+        tenantEnvironmentId: overview.tenantEnvironmentId,
+        jobType: "suspend_tenant",
+        idempotencyKey: `stripe-dormant-boundary:${existingSubscription.id}:${stripeSubscription?.current_period_start || ""}`,
+        message: "Suspend tenant queued from Stripe dormant billing boundary",
+        notes: "Queued automatically when Stripe advanced a pending dormant subscription into the next billing period."
+      }), {
+        operatorUserId: null
+      });
+      if (deps.createOperatorAuditEntry) {
+        await deps.createOperatorAuditEntry({
+          operatorUserId: null,
+          actionType: "stripe_mark_subscription_dormant",
+          targetType: "customer_subscription",
+          targetId: existingSubscription.id,
+          tenantId: overview.tenantId || null,
+          details: {
+            tenantEnvironmentId: overview.tenantEnvironmentId || null,
+            lifecycleJobId: lifecycleJob?.id || null,
+            previousPeriodEnd: existingSubscription.currentPeriodEnd || null,
+            stripePeriodStart: toIsoFromUnixSeconds(stripeSubscription?.current_period_start)
+          }
+        });
+      }
+    }
+  }
+
+  return { dormantStatus: "dormant", lifecycleJob };
+}
+
+function createLifecycleJobPayload({ tenantId, tenantEnvironmentId, jobType, idempotencyKey, message, notes }) {
+  return {
+    id: `job-${randomUUID()}`,
+    tenantId: tenantId || null,
+    tenantEnvironmentId,
+    jobType,
+    idempotencyKey: idempotencyKey || null,
+    maxAttempts: 3,
+    message,
+    payload: {
+      notes: notes || ""
+    }
+  };
 }

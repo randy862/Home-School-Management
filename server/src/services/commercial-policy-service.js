@@ -141,6 +141,12 @@ function createCommercialPolicyService(deps) {
     });
   }
 
+  async function assertTenantWriteAllowed(label = "Workspace changes cannot be saved") {
+    return withCommercialContext(async (_client, context) => {
+      ensureLifecycleAllowsWrites(context, label);
+    });
+  }
+
   async function getTenantCommercialSummary() {
     return withCommercialContext(async (client, context) => {
       if (!context) return null;
@@ -306,7 +312,8 @@ function createCommercialPolicyService(deps) {
     assertEnrollmentUpdateAllowed,
     assertPlanWriteAllowed,
     assertAttendanceWriteAllowed,
-    assertTestWriteAllowed
+    assertTestWriteAllowed,
+    assertTenantWriteAllowed
   };
 
   function resolveTenantEnvironmentId() {

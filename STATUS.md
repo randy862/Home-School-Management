@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Authenticated release gate is repeatable. Account Profile upgrade is validated end-to-end on the Stripe-linked smoke tenant and committed.
+Dormant Mode backend implementation is deployed; smoke UI dormant/reactivation passed after one metadata fix.
 
 ## Completed Recently
 
@@ -22,6 +22,13 @@ Authenticated release gate is repeatable. Account Profile upgrade is validated e
 - `smoketest.navigrader.com` upgraded from Starter to Growth and remains active.
 - Committed `9147a2c Complete account upgrade webhook reconciliation`.
 - Post-commit hosted release gate passed for `https://mitchell.navigrader.com`.
+- Dormant Mode patch adds reduced Stripe recurring pricing, reactivation price restore, billing-boundary suspend handling, and broad tenant write-blocking.
+- Dormant Mode backend files are deployed to APP001.
+- Fixed/deployed Dormant metadata typo found by smoke UI QA before any Stripe mutation occurred.
+- Smoke UI QA marked `smoketest.navigrader.com` dormant, displayed Site Dormant, reactivated, and displayed active.
+- Dormant write-block QA passed in the smoke tenant.
+- Final control DB verification shows smoke tenant active on `growth_monthly`, subscription active, dormant status active, base price `1499`.
+- Final Stripe verification shows smoke subscription active on Growth price `1499`, `dormantStatus=active`, `dormantBilling=false`.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -37,6 +44,10 @@ Authenticated release gate is repeatable. Account Profile upgrade is validated e
     `/var/www/home-school-management/rollback/web-202605150933.tgz`
 - Control API rollback snapshot:
   - `/home/debian/rollback/hsm/control-api-upgrade-webhook-20260517031559/control-api`
+- Dormant deployment rollback snapshot:
+  - `/home/debian/rollback/hsm/dormant-mode-20260516230817`
+- Dormant metadata-fix rollback snapshot:
+  - `/home/debian/rollback/hsm/dormant-mode-metadata-fix-20260516231532`
 
 ## Validation
 
@@ -54,11 +65,22 @@ Authenticated release gate is repeatable. Account Profile upgrade is validated e
 - Real `customer.subscription.updated` webhook processed successfully for the smoke subscription after a metadata-only validation update.
 - Control DB shows `smoketest.navigrader.com` on `growth_monthly`, `$14.99/month`, 10 included billable students.
 - Post-commit `Invoke-HostedReleaseGate.ps1 -PublicBaseUrl https://mitchell.navigrader.com` passed.
+- `node --check` passed for touched dormant control-api/server files.
+- Stubbed `processStripeBillingEvent` dormant billing-boundary check passed.
+- APP001 `hsm-control-api.service` and `hsm-api.service` are active after Dormant deploy.
+- Public health passed for `mitchell`, `smoketest`, and `www` control API.
+- Internal dormant route metadata stub passed after fixing `dormantBasePriceCents`.
+- APP001 control API restarted active and health passed after dormant metadata fix.
+- Post-fix logs showed no new control-api/api errors after successful dormant/reactivation UI test.
+- Dormant write-block QA passed in the smoke tenant.
+- Final control DB verification passed for smoke tenant active/restored pricing.
+- Final Stripe verification passed for smoke subscription active/restored pricing.
 
 ## Current Blockers
 
 - Optional control-plane release gate requires production-safe control credentials.
-- Dormant/Data Export flows are not end-to-end complete.
+- Dormant Mode is ready to commit.
+- Data Export flow is not end-to-end complete.
 
 ## Current Risks
 
@@ -69,5 +91,5 @@ Authenticated release gate is repeatable. Account Profile upgrade is validated e
 
 ## Next Actions
 
-1. Continue Dormant Mode reduced billing/reactivation work.
+1. Commit Dormant Mode.
 2. Continue Data Export checkout/job/download/expiration work.

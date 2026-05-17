@@ -123,15 +123,47 @@ function registerControlCommercialRoutes(app, deps) {
         res.status(404).json({ error: "Subscription not found." });
         return;
       }
+      if (!subscription.stripeSubscriptionId) {
+        res.status(409).json({ error: "This subscription is not yet linked to an active Stripe subscription." });
+        return;
+      }
+      const currentPlan = await getCommercialPlanById(subscription.commercialPlanId || overview.commercialPlanId);
+      if (!currentPlan) {
+        res.status(404).json({ error: "Current plan was not found." });
+        return;
+      }
 
       const now = Date.now();
       const currentPeriodEnd = subscription.currentPeriodEnd ? Date.parse(subscription.currentPeriodEnd) : Number.NaN;
       const dormantStatus = Number.isFinite(currentPeriodEnd) && currentPeriodEnd > now
         ? "pending_dormant"
         : "dormant";
+      const dormantPriceCents = calculateDormantBasePriceCents(currentPlan);
+      const stripeSubscription = await stripeService.updateSubscriptionBasePrice({
+        subscriptionId: subscription.stripeSubscriptionId,
+        productId: currentPlan.stripeProductId || "",
+        unitAmountCents: dormantPriceCents,
+        currency: currentPlan.currency || "usd",
+        interval: currentPlan.billingInterval || "month",
+        prorationBehavior: "none",
+        cancelAtPeriodEnd: false,
+        metadata: buildDormantStripeMetadata({
+          currentPlan,
+          dormantStatus,
+          dormantPriceCents,
+          requestedByUserId: req.body?.requestedByUserId || "",
+          requestedByUsername: req.body?.requestedByUsername || ""
+        })
+      });
 
       const updated = await updateCommercialSubscription(subscription.id, {
-        dormantStatus
+        dormantStatus,
+        status: normalizeStripeSubscriptionStatus(stripeSubscription.status),
+        currentPeriodStart: toIsoFromUnixSeconds(stripeSubscription.current_period_start),
+        currentPeriodEnd: toIsoFromUnixSeconds(stripeSubscription.current_period_end),
+        basePriceCents: dormantPriceCents,
+        includedBillableStudents: Number(currentPlan.limits?.includedBillableStudents || 0),
+        perStudentOverageCents: Number(currentPlan.limits?.perStudentOverageCents || 0)
       });
       let lifecycleJob = null;
       if (dormantStatus === "dormant" && overview.tenantEnvironmentId) {
@@ -155,6 +187,8 @@ function registerControlCommercialRoutes(app, deps) {
           requestedByUserId: req.body?.requestedByUserId || null,
           requestedByUsername: req.body?.requestedByUsername || null,
           dormantStatus,
+          dormantPriceCents,
+          activeBasePriceCents: Number(currentPlan.priceCents || 0),
           tenantEnvironmentId: overview.tenantEnvironmentId || null,
           lifecycleJobId: lifecycleJob?.id || null
         }
@@ -169,13 +203,19 @@ function registerControlCommercialRoutes(app, deps) {
           ownerEmail: overview.ownerEmail || "",
           billingEmail: overview.billingEmail || "",
           accountStatus: overview.accountStatus || "",
-          planId: overview.commercialPlanId || null,
-          planCode: overview.planCode || "",
-          planName: overview.planName || "",
-          billingInterval: "month",
-          currency: "usd"
+          planId: currentPlan.id,
+          planCode: currentPlan.code,
+          planName: currentPlan.name,
+          billingInterval: currentPlan.billingInterval || "month",
+          currency: currentPlan.currency || "usd"
         },
-        lifecycleJob
+        lifecycleJob,
+        stripeSync: {
+          status: "applied",
+          dormantPriceCents,
+          activeBasePriceCents: Number(currentPlan.priceCents || 0),
+          prorationBehavior: "none"
+        }
       });
     } catch (error) {
       sendRouteError(res, error);
@@ -194,28 +234,48 @@ function registerControlCommercialRoutes(app, deps) {
       }
 
       const previousDormantStatus = String(subscription.dormantStatus || overview.dormantStatus || "active").trim().toLowerCase() || "active";
+      const currentPlan = await getCommercialPlanById(subscription.commercialPlanId || overview.commercialPlanId);
+      if (!currentPlan) {
+        res.status(404).json({ error: "Current plan was not found." });
+        return;
+      }
       if (previousDormantStatus === "active") {
         res.json({
           message: "The site is already active.",
-          subscription: {
-            ...subscription,
-            accountName: overview.accountName || "",
-            ownerEmail: overview.ownerEmail || "",
-            billingEmail: overview.billingEmail || "",
-            accountStatus: overview.accountStatus || "",
-            planId: overview.commercialPlanId || null,
-            planCode: overview.planCode || "",
-            planName: overview.planName || "",
-            billingInterval: "month",
-            currency: "usd"
-          },
+          subscription: buildControlSubscriptionResponse(subscription, overview, currentPlan),
           lifecycleJob: null
         });
         return;
       }
+      if (!subscription.stripeSubscriptionId) {
+        res.status(409).json({ error: "This subscription is not yet linked to an active Stripe subscription." });
+        return;
+      }
+      if (!currentPlan.stripePriceId) {
+        res.status(409).json({ error: "Current plan is not configured for Stripe billing restore." });
+        return;
+      }
+
+      const stripeSubscription = await stripeService.updateSubscriptionPlan({
+        subscriptionId: subscription.stripeSubscriptionId,
+        priceId: currentPlan.stripePriceId,
+        prorationBehavior: previousDormantStatus === "pending_dormant" ? "none" : "create_prorations",
+        metadata: buildActiveStripeMetadata({
+          currentPlan,
+          previousDormantStatus,
+          requestedByUserId: req.body?.requestedByUserId || "",
+          requestedByUsername: req.body?.requestedByUsername || ""
+        })
+      });
 
       const updated = await updateCommercialSubscription(subscription.id, {
-        dormantStatus: "active"
+        dormantStatus: "active",
+        status: normalizeStripeSubscriptionStatus(stripeSubscription.status),
+        currentPeriodStart: toIsoFromUnixSeconds(stripeSubscription.current_period_start),
+        currentPeriodEnd: toIsoFromUnixSeconds(stripeSubscription.current_period_end),
+        basePriceCents: Number(currentPlan.priceCents || 0),
+        includedBillableStudents: Number(currentPlan.limits?.includedBillableStudents || 0),
+        perStudentOverageCents: Number(currentPlan.limits?.perStudentOverageCents || 0)
       });
 
       let lifecycleJob = null;
@@ -241,6 +301,7 @@ function registerControlCommercialRoutes(app, deps) {
           requestedByUsername: req.body?.requestedByUsername || null,
           previousDormantStatus,
           dormantStatus: "active",
+          activeBasePriceCents: Number(currentPlan.priceCents || 0),
           tenantEnvironmentId: overview.tenantEnvironmentId || null,
           lifecycleJobId: lifecycleJob?.id || null
         }
@@ -249,19 +310,13 @@ function registerControlCommercialRoutes(app, deps) {
         message: previousDormantStatus === "pending_dormant"
           ? "Dormant status was canceled. The site remains active."
           : "The site is now marked active.",
-        subscription: {
-          ...updated,
-          accountName: overview.accountName || "",
-          ownerEmail: overview.ownerEmail || "",
-          billingEmail: overview.billingEmail || "",
-          accountStatus: overview.accountStatus || "",
-          planId: overview.commercialPlanId || null,
-          planCode: overview.planCode || "",
-          planName: overview.planName || "",
-          billingInterval: "month",
-          currency: "usd"
-        },
-        lifecycleJob
+        subscription: buildControlSubscriptionResponse(updated, overview, currentPlan),
+        lifecycleJob,
+        stripeSync: {
+          status: "applied",
+          activeBasePriceCents: Number(currentPlan.priceCents || 0),
+          prorationBehavior: previousDormantStatus === "pending_dormant" ? "none" : "create_prorations"
+        }
       });
     } catch (error) {
       sendRouteError(res, error);
@@ -421,6 +476,15 @@ function registerControlCommercialRoutes(app, deps) {
         res.status(404).json({ error: "Subscription not found." });
         return;
       }
+      if (!subscription.stripeSubscriptionId) {
+        res.status(409).json({ error: "This subscription is not yet linked to an active Stripe subscription." });
+        return;
+      }
+      const currentPlan = await getCommercialPlanById(subscription.commercialPlanId || overview.commercialPlanId);
+      if (!currentPlan) {
+        res.status(404).json({ error: "Current plan was not found." });
+        return;
+      }
 
       const now = Date.now();
       const currentPeriodEnd = subscription.currentPeriodEnd ? Date.parse(subscription.currentPeriodEnd) : Number.NaN;
@@ -431,9 +495,32 @@ function registerControlCommercialRoutes(app, deps) {
       if (dormantStatus === "dormant" && overview.tenantEnvironmentId) {
         if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
       }
+      const dormantPriceCents = calculateDormantBasePriceCents(currentPlan);
+      const stripeSubscription = await stripeService.updateSubscriptionBasePrice({
+        subscriptionId: subscription.stripeSubscriptionId,
+        productId: currentPlan.stripeProductId || "",
+        unitAmountCents: dormantPriceCents,
+        currency: currentPlan.currency || "usd",
+        interval: currentPlan.billingInterval || "month",
+        prorationBehavior: "none",
+        cancelAtPeriodEnd: false,
+        metadata: buildDormantStripeMetadata({
+          currentPlan,
+          dormantStatus,
+          dormantPriceCents,
+          requestedByUserId: req.auth.user.id,
+          requestedByUsername: req.auth.user.username || ""
+        })
+      });
 
       const updated = await updateCommercialSubscription(subscription.id, {
-        dormantStatus
+        dormantStatus,
+        status: normalizeStripeSubscriptionStatus(stripeSubscription.status),
+        currentPeriodStart: toIsoFromUnixSeconds(stripeSubscription.current_period_start),
+        currentPeriodEnd: toIsoFromUnixSeconds(stripeSubscription.current_period_end),
+        basePriceCents: dormantPriceCents,
+        includedBillableStudents: Number(currentPlan.limits?.includedBillableStudents || 0),
+        perStudentOverageCents: Number(currentPlan.limits?.perStudentOverageCents || 0)
       });
       let lifecycleJob = null;
       if (dormantStatus === "dormant" && overview.tenantEnvironmentId) {
@@ -455,13 +542,21 @@ function registerControlCommercialRoutes(app, deps) {
         tenantId: overview.tenantId || null,
         details: {
           dormantStatus,
+          dormantPriceCents,
+          activeBasePriceCents: Number(currentPlan.priceCents || 0),
           tenantEnvironmentId: overview.tenantEnvironmentId || null,
           lifecycleJobId: lifecycleJob?.id || null
         }
       });
       res.json({
-        subscription: updated,
-        lifecycleJob
+        subscription: buildControlSubscriptionResponse(updated, overview, currentPlan),
+        lifecycleJob,
+        stripeSync: {
+          status: "applied",
+          dormantPriceCents,
+          activeBasePriceCents: Number(currentPlan.priceCents || 0),
+          prorationBehavior: "none"
+        }
       });
     } catch (error) {
       sendRouteError(res, error);
@@ -478,17 +573,55 @@ function registerControlCommercialRoutes(app, deps) {
         res.status(404).json({ error: "Subscription not found." });
         return;
       }
-
-      if (overview.tenantEnvironmentId) {
-        if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
+      const previousDormantStatus = String(subscription.dormantStatus || overview.dormantStatus || "active").trim().toLowerCase() || "active";
+      const currentPlan = await getCommercialPlanById(subscription.commercialPlanId || overview.commercialPlanId);
+      if (!currentPlan) {
+        res.status(404).json({ error: "Current plan was not found." });
+        return;
+      }
+      if (previousDormantStatus === "active") {
+        res.json({
+          subscription: buildControlSubscriptionResponse(subscription, overview, currentPlan),
+          lifecycleJob: null
+        });
+        return;
+      }
+      if (!subscription.stripeSubscriptionId) {
+        res.status(409).json({ error: "This subscription is not yet linked to an active Stripe subscription." });
+        return;
+      }
+      if (!currentPlan.stripePriceId) {
+        res.status(409).json({ error: "Current plan is not configured for Stripe billing restore." });
+        return;
       }
 
+      if (previousDormantStatus === "dormant" && overview.tenantEnvironmentId) {
+        if (!ensurePermission(req, res, "manageOperations", "Manage Operations permission required")) return;
+      }
+      const stripeSubscription = await stripeService.updateSubscriptionPlan({
+        subscriptionId: subscription.stripeSubscriptionId,
+        priceId: currentPlan.stripePriceId,
+        prorationBehavior: previousDormantStatus === "pending_dormant" ? "none" : "create_prorations",
+        metadata: buildActiveStripeMetadata({
+          currentPlan,
+          previousDormantStatus,
+          requestedByUserId: req.auth.user.id,
+          requestedByUsername: req.auth.user.username || ""
+        })
+      });
+
       const updated = await updateCommercialSubscription(subscription.id, {
-        dormantStatus: "active"
+        dormantStatus: "active",
+        status: normalizeStripeSubscriptionStatus(stripeSubscription.status),
+        currentPeriodStart: toIsoFromUnixSeconds(stripeSubscription.current_period_start),
+        currentPeriodEnd: toIsoFromUnixSeconds(stripeSubscription.current_period_end),
+        basePriceCents: Number(currentPlan.priceCents || 0),
+        includedBillableStudents: Number(currentPlan.limits?.includedBillableStudents || 0),
+        perStudentOverageCents: Number(currentPlan.limits?.perStudentOverageCents || 0)
       });
 
       let lifecycleJob = null;
-      if (overview.tenantEnvironmentId) {
+      if (previousDormantStatus === "dormant" && overview.tenantEnvironmentId) {
         lifecycleJob = await queueProvisioningJob(createLifecycleJobPayload({
           tenantId: overview.tenantId,
           tenantEnvironmentId: overview.tenantEnvironmentId,
@@ -506,14 +639,21 @@ function registerControlCommercialRoutes(app, deps) {
         targetId: subscription.id,
         tenantId: overview.tenantId || null,
         details: {
+          previousDormantStatus,
           dormantStatus: "active",
+          activeBasePriceCents: Number(currentPlan.priceCents || 0),
           tenantEnvironmentId: overview.tenantEnvironmentId || null,
           lifecycleJobId: lifecycleJob?.id || null
         }
       });
       res.json({
-        subscription: updated,
-        lifecycleJob
+        subscription: buildControlSubscriptionResponse(updated, overview, currentPlan),
+        lifecycleJob,
+        stripeSync: {
+          status: "applied",
+          activeBasePriceCents: Number(currentPlan.priceCents || 0),
+          prorationBehavior: previousDormantStatus === "pending_dormant" ? "none" : "create_prorations"
+        }
       });
     } catch (error) {
       sendRouteError(res, error);
@@ -603,6 +743,40 @@ function createLifecycleJobPayload({ tenantId, tenantEnvironmentId, jobType, mes
     payload: {
       notes: notes || ""
     }
+  };
+}
+
+function calculateDormantBasePriceCents(plan) {
+  const basePriceCents = Number(plan?.priceCents || 0);
+  const percentage = Number(plan?.limits?.dormantBasePricePercentage ?? 25);
+  if (!Number.isFinite(basePriceCents) || basePriceCents < 0) return 0;
+  if (!Number.isFinite(percentage) || percentage < 0) return basePriceCents;
+  return Math.max(0, Math.round(basePriceCents * (percentage / 100)));
+}
+
+function buildDormantStripeMetadata({ currentPlan, dormantStatus, dormantPriceCents, requestedByUserId, requestedByUsername }) {
+  return {
+    commercialPlanId: currentPlan.id,
+    commercialPlanCode: currentPlan.code,
+    dormantStatus,
+    dormantBilling: "true",
+    dormantBasePriceCents: dormantPriceCents,
+    activeBasePriceCents: Number(currentPlan.priceCents || 0),
+    requestedByUserId: requestedByUserId || "",
+    requestedByUsername: requestedByUsername || ""
+  };
+}
+
+function buildActiveStripeMetadata({ currentPlan, previousDormantStatus, requestedByUserId, requestedByUsername }) {
+  return {
+    commercialPlanId: currentPlan.id,
+    commercialPlanCode: currentPlan.code,
+    dormantStatus: "active",
+    dormantBilling: "false",
+    activeBasePriceCents: Number(currentPlan.priceCents || 0),
+    previousDormantStatus: previousDormantStatus || "",
+    requestedByUserId: requestedByUserId || "",
+    requestedByUsername: requestedByUsername || ""
   };
 }
 
