@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Navigrader | Data Export Status</title>
+  <link rel="stylesheet" href="saas.css?v=202604171120">
+</head>
+<body>
+  <main class="landing-shell signup-status-page">
+    <header class="site-header">
+      <a class="brand-lockup" href="/" aria-label="Navigrader teach more, manage less">
+        <img class="brand-logo" src="assets/Mitchell_Logo.png" alt="Navigrader teach more, manage less">
+      </a>
+      <nav class="site-nav" aria-label="Data export status">
+        <a href="/">Dashboard</a>
+        <a href="/?account=view">Account Profile</a>
+      </nav>
+      <a id="data-export-header-action" class="header-cta" href="/?account=view&export=success">Open Account Profile</a>
+    </header>
+
+    <section class="status-shell status-shell-standalone" aria-live="polite">
+      <div class="status-card">
+        <p id="data-export-status-kicker" class="eyebrow">Data Export</p>
+        <h1 id="data-export-status-title">Your export payment was successful.</h1>
+        <p id="data-export-status-message" class="status-message">Navigrader is preparing your records package now.</p>
+        <div id="data-export-status-details" class="status-details">
+          <p>To download it, open Account Profile, choose View Account, then use the Download button under Export Requests.</p>
+          <p>If the Download button is not visible yet, wait a minute and reopen Account Profile. The export job is still finishing.</p>
+        </div>
+        <div class="status-actions">
+          <a id="data-export-primary-action" class="primary-link" href="/?account=view&export=success">Open Account Profile</a>
+          <a class="secondary-link" href="/">Back To Navigrader</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("export") !== "cancel") return;
+      document.getElementById("data-export-status-kicker").textContent = "Checkout Canceled";
+      document.getElementById("data-export-status-title").textContent = "Data export checkout was canceled.";
+      document.getElementById("data-export-status-message").textContent = "No payment was completed, and no new export will be generated from this checkout.";
+      document.getElementById("data-export-status-details").innerHTML = "<p>You can return to Navigrader and request the data export again from Account Options whenever you are ready.</p>";
+      document.getElementById("data-export-primary-action").textContent = "Return To Navigrader";
+      document.getElementById("data-export-primary-action").href = "/";
+      document.getElementById("data-export-header-action").textContent = "Return To Navigrader";
+      document.getElementById("data-export-header-action").href = "/";
+    })();
+  </script>
+</body>
+</html>

@@ -4318,7 +4318,7 @@ function applyStatusState(element, state) {
   element.className = `status-text${kind ? ` ${kind}` : ""}${text ? "" : " hidden"}`;
 }
 
-function openAccountView() {
+function openAccountView(messageState = null) {
   accountViewOpen = true;
   accountPasswordModalOpen = false;
   accountOptionsModalOpen = false;
@@ -4328,6 +4328,7 @@ function openAccountView() {
   setAccountPasswordMessage("", "");
   setAccountOptionsMessage("", "");
   setAccountUpgradeMessage("", "");
+  if (messageState?.text) setAccountViewMessage(messageState.kind || "info", messageState.text);
   renderSessionChrome();
   if (hostedModeEnabled) {
     refreshHostedAccountSummary()
@@ -4337,6 +4338,23 @@ function openAccountView() {
         renderAccountSurface();
       });
   }
+}
+
+function handleAccountReturnDeepLink() {
+  const params = new URLSearchParams(window.location.search);
+  const accountTarget = String(params.get("account") || "").toLowerCase();
+  const exportState = String(params.get("export") || "").toLowerCase();
+  if (accountTarget !== "view" && exportState !== "success") return;
+  if (!currentUser()) return;
+
+  const message = exportState === "success"
+    ? "Data export payment completed. Your export may take a minute to finish generating; use the Download button under Export Requests when it appears."
+    : "";
+  openAccountView(message ? { kind: "success", text: message } : null);
+  params.delete("account");
+  params.delete("export");
+  const nextQuery = params.toString();
+  window.history.replaceState(null, "", `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`);
 }
 
 function closeAccountView() {
@@ -5003,6 +5021,7 @@ async function bootstrapApplicationState() {
       const signedIn = await bootstrapHostedSession();
       if (!signedIn) resetLoginMessage();
       renderAll();
+      if (signedIn) handleAccountReturnDeepLink();
     } catch (error) {
       console.warn("Hosted session bootstrap skipped:", error.message);
       if (IS_LOCAL_DEV_HOST) {
@@ -20190,6 +20209,7 @@ function bindEvents() {
         resetLoginMessage();
         document.getElementById("login-form").reset();
         renderAll();
+        handleAccountReturnDeepLink();
       } catch (error) {
         setLoginMessage("error", error.message || "Unable to sign in.");
       }

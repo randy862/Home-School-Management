@@ -24,17 +24,20 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
   - `checkout.session.completed` queues `archive_tenant_data`
   - archive job writes a parent-readable ZIP of CSV records and marks request ready
   - authenticated tenant admin download streams the ready artifact with a friendly browser filename
+  - Stripe export checkout returns to a branded Data Export status page with Account Profile instructions
   - expired artifacts return 410 and mark request expired
 - Data Export rollback snapshots:
   - APP001 `/home/debian/rollback/hsm/data-export-20260516234316`
   - APP001 path fix `/home/debian/rollback/hsm/data-export-path-fix-20260517000217`
   - APP001 CSV package `/home/debian/rollback/hsm/data-export-csv-package-20260517001730`
   - APP001 friendly filename route `/home/debian/rollback/hsm/data-export-friendly-filename-20260517200847`
+  - APP001 export return page route `/home/debian/rollback/hsm/data-export-return-page-202605172014`
   - WEB001 `/var/www/home-school-management/rollback/web-data-export-20260516234316.tgz`
+  - WEB001 export return page `/var/www/home-school-management/rollback/web-data-export-return-page-202605172014.tgz`
 
 ## Next Action
 
-1. Have user retry the ready Data Export download from `mitchell.navigrader.com`; expected browser filename resembles `mitchell-family-records-export-YYYY-MM-DD.zip`.
+1. Have user QA a new Data Export checkout return from Stripe and confirm the branded status page appears.
 2. Resume with backend/platform hardening or tenant/runtime correctness.
 
 ## Risks
@@ -52,3 +55,4 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 - Data Export live QA passed on `smoketest.navigrader.com`: checkout, webhook job, ready state, JSON download, then CSV ZIP regeneration.
 - APP001/WEB001 Data Export slice deployed; public health passed for `mitchell`, `smoketest`, and control API.
 - Friendly Data Export download filename route deployed on APP001; local/remote syntax checks and control API health passed.
+- Branded Data Export return page deployed; APP001 route syntax, tenant API health, public tenant health, and static page HTTPS checks passed.

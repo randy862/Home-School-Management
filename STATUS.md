@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Data Export first slice is deployed; live checkout/download QA passed, and the artifact is now a parent-readable CSV ZIP package with a friendly browser download filename.
+Data Export first slice is deployed with a parent-readable CSV ZIP package, friendly browser download filename, and branded Stripe return page.
 
 ## Completed Recently
 
@@ -25,6 +25,7 @@ Data Export first slice is deployed; live checkout/download QA passed, and the a
 - Data Export first slice deployed and live-QA passed: Stripe Checkout request, webhook queueing, CSV ZIP artifact generation, secure admin download, and expiration handling.
 - Committed and pushed `ca5fa2d Complete customer data export package`.
 - Friendly Data Export browser filenames are deployed; stored artifacts still keep unique internal UUID paths.
+- Stripe Data Export checkout now returns to a branded status page with Account Profile download instructions and a deep-link back into View Account.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -49,7 +50,9 @@ Data Export first slice is deployed; live checkout/download QA passed, and the a
   - APP001 path fix `/home/debian/rollback/hsm/data-export-path-fix-20260517000217`
   - APP001 CSV package `/home/debian/rollback/hsm/data-export-csv-package-20260517001730`
   - APP001 friendly filename route `/home/debian/rollback/hsm/data-export-friendly-filename-20260517200847`
+  - APP001 export return page route `/home/debian/rollback/hsm/data-export-return-page-202605172014`
   - WEB001 `/var/www/home-school-management/rollback/web-data-export-20260516234316.tgz`
+  - WEB001 export return page `/var/www/home-school-management/rollback/web-data-export-return-page-202605172014.tgz`
 
 ## Validation
 
@@ -62,6 +65,7 @@ Data Export first slice is deployed; live checkout/download QA passed, and the a
 - Data Export live QA passed on `smoketest.navigrader.com`: paid checkout, webhook job, ready state, JSON download, then CSV ZIP regeneration.
 - APP001/WEB001 Data Export slice deployed; public health passed.
 - Friendly filename route local/remote syntax checks passed; APP001 control API and public control API health passed after restart.
+- Branded Data Export return page local syntax checks passed; APP001 tenant API route syntax and health passed; static page and app deep-link served over HTTPS.
 
 ## Current Blockers
 
@@ -76,5 +80,5 @@ Data Export first slice is deployed; live checkout/download QA passed, and the a
 
 ## Next Actions
 
-1. Have user retry the ready export download from `mitchell.navigrader.com` and confirm the browser saves a friendly ZIP name.
+1. Have user QA a fresh Data Export Stripe return and confirm the branded success page plus Account Profile link.
 2. Resume with backend/platform hardening or tenant/runtime correctness.

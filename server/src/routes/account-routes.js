@@ -299,8 +299,8 @@ function registerAccountRoutes(app, deps) {
           requestedByUserId: req.auth.user.id,
           requestedByUsername: req.auth.user.username,
           requestedByEmail: req.auth.user.email || commercialSummary?.ownerEmail || req.auth.user.username,
-          successUrl: buildAccountReturnUrl(req, "export=success"),
-          cancelUrl: buildAccountReturnUrl(req, "export=cancel")
+          successUrl: buildAccountReturnUrl(req, "/data-export-status.html", "export=success"),
+          cancelUrl: buildAccountReturnUrl(req, "/data-export-status.html", "export=cancel")
         })
       });
       res.status(201).json({
@@ -435,11 +435,19 @@ function mapExportRequest(request) {
   };
 }
 
-function buildAccountReturnUrl(req, query) {
+function buildAccountReturnUrl(req, pathname = "/", query = "") {
   const host = req.get("host");
   const protocol = req.protocol || "https";
+  const normalizedPath = normalizeAccountReturnPath(pathname);
   const normalizedQuery = String(query || "").replace(/^\?+/, "");
-  return `${protocol}://${host}/${normalizedQuery ? `?${normalizedQuery}` : ""}`;
+  return `${protocol}://${host}${normalizedPath}${normalizedQuery ? `?${normalizedQuery}` : ""}`;
+}
+
+function normalizeAccountReturnPath(value) {
+  const rawPath = String(value || "/").trim().split(/[?#]/)[0];
+  if (!rawPath || rawPath === "/") return "/";
+  const normalizedPath = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  return normalizedPath.replace(/\/{2,}/g, "/") || "/";
 }
 
 function sanitizeDownloadFileName(value) {
