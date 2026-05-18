@@ -20,6 +20,8 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 - Dormant Mode is committed as `57150b0 Complete dormant mode billing flow`.
 - Data Export first slice is implemented, deployed, live-QA passed, accepted, committed, and pushed:
   - `ca5fa2d Complete customer data export package`
+  - `4d71709 Polish data export download filenames`
+  - `ad9103c Add data export checkout return page`
   - Account Profile export request creates a one-time Stripe Checkout session
   - `checkout.session.completed` queues `archive_tenant_data`
   - archive job writes a parent-readable ZIP of CSV records and marks request ready

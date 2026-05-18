@@ -25,7 +25,9 @@ Data Export first slice is deployed with a parent-readable CSV ZIP package, frie
 - Data Export first slice deployed and live-QA passed: Stripe Checkout request, webhook queueing, CSV ZIP artifact generation, secure admin download, and expiration handling.
 - Committed and pushed `ca5fa2d Complete customer data export package`.
 - Friendly Data Export browser filenames are deployed; stored artifacts still keep unique internal UUID paths.
+- Committed and pushed `4d71709 Polish data export download filenames`.
 - Stripe Data Export checkout now returns to a branded status page with Account Profile download instructions and a deep-link back into View Account.
+- Committed and pushed `ad9103c Add data export checkout return page`.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -36,9 +38,9 @@ Data Export first slice is deployed with a parent-readable CSV ZIP package, frie
     `/var/www/home-school-management/rollback/web-202605151220.tgz`
 - Tenant app assets:
   - `styles.css?v=202605150913`
-  - `app.js?v=202605162341`
+  - `app.js?v=202605172014`
   - Latest WEB001 rollback snapshot:
-    `/var/www/home-school-management/rollback/web-202605150933.tgz`
+    `/var/www/home-school-management/rollback/web-data-export-return-page-202605172014.tgz`
 - Control API rollback snapshot:
   - `/home/debian/rollback/hsm/control-api-upgrade-webhook-20260517031559/control-api`
 - Dormant deployment rollback snapshot:
