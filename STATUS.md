@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Data Export first slice is deployed; live checkout/download QA passed, and the artifact is now a parent-readable CSV ZIP package.
+Data Export first slice is deployed; live checkout/download QA passed, and the artifact is now a parent-readable CSV ZIP package with a friendly browser download filename.
 
 ## Completed Recently
 
@@ -24,6 +24,7 @@ Data Export first slice is deployed; live checkout/download QA passed, and the a
 - Committed `57150b0 Complete dormant mode billing flow`.
 - Data Export first slice deployed and live-QA passed: Stripe Checkout request, webhook queueing, CSV ZIP artifact generation, secure admin download, and expiration handling.
 - Committed and pushed `ca5fa2d Complete customer data export package`.
+- Friendly Data Export browser filenames are deployed; stored artifacts still keep unique internal UUID paths.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -47,6 +48,7 @@ Data Export first slice is deployed; live checkout/download QA passed, and the a
   - APP001 `/home/debian/rollback/hsm/data-export-20260516234316`
   - APP001 path fix `/home/debian/rollback/hsm/data-export-path-fix-20260517000217`
   - APP001 CSV package `/home/debian/rollback/hsm/data-export-csv-package-20260517001730`
+  - APP001 friendly filename route `/home/debian/rollback/hsm/data-export-friendly-filename-20260517200847`
   - WEB001 `/var/www/home-school-management/rollback/web-data-export-20260516234316.tgz`
 
 ## Validation
@@ -59,6 +61,7 @@ Data Export first slice is deployed; live checkout/download QA passed, and the a
 - Data Export syntax checks and checkout/webhook/download stubs passed.
 - Data Export live QA passed on `smoketest.navigrader.com`: paid checkout, webhook job, ready state, JSON download, then CSV ZIP regeneration.
 - APP001/WEB001 Data Export slice deployed; public health passed.
+- Friendly filename route local/remote syntax checks passed; APP001 control API and public control API health passed after restart.
 
 ## Current Blockers
 
@@ -73,5 +76,5 @@ Data Export first slice is deployed; live checkout/download QA passed, and the a
 
 ## Next Actions
 
-1. Have user QA a CSV ZIP export from `mitchell.navigrader.com`.
+1. Have user retry the ready export download from `mitchell.navigrader.com` and confirm the browser saves a friendly ZIP name.
 2. Resume with backend/platform hardening or tenant/runtime correctness.

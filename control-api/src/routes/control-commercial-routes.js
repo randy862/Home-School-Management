@@ -481,9 +481,10 @@ function registerControlCommercialRoutes(app, deps) {
       }
 
       const artifactPath = resolveExportArtifactPath(exportRequest.artifactPath);
+      const overview = await getCommercialOverviewBySubscriptionId(subscription.id);
       const content = await fs.readFile(artifactPath);
       res.json({
-        fileName: path.basename(artifactPath),
+        fileName: buildExportDownloadFileName({ overview, exportRequest, artifactPath }),
         contentType: exportArtifactContentType(artifactPath),
         contentBase64: content.toString("base64"),
         artifactExpiresAt: exportRequest.artifactExpiresAt || null
@@ -843,6 +844,27 @@ function exportArtifactContentType(artifactPath) {
   if (extension === ".zip") return "application/zip";
   if (extension === ".csv") return "text/csv";
   return "application/json";
+}
+
+function buildExportDownloadFileName({ overview, exportRequest, artifactPath }) {
+  const extension = path.extname(String(artifactPath || "")).toLowerCase() || ".zip";
+  const accountSlug = safeDownloadSlug(overview?.accountSlug || overview?.accountName || "navigrader");
+  const exportedOn = formatDownloadDate(exportRequest?.createdAt || exportRequest?.updatedAt || Date.now());
+  return `${accountSlug}-records-export-${exportedOn}${extension}`;
+}
+
+function safeDownloadSlug(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "navigrader";
+}
+
+function formatDownloadDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10);
+  return date.toISOString().slice(0, 10);
 }
 
 function calculateDormantBasePriceCents(plan) {
