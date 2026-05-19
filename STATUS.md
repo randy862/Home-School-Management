@@ -29,6 +29,7 @@ Subscriber-facing cancellation is deployed after the Data Export slice.
 - Stripe Data Export checkout now returns to a branded status page with Account Profile download instructions and a deep-link back into View Account.
 - Committed and pushed `ad9103c Add data export checkout return page`.
 - Subscriber cancellation is deployed: Account Options schedules Stripe period-end cancellation and can reverse it with Keep Subscription Active.
+- Subscriber cancellation status fix is deployed: tenant account summary now returns `cancelAtPeriodEnd` for Account/Profile UI.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -59,6 +60,8 @@ Subscriber-facing cancellation is deployed after the Data Export slice.
 - Subscriber cancellation rollback snapshots:
   - APP001 `/home/debian/rollback/hsm/subscription-cancel-202605181939`
   - WEB001 `/var/www/home-school-management/rollback/web-subscription-cancel-202605181939.tgz`
+  - APP001 status fix `/home/debian/rollback/hsm/subscription-cancel-status-fix-20260518195943`
+  - WEB001 status fix `/var/www/home-school-management/rollback/web-subscription-cancel-status-fix-20260518195943.tgz`
 
 ## Validation
 
@@ -73,6 +76,7 @@ Subscriber-facing cancellation is deployed after the Data Export slice.
 - Friendly filename route local/remote syntax checks passed; APP001 control API and public control API health passed after restart.
 - Branded Data Export return page local syntax checks passed; APP001 tenant API route syntax and health passed; static page and app deep-link served over HTTPS.
 - Subscriber cancellation local and APP001 syntax checks passed; `hsm-control-api` and `hsm-api` restarted healthy; public control/tenant health passed; WEB001 served app `202605181939`.
+- Live control DB confirmed `smoketest` has `cancel_at_period_end=true`; status fix deployed and services restarted healthy.
 
 ## Current Blockers
 

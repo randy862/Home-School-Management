@@ -381,7 +381,7 @@ function registerControlCommercialRoutes(app, deps) {
       const updated = await updateCommercialSubscription(subscription.id, {
         status: normalizeStripeSubscriptionStatus(stripeSubscription.status),
         currentPeriodStart: toIsoFromUnixSeconds(stripeSubscription.current_period_start),
-        currentPeriodEnd: toIsoFromUnixSeconds(stripeSubscription.current_period_end),
+        currentPeriodEnd: resolveStripeCurrentPeriodEnd(stripeSubscription),
         cancelAtPeriodEnd,
         canceledAt: toIsoFromUnixSeconds(stripeSubscription.canceled_at)
       });
@@ -465,7 +465,7 @@ function registerControlCommercialRoutes(app, deps) {
       const updated = await updateCommercialSubscription(subscription.id, {
         status: normalizeStripeSubscriptionStatus(stripeSubscription.status),
         currentPeriodStart: toIsoFromUnixSeconds(stripeSubscription.current_period_start),
-        currentPeriodEnd: toIsoFromUnixSeconds(stripeSubscription.current_period_end),
+        currentPeriodEnd: resolveStripeCurrentPeriodEnd(stripeSubscription),
         cancelAtPeriodEnd,
         canceledAt: toIsoFromUnixSeconds(stripeSubscription.canceled_at)
       });
@@ -1085,6 +1085,11 @@ function toIsoFromUnixSeconds(value) {
   const normalized = Number(value);
   if (!Number.isFinite(normalized) || normalized <= 0) return null;
   return new Date(normalized * 1000).toISOString();
+}
+
+function resolveStripeCurrentPeriodEnd(subscription) {
+  return toIsoFromUnixSeconds(subscription?.current_period_end)
+    || toIsoFromUnixSeconds(subscription?.items?.data?.[0]?.current_period_end);
 }
 
 function normalizeStripeSubscriptionStatus(value) {

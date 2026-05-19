@@ -175,6 +175,8 @@ function createCommercialPolicyService(deps) {
         dormantStatus: context.dormantStatus || "active",
         currentPeriodStart: context.currentPeriodStart || null,
         currentPeriodEnd: context.currentPeriodEnd || null,
+        cancelAtPeriodEnd: !!context.cancelAtPeriodEnd,
+        canceledAt: context.canceledAt || null,
         basePriceCents: Number(context.basePriceCents || 0),
         includedBillableStudents: Number(context.includedBillableStudents || 0),
         perStudentOverageCents: Number(context.perStudentOverageCents || 0),

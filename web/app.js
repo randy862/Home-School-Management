@@ -4549,7 +4549,9 @@ function renderAccountSurface() {
   const exportRequests = Array.isArray(activity.exportRequests) ? activity.exportRequests : [];
   const displayName = accountDisplayName(user, subscription);
   const planName = subscription?.plan?.name || (hostedModeEnabled ? "Hosted Workspace" : "Preview Workspace");
-  const cancellationDate = formatAccountDateTime(subscription?.billingPeriod?.end);
+  const cancellationDate = subscription?.billingPeriod?.end
+    ? formatAccountDateTime(subscription.billingPeriod.end)
+    : "the end of the current billing period";
   const subscriptionStatus = subscription
     ? (cancellationScheduled ? "Canceling" : formatSubscriptionStatusLabel(subscription.status))
     : (hostedModeEnabled ? "Pending" : "Preview");
@@ -4674,7 +4676,7 @@ function renderAccountSurface() {
           <p class="account-usage-note ${usageCopy.tone === "warning" ? "warning-text" : "muted"}">${escapeHtml(usageCopy.text)}</p>
         </div>
         ${subscription ? `
-          ${cancellationScheduled ? `<p class="account-lifecycle-note warning-text">Cancellation is scheduled. You can keep using Navigrader until ${escapeHtml(cancellationDate)}. Request a Data Export before that date if you need a copy of your records.</p>` : ""}
+          ${cancellationScheduled ? `<p class="account-lifecycle-note warning-text">Cancellation is scheduled. You can keep using Navigrader until ${escapeHtml(cancellationDate)}. Request a Data Export before access ends if you need a copy of your records.</p>` : ""}
           <dl class="account-detail-list">
             <div><dt>Base Price</dt><dd>${formatMoneyCents(subscription.plan?.basePriceCents, subscription.plan?.currency || "usd")} / ${escapeHtml(subscription.plan?.billingInterval || "month")}</dd></div>
             <div><dt>Included Billable Students</dt><dd>${includedStudents}</dd></div>
@@ -4773,6 +4775,9 @@ function renderAccountOptionsSurface() {
     && !cancellationScheduled
     && ["trialing", "active", "past_due", "unpaid"].includes(subscriptionStatus);
   const mayOpen = !!(permissions.canRequestDormant || permissions.canReactivate || permissions.canRequestExport || canCancelSubscription || cancellationScheduled);
+  const cancellationOptionDate = subscription?.billingPeriod?.end
+    ? formatAccountDateTime(subscription.billingPeriod.end)
+    : "the end of the current billing period";
   if (modal) {
     modal.classList.toggle("hidden", !signedIn || !accountOptionsModalOpen || !mayOpen);
     modal.setAttribute("aria-hidden", !signedIn || !accountOptionsModalOpen || !mayOpen ? "true" : "false");
@@ -4825,7 +4830,7 @@ function renderAccountOptionsSurface() {
       <article class="account-option-tile">
         <div>
           <h4>Cancellation Scheduled</h4>
-          <p class="muted">Your subscription is set to end on ${escapeHtml(formatAccountDateTime(subscription?.billingPeriod?.end))}. Request a Data Export before access ends if you need your records.</p>
+          <p class="muted">Your subscription is set to end at ${escapeHtml(cancellationOptionDate)}. Request a Data Export before access ends if you need your records.</p>
         </div>
         <button id="account-keep-subscription-btn" type="button">Keep Subscription Active</button>
       </article>
@@ -4910,7 +4915,7 @@ function renderAccountOptionsSurface() {
       renderAccountOptionsSurface();
       return;
     }
-    const endDate = formatAccountDateTime(subscription?.billingPeriod?.end);
+    const endDate = cancellationOptionDate;
     const confirmed = window.confirm(`Cancel this subscription at the end of the current billing period (${endDate})? You will keep access until then. If you need a copy of your records, close this prompt and request a Data Export first.`);
     if (!confirmed) return;
     try {

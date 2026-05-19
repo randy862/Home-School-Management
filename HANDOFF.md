@@ -40,8 +40,11 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
   - Account Options exposes Cancel Subscription for admins
   - cancellation schedules Stripe `cancel_at_period_end`, keeps access through current period, and recommends Data Export first
   - scheduled cancellations show a Keep Subscription Active reversal action
+  - tenant account summary now surfaces `cancelAtPeriodEnd` so Account shows scheduled cancellation state
   - APP001 rollback `/home/debian/rollback/hsm/subscription-cancel-202605181939`
+  - APP001 status fix rollback `/home/debian/rollback/hsm/subscription-cancel-status-fix-20260518195943`
   - WEB001 rollback `/var/www/home-school-management/rollback/web-subscription-cancel-202605181939.tgz`
+  - WEB001 status fix rollback `/var/www/home-school-management/rollback/web-subscription-cancel-status-fix-20260518195943.tgz`
 
 ## Next Action
 
@@ -64,4 +67,4 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 - APP001/WEB001 Data Export slice deployed; public health passed for `mitchell`, `smoketest`, and control API.
 - Friendly Data Export download filename route deployed on APP001; local/remote syntax checks and control API health passed.
 - Branded Data Export return page deployed; APP001 route syntax, tenant API health, public tenant health, and static page HTTPS checks passed.
-- Subscriber cancellation local/remote syntax checks passed; APP001 control/API health, public health, and static app bundle checks passed after deployment.
+- Subscriber cancellation local/remote syntax checks passed; APP001 control/API health, public health, and static app bundle checks passed after deployment and status fix.
