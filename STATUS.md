@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Deeper workflow QA from real usage: recommended school-year quarters are deployed behind a collapsible Schedule section.
+Deeper workflow QA from real usage: class conflict cleanup now allows removing students from an already-conflicting class.
 
 ## Completed Recently
 
@@ -28,6 +28,7 @@ Deeper workflow QA from real usage: recommended school-year quarters are deploye
 - The Quarters tab previews recommended ranges and can apply/save them for the selected School Year.
 - Holiday/Break changes rebalance quarters only when the saved quarters still match the prior recommendation.
 - The Recommended Quarters panel is collapsible so the Quarters tab stays focused on saved dates until the recommendation is needed.
+- Editing an already-conflicting hosted class now removes unchecked students before backend class conflict validation runs.
 
 ## Production State
 
@@ -36,8 +37,8 @@ Deeper workflow QA from real usage: recommended school-year quarters are deploye
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605191830`
-  - `styles.css?v=202605191830`
+  - `app.js?v=202605191900`
+  - `styles.css?v=202605191900`
 - APP001 class-conflict rollback:
   - `/home/debian/rollback/hsm/class-conflict-202605191515/`
 - WEB001 class-related rollback snapshots:
@@ -49,6 +50,7 @@ Deeper workflow QA from real usage: recommended school-year quarters are deploye
   - `/var/www/home-school-management/rollback/web-school-day-bulk-actions-subtle-202605191730.tgz`
   - `/var/www/home-school-management/rollback/web-quarter-recommendations-202605191815.tgz`
   - `/var/www/home-school-management/rollback/web-quarter-recommendations-disclosure-202605191830.tgz`
+  - `/var/www/home-school-management/rollback/web-class-conflict-removal-fix-202605191900.tgz`
 
 ## Validation
 
@@ -58,8 +60,8 @@ Deeper workflow QA from real usage: recommended school-year quarters are deploye
   - `node --check server/src/repositories/postgres/curriculum-repository.js`
 - Backend conflict/non-conflict service behavior checks passed with fake repository data.
 - APP001 `hsm-api` restarted healthy and `/health` returned `{"ok":true}`.
-- WEB001 public HTML references `app.js?v=202605191830` and `styles.css?v=202605191830`.
-- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the collapsible recommendation deployment.
+- WEB001 public HTML references `app.js?v=202605191900` and `styles.css?v=202605191900`.
+- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the class conflict cleanup deployment.
 - Full hosted release gate passed for `https://mitchell.navigrader.com` after class conflict deployment.
 
 ## Current Blockers
@@ -75,5 +77,5 @@ Deeper workflow QA from real usage: recommended school-year quarters are deploye
 ## Next Actions
 
 1. Run the hosted release gate from a PowerShell session with smoke credentials loaded.
-2. Real-usage QA recommended quarter generation/rebalancing from the Schedule tab.
+2. Real-usage QA removing students from an already-conflicting class in Class configuration.
 3. Then close the deeper workflow QA slice or move to backend/platform hardening.

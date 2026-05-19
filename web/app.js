@@ -20756,6 +20756,17 @@ async function syncHostedCourseSectionEnrollments(sectionId, courseId, selectedS
   }
 }
 
+async function removeHostedCourseSectionEnrollmentsNotSelected(sectionId, selectedStudentIds = []) {
+  const selected = new Set(selectedStudentIds.filter(Boolean));
+  const removedEntries = state.sectionEnrollments.filter((entry) => entry.courseSectionId === sectionId && !selected.has(entry.studentId));
+  if (!removedEntries.length) return 0;
+  for (const entry of removedEntries) {
+    await deleteHostedSectionEnrollment(entry.id);
+  }
+  state.sectionEnrollments = state.sectionEnrollments.filter((entry) => !removedEntries.some((removed) => removed.id === entry.id));
+  return removedEntries.length;
+}
+
 function updateLegacyLocalAttendance(existingAttendance, payload) {
   if (!existingAttendance) return;
   existingAttendance.studentId = payload.studentId;
@@ -21639,9 +21650,11 @@ function bindEvents() {
     }
     if (hostedModeEnabled) {
       (async () => {
+        let removedRosterBeforeUpdate = false;
         try {
           let sectionId = editingCourseSectionId;
           if (editingCourseSectionId) {
+            removedRosterBeforeUpdate = await removeHostedCourseSectionEnrollmentsNotSelected(editingCourseSectionId, selectedStudentIds) > 0;
             await updateHostedCourseSection(editingCourseSectionId, payload);
           } else {
             sectionId = uid();
@@ -21655,6 +21668,11 @@ function bindEvents() {
           await refreshHostedSectionEnrollments();
           renderAll();
         } catch (error) {
+          if (removedRosterBeforeUpdate) {
+            await refreshHostedCourseSections();
+            await refreshHostedSectionEnrollments();
+            renderAll();
+          }
           alert(error.message || "Unable to save class.");
         }
       })();

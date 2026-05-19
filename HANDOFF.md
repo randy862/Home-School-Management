@@ -23,16 +23,18 @@ Product/platform follow-up is active. Current slice is deeper workflow QA from r
 - Schedule configuration now recommends balanced Q1-Q4 ranges from School Year dates, weekdays, and Holidays/Breaks.
 - New School Years auto-create recommended quarters; Holiday/Break changes rebalance only quarters that still match the prior recommendation.
 - Recommended Quarters is a collapsible disclosure in the Quarters tab.
-- Production tenant app serves `app.js?v=202605191830` and `styles.css?v=202605191830`.
+- Hosted class edits now remove unchecked students before backend conflict validation, allowing cleanup of already-conflicting rosters.
+- Production tenant app serves `app.js?v=202605191900` and `styles.css?v=202605191900`.
 - WEB001 rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-status-202605191700.tgz`.
 - WEB001 subtle bulk-actions rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-actions-subtle-202605191730.tgz`.
 - WEB001 quarter recommendation rollback snapshot exists at `/var/www/home-school-management/rollback/web-quarter-recommendations-202605191815.tgz`.
 - WEB001 collapsible recommendation rollback snapshot exists at `/var/www/home-school-management/rollback/web-quarter-recommendations-disclosure-202605191830.tgz`.
+- WEB001 class conflict cleanup rollback snapshot exists at `/var/www/home-school-management/rollback/web-class-conflict-removal-fix-202605191900.tgz`.
 - Full hosted release gate passed for `https://mitchell.navigrader.com` after the earlier class conflict deployment. Current quarter recommendation deployment has public HTTP checks only from Codex because smoke credentials are not in this process.
 
 ## Next Action
 
-Run the hosted release gate from a PowerShell session with smoke credentials loaded, then real-usage QA recommended quarter generation/rebalancing from the Schedule tab.
+Run the hosted release gate from a PowerShell session with smoke credentials loaded, then real-usage QA removing unchecked students from an already-conflicting class.
 
 ## Risks
 
@@ -42,6 +44,7 @@ Run the hosted release gate from a PowerShell session with smoke credentials loa
 - Class conflict checks use course `hoursPerDay` as class duration, matching current School Day behavior.
 - Bulk status actions intentionally apply only to currently shown scheduled/open instruction rows and respect the active date, student, subject, course, status, and quick filters.
 - Quarter recommendations infer auto-managed quarters by matching saved Q1-Q4 dates to the current recommendation; manually edited quarter dates are left alone.
+- If a class edit removes students and a later update still fails, the UI refreshes class/enrollment state so the roster does not stay stale.
 
 ## Validation
 
@@ -56,5 +59,6 @@ Run the hosted release gate from a PowerShell session with smoke credentials loa
 - Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the WEB001 bulk status deployment.
 - `node --check web/app.js` passed after the subtle bulk-actions UI refinement.
 - `node --check web/app.js` passed after quarter recommendation changes.
-- WEB001 public HTML references `app.js?v=202605191830` and `styles.css?v=202605191830`.
-- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the collapsible recommendation deployment.
+- `node --check web/app.js` passed after class conflict cleanup changes.
+- WEB001 public HTML references `app.js?v=202605191900` and `styles.css?v=202605191900`.
+- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the class conflict cleanup deployment.
