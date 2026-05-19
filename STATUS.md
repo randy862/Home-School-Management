@@ -32,19 +32,22 @@ Legal acceptance for SaaS signup is deployed after subscriber cancellation and D
 - Subscriber cancellation status fix is deployed: tenant account summary now returns `cancelAtPeriodEnd` for Account/Profile UI.
 - User verified Cancel Subscription and Keep Subscription Active on `smoketest.navigrader.com`.
 - Legal acceptance is deployed: public `/terms` and `/privacy`, required signup checkbox, recurring billing disclosure, Stripe terms consent, `legal_acceptances` audit records, and authenticated legal links.
+- Post-deploy hosted release gate passed for `https://mitchell.navigrader.com`, including public legal page checks.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
 
 - Public SaaS page:
-  - `saas-polish.css?v=202605151220`
+  - `saas.css?v=202605182130`
+  - `saas-polish.css?v=202605182130`
+  - `saas.js?v=202605182130`
   - Latest WEB001 rollback snapshot:
-    `/var/www/home-school-management/rollback/web-202605151220.tgz`
+    `/var/www/home-school-management/rollback/web-legal-acceptance-202605182130.tgz`
 - Tenant app assets:
-  - `styles.css?v=202605150913`
-  - `app.js?v=202605181939`
+  - `styles.css?v=202605182130`
+  - `app.js?v=202605182130`
   - Latest WEB001 rollback snapshot:
-    `/var/www/home-school-management/rollback/web-subscription-cancel-202605181939.tgz`
+    `/var/www/home-school-management/rollback/web-legal-acceptance-202605182130.tgz`
 - Control API rollback snapshot:
   - `/home/debian/rollback/hsm/control-api-upgrade-webhook-20260517031559/control-api`
 - Dormant deployment rollback snapshot:
@@ -83,11 +86,11 @@ Legal acceptance for SaaS signup is deployed after subscriber cancellation and D
 - Subscriber cancellation local and APP001 syntax checks passed; `hsm-control-api` and `hsm-api` restarted healthy; public control/tenant health passed; WEB001 served app `202605181939`.
 - Live control DB confirmed `smoketest` has `cancel_at_period_end=true`; status fix deployed and services restarted healthy.
 - Legal acceptance syntax checks, mocked checkout validation, mocked Stripe consent encoding, APP001 migration/restart, public legal pages, signup content, app legal links, control health, and tenant health passed.
+- Full hosted release gate passed after legal acceptance deploy.
 
 ## Current Blockers
 
 - Optional control-plane release gate requires production-safe control credentials.
-- Full hosted release gate could not run from Codex because `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` are not set in this environment.
 
 ## Current Risks
 
@@ -98,5 +101,4 @@ Legal acceptance for SaaS signup is deployed after subscriber cancellation and D
 
 ## Next Actions
 
-1. Run the full hosted release gate from a PowerShell session with hosted smoke credentials.
-2. Optionally complete one new smoke signup/Stripe checkout to verify a live `legal_acceptances` row links through checkout.
+1. Resume with backend/platform hardening, tenant/runtime correctness, or deeper workflow QA from real usage.

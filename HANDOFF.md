@@ -52,21 +52,19 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
   - control API stores `legal_acceptances` records with policy versions, email/org, IP/user-agent, and Stripe/customer/subscription linkage
   - Stripe Checkout receives required terms consent plus linked Terms/Privacy custom text
   - authenticated account menu exposes Terms and Privacy links
-  - hosted release gate now checks `/terms` and `/privacy`
+  - hosted release gate checks `/terms` and `/privacy` and passed post-deploy
   - APP001 rollback `/home/debian/rollback/hsm/legal-acceptance-202605182130/control-api`
   - WEB001 rollback `/var/www/home-school-management/rollback/web-legal-acceptance-202605182130.tgz`
 
 ## Next Action
 
-1. Run the full hosted release gate from a PowerShell session that has `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` set.
-2. Optionally create a new smoke signup to confirm the legal acceptance row is created and linked after Stripe checkout.
+1. Resume with backend/platform hardening, tenant/runtime correctness, or deeper workflow QA from real usage.
 
 ## Risks
 
 - Do not run mutating upgrade QA against real family data.
 - Do not store smoke credentials or Stripe secrets in repo files.
 - Optional control-plane release gate still requires production-safe control credentials.
-- Full hosted release gate could not run from Codex because hosted smoke credentials were not present in the process/user/machine environment.
 - Data Export first slice ships CSV ZIP artifacts; encryption, cleanup workers, and richer export UX remain future hardening.
 - Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside commits.
 
@@ -80,4 +78,4 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 - Branded Data Export return page deployed; APP001 route syntax, tenant API health, public tenant health, and static page HTTPS checks passed.
 - Subscriber cancellation local/remote syntax checks passed; APP001 control/API health, public health, and static app bundle checks passed after deployment and status fix.
 - User verified subscriber cancellation and Keep Subscription Active on `smoketest.navigrader.com`.
-- Legal acceptance local syntax/mocked route checks passed; APP001 migration/restart passed; public control/tenant/legal/signup/app content checks passed.
+- Legal acceptance local syntax/mocked route checks passed; APP001 migration/restart passed; public control/tenant/legal/signup/app content checks passed; full hosted release gate passed.
