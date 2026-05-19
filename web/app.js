@@ -6269,6 +6269,139 @@ function instructionalDaysCountForRange(startDate, endDate) {
   return count;
 }
 
+function dateKeyOffset(dateKey, dayOffset) {
+  const date = toDate(dateKey);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + Number(dayOffset || 0));
+  return toISO(date);
+}
+
+function instructionalDatesForRange(startDate, endDate) {
+  const start = toDate(startDate);
+  const end = toDate(endDate);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return [];
+  const excluded = holidaySetByRange(startDate, endDate);
+  const dates = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    const key = toISO(cursor);
+    const weekday = cursor.getDay();
+    if (weekday >= 1 && weekday <= 5 && !excluded.has(key)) dates.push(key);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+function recommendedQuartersForSchoolYear(schoolYear) {
+  if (!schoolYear || !validRange(schoolYear.startDate, schoolYear.endDate)) {
+    return { quarters: [], totalInstructionalDays: 0, counts: [], error: "A valid school year range is required." };
+  }
+  const instructionalDateKeys = instructionalDatesForRange(schoolYear.startDate, schoolYear.endDate);
+  if (instructionalDateKeys.length < 4) {
+    return {
+      quarters: [],
+      totalInstructionalDays: instructionalDateKeys.length,
+      counts: [],
+      error: "At least four instructional days are needed to recommend four quarters."
+    };
+  }
+  const baseCount = Math.floor(instructionalDateKeys.length / 4);
+  const remainder = instructionalDateKeys.length % 4;
+  const counts = [0, 1, 2, 3].map((index) => baseCount + (index < remainder ? 1 : 0));
+  let cursor = 0;
+  const quarters = counts.map((count, index) => {
+    const startInstructionDate = instructionalDateKeys[cursor];
+    const nextQuarterInstructionDate = instructionalDateKeys[cursor + count] || "";
+    const startDate = index === 0 ? schoolYear.startDate : startInstructionDate;
+    const endDate = index === 3 ? schoolYear.endDate : dateKeyOffset(nextQuarterInstructionDate, -1);
+    cursor += count;
+    return {
+      id: uid(),
+      schoolYearId: schoolYear.id,
+      name: `Q${index + 1}`,
+      startDate,
+      endDate
+    };
+  });
+  return { quarters, totalInstructionalDays: instructionalDateKeys.length, counts, error: "" };
+}
+
+function sortedQuartersForSchoolYear(schoolYearId) {
+  return state.settings.allQuarters
+    .filter((quarter) => quarter.schoolYearId === schoolYearId)
+    .sort((a, b) => toDate(a.startDate) - toDate(b.startDate));
+}
+
+function quartersMatchRecommended(schoolYearId, schoolYearOverride = null) {
+  const schoolYear = schoolYearOverride || getSchoolYear(schoolYearId);
+  const recommendation = recommendedQuartersForSchoolYear(schoolYear);
+  if (recommendation.error || recommendation.quarters.length !== 4) return false;
+  const existing = sortedQuartersForSchoolYear(schoolYearId);
+  if (existing.length !== 4) return false;
+  return recommendation.quarters.every((recommended, index) => {
+    const current = existing[index];
+    return current
+      && current.name === recommended.name
+      && current.startDate === recommended.startDate
+      && current.endDate === recommended.endDate;
+  });
+}
+
+function autoManagedQuarterSchoolYearIds() {
+  return state.settings.schoolYears
+    .filter((year) => quartersMatchRecommended(year.id))
+    .map((year) => year.id);
+}
+
+async function persistQuarterSetForSchoolYear(schoolYearId, quarters, options = {}) {
+  const previousQuarterByName = new Map(
+    state.settings.allQuarters
+      .filter((quarter) => quarter.schoolYearId === schoolYearId)
+      .map((quarter) => [quarter.name, { ...quarter }])
+  );
+  const normalizedQuarters = quarters.map((quarter, index) => ({
+    id: quarter.id || uid(),
+    schoolYearId,
+    name: quarter.name || `Q${index + 1}`,
+    startDate: quarter.startDate,
+    endDate: quarter.endDate
+  }));
+  if (hostedModeEnabled) {
+    await saveHostedQuarters(schoolYearId, normalizedQuarters);
+    if (options.refresh !== false) await refreshHostedSchoolConfigState();
+    return normalizedQuarters;
+  }
+  replaceLegacyLocalQuarters(schoolYearId, normalizedQuarters);
+  syncQuarterlyPlansForSchoolYear(schoolYearId, previousQuarterByName, normalizedQuarters);
+  if (schoolYearId === state.settings.currentSchoolYearId) setCurrentSchoolYear(schoolYearId);
+  saveState();
+  return normalizedQuarters;
+}
+
+async function saveRecommendedQuartersForSchoolYear(schoolYearId, options = {}) {
+  const schoolYear = options.schoolYear || getSchoolYear(schoolYearId);
+  const recommendation = recommendedQuartersForSchoolYear(schoolYear);
+  if (recommendation.error) throw new Error(recommendation.error);
+  return persistQuarterSetForSchoolYear(schoolYearId, recommendation.quarters, options);
+}
+
+async function rebalanceAutoManagedQuarters(schoolYearIds = []) {
+  const uniqueIds = Array.from(new Set(schoolYearIds.filter(Boolean)));
+  if (!uniqueIds.length) return 0;
+  let changedCount = 0;
+  for (const schoolYearId of uniqueIds) {
+    const schoolYear = getSchoolYear(schoolYearId);
+    const recommendation = recommendedQuartersForSchoolYear(schoolYear);
+    if (recommendation.error || recommendation.quarters.length !== 4) continue;
+    if (quartersMatchRecommended(schoolYearId, schoolYear)) continue;
+    if (hostedModeEnabled) await persistQuarterSetForSchoolYear(schoolYearId, recommendation.quarters, { refresh: false });
+    else persistQuarterSetForSchoolYear(schoolYearId, recommendation.quarters, { refresh: false });
+    changedCount += 1;
+  }
+  if (hostedModeEnabled && changedCount) await refreshHostedSchoolConfigState();
+  return changedCount;
+}
+
 function options(selectId, items, textFn, placeholder) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
@@ -11220,6 +11353,73 @@ function renderScheduleBlocks() {
   updateScheduleBlockFormMode();
 }
 
+function selectedQuarterSchoolYearId() {
+  const select = document.getElementById("quarter-school-year");
+  const selected = select instanceof HTMLSelectElement ? select.value : "";
+  return selected || state.settings.currentSchoolYearId || currentSchoolYear()?.id || "";
+}
+
+function setQuarterFormValues(quarters = []) {
+  ["q1", "q2", "q3", "q4"].forEach((prefix, index) => {
+    const quarter = quarters[index] || {};
+    const startInput = document.getElementById(`${prefix}-start`);
+    const endInput = document.getElementById(`${prefix}-end`);
+    if (startInput) startInput.value = quarter.startDate || "";
+    if (endInput) endInput.value = quarter.endDate || "";
+  });
+}
+
+function renderQuarterRecommendationPanel() {
+  const card = document.getElementById("quarter-recommendation-card");
+  if (!card) return;
+  const schoolYearId = selectedQuarterSchoolYearId();
+  const schoolYear = getSchoolYear(schoolYearId);
+  const summary = document.getElementById("quarter-recommendation-summary");
+  const grid = document.getElementById("quarter-recommendation-grid");
+  const note = document.getElementById("quarter-recommendation-note");
+  const useButton = document.getElementById("quarter-use-recommendation-btn");
+  const saveButton = document.getElementById("quarter-save-recommendation-btn");
+  if (!schoolYear) {
+    if (summary) summary.textContent = "Select a school year to calculate recommended quarters.";
+    if (grid) grid.innerHTML = "";
+    if (note) note.textContent = "";
+    if (useButton) useButton.disabled = true;
+    if (saveButton) saveButton.disabled = true;
+    return;
+  }
+  const recommendation = recommendedQuartersForSchoolYear(schoolYear);
+  const canRecommend = !recommendation.error && recommendation.quarters.length === 4;
+  if (summary) {
+    summary.textContent = canRecommend
+      ? `${recommendation.totalInstructionalDays} instructional days balanced as ${recommendation.counts.join(" / ")}.`
+      : recommendation.error;
+  }
+  if (grid) {
+    grid.innerHTML = canRecommend
+      ? recommendation.quarters.map((quarter) => {
+        const days = instructionalDaysCountForRange(quarter.startDate, quarter.endDate);
+        return `<div class="quarter-recommendation-item">
+          <strong>${escapeHtml(quarter.name)}</strong>
+          <span>${escapeHtml(formatDisplayDate(quarter.startDate))} - ${escapeHtml(formatDisplayDate(quarter.endDate))}</span>
+          <em>${days} school day${days === 1 ? "" : "s"}</em>
+        </div>`;
+      }).join("")
+      : "";
+  }
+  const existing = sortedQuartersForSchoolYear(schoolYear.id);
+  const matches = canRecommend && quartersMatchRecommended(schoolYear.id, schoolYear);
+  if (note) {
+    note.textContent = matches
+      ? "Saved quarters already match the current recommendation."
+      : existing.length
+        ? "Saving recommended quarters will replace the saved quarter dates for this school year."
+        : "No quarters are saved yet for this school year.";
+    note.className = "muted";
+  }
+  if (useButton) useButton.disabled = !canRecommend;
+  if (saveButton) saveButton.disabled = !canRecommend || matches;
+}
+
 function renderPlanningSettings() {
   const schoolYear = currentSchoolYear();
   const schoolYearCurrent = document.getElementById("school-year-current");
@@ -11305,6 +11505,7 @@ function renderPlanningSettings() {
   if (quartersSubmitBtn) quartersSubmitBtn.textContent = editingQuarterSchoolYearId ? "Update Quarters" : "Save Quarters";
   if (quartersCancelBtn) quartersCancelBtn.classList.toggle("hidden", !editingQuarterSchoolYearId);
 
+  renderQuarterRecommendationPanel();
   renderSchoolDaySettings();
 }
 
@@ -22033,6 +22234,7 @@ function bindEvents() {
     if (!validRange(startDate, endDate)) { alert("School year range is invalid."); return; }
     if (requiredInstructionalDays != null && (!Number.isInteger(requiredInstructionalDays) || requiredInstructionalDays < 0)) { alert("Required Instructional Days must be a whole number 0 or greater."); return; }
     if (requiredInstructionalHours != null && (!Number.isFinite(requiredInstructionalHours) || requiredInstructionalHours < 0)) { alert("Required Instructional Hours must be 0 or greater."); return; }
+    const editingQuartersWereAutoManaged = editingSchoolYearId ? quartersMatchRecommended(editingSchoolYearId) : false;
     if (hostedModeEnabled) {
       (async () => {
         try {
@@ -22047,6 +22249,7 @@ function bindEvents() {
             isCurrent: editingSchoolYearId ? (getSchoolYear(editingSchoolYearId)?.id === state.settings.currentSchoolYearId) : state.settings.schoolYears.length === 0
           };
           if (editingSchoolYearId) {
+            const schoolYearForRecommendation = { id: editingSchoolYearId, ...payload };
             await ensureHostedSchoolYearRecord({
               id: editingSchoolYearId,
               ...payload
@@ -22054,8 +22257,18 @@ function bindEvents() {
               id: editingSchoolYearId,
               isCurrent: payload.isCurrent
             });
+            const recommendation = recommendedQuartersForSchoolYear(schoolYearForRecommendation);
+            if (editingQuartersWereAutoManaged && !recommendation.error) {
+              await persistQuarterSetForSchoolYear(editingSchoolYearId, recommendation.quarters, { refresh: false });
+            }
           } else {
-            await createHostedSchoolYear({ id: uid(), ...payload });
+            const newSchoolYearId = uid();
+            const newSchoolYear = { id: newSchoolYearId, ...payload };
+            await createHostedSchoolYear(newSchoolYear);
+            const recommendation = recommendedQuartersForSchoolYear(newSchoolYear);
+            if (!recommendation.error) {
+              await persistQuarterSetForSchoolYear(newSchoolYearId, recommendation.quarters, { refresh: false });
+            }
           }
           editingSchoolYearId = "";
           await refreshHostedSchoolConfigState();
@@ -22069,6 +22282,7 @@ function bindEvents() {
     const existing = state.settings.schoolYears.find((year) => year.id === editingSchoolYearId);
     const previousStartDate = existing?.startDate || "";
     const previousEndDate = existing?.endDate || "";
+    const existingQuartersWereAutoManaged = existing ? quartersMatchRecommended(existing.id) : false;
     if (existing) {
       updateLegacyLocalSchoolYear(existing, {
         label,
@@ -22080,13 +22294,17 @@ function bindEvents() {
         minutesBetweenClasses: existingMinutesBetweenClasses
       });
       syncAnnualPlansForSchoolYear(previousStartDate, previousEndDate, startDate, endDate);
+      if (existingQuartersWereAutoManaged) {
+        const recommendation = recommendedQuartersForSchoolYear(existing);
+        if (!recommendation.error) persistQuarterSetForSchoolYear(existing.id, recommendation.quarters);
+      }
     } else {
       const duplicate = state.settings.schoolYears.find((year) =>
         year.label.toLowerCase() === label.toLowerCase()
         && year.startDate === startDate
         && year.endDate === endDate);
       if (duplicate) { alert("That school year already exists."); return; }
-      createLegacyLocalSchoolYear({
+      const createdSchoolYear = createLegacyLocalSchoolYear({
         label,
         startDate,
         endDate,
@@ -22095,6 +22313,8 @@ function bindEvents() {
         schoolDayStartTime: existingSchoolDayStartTime,
         minutesBetweenClasses: existingMinutesBetweenClasses
       });
+      const recommendation = recommendedQuartersForSchoolYear(createdSchoolYear);
+      if (!recommendation.error) persistQuarterSetForSchoolYear(createdSchoolYear.id, recommendation.quarters);
     }
     const schoolYearId = existing ? existing.id : state.settings.schoolYears[state.settings.schoolYears.length - 1].id;
     setCurrentSchoolYear(schoolYearId);
@@ -22159,11 +22379,6 @@ function bindEvents() {
     if (!ensureAdminAction()) return;
     const schoolYearId = document.getElementById("quarter-school-year").value;
     if (!schoolYearId) { alert("Select a school year for these quarters."); return; }
-    const previousQuarterByName = new Map(
-      state.settings.allQuarters
-        .filter((quarter) => quarter.schoolYearId === schoolYearId)
-        .map((quarter) => [quarter.name, { ...quarter }])
-    );
     const q = [
       { id: uid(), schoolYearId, name: "Q1", startDate: document.getElementById("q1-start").value, endDate: document.getElementById("q1-end").value },
       { id: uid(), schoolYearId, name: "Q2", startDate: document.getElementById("q2-start").value, endDate: document.getElementById("q2-end").value },
@@ -22174,9 +22389,8 @@ function bindEvents() {
     if (hostedModeEnabled) {
       (async () => {
         try {
-          await saveHostedQuarters(schoolYearId, q);
+          await persistQuarterSetForSchoolYear(schoolYearId, q);
           editingQuarterSchoolYearId = "";
-          await refreshHostedSchoolConfigState();
           rerenderAfterSchoolCalendarConfigChange();
         } catch (error) {
           alert(error.message || "Unable to save quarters.");
@@ -22184,16 +22398,60 @@ function bindEvents() {
       })();
       return;
     }
-    replaceLegacyLocalQuarters(schoolYearId, q);
-    syncQuarterlyPlansForSchoolYear(schoolYearId, previousQuarterByName, q);
-    if (schoolYearId === state.settings.currentSchoolYearId) setCurrentSchoolYear(schoolYearId);
+    persistQuarterSetForSchoolYear(schoolYearId, q);
     editingQuarterSchoolYearId = "";
-    saveState();
     rerenderAfterSchoolCalendarConfigChange();
   });
   const quartersCancelEditBtn = document.getElementById("quarters-cancel-edit-btn");
   if (quartersCancelEditBtn) {
     quartersCancelEditBtn.addEventListener("click", () => cancelQuarterEdit());
+  }
+  const quarterUseRecommendationBtn = document.getElementById("quarter-use-recommendation-btn");
+  if (quarterUseRecommendationBtn) {
+    quarterUseRecommendationBtn.addEventListener("click", () => {
+      const schoolYearId = selectedQuarterSchoolYearId();
+      const schoolYear = getSchoolYear(schoolYearId);
+      const recommendation = recommendedQuartersForSchoolYear(schoolYear);
+      if (recommendation.error) {
+        alert(recommendation.error);
+        return;
+      }
+      const select = document.getElementById("quarter-school-year");
+      if (select) select.value = schoolYearId;
+      editingQuarterSchoolYearId = schoolYearId;
+      setQuarterFormValues(recommendation.quarters);
+      renderQuarterRecommendationPanel();
+    });
+  }
+  const quarterSaveRecommendationBtn = document.getElementById("quarter-save-recommendation-btn");
+  if (quarterSaveRecommendationBtn) {
+    quarterSaveRecommendationBtn.addEventListener("click", () => {
+      if (!ensureAdminAction()) return;
+      const schoolYearId = selectedQuarterSchoolYearId();
+      const schoolYear = getSchoolYear(schoolYearId);
+      const recommendation = recommendedQuartersForSchoolYear(schoolYear);
+      if (recommendation.error) {
+        alert(recommendation.error);
+        return;
+      }
+      const confirmed = window.confirm(`Save recommended quarters for ${schoolYear.label}? This will replace the saved quarter dates for that school year.`);
+      if (!confirmed) return;
+      if (hostedModeEnabled) {
+        (async () => {
+          try {
+            await saveRecommendedQuartersForSchoolYear(schoolYearId);
+            editingQuarterSchoolYearId = "";
+            rerenderAfterSchoolCalendarConfigChange();
+          } catch (error) {
+            alert(error.message || "Unable to save recommended quarters.");
+          }
+        })();
+        return;
+      }
+      saveRecommendedQuartersForSchoolYear(schoolYearId);
+      editingQuarterSchoolYearId = "";
+      rerenderAfterSchoolCalendarConfigChange();
+    });
   }
   const quarterSchoolYear = document.getElementById("quarter-school-year");
   if (quarterSchoolYear) {
@@ -22313,6 +22571,7 @@ function bindEvents() {
     const endDate = document.getElementById("holiday-end").value;
     if (!name || !validRange(startDate, endDate)) { alert("Provide valid holiday/break values."); return; }
     const payload = { name, type, startDate, endDate };
+    const autoManagedQuarterYearIds = autoManagedQuarterSchoolYearIds();
     if (hostedModeEnabled) {
       (async () => {
         try {
@@ -22324,6 +22583,7 @@ function bindEvents() {
           editingHolidayId = "";
           e.target.reset();
           await refreshHostedHolidays();
+          await rebalanceAutoManagedQuarters(autoManagedQuarterYearIds);
           renderAll();
         } catch (error) {
           alert(error.message || "Unable to save holiday.");
@@ -22337,6 +22597,7 @@ function bindEvents() {
     } else {
       createLegacyLocalHoliday(payload);
     }
+    rebalanceAutoManagedQuarters(autoManagedQuarterYearIds);
     e.target.reset();
     saveState();
     renderAll();
@@ -25088,12 +25349,14 @@ function bindEvents() {
     const holidayId = t.getAttribute("data-remove-holiday");
     if (holidayId) {
       if (!ensureAdminAction()) return;
+      const autoManagedQuarterYearIds = autoManagedQuarterSchoolYearIds();
       if (hostedModeEnabled) {
         (async () => {
           try {
             await deleteHostedHoliday(holidayId);
             if (editingHolidayId === holidayId) editingHolidayId = "";
             await refreshHostedHolidays();
+            await rebalanceAutoManagedQuarters(autoManagedQuarterYearIds);
             renderAll();
           } catch (error) {
             alert(error.message || "Unable to remove holiday.");
@@ -25103,6 +25366,7 @@ function bindEvents() {
       }
       deleteLegacyLocalHoliday(holidayId);
       if (editingHolidayId === holidayId) editingHolidayId = "";
+      rebalanceAutoManagedQuarters(autoManagedQuarterYearIds);
       saveState();
       renderAll();
       return;

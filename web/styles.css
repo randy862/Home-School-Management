@@ -2897,6 +2897,70 @@ td {
   text-align: center;
 }
 
+.quarter-recommendation-card {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #d4dee9;
+  border-radius: 12px;
+  background: #fbfdff;
+}
+
+.quarter-recommendation-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.quarter-recommendation-header strong {
+  display: block;
+  color: #17243d;
+}
+
+.quarter-recommendation-header p,
+.quarter-recommendation-card > p {
+  margin: 0.15rem 0 0;
+}
+
+.quarter-recommendation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.quarter-recommendation-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 0.45rem;
+}
+
+.quarter-recommendation-item {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.55rem;
+  border: 1px solid #dfe7f1;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.quarter-recommendation-item strong {
+  color: #17243d;
+}
+
+.quarter-recommendation-item span {
+  color: #31435d;
+  font-size: 0.88rem;
+}
+
+.quarter-recommendation-item em {
+  color: #65758a;
+  font-size: 0.82rem;
+  font-style: normal;
+}
+
 .schedule-section-daily-breaks {
   background: #f5eee3;
   border-color: #d8c8b4;
@@ -4928,7 +4992,8 @@ td {
     grid-template-columns: 1fr 1fr;
   }
 
-  .quarter-grid {
+  .quarter-grid,
+  .quarter-recommendation-grid {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -4983,9 +5048,18 @@ td {
 
   .grid-form,
   .quarter-grid,
+  .quarter-recommendation-grid,
   .kpi-grid,
   .progress-wrap {
     grid-template-columns: 1fr;
+  }
+
+  .quarter-recommendation-header {
+    flex-direction: column;
+  }
+
+  .quarter-recommendation-actions {
+    justify-content: flex-start;
   }
 
   .course-materials-grid {

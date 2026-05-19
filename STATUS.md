@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Deeper workflow QA from real usage: School Day bulk completion/excusal is deployed with a subtle secondary action menu.
+Deeper workflow QA from real usage: recommended school-year quarters are deployed for Schedule configuration.
 
 ## Completed Recently
 
@@ -24,6 +24,9 @@ Deeper workflow QA from real usage: School Day bulk completion/excusal is deploy
 - Students and Quarters class-form dropdowns were polished to use compact checklist layout.
 - School Day Daily Schedule now has `Complete Open` and `Excuse Open` bulk actions for the currently filtered open instruction queue.
 - School Day bulk status actions were moved into a quieter `Bulk Actions` disclosure to reduce accidental mass updates and visual focus.
+- New School Years now receive recommended Q1-Q4 dates balanced by instructional days.
+- The Quarters tab previews recommended ranges and can apply/save them for the selected School Year.
+- Holiday/Break changes rebalance quarters only when the saved quarters still match the prior recommendation.
 
 ## Production State
 
@@ -32,8 +35,8 @@ Deeper workflow QA from real usage: School Day bulk completion/excusal is deploy
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605191730`
-  - `styles.css?v=202605191730`
+  - `app.js?v=202605191815`
+  - `styles.css?v=202605191815`
 - APP001 class-conflict rollback:
   - `/home/debian/rollback/hsm/class-conflict-202605191515/`
 - WEB001 class-related rollback snapshots:
@@ -43,6 +46,7 @@ Deeper workflow QA from real usage: School Day bulk completion/excusal is deploy
   - `/var/www/home-school-management/rollback/web-class-quarters-polish-202605191530.tgz`
   - `/var/www/home-school-management/rollback/web-school-day-bulk-status-202605191700.tgz`
   - `/var/www/home-school-management/rollback/web-school-day-bulk-actions-subtle-202605191730.tgz`
+  - `/var/www/home-school-management/rollback/web-quarter-recommendations-202605191815.tgz`
 
 ## Validation
 
@@ -52,8 +56,8 @@ Deeper workflow QA from real usage: School Day bulk completion/excusal is deploy
   - `node --check server/src/repositories/postgres/curriculum-repository.js`
 - Backend conflict/non-conflict service behavior checks passed with fake repository data.
 - APP001 `hsm-api` restarted healthy and `/health` returned `{"ok":true}`.
-- WEB001 public HTML references `app.js?v=202605191730` and `styles.css?v=202605191730`.
-- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the bulk status deployment.
+- WEB001 public HTML references `app.js?v=202605191815` and `styles.css?v=202605191815`.
+- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the quarter recommendation deployment.
 - Full hosted release gate passed for `https://mitchell.navigrader.com` after class conflict deployment.
 
 ## Current Blockers
@@ -69,5 +73,5 @@ Deeper workflow QA from real usage: School Day bulk completion/excusal is deploy
 ## Next Actions
 
 1. Run the hosted release gate from a PowerShell session with smoke credentials loaded.
-2. Real-usage QA the new School Day `Bulk Actions` menu from the Open Classes dashboard link.
+2. Real-usage QA recommended quarter generation/rebalancing from the Schedule tab.
 3. Then close the deeper workflow QA slice or move to backend/platform hardening.
