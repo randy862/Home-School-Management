@@ -77,6 +77,7 @@ const {
   createAccessHandoff,
   createProvisioningRequest,
   createEmailDelivery,
+  createLegalAcceptance,
   markCheckoutSessionCompleted,
   updateAccessHandoffByProvisioningRequestId,
   updateBillingEventProcessing,
@@ -85,6 +86,8 @@ const {
   updateCancellationExportRequest,
   updateCommercialSubscription,
   updateCustomerAccountStatus,
+  updateLegalAcceptance,
+  updateLegalAcceptanceByStripeCheckoutSessionId,
   updateProvisioningRequest,
   updateSubscriptionByStripeCheckoutSessionId,
   updateSubscriptionByStripeSubscriptionId
@@ -175,6 +178,7 @@ registerPublicSaasRoutes(app, {
   createCheckoutCustomerAccount,
   createCheckoutSessionRecord,
   createCheckoutSubscription,
+  createLegalAcceptance,
   findCheckoutNameConflicts,
   getBillingEventByStripeEventId,
   getCheckoutSessionByStripeSessionId,
@@ -200,6 +204,7 @@ registerPublicSaasRoutes(app, {
     updateCancellationExportRequest,
     updateBillingEventProcessing,
     updateCustomerAccountStatus,
+    updateLegalAcceptanceByStripeCheckoutSessionId,
     updateSubscriptionByStripeCheckoutSessionId,
     updateSubscriptionByStripeSubscriptionId
   }),
@@ -207,7 +212,8 @@ registerPublicSaasRoutes(app, {
     ...publicConfig,
     publishableKey: stripeConfig.publishableKey
   },
-  stripeService
+  stripeService,
+  updateLegalAcceptance
 });
 registerAuditRoutes(app, {
   listOperatorAuditLog

@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Plans</title>
-  <link rel="stylesheet" href="saas.css?v=202605051430">
-  <link rel="stylesheet" href="saas-polish.css?v=202605151220">
+  <link rel="stylesheet" href="saas.css?v=202605182130">
+  <link rel="stylesheet" href="saas-polish.css?v=202605182130">
 </head>
 <body>
   <main class="landing-shell">
@@ -371,6 +371,14 @@
             <label>Billing Email<input id="checkout-billing-email" type="email" placeholder="billing@example.com"></label>
           </div>
 
+          <div class="form-block legal-signup-block">
+            <p class="billing-disclosure">Subscriptions automatically renew until canceled.</p>
+            <label class="legal-acceptance">
+              <input id="checkout-legal-acceptance" type="checkbox" required>
+              <span>I agree to the Navigrader <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+            </label>
+          </div>
+
           <p id="checkout-form-message" class="checkout-message hidden"></p>
           <button id="checkout-submit-btn" type="submit" class="disabled-submit">Continue To Secure Checkout</button>
         </form>
@@ -518,6 +526,8 @@
         <span class="footer-column-badge" aria-hidden="true"><svg><use href="#icon-book"></use></svg></span>
         <h2>Resources</h2>
         <a href="#faq">FAQ</a>
+        <a href="/terms">Terms of Service</a>
+        <a href="/privacy">Privacy Policy</a>
       </nav>
       <div class="site-footer-column site-footer-contact">
         <span class="footer-column-badge" aria-hidden="true"><svg><use href="#icon-help"></use></svg></span>
@@ -601,6 +611,6 @@
       });
     })();
   </script>
-  <script src="saas.js?v=202605012250"></script>
+  <script src="saas.js?v=202605182130"></script>
 </body>
 </html>

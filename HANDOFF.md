@@ -46,16 +46,27 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
   - WEB001 rollback `/var/www/home-school-management/rollback/web-subscription-cancel-202605181939.tgz`
   - WEB001 status fix rollback `/var/www/home-school-management/rollback/web-subscription-cancel-status-fix-20260518195943.tgz`
   - smoke QA passed for Cancel Subscription and Keep Subscription Active
+- Legal acceptance flow is implemented and deployed:
+  - public `/terms` and `/privacy` pages are live
+  - signup requires Terms/Privacy acceptance and shows recurring billing disclosure before checkout
+  - control API stores `legal_acceptances` records with policy versions, email/org, IP/user-agent, and Stripe/customer/subscription linkage
+  - Stripe Checkout receives required terms consent plus linked Terms/Privacy custom text
+  - authenticated account menu exposes Terms and Privacy links
+  - hosted release gate now checks `/terms` and `/privacy`
+  - APP001 rollback `/home/debian/rollback/hsm/legal-acceptance-202605182130/control-api`
+  - WEB001 rollback `/var/www/home-school-management/rollback/web-legal-acceptance-202605182130.tgz`
 
 ## Next Action
 
-1. Resume with backend/platform hardening or tenant/runtime correctness.
+1. Run the full hosted release gate from a PowerShell session that has `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` set.
+2. Optionally create a new smoke signup to confirm the legal acceptance row is created and linked after Stripe checkout.
 
 ## Risks
 
 - Do not run mutating upgrade QA against real family data.
 - Do not store smoke credentials or Stripe secrets in repo files.
 - Optional control-plane release gate still requires production-safe control credentials.
+- Full hosted release gate could not run from Codex because hosted smoke credentials were not present in the process/user/machine environment.
 - Data Export first slice ships CSV ZIP artifacts; encryption, cleanup workers, and richer export UX remain future hardening.
 - Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside commits.
 
@@ -69,3 +80,4 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 - Branded Data Export return page deployed; APP001 route syntax, tenant API health, public tenant health, and static page HTTPS checks passed.
 - Subscriber cancellation local/remote syntax checks passed; APP001 control/API health, public health, and static app bundle checks passed after deployment and status fix.
 - User verified subscriber cancellation and Keep Subscription Active on `smoketest.navigrader.com`.
+- Legal acceptance local syntax/mocked route checks passed; APP001 migration/restart passed; public control/tenant/legal/signup/app content checks passed.

@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Subscriber-facing cancellation is deployed and smoke-QA passed after the Data Export slice.
+Legal acceptance for SaaS signup is deployed after subscriber cancellation and Data Export.
 
 ## Completed Recently
 
@@ -31,6 +31,7 @@ Subscriber-facing cancellation is deployed and smoke-QA passed after the Data Ex
 - Subscriber cancellation is deployed: Account Options schedules Stripe period-end cancellation and can reverse it with Keep Subscription Active.
 - Subscriber cancellation status fix is deployed: tenant account summary now returns `cancelAtPeriodEnd` for Account/Profile UI.
 - User verified Cancel Subscription and Keep Subscription Active on `smoketest.navigrader.com`.
+- Legal acceptance is deployed: public `/terms` and `/privacy`, required signup checkbox, recurring billing disclosure, Stripe terms consent, `legal_acceptances` audit records, and authenticated legal links.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -63,6 +64,9 @@ Subscriber-facing cancellation is deployed and smoke-QA passed after the Data Ex
   - WEB001 `/var/www/home-school-management/rollback/web-subscription-cancel-202605181939.tgz`
   - APP001 status fix `/home/debian/rollback/hsm/subscription-cancel-status-fix-20260518195943`
   - WEB001 status fix `/var/www/home-school-management/rollback/web-subscription-cancel-status-fix-20260518195943.tgz`
+- Legal acceptance rollback snapshots:
+  - APP001 `/home/debian/rollback/hsm/legal-acceptance-202605182130/control-api`
+  - WEB001 `/var/www/home-school-management/rollback/web-legal-acceptance-202605182130.tgz`
 
 ## Validation
 
@@ -78,10 +82,12 @@ Subscriber-facing cancellation is deployed and smoke-QA passed after the Data Ex
 - Branded Data Export return page local syntax checks passed; APP001 tenant API route syntax and health passed; static page and app deep-link served over HTTPS.
 - Subscriber cancellation local and APP001 syntax checks passed; `hsm-control-api` and `hsm-api` restarted healthy; public control/tenant health passed; WEB001 served app `202605181939`.
 - Live control DB confirmed `smoketest` has `cancel_at_period_end=true`; status fix deployed and services restarted healthy.
+- Legal acceptance syntax checks, mocked checkout validation, mocked Stripe consent encoding, APP001 migration/restart, public legal pages, signup content, app legal links, control health, and tenant health passed.
 
 ## Current Blockers
 
 - Optional control-plane release gate requires production-safe control credentials.
+- Full hosted release gate could not run from Codex because `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` are not set in this environment.
 
 ## Current Risks
 
@@ -92,4 +98,5 @@ Subscriber-facing cancellation is deployed and smoke-QA passed after the Data Ex
 
 ## Next Actions
 
-1. Resume with backend/platform hardening or tenant/runtime correctness.
+1. Run the full hosted release gate from a PowerShell session with hosted smoke credentials.
+2. Optionally complete one new smoke signup/Stripe checkout to verify a live `legal_acceptances` row links through checkout.

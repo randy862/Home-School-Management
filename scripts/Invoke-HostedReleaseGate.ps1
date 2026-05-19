@@ -64,6 +64,10 @@ Assert-CommandSucceeded "APP001 local health check"
 Write-Step "Checking public hosted health"
 Test-Http200 -Url "$($PublicBaseUrl.TrimEnd('/'))/health"
 
+Write-Step "Checking public legal pages"
+Test-Http200 -Url "$($PublicBaseUrl.TrimEnd('/'))/terms"
+Test-Http200 -Url "$($PublicBaseUrl.TrimEnd('/'))/privacy"
+
 if ($IncludeControlPlane) {
   Write-Step "Checking public control-api health"
   Test-Http200 -Url "$($ControlBaseUrl.TrimEnd('/'))/health"

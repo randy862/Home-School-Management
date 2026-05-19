@@ -26,6 +26,15 @@ class StripeService {
     params.set("line_items[0][quantity]", "1");
     params.set("client_reference_id", input.clientReferenceId);
     params.set("customer_email", input.customerEmail);
+    if (input.requireTermsConsent) {
+      params.set("consent_collection[terms_of_service]", "required");
+      if (input.termsUrl && input.privacyUrl) {
+        params.set(
+          "custom_text[terms_of_service_acceptance][message]",
+          `I agree to the [Navigrader Terms of Service](${input.termsUrl}) and acknowledge the [Privacy Policy](${input.privacyUrl}).`
+        );
+      }
+    }
 
     Object.entries(input.metadata || {}).forEach(([key, value]) => {
       if (value == null || value === "") return;

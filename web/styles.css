@@ -6181,7 +6181,8 @@ tbody tr:hover {
   -webkit-backdrop-filter: none;
 }
 
-.account-menu button {
+.account-menu button,
+.account-menu a {
   width: 100%;
   justify-content: flex-start;
   text-align: left;
@@ -6190,13 +6191,17 @@ tbody tr:hover {
   border-color: transparent;
   background: transparent;
   color: #20344f;
+  display: inline-flex;
+  align-items: center;
   font-size: 0.86rem;
   font-weight: 500;
   padding: 0.42rem 0.58rem;
   box-shadow: none;
+  text-decoration: none;
 }
 
-.account-menu button:hover {
+.account-menu button:hover,
+.account-menu a:hover {
   background: #e5eef9;
   transform: none;
   box-shadow: none;

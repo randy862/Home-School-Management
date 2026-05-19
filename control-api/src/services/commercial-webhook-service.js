@@ -18,6 +18,7 @@ async function processStripeBillingEvent(event, deps) {
     updateCancellationExportRequest,
     updateBillingEventProcessing,
     updateCustomerAccountStatus,
+    updateLegalAcceptanceByStripeCheckoutSessionId,
     updateSubscriptionByStripeCheckoutSessionId,
     updateSubscriptionByStripeSubscriptionId
   } = deps;
@@ -52,6 +53,7 @@ async function processStripeBillingEvent(event, deps) {
       queueProvisioningJob,
       updateCancellationExportRequest,
       updateCustomerAccountStatus,
+      updateLegalAcceptanceByStripeCheckoutSessionId,
       updateSubscriptionByStripeCheckoutSessionId,
       updateSubscriptionByStripeSubscriptionId
     });
@@ -93,10 +95,17 @@ async function handleStripeEventByType(event, deps) {
     await deps.markCheckoutSessionCompleted(checkoutSessionId);
     const subscription = await deps.updateSubscriptionByStripeCheckoutSessionId(checkoutSessionId, {
       status: "active",
-      stripeSubscriptionId: String(object.subscription || "").trim() || null
+      stripeSubscriptionId: getStripeObjectId(object.subscription) || null
     });
     await deps.updateCustomerAccountStatus(checkoutSession.customerAccountId, "active");
     const provisioning = await deps.ensureCommercialProvisioningForSubscription(checkoutSession, subscription);
+    await deps.updateLegalAcceptanceByStripeCheckoutSessionId(checkoutSessionId, {
+      customerAccountId: checkoutSession.customerAccountId,
+      customerSubscriptionId: subscription?.id || null,
+      tenantId: provisioning?.provisioningRequest?.tenantId || null,
+      stripeCustomerId: getStripeObjectId(object.customer) || null,
+      stripeSubscriptionId: getStripeObjectId(object.subscription) || null
+    });
 
     return {
       processingStatus: "processed",
@@ -329,6 +338,12 @@ function toIsoFromUnixSeconds(value) {
   const normalized = Number(value);
   if (!Number.isFinite(normalized) || normalized <= 0) return null;
   return new Date(normalized * 1000).toISOString();
+}
+
+function getStripeObjectId(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value.trim();
+  return String(value.id || "").trim();
 }
 
 function normalizeStripeSubscriptionStatus(value) {

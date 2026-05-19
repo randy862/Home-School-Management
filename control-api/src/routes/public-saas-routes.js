@@ -1,7 +1,11 @@
 const { randomUUID } = require("crypto");
 
+const TERMS_VERSION = "1.0";
+const PRIVACY_VERSION = "1.0";
+
 function registerPublicSaasRoutes(app, deps) {
   const {
+    createLegalAcceptance,
     createCheckoutCustomerAccount,
     createCheckoutSessionRecord,
     createCheckoutSubscription,
@@ -11,7 +15,8 @@ function registerPublicSaasRoutes(app, deps) {
     getPublicCommercialPlanByCode,
     listPublicCommercialPlans,
     publicConfig,
-    stripeService
+    stripeService,
+    updateLegalAcceptance
   } = deps;
 
   app.get("/api/public/plans", async (_req, res) => {
@@ -50,6 +55,16 @@ function registerPublicSaasRoutes(app, deps) {
       const successToken = randomUUID();
       const cancelToken = randomUUID();
       const customerAccount = await createCheckoutCustomerAccount(payload);
+      const legalAcceptance = await createLegalAcceptance({
+        customerAccountId: customerAccount.id,
+        email: payload.ownerEmail,
+        organizationName: payload.accountName,
+        termsVersion: TERMS_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+        acceptedAt: new Date().toISOString(),
+        ipAddress: resolveRequestIp(req),
+        userAgent: String(req.get("user-agent") || "").trim()
+      });
       const successUrl = buildCheckoutUrl(
         publicConfig.checkoutSuccessUrl || joinUrl(publicConfig.appBaseUrl, "/signup-status.html?checkout=success"),
         successToken
@@ -58,25 +73,37 @@ function registerPublicSaasRoutes(app, deps) {
         publicConfig.checkoutCancelUrl || joinUrl(publicConfig.appBaseUrl, "/signup-status.html?checkout=cancel"),
         cancelToken
       );
+      const termsUrl = joinUrl(publicConfig.appBaseUrl, "/terms");
+      const privacyUrl = joinUrl(publicConfig.appBaseUrl, "/privacy");
 
       const stripeSession = await stripeService.createCheckoutSession({
         priceId: plan.stripePriceId,
         successUrl,
         cancelUrl,
+        termsUrl,
+        privacyUrl,
         clientReferenceId: customerAccount.id,
         customerEmail: payload.ownerEmail,
         metadata: {
           customerAccountId: customerAccount.id,
           commercialPlanId: plan.id,
           commercialPlanCode: plan.code,
+          legalAcceptanceId: legalAcceptance.id,
+          termsVersion: TERMS_VERSION,
+          privacyVersion: PRIVACY_VERSION,
           requestedSubdomainLabel: payload.requestedSubdomainLabel || "",
           successToken
-        }
+        },
+        requireTermsConsent: true
       });
 
       const subscription = await createCheckoutSubscription({
         customerAccountId: customerAccount.id,
         commercialPlanId: plan.id,
+        stripeCheckoutSessionId: stripeSession.id
+      });
+      await updateLegalAcceptance(legalAcceptance.id, {
+        customerSubscriptionId: subscription.id,
         stripeCheckoutSessionId: stripeSession.id
       });
       const checkoutSession = await createCheckoutSessionRecord({
@@ -168,6 +195,7 @@ function normalizeCheckoutSessionPayload(input) {
   const ownerEmail = String(input?.ownerEmail || "").trim().toLowerCase();
   const ownerPhone = String(input?.ownerPhone || "").trim();
   const billingEmail = String(input?.billingEmail || "").trim().toLowerCase();
+  const legalAcceptance = normalizeLegalAcceptance(input?.legalAcceptance || {});
 
   if (!planCode) {
     const error = new Error("Plan code is required.");
@@ -208,8 +236,50 @@ function normalizeCheckoutSessionPayload(input) {
     ownerLastName,
     ownerEmail,
     ownerPhone,
-    billingEmail
+    billingEmail,
+    legalAcceptance
   };
+}
+
+function normalizeLegalAcceptance(input = {}) {
+  const termsAccepted = input.termsAccepted === true || input.termsAccepted === "true";
+  const privacyAccepted = input.privacyAccepted === true || input.privacyAccepted === "true";
+  const termsVersion = String(input.termsVersion || "").trim();
+  const privacyVersion = String(input.privacyVersion || "").trim();
+
+  if (!termsAccepted || !privacyAccepted) {
+    const error = new Error("Terms of Service and Privacy Policy acceptance is required before checkout.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (termsVersion !== TERMS_VERSION || privacyVersion !== PRIVACY_VERSION) {
+    const error = new Error("The legal policy version changed. Refresh the page and accept the current Terms and Privacy Policy.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  return {
+    termsAccepted,
+    privacyAccepted,
+    termsVersion,
+    privacyVersion
+  };
+}
+
+function legalAcceptanceRequiresUpdate(record, current = { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION }) {
+  if (!record) return true;
+  return String(record.termsVersion || "") !== current.termsVersion
+    || String(record.privacyVersion || "") !== current.privacyVersion
+    || record.termsAccepted !== true
+    || record.privacyAccepted !== true;
+}
+
+function resolveRequestIp(req) {
+  const forwardedFor = String(req.headers["x-forwarded-for"] || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return forwardedFor[0] || String(req.ip || req.socket?.remoteAddress || "").trim();
 }
 
 function normalizeSubdomainLabel(value) {

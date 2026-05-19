@@ -42,6 +42,31 @@ function mapBillingEventRow(row) {
   };
 }
 
+function mapLegalAcceptanceRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    customerAccountId: row.customerAccountId ?? row.customer_account_id ?? null,
+    customerSubscriptionId: row.customerSubscriptionId ?? row.customer_subscription_id ?? null,
+    tenantId: row.tenantId ?? row.tenant_id ?? null,
+    userId: row.userId ?? row.user_id ?? null,
+    email: row.email,
+    organizationName: row.organizationName ?? row.organization_name ?? null,
+    termsVersion: row.termsVersion ?? row.terms_version,
+    privacyVersion: row.privacyVersion ?? row.privacy_version,
+    termsAccepted: row.termsAccepted ?? row.terms_accepted ?? false,
+    privacyAccepted: row.privacyAccepted ?? row.privacy_accepted ?? false,
+    acceptedAt: row.acceptedAt ?? row.accepted_at ?? null,
+    ipAddress: row.ipAddress ?? row.ip_address ?? null,
+    userAgent: row.userAgent ?? row.user_agent ?? null,
+    stripeCustomerId: row.stripeCustomerId ?? row.stripe_customer_id ?? null,
+    stripeCheckoutSessionId: row.stripeCheckoutSessionId ?? row.stripe_checkout_session_id ?? null,
+    stripeSubscriptionId: row.stripeSubscriptionId ?? row.stripe_subscription_id ?? null,
+    createdAt: row.createdAt ?? row.created_at ?? null,
+    updatedAt: row.updatedAt ?? row.updated_at ?? null
+  };
+}
+
 function mapProvisioningRequestRow(row) {
   if (!row) return null;
   return {
@@ -384,6 +409,164 @@ async function createCheckoutCustomerAccount(input) {
   } finally {
     client.release();
   }
+}
+
+async function createLegalAcceptance(input) {
+  const pool = getPostgresPool();
+  const acceptedAt = input.acceptedAt || new Date().toISOString();
+  const result = await pool.query(`
+    INSERT INTO legal_acceptances (
+      id,
+      customer_account_id,
+      customer_subscription_id,
+      tenant_id,
+      user_id,
+      email,
+      organization_name,
+      terms_version,
+      privacy_version,
+      terms_accepted,
+      privacy_accepted,
+      accepted_at,
+      ip_address,
+      user_agent,
+      stripe_customer_id,
+      stripe_checkout_session_id,
+      stripe_subscription_id,
+      created_at,
+      updated_at
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, TRUE, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      tenant_id AS "tenantId",
+      user_id AS "userId",
+      email,
+      organization_name AS "organizationName",
+      terms_version AS "termsVersion",
+      privacy_version AS "privacyVersion",
+      terms_accepted AS "termsAccepted",
+      privacy_accepted AS "privacyAccepted",
+      accepted_at AS "acceptedAt",
+      ip_address AS "ipAddress",
+      user_agent AS "userAgent",
+      stripe_customer_id AS "stripeCustomerId",
+      stripe_checkout_session_id AS "stripeCheckoutSessionId",
+      stripe_subscription_id AS "stripeSubscriptionId",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+  `, [
+    input.id || `legal-${randomUUID()}`,
+    input.customerAccountId || null,
+    input.customerSubscriptionId || null,
+    input.tenantId || null,
+    input.userId || null,
+    String(input.email || "").trim().toLowerCase(),
+    input.organizationName || null,
+    input.termsVersion,
+    input.privacyVersion,
+    acceptedAt,
+    input.ipAddress || null,
+    input.userAgent || null,
+    input.stripeCustomerId || null,
+    input.stripeCheckoutSessionId || null,
+    input.stripeSubscriptionId || null
+  ]);
+  return mapLegalAcceptanceRow(result.rows[0]);
+}
+
+async function updateLegalAcceptance(legalAcceptanceId, updates = {}) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    UPDATE legal_acceptances
+    SET
+      customer_account_id = COALESCE($2, customer_account_id),
+      customer_subscription_id = COALESCE($3, customer_subscription_id),
+      tenant_id = COALESCE($4, tenant_id),
+      user_id = COALESCE($5, user_id),
+      stripe_customer_id = COALESCE($6, stripe_customer_id),
+      stripe_checkout_session_id = COALESCE($7, stripe_checkout_session_id),
+      stripe_subscription_id = COALESCE($8, stripe_subscription_id),
+      updated_at = NOW()
+    WHERE id = $1
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      tenant_id AS "tenantId",
+      user_id AS "userId",
+      email,
+      organization_name AS "organizationName",
+      terms_version AS "termsVersion",
+      privacy_version AS "privacyVersion",
+      terms_accepted AS "termsAccepted",
+      privacy_accepted AS "privacyAccepted",
+      accepted_at AS "acceptedAt",
+      ip_address AS "ipAddress",
+      user_agent AS "userAgent",
+      stripe_customer_id AS "stripeCustomerId",
+      stripe_checkout_session_id AS "stripeCheckoutSessionId",
+      stripe_subscription_id AS "stripeSubscriptionId",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+  `, [
+    legalAcceptanceId,
+    updates.customerAccountId || null,
+    updates.customerSubscriptionId || null,
+    updates.tenantId || null,
+    updates.userId || null,
+    updates.stripeCustomerId || null,
+    updates.stripeCheckoutSessionId || null,
+    updates.stripeSubscriptionId || null
+  ]);
+  return mapLegalAcceptanceRow(result.rows[0]);
+}
+
+async function updateLegalAcceptanceByStripeCheckoutSessionId(stripeCheckoutSessionId, updates = {}) {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    UPDATE legal_acceptances
+    SET
+      customer_account_id = COALESCE($2, customer_account_id),
+      customer_subscription_id = COALESCE($3, customer_subscription_id),
+      tenant_id = COALESCE($4, tenant_id),
+      user_id = COALESCE($5, user_id),
+      stripe_customer_id = COALESCE($6, stripe_customer_id),
+      stripe_subscription_id = COALESCE($7, stripe_subscription_id),
+      updated_at = NOW()
+    WHERE stripe_checkout_session_id = $1
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      tenant_id AS "tenantId",
+      user_id AS "userId",
+      email,
+      organization_name AS "organizationName",
+      terms_version AS "termsVersion",
+      privacy_version AS "privacyVersion",
+      terms_accepted AS "termsAccepted",
+      privacy_accepted AS "privacyAccepted",
+      accepted_at AS "acceptedAt",
+      ip_address AS "ipAddress",
+      user_agent AS "userAgent",
+      stripe_customer_id AS "stripeCustomerId",
+      stripe_checkout_session_id AS "stripeCheckoutSessionId",
+      stripe_subscription_id AS "stripeSubscriptionId",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+  `, [
+    stripeCheckoutSessionId,
+    updates.customerAccountId || null,
+    updates.customerSubscriptionId || null,
+    updates.tenantId || null,
+    updates.userId || null,
+    updates.stripeCustomerId || null,
+    updates.stripeSubscriptionId || null
+  ]);
+  return mapLegalAcceptanceRow(result.rows[0]);
 }
 
 async function findCheckoutNameConflicts(input = {}, options = {}) {
@@ -1925,6 +2108,7 @@ module.exports = {
   createCheckoutSessionRecord,
   createCheckoutSubscription,
   createEmailDelivery,
+  createLegalAcceptance,
   createProvisioningRequest,
   findCheckoutNameConflicts,
   getBillingEventByStripeEventId,
@@ -1955,6 +2139,8 @@ module.exports = {
   updateCancellationExportRequest,
   updateCommercialSubscription,
   updateCustomerAccountStatus,
+  updateLegalAcceptance,
+  updateLegalAcceptanceByStripeCheckoutSessionId,
   updateProvisioningRequest,
   updateSubscriptionByStripeCheckoutSessionId,
   updateSubscriptionByStripeSubscriptionId

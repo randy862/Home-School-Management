@@ -1,5 +1,7 @@
 const SAAS_API_BASE = `${window.location.origin}/control-api/api/public`;
 const SIGNUP_STATUS_PAGE = `${window.location.origin}/signup-status.html`;
+const TERMS_VERSION = "1.0";
+const PRIVACY_VERSION = "1.0";
 const LOCAL_PLAN_FALLBACK = [
   {
     code: "starter_monthly",
@@ -177,6 +179,8 @@ function bindPlanSelection() {
 
 function collectCheckoutPayload() {
   const selectedPlan = document.querySelector('input[name="planCode"]:checked');
+  const legalAcceptance = document.getElementById("checkout-legal-acceptance");
+  const legalAccepted = legalAcceptance instanceof HTMLInputElement && legalAcceptance.checked;
   return {
     planCode: selectedPlan instanceof HTMLInputElement ? selectedPlan.value : "",
     accountName: document.getElementById("checkout-account-name")?.value.trim() || "",
@@ -185,7 +189,13 @@ function collectCheckoutPayload() {
     ownerLastName: document.getElementById("checkout-owner-last-name")?.value.trim() || "",
     ownerEmail: document.getElementById("checkout-owner-email")?.value.trim() || "",
     ownerPhone: document.getElementById("checkout-owner-phone")?.value.trim() || "",
-    billingEmail: document.getElementById("checkout-billing-email")?.value.trim() || ""
+    billingEmail: document.getElementById("checkout-billing-email")?.value.trim() || "",
+    legalAcceptance: {
+      termsAccepted: legalAccepted,
+      termsVersion: TERMS_VERSION,
+      privacyAccepted: legalAccepted,
+      privacyVersion: PRIVACY_VERSION
+    }
   };
 }
 
@@ -201,6 +211,12 @@ function bindCheckoutForm() {
     submitBtn.textContent = "Preparing Secure Checkout...";
     try {
       const payload = collectCheckoutPayload();
+      if (!payload.legalAcceptance.termsAccepted || !payload.legalAcceptance.privacyAccepted) {
+        const legalAcceptance = document.getElementById("checkout-legal-acceptance");
+        if (legalAcceptance instanceof HTMLInputElement) legalAcceptance.focus();
+        setCheckoutMessage("Please accept the Terms of Service and Privacy Policy before continuing to checkout.", "error");
+        return;
+      }
       const result = await fetchJson(`${SAAS_API_BASE}/checkout/session`, {
         method: "POST",
         headers: {
