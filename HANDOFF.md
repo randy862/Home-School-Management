@@ -22,10 +22,12 @@ Product/platform follow-up is active. Current slice is deeper workflow QA from r
 - Bulk status actions are tucked behind a subtle `Bulk Actions` disclosure and still require a confirmation dialog.
 - Schedule configuration now recommends balanced Q1-Q4 ranges from School Year dates, weekdays, and Holidays/Breaks.
 - New School Years auto-create recommended quarters; Holiday/Break changes rebalance only quarters that still match the prior recommendation.
-- Production tenant app serves `app.js?v=202605191815` and `styles.css?v=202605191815`.
+- Recommended Quarters is a collapsible disclosure in the Quarters tab.
+- Production tenant app serves `app.js?v=202605191830` and `styles.css?v=202605191830`.
 - WEB001 rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-status-202605191700.tgz`.
 - WEB001 subtle bulk-actions rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-actions-subtle-202605191730.tgz`.
 - WEB001 quarter recommendation rollback snapshot exists at `/var/www/home-school-management/rollback/web-quarter-recommendations-202605191815.tgz`.
+- WEB001 collapsible recommendation rollback snapshot exists at `/var/www/home-school-management/rollback/web-quarter-recommendations-disclosure-202605191830.tgz`.
 - Full hosted release gate passed for `https://mitchell.navigrader.com` after the earlier class conflict deployment. Current quarter recommendation deployment has public HTTP checks only from Codex because smoke credentials are not in this process.
 
 ## Next Action
@@ -54,5 +56,5 @@ Run the hosted release gate from a PowerShell session with smoke credentials loa
 - Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the WEB001 bulk status deployment.
 - `node --check web/app.js` passed after the subtle bulk-actions UI refinement.
 - `node --check web/app.js` passed after quarter recommendation changes.
-- WEB001 public HTML references `app.js?v=202605191815` and `styles.css?v=202605191815`.
-- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the quarter recommendation deployment.
+- WEB001 public HTML references `app.js?v=202605191830` and `styles.css?v=202605191830`.
+- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the collapsible recommendation deployment.

@@ -2898,36 +2898,62 @@ td {
 }
 
 .quarter-recommendation-card {
-  display: grid;
-  gap: 0.55rem;
+  display: block;
   margin-top: 0.75rem;
-  padding: 0.75rem;
   border: 1px solid #d4dee9;
   border-radius: 12px;
   background: #fbfdff;
 }
 
-.quarter-recommendation-header {
+.quarter-recommendation-summary-trigger {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  min-height: 46px;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
 }
 
-.quarter-recommendation-header strong {
+.quarter-recommendation-summary-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.quarter-recommendation-summary-trigger::after {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: auto;
+  border-right: 1.5px solid #4f6076;
+  border-bottom: 1.5px solid #4f6076;
+  transform: translateY(-0.12rem) rotate(45deg);
+}
+
+.quarter-recommendation-card[open] .quarter-recommendation-summary-trigger::after {
+  transform: translateY(0.12rem) rotate(225deg);
+}
+
+.quarter-recommendation-summary-trigger strong {
   display: block;
   color: #17243d;
 }
 
-.quarter-recommendation-header p,
-.quarter-recommendation-card > p {
+.quarter-recommendation-summary-trigger p,
+.quarter-recommendation-body > p {
   margin: 0.15rem 0 0;
+}
+
+.quarter-recommendation-body {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0 0.75rem 0.75rem;
 }
 
 .quarter-recommendation-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 0.4rem;
 }
 
@@ -5054,8 +5080,9 @@ td {
     grid-template-columns: 1fr;
   }
 
-  .quarter-recommendation-header {
+  .quarter-recommendation-summary-trigger {
     flex-direction: column;
+    align-items: flex-start;
   }
 
   .quarter-recommendation-actions {

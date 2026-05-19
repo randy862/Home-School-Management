@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Deeper workflow QA from real usage: recommended school-year quarters are deployed for Schedule configuration.
+Deeper workflow QA from real usage: recommended school-year quarters are deployed behind a collapsible Schedule section.
 
 ## Completed Recently
 
@@ -27,6 +27,7 @@ Deeper workflow QA from real usage: recommended school-year quarters are deploye
 - New School Years now receive recommended Q1-Q4 dates balanced by instructional days.
 - The Quarters tab previews recommended ranges and can apply/save them for the selected School Year.
 - Holiday/Break changes rebalance quarters only when the saved quarters still match the prior recommendation.
+- The Recommended Quarters panel is collapsible so the Quarters tab stays focused on saved dates until the recommendation is needed.
 
 ## Production State
 
@@ -35,8 +36,8 @@ Deeper workflow QA from real usage: recommended school-year quarters are deploye
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605191815`
-  - `styles.css?v=202605191815`
+  - `app.js?v=202605191830`
+  - `styles.css?v=202605191830`
 - APP001 class-conflict rollback:
   - `/home/debian/rollback/hsm/class-conflict-202605191515/`
 - WEB001 class-related rollback snapshots:
@@ -47,6 +48,7 @@ Deeper workflow QA from real usage: recommended school-year quarters are deploye
   - `/var/www/home-school-management/rollback/web-school-day-bulk-status-202605191700.tgz`
   - `/var/www/home-school-management/rollback/web-school-day-bulk-actions-subtle-202605191730.tgz`
   - `/var/www/home-school-management/rollback/web-quarter-recommendations-202605191815.tgz`
+  - `/var/www/home-school-management/rollback/web-quarter-recommendations-disclosure-202605191830.tgz`
 
 ## Validation
 
@@ -56,8 +58,8 @@ Deeper workflow QA from real usage: recommended school-year quarters are deploye
   - `node --check server/src/repositories/postgres/curriculum-repository.js`
 - Backend conflict/non-conflict service behavior checks passed with fake repository data.
 - APP001 `hsm-api` restarted healthy and `/health` returned `{"ok":true}`.
-- WEB001 public HTML references `app.js?v=202605191815` and `styles.css?v=202605191815`.
-- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the quarter recommendation deployment.
+- WEB001 public HTML references `app.js?v=202605191830` and `styles.css?v=202605191830`.
+- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the collapsible recommendation deployment.
 - Full hosted release gate passed for `https://mitchell.navigrader.com` after class conflict deployment.
 
 ## Current Blockers

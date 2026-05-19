@@ -22420,6 +22420,8 @@ function bindEvents() {
       if (select) select.value = schoolYearId;
       editingQuarterSchoolYearId = schoolYearId;
       setQuarterFormValues(recommendation.quarters);
+      const card = document.getElementById("quarter-recommendation-card");
+      if (card instanceof HTMLDetailsElement) card.open = true;
       renderQuarterRecommendationPanel();
     });
   }

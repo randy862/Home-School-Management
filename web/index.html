@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605191815">
+  <link rel="stylesheet" href="styles.css?v=202605191830">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1978,20 +1978,22 @@
             <button id="quarters-submit-btn" type="submit">Save Quarters</button>
             <button id="quarters-cancel-edit-btn" type="button" class="hidden">Cancel Edit</button>
           </form>
-          <div id="quarter-recommendation-card" class="quarter-recommendation-card">
-            <div class="quarter-recommendation-header">
+          <details id="quarter-recommendation-card" class="quarter-recommendation-card">
+            <summary class="quarter-recommendation-summary-trigger">
               <div>
                 <strong>Recommended Quarters</strong>
                 <p id="quarter-recommendation-summary" class="muted"></p>
               </div>
+            </summary>
+            <div class="quarter-recommendation-body">
               <div class="quarter-recommendation-actions">
                 <button id="quarter-use-recommendation-btn" type="button">Use Recommended Dates</button>
                 <button id="quarter-save-recommendation-btn" type="button">Save Recommended Quarters</button>
               </div>
+              <div id="quarter-recommendation-grid" class="quarter-recommendation-grid"></div>
+              <p id="quarter-recommendation-note" class="muted"></p>
             </div>
-            <div id="quarter-recommendation-grid" class="quarter-recommendation-grid"></div>
-            <p id="quarter-recommendation-note" class="muted"></p>
-          </div>
+          </details>
           <div class="table-wrap">
             <table>
               <thead><tr><th>School Year</th><th>Quarter</th><th>Start Date</th><th>End Date</th><th>Instructional Days</th><th>Actions</th></tr></thead>
@@ -2603,6 +2605,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605191815"></script>
+  <script src="app.js?v=202605191830"></script>
   </body>
   </html>
