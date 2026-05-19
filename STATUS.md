@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Deeper workflow QA from real usage: class conflict cleanup now allows removing students from an already-conflicting class.
+Deeper workflow QA from real usage: School Day gap-fill now pulls later flexible classes into visible openings before fixed classes.
 
 ## Completed Recently
 
@@ -29,6 +29,7 @@ Deeper workflow QA from real usage: class conflict cleanup now allows removing s
 - Holiday/Break changes rebalance quarters only when the saved quarters still match the prior recommendation.
 - The Recommended Quarters panel is collapsible so the Quarters tab stays focused on saved dates until the recommendation is needed.
 - Editing an already-conflicting hosted class now removes unchecked students before backend class conflict validation runs.
+- School Day pull-forward scheduling now treats the visible gap before a fixed class as usable, so a 60-minute flexible class can fill a 65-minute opening and leave the transition buffer before the fixed class.
 
 ## Production State
 
@@ -37,7 +38,7 @@ Deeper workflow QA from real usage: class conflict cleanup now allows removing s
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605191900`
+  - `app.js?v=202605191930`
   - `styles.css?v=202605191900`
 - APP001 class-conflict rollback:
   - `/home/debian/rollback/hsm/class-conflict-202605191515/`
@@ -51,6 +52,7 @@ Deeper workflow QA from real usage: class conflict cleanup now allows removing s
   - `/var/www/home-school-management/rollback/web-quarter-recommendations-202605191815.tgz`
   - `/var/www/home-school-management/rollback/web-quarter-recommendations-disclosure-202605191830.tgz`
   - `/var/www/home-school-management/rollback/web-class-conflict-removal-fix-202605191900.tgz`
+  - `/var/www/home-school-management/rollback/web-school-day-gap-fill-visible-window-webroot-202605191930.tgz`
 
 ## Validation
 
@@ -60,9 +62,10 @@ Deeper workflow QA from real usage: class conflict cleanup now allows removing s
   - `node --check server/src/repositories/postgres/curriculum-repository.js`
 - Backend conflict/non-conflict service behavior checks passed with fake repository data.
 - APP001 `hsm-api` restarted healthy and `/health` returned `{"ok":true}`.
-- WEB001 public HTML references `app.js?v=202605191900` and `styles.css?v=202605191900`.
+- WEB001 public HTML references `app.js?v=202605191930` and `styles.css?v=202605191900`.
 - Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the class conflict cleanup deployment.
 - Full hosted release gate passed for `https://mitchell.navigrader.com` after class conflict deployment.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605191930`; served app JS contains the visible-gap fix.
 
 ## Current Blockers
 
@@ -77,5 +80,5 @@ Deeper workflow QA from real usage: class conflict cleanup now allows removing s
 ## Next Actions
 
 1. Run the hosted release gate from a PowerShell session with smoke credentials loaded.
-2. Real-usage QA removing students from an already-conflicting class in Class configuration.
+2. Real-usage QA PJ Mitchell's repeated 65-minute flex opening around the 2:00 fixed class.
 3. Then close the deeper workflow QA slice or move to backend/platform hardening.

@@ -24,17 +24,19 @@ Product/platform follow-up is active. Current slice is deeper workflow QA from r
 - New School Years auto-create recommended quarters; Holiday/Break changes rebalance only quarters that still match the prior recommendation.
 - Recommended Quarters is a collapsible disclosure in the Quarters tab.
 - Hosted class edits now remove unchecked students before backend conflict validation, allowing cleanup of already-conflicting rosters.
-- Production tenant app serves `app.js?v=202605191900` and `styles.css?v=202605191900`.
+- School Day pull-forward scheduling now uses the visible opening before a fixed class, so a later 60-minute flexible class can fill a 65-minute gap while leaving the transition buffer before the fixed class.
+- Production tenant app serves `app.js?v=202605191930` and `styles.css?v=202605191900`.
 - WEB001 rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-status-202605191700.tgz`.
 - WEB001 subtle bulk-actions rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-actions-subtle-202605191730.tgz`.
 - WEB001 quarter recommendation rollback snapshot exists at `/var/www/home-school-management/rollback/web-quarter-recommendations-202605191815.tgz`.
 - WEB001 collapsible recommendation rollback snapshot exists at `/var/www/home-school-management/rollback/web-quarter-recommendations-disclosure-202605191830.tgz`.
 - WEB001 class conflict cleanup rollback snapshot exists at `/var/www/home-school-management/rollback/web-class-conflict-removal-fix-202605191900.tgz`.
-- Full hosted release gate passed for `https://mitchell.navigrader.com` after the earlier class conflict deployment. Current quarter recommendation deployment has public HTTP checks only from Codex because smoke credentials are not in this process.
+- WEB001 visible-gap rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-gap-fill-visible-window-webroot-202605191930.tgz`.
+- Full hosted release gate passed for `https://mitchell.navigrader.com` after the earlier class conflict deployment. Current visible-gap deployment has public HTTP checks only from Codex because smoke credentials are not in this process.
 
 ## Next Action
 
-Run the hosted release gate from a PowerShell session with smoke credentials loaded, then real-usage QA removing unchecked students from an already-conflicting class.
+Run the hosted release gate from a PowerShell session with smoke credentials loaded, then real-usage QA PJ Mitchell's repeated 65-minute flex opening around the 2:00 fixed class.
 
 ## Risks
 
@@ -60,5 +62,7 @@ Run the hosted release gate from a PowerShell session with smoke credentials loa
 - `node --check web/app.js` passed after the subtle bulk-actions UI refinement.
 - `node --check web/app.js` passed after quarter recommendation changes.
 - `node --check web/app.js` passed after class conflict cleanup changes.
-- WEB001 public HTML references `app.js?v=202605191900` and `styles.css?v=202605191900`.
+- `node --check web/app.js` passed after the visible-gap fix.
+- WEB001 public HTML references `app.js?v=202605191930` and `styles.css?v=202605191900`.
 - Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the class conflict cleanup deployment.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605191930`; served app JS contains the visible-gap fix.

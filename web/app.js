@@ -19021,7 +19021,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     }
 
     function findInstructionThatFitsGap(pendingBlocks, gapStart, gapEnd) {
-      const candidateStart = Math.max(gapStart, actualCursor == null ? gapStart : actualCursor);
+      const candidateStart = gapStart;
       const gapMinutes = gapEnd - candidateStart;
       if (gapMinutes <= 0) return -1;
       return pendingBlocks.findIndex((candidate) => {
@@ -19049,6 +19049,9 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       const hasFixedSectionStart = block.type === "instruction" && !!block.courseSectionId && !hasStartOverride;
       const hasAnchoredInstructionStart = hasFixedSectionStart || hasStartOverride;
       const hasFlexibleScheduleBlockTiming = block.type !== "instruction" && !!block.scheduleBlockId;
+      const hasForcedFlexibleInstructionStart = block.type === "instruction"
+        && !hasAnchoredInstructionStart
+        && Number.isFinite(forcedStartMinutes);
       const actualStartTarget = excusedInstruction
         ? plannedStart
         : block.type === "instruction"
@@ -19061,6 +19064,8 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       const actualStart = excusedInstruction
         ? actualStartTarget
         : hasAnchoredInstructionStart
+        ? actualStartTarget
+        : hasForcedFlexibleInstructionStart
         ? actualStartTarget
         : actualCursor == null
         ? actualStartTarget
