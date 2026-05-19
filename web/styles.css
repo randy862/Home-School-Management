@@ -11473,7 +11473,6 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-date-nav button,
-#app-shell .school-day-bulk-status-btn,
 #app-shell #school-day-reset-student-btn,
 #app-shell #school-day-reset-day-btn {
   min-height: 32px;
@@ -11486,22 +11485,70 @@ tbody tr:hover {
   font-weight: 500;
 }
 
+#app-shell .school-day-bulk-actions-menu {
+  position: relative;
+  min-height: 32px;
+  color: #58677c;
+}
+
+#app-shell .school-day-bulk-actions-menu summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0.32rem 0.65rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #58677c;
+  cursor: pointer;
+  font-weight: 500;
+  list-style: none;
+}
+
+#app-shell .school-day-bulk-actions-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+#app-shell .school-day-bulk-actions-menu summary::after {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-left: 0.45rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-0.1rem) rotate(45deg);
+}
+
+#app-shell .school-day-bulk-actions-menu[open] summary {
+  background: #edf3fa;
+  color: #1f3f6d;
+}
+
+#app-shell .school-day-bulk-actions-popover {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 25;
+  display: grid;
+  gap: 0.35rem;
+  min-width: 11.5rem;
+  padding: 0.45rem;
+  border: 1px solid #d6e0ed;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(23, 36, 61, 0.12);
+}
+
 #app-shell .school-day-bulk-status-btn {
-  border: 1px solid #cbd9ea;
+  min-height: 32px;
+  padding: 0.32rem 0.65rem;
+  border: 1px solid #d6e0ed;
+  border-radius: 10px;
   background: #ffffff;
   color: #31435d;
-}
-
-#app-shell .school-day-bulk-status-btn.complete {
-  border-color: #b9dfc9;
-  background: #eaf7ef;
-  color: #16623a;
-}
-
-#app-shell .school-day-bulk-status-btn.excused {
-  border-color: #f0d18d;
-  background: #fff7df;
-  color: #805600;
+  box-shadow: none;
+  font-weight: 500;
+  text-align: left;
 }
 
 #app-shell .school-day-bulk-status-btn:disabled {
@@ -11510,6 +11557,7 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-date-nav button:hover,
+#app-shell .school-day-bulk-actions-menu summary:hover,
 #app-shell .school-day-bulk-status-btn:not(:disabled):hover,
 #app-shell #school-day-reset-student-btn:hover,
 #app-shell #school-day-reset-day-btn:hover {

@@ -12399,6 +12399,18 @@ function updateSchoolDayBulkStatusButtons() {
   const { blocks } = currentSchoolDayBulkOpenInstructionBlocks();
   const count = blocks.length;
   const disabled = schoolDayBulkStatusBusy || !isAdminUser() || count === 0;
+  const menu = document.getElementById("school-day-bulk-actions-menu");
+  const summary = document.getElementById("school-day-bulk-actions-summary");
+  if (menu instanceof HTMLElement) {
+    menu.classList.toggle("has-open-classes", count > 0);
+    if ((count === 0 || schoolDayBulkStatusBusy) && menu instanceof HTMLDetailsElement) menu.open = false;
+  }
+  if (summary) {
+    summary.textContent = count ? `Bulk Actions (${count})` : "Bulk Actions";
+    summary.title = count
+      ? `Bulk actions are available for ${count} currently shown open ${count === 1 ? "class" : "classes"}.`
+      : "No bulk actions are available for the current School Day filters.";
+  }
   const buttonConfigs = [
     { id: "school-day-complete-open-btn", label: "Complete Open" },
     { id: "school-day-excuse-open-btn", label: "Excuse Open" }
@@ -12435,6 +12447,8 @@ async function applySchoolDayBulkInstructionStatus(status) {
   const confirmed = window.confirm(`Mark ${blocks.length} ${classLabel} as ${statusLabel} for ${formatDisplayDate(dateKey)} across ${studentLabel}?`);
   if (!confirmed) return;
 
+  const menu = document.getElementById("school-day-bulk-actions-menu");
+  if (menu instanceof HTMLDetailsElement) menu.open = false;
   schoolDayBulkStatusBusy = true;
   updateSchoolDayBulkStatusButtons();
   setSchoolDayDailyMessage("", `Updating ${blocks.length} ${classLabel}...`);
