@@ -135,6 +135,29 @@ class StripeService {
     return this.updateSubscriptionBaseItem(input);
   }
 
+  async updateSubscriptionCancellation(input) {
+    this.ensureConfigured();
+    const subscriptionId = String(input?.subscriptionId || "").trim();
+    if (!subscriptionId) {
+      const error = new Error("Stripe subscription id is required.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const params = new URLSearchParams();
+    params.set("cancel_at_period_end", input?.cancelAtPeriodEnd === false ? "false" : "true");
+
+    Object.entries(input?.metadata || {}).forEach(([key, value]) => {
+      if (value == null || value === "") return;
+      params.set(`metadata[${key}]`, String(value));
+    });
+
+    return this.requestStripe(`/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      method: "POST",
+      body: params
+    }, "Stripe subscription cancellation update failed");
+  }
+
   async updateSubscriptionBaseItem(input) {
     this.ensureConfigured();
     const subscriptionId = String(input?.subscriptionId || "").trim();

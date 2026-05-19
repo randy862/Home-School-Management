@@ -327,6 +327,178 @@ function registerControlCommercialRoutes(app, deps) {
     }
   });
 
+  app.post("/api/internal/commercial/subscriptions/:id/cancel", async (req, res) => {
+    if (!ensureInternalCommercialRequest(req, res, internalConfig)) return;
+
+    try {
+      const overview = await getCommercialOverviewBySubscriptionId(req.params.id);
+      const subscription = await getCommercialSubscriptionById(req.params.id);
+      if (!subscription || !overview) {
+        res.status(404).json({ error: "Subscription not found." });
+        return;
+      }
+      const currentPlan = await getCommercialPlanById(subscription.commercialPlanId || overview.commercialPlanId);
+      const normalizedStatus = String(subscription.status || overview.subscriptionStatus || "").trim().toLowerCase();
+      if (normalizedStatus === "canceled") {
+        res.json({
+          message: "This subscription is already canceled.",
+          subscription: buildControlSubscriptionResponse(subscription, overview, currentPlan),
+          stripeSync: { status: "not_required", cancelAtPeriodEnd: !!subscription.cancelAtPeriodEnd }
+        });
+        return;
+      }
+      if (subscription.cancelAtPeriodEnd) {
+        res.json({
+          message: `Subscription cancellation is already scheduled${subscription.currentPeriodEnd ? ` for ${formatControlDate(subscription.currentPeriodEnd)}` : ""}.`,
+          subscription: buildControlSubscriptionResponse(subscription, overview, currentPlan),
+          stripeSync: { status: "already_scheduled", cancelAtPeriodEnd: true }
+        });
+        return;
+      }
+      if (!isCustomerCancelableSubscriptionStatus(normalizedStatus)) {
+        res.status(409).json({ error: "This subscription status cannot be canceled from Account Options." });
+        return;
+      }
+      if (!subscription.stripeSubscriptionId) {
+        res.status(409).json({ error: "This subscription is not yet linked to an active Stripe subscription." });
+        return;
+      }
+
+      const stripeSubscription = await stripeService.updateSubscriptionCancellation({
+        subscriptionId: subscription.stripeSubscriptionId,
+        cancelAtPeriodEnd: true,
+        metadata: {
+          cancellationRequestedByUserId: req.body?.requestedByUserId || "",
+          cancellationRequestedByUsername: req.body?.requestedByUsername || "",
+          cancellationRequestedAt: new Date().toISOString(),
+          cancellationSource: "tenant_account_options"
+        }
+      });
+
+      const cancelAtPeriodEnd = typeof stripeSubscription.cancel_at_period_end === "boolean"
+        ? stripeSubscription.cancel_at_period_end
+        : true;
+      const updated = await updateCommercialSubscription(subscription.id, {
+        status: normalizeStripeSubscriptionStatus(stripeSubscription.status),
+        currentPeriodStart: toIsoFromUnixSeconds(stripeSubscription.current_period_start),
+        currentPeriodEnd: toIsoFromUnixSeconds(stripeSubscription.current_period_end),
+        cancelAtPeriodEnd,
+        canceledAt: toIsoFromUnixSeconds(stripeSubscription.canceled_at)
+      });
+
+      await createOperatorAuditEntry({
+        operatorUserId: null,
+        actionType: "tenant_schedule_subscription_cancellation",
+        targetType: "customer_subscription",
+        targetId: subscription.id,
+        tenantId: overview.tenantId || null,
+        details: {
+          requestedByUserId: req.body?.requestedByUserId || null,
+          requestedByUsername: req.body?.requestedByUsername || null,
+          stripeSubscriptionId: subscription.stripeSubscriptionId,
+          cancelAtPeriodEnd,
+          currentPeriodEnd: updated?.currentPeriodEnd || null,
+          dataExportRecommended: true,
+          tenantEnvironmentId: overview.tenantEnvironmentId || null
+        }
+      });
+
+      res.json({
+        message: updated?.currentPeriodEnd
+          ? `Subscription cancellation scheduled. Access remains available until ${formatControlDate(updated.currentPeriodEnd)}.`
+          : "Subscription cancellation scheduled. Access remains available through the current billing period.",
+        subscription: buildControlSubscriptionResponse(updated, overview, currentPlan),
+        stripeSync: {
+          status: "applied",
+          cancelAtPeriodEnd,
+          currentPeriodEnd: updated?.currentPeriodEnd || null
+        }
+      });
+    } catch (error) {
+      sendRouteError(res, error);
+    }
+  });
+
+  app.post("/api/internal/commercial/subscriptions/:id/resume-cancellation", async (req, res) => {
+    if (!ensureInternalCommercialRequest(req, res, internalConfig)) return;
+
+    try {
+      const overview = await getCommercialOverviewBySubscriptionId(req.params.id);
+      const subscription = await getCommercialSubscriptionById(req.params.id);
+      if (!subscription || !overview) {
+        res.status(404).json({ error: "Subscription not found." });
+        return;
+      }
+      const currentPlan = await getCommercialPlanById(subscription.commercialPlanId || overview.commercialPlanId);
+      const normalizedStatus = String(subscription.status || overview.subscriptionStatus || "").trim().toLowerCase();
+      if (normalizedStatus === "canceled") {
+        res.status(409).json({ error: "This subscription is already canceled." });
+        return;
+      }
+      if (!subscription.cancelAtPeriodEnd) {
+        res.json({
+          message: "This subscription is already set to remain active.",
+          subscription: buildControlSubscriptionResponse(subscription, overview, currentPlan),
+          stripeSync: { status: "not_required", cancelAtPeriodEnd: false }
+        });
+        return;
+      }
+      if (!subscription.stripeSubscriptionId) {
+        res.status(409).json({ error: "This subscription is not yet linked to an active Stripe subscription." });
+        return;
+      }
+
+      const stripeSubscription = await stripeService.updateSubscriptionCancellation({
+        subscriptionId: subscription.stripeSubscriptionId,
+        cancelAtPeriodEnd: false,
+        metadata: {
+          cancellationResumedByUserId: req.body?.requestedByUserId || "",
+          cancellationResumedByUsername: req.body?.requestedByUsername || "",
+          cancellationResumedAt: new Date().toISOString(),
+          cancellationSource: "tenant_account_options"
+        }
+      });
+
+      const cancelAtPeriodEnd = typeof stripeSubscription.cancel_at_period_end === "boolean"
+        ? stripeSubscription.cancel_at_period_end
+        : false;
+      const updated = await updateCommercialSubscription(subscription.id, {
+        status: normalizeStripeSubscriptionStatus(stripeSubscription.status),
+        currentPeriodStart: toIsoFromUnixSeconds(stripeSubscription.current_period_start),
+        currentPeriodEnd: toIsoFromUnixSeconds(stripeSubscription.current_period_end),
+        cancelAtPeriodEnd,
+        canceledAt: toIsoFromUnixSeconds(stripeSubscription.canceled_at)
+      });
+
+      await createOperatorAuditEntry({
+        operatorUserId: null,
+        actionType: "tenant_resume_subscription_cancellation",
+        targetType: "customer_subscription",
+        targetId: subscription.id,
+        tenantId: overview.tenantId || null,
+        details: {
+          requestedByUserId: req.body?.requestedByUserId || null,
+          requestedByUsername: req.body?.requestedByUsername || null,
+          stripeSubscriptionId: subscription.stripeSubscriptionId,
+          cancelAtPeriodEnd,
+          tenantEnvironmentId: overview.tenantEnvironmentId || null
+        }
+      });
+
+      res.json({
+        message: "Subscription cancellation was removed. The subscription will remain active.",
+        subscription: buildControlSubscriptionResponse(updated, overview, currentPlan),
+        stripeSync: {
+          status: "applied",
+          cancelAtPeriodEnd,
+          currentPeriodEnd: updated?.currentPeriodEnd || null
+        }
+      });
+    } catch (error) {
+      sendRouteError(res, error);
+    }
+  });
+
   app.post("/api/internal/commercial/subscriptions/:id/overage-sync", async (req, res) => {
     if (!ensureInternalCommercialRequest(req, res, internalConfig)) return;
 
@@ -922,6 +1094,21 @@ function normalizeStripeSubscriptionStatus(value) {
     return normalized === "incomplete_expired" ? "canceled" : normalized;
   }
   return "active";
+}
+
+function isCustomerCancelableSubscriptionStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["trialing", "active", "past_due", "unpaid"].includes(normalized);
+}
+
+function formatControlDate(value) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value || "the current billing period");
+  return parsed.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
 }
 
 function buildControlSubscriptionResponse(subscription, overview, plan) {

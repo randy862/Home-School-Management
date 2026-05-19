@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-17
+Date: 2026-05-18
 
 ## Active Workstream
 
@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Data Export first slice is deployed with a parent-readable CSV ZIP package, friendly browser download filename, and branded Stripe return page.
+Subscriber-facing cancellation is deployed after the Data Export slice.
 
 ## Completed Recently
 
@@ -28,6 +28,7 @@ Data Export first slice is deployed with a parent-readable CSV ZIP package, frie
 - Committed and pushed `4d71709 Polish data export download filenames`.
 - Stripe Data Export checkout now returns to a branded status page with Account Profile download instructions and a deep-link back into View Account.
 - Committed and pushed `ad9103c Add data export checkout return page`.
+- Subscriber cancellation is deployed: Account Options schedules Stripe period-end cancellation and can reverse it with Keep Subscription Active.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -38,9 +39,9 @@ Data Export first slice is deployed with a parent-readable CSV ZIP package, frie
     `/var/www/home-school-management/rollback/web-202605151220.tgz`
 - Tenant app assets:
   - `styles.css?v=202605150913`
-  - `app.js?v=202605172014`
+  - `app.js?v=202605181939`
   - Latest WEB001 rollback snapshot:
-    `/var/www/home-school-management/rollback/web-data-export-return-page-202605172014.tgz`
+    `/var/www/home-school-management/rollback/web-subscription-cancel-202605181939.tgz`
 - Control API rollback snapshot:
   - `/home/debian/rollback/hsm/control-api-upgrade-webhook-20260517031559/control-api`
 - Dormant deployment rollback snapshot:
@@ -55,6 +56,9 @@ Data Export first slice is deployed with a parent-readable CSV ZIP package, frie
   - APP001 export return page route `/home/debian/rollback/hsm/data-export-return-page-202605172014`
   - WEB001 `/var/www/home-school-management/rollback/web-data-export-20260516234316.tgz`
   - WEB001 export return page `/var/www/home-school-management/rollback/web-data-export-return-page-202605172014.tgz`
+- Subscriber cancellation rollback snapshots:
+  - APP001 `/home/debian/rollback/hsm/subscription-cancel-202605181939`
+  - WEB001 `/var/www/home-school-management/rollback/web-subscription-cancel-202605181939.tgz`
 
 ## Validation
 
@@ -68,6 +72,7 @@ Data Export first slice is deployed with a parent-readable CSV ZIP package, frie
 - APP001/WEB001 Data Export slice deployed; public health passed.
 - Friendly filename route local/remote syntax checks passed; APP001 control API and public control API health passed after restart.
 - Branded Data Export return page local syntax checks passed; APP001 tenant API route syntax and health passed; static page and app deep-link served over HTTPS.
+- Subscriber cancellation local and APP001 syntax checks passed; `hsm-control-api` and `hsm-api` restarted healthy; public control/tenant health passed; WEB001 served app `202605181939`.
 
 ## Current Blockers
 
@@ -82,5 +87,5 @@ Data Export first slice is deployed with a parent-readable CSV ZIP package, frie
 
 ## Next Actions
 
-1. Have user QA a fresh Data Export Stripe return and confirm the branded success page plus Account Profile link.
+1. Have user QA Cancel Subscription and Keep Subscription Active on `smoketest.navigrader.com`.
 2. Resume with backend/platform hardening or tenant/runtime correctness.

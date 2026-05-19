@@ -59,7 +59,8 @@ function registerAccountRoutes(app, deps) {
           canManageSubscription: canManageAccount,
           canRequestDormant: canManageAccount,
           canReactivate: canManageAccount,
-          canRequestExport: canManageAccount
+          canRequestExport: canManageAccount,
+          canCancelSubscription: canManageAccount
         },
         subscription: canManageAccount && commercialSummary ? mapSubscriptionSummary(commercialSummary) : null,
         upgradeOptions: upgradeOptions.map(mapUpgradePlan),
@@ -276,6 +277,76 @@ function registerAccountRoutes(app, deps) {
     }
   });
 
+  app.post("/api/account/options/cancel-subscription", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode)) return;
+    if (!ensureAuthenticated(req, res)) return;
+    if (!ensureAdminUser(req, res, "Only tenant administrators can cancel a subscription.")) return;
+
+    try {
+      const commercialSummary = commercialPolicyService
+        ? await commercialPolicyService.getTenantCommercialSummary()
+        : null;
+      if (!commercialSummary?.subscriptionId) {
+        const error = new Error("No active commercial subscription was found for this tenant.");
+        error.statusCode = 404;
+        throw error;
+      }
+      const payload = await controlPlaneClient.request(`/api/internal/commercial/subscriptions/${encodeURIComponent(commercialSummary.subscriptionId)}/cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          requestedByUserId: req.auth.user.id,
+          requestedByUsername: req.auth.user.username,
+          notes: String(req.body?.notes || "").trim()
+        })
+      });
+      res.json({
+        ok: true,
+        message: payload?.message || "Subscription cancellation scheduled.",
+        subscription: payload?.subscription ? mapSubscriptionSummary(payload.subscription) : null
+      });
+    } catch (error) {
+      sendAccountRouteError(res, error);
+    }
+  });
+
+  app.post("/api/account/options/keep-subscription", async (req, res) => {
+    if (!ensurePostgresMode(res, isPostgresMode)) return;
+    if (!ensureAuthenticated(req, res)) return;
+    if (!ensureAdminUser(req, res, "Only tenant administrators can keep a subscription active.")) return;
+
+    try {
+      const commercialSummary = commercialPolicyService
+        ? await commercialPolicyService.getTenantCommercialSummary()
+        : null;
+      if (!commercialSummary?.subscriptionId) {
+        const error = new Error("No active commercial subscription was found for this tenant.");
+        error.statusCode = 404;
+        throw error;
+      }
+      const payload = await controlPlaneClient.request(`/api/internal/commercial/subscriptions/${encodeURIComponent(commercialSummary.subscriptionId)}/resume-cancellation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          requestedByUserId: req.auth.user.id,
+          requestedByUsername: req.auth.user.username,
+          notes: String(req.body?.notes || "").trim()
+        })
+      });
+      res.json({
+        ok: true,
+        message: payload?.message || "Subscription cancellation removed.",
+        subscription: payload?.subscription ? mapSubscriptionSummary(payload.subscription) : null
+      });
+    } catch (error) {
+      sendAccountRouteError(res, error);
+    }
+  });
+
   app.post("/api/account/options/export-request", async (req, res) => {
     if (!ensurePostgresMode(res, isPostgresMode)) return;
     if (!ensureAuthenticated(req, res)) return;
@@ -350,6 +421,8 @@ function mapSubscriptionSummary(summary) {
     status: summary.subscriptionStatus || summary.status,
     dormantStatus: summary.dormantStatus,
     accountStatus: summary.accountStatus,
+    cancelAtPeriodEnd: !!summary.cancelAtPeriodEnd,
+    canceledAt: summary.canceledAt || null,
     plan: {
       id: summary.planId || summary.commercialPlanId,
       code: summary.planCode,

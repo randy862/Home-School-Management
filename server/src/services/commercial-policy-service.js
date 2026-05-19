@@ -33,6 +33,8 @@ function createCommercialPolicyService(deps) {
         sub.dormant_status AS "dormantStatus",
         sub.current_period_start AS "currentPeriodStart",
         sub.current_period_end AS "currentPeriodEnd",
+        sub.cancel_at_period_end AS "cancelAtPeriodEnd",
+        sub.canceled_at AS "canceledAt",
         sub.base_price_cents AS "basePriceCents",
         sub.included_billable_students AS "includedBillableStudents",
         sub.per_student_overage_cents AS "perStudentOverageCents",

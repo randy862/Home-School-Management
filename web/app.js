@@ -11,6 +11,8 @@ const API_ACCOUNT_PASSWORD_ENDPOINT = `${API_BASE_URL}/api/account/password`;
 const API_ACCOUNT_SUBSCRIPTION_UPGRADE_ENDPOINT = `${API_BASE_URL}/api/account/subscription/upgrade`;
 const API_ACCOUNT_DORMANT_ENDPOINT = `${API_BASE_URL}/api/account/options/dormant`;
 const API_ACCOUNT_REACTIVATE_ENDPOINT = `${API_BASE_URL}/api/account/options/reactivate`;
+const API_ACCOUNT_CANCEL_SUBSCRIPTION_ENDPOINT = `${API_BASE_URL}/api/account/options/cancel-subscription`;
+const API_ACCOUNT_KEEP_SUBSCRIPTION_ENDPOINT = `${API_BASE_URL}/api/account/options/keep-subscription`;
 const API_ACCOUNT_EXPORT_REQUEST_ENDPOINT = `${API_BASE_URL}/api/account/options/export-request`;
 const accountExportDownloadEndpoint = (id) => `${API_BASE_URL}/api/account/options/export-requests/${encodeURIComponent(id)}/download`;
 const API_SETUP_STATUS_ENDPOINT = `${API_BASE_URL}/api/setup/status`;
@@ -1839,7 +1841,8 @@ function createEmptyAccountSummary() {
       canChangePassword: false,
       canManageSubscription: false,
       canRequestDormant: false,
-      canRequestExport: false
+      canRequestExport: false,
+      canCancelSubscription: false
     },
     subscription: null,
     upgradeOptions: [],
@@ -2086,7 +2089,8 @@ function updateCurrentUserFromSummary(userSummary) {
       canChangePassword: true,
       canManageSubscription: merged.role === "admin",
       canRequestDormant: merged.role === "admin",
-      canRequestExport: merged.role === "admin"
+      canRequestExport: merged.role === "admin",
+      canCancelSubscription: merged.role === "admin"
     }
   };
 }
@@ -3989,6 +3993,7 @@ function renderSessionChrome() {
     accountSubscriptionSummary().permissions?.canRequestDormant
     || accountSubscriptionSummary().permissions?.canReactivate
     || accountSubscriptionSummary().permissions?.canRequestExport
+    || accountSubscriptionSummary().permissions?.canCancelSubscription
   );
   if (accountOptionsMenuButton) accountOptionsMenuButton.classList.toggle("hidden", !signedIn || !canOpenAccountOptions);
   document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -4029,13 +4034,16 @@ function previewAccountSubscriptionSummary(user) {
       canManageSubscription: isAdmin,
       canRequestDormant: isAdmin,
       canReactivate: false,
-      canRequestExport: isAdmin
+      canRequestExport: isAdmin,
+      canCancelSubscription: isAdmin
     },
     subscription: {
       id: "preview-starter-subscription",
       status: "active",
       dormantStatus: "active",
       accountStatus: "active",
+      cancelAtPeriodEnd: false,
+      canceledAt: null,
       plan: {
         id: "preview-starter-plan",
         code: "starter_monthly",
@@ -4116,7 +4124,8 @@ function accountSubscriptionSummary() {
       canManageSubscription: false,
       canRequestDormant: false,
       canReactivate: false,
-      canRequestExport: false
+      canRequestExport: false,
+      canCancelSubscription: false
     },
     subscription: null,
     upgradeOptions: [],
@@ -4482,6 +4491,24 @@ async function requestHostedReactivation(notes = "") {
   return parseApiResponse(response, `Reactivation failed (${response.status})`);
 }
 
+async function requestHostedSubscriptionCancellation(notes = "") {
+  const response = await authFetch(API_ACCOUNT_CANCEL_SUBSCRIPTION_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes })
+  });
+  return parseApiResponse(response, `Subscription cancellation failed (${response.status})`);
+}
+
+async function requestHostedKeepSubscriptionActive(notes = "") {
+  const response = await authFetch(API_ACCOUNT_KEEP_SUBSCRIPTION_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ notes })
+  });
+  return parseApiResponse(response, `Subscription resume failed (${response.status})`);
+}
+
 async function requestHostedExportRequest() {
   const response = await authFetch(API_ACCOUNT_EXPORT_REQUEST_ENDPOINT, {
     method: "POST",
@@ -4515,14 +4542,19 @@ function renderAccountSurface() {
   const activity = summary.activity || { billingEvents: [], exportRequests: [] };
   const usageCopy = buildBillableUsageCopy(subscription);
   const overageEstimateCents = Number(subscription?.billableStudents?.overage || 0) * Number(subscription?.billableStudents?.perStudentOverageCents || 0);
-  const mayManageSubscription = !!permissions.canManageSubscription && !!subscription;
+  const subscriptionStatusRaw = String(subscription?.status || "").trim().toLowerCase();
+  const cancellationScheduled = !!subscription?.cancelAtPeriodEnd && subscriptionStatusRaw !== "canceled";
+  const mayManageSubscription = !!permissions.canManageSubscription && !!subscription && !cancellationScheduled && subscriptionStatusRaw !== "canceled";
   const billingEvents = Array.isArray(activity.billingEvents) ? activity.billingEvents : [];
   const exportRequests = Array.isArray(activity.exportRequests) ? activity.exportRequests : [];
   const displayName = accountDisplayName(user, subscription);
   const planName = subscription?.plan?.name || (hostedModeEnabled ? "Hosted Workspace" : "Preview Workspace");
-  const subscriptionStatus = subscription ? formatSubscriptionStatusLabel(subscription.status) : (hostedModeEnabled ? "Pending" : "Preview");
+  const cancellationDate = formatAccountDateTime(subscription?.billingPeriod?.end);
+  const subscriptionStatus = subscription
+    ? (cancellationScheduled ? "Canceling" : formatSubscriptionStatusLabel(subscription.status))
+    : (hostedModeEnabled ? "Pending" : "Preview");
   const siteStatus = subscription ? formatDormantStatusLabel(subscription.dormantStatus) : (hostedModeEnabled ? "Pending" : "Local Preview");
-  const subscriptionTone = accountStatusToneClass(subscription?.status || subscriptionStatus);
+  const subscriptionTone = cancellationScheduled ? "is-warning" : accountStatusToneClass(subscription?.status || subscriptionStatus);
   const siteTone = accountStatusToneClass(subscription?.dormantStatus || siteStatus);
   const includedStudents = Number(subscription?.billableStudents?.included || 0);
   const currentStudents = Number(subscription?.billableStudents?.current || 0);
@@ -4642,6 +4674,7 @@ function renderAccountSurface() {
           <p class="account-usage-note ${usageCopy.tone === "warning" ? "warning-text" : "muted"}">${escapeHtml(usageCopy.text)}</p>
         </div>
         ${subscription ? `
+          ${cancellationScheduled ? `<p class="account-lifecycle-note warning-text">Cancellation is scheduled. You can keep using Navigrader until ${escapeHtml(cancellationDate)}. Request a Data Export before that date if you need a copy of your records.</p>` : ""}
           <dl class="account-detail-list">
             <div><dt>Base Price</dt><dd>${formatMoneyCents(subscription.plan?.basePriceCents, subscription.plan?.currency || "usd")} / ${escapeHtml(subscription.plan?.billingInterval || "month")}</dd></div>
             <div><dt>Included Billable Students</dt><dd>${includedStudents}</dd></div>
@@ -4650,6 +4683,7 @@ function renderAccountSurface() {
             ${Number(subscription.billableStudents?.perStudentOverageCents || 0) > 0 ? `<div><dt>Estimated Overage This Period</dt><dd>${formatMoneyCents(overageEstimateCents, subscription.plan?.currency || "usd")}</dd></div>` : ""}
             <div><dt>Billing Period Start</dt><dd>${escapeHtml(formatAccountDateTime(subscription.billingPeriod?.start))}</dd></div>
             <div><dt>Billing Period End</dt><dd>${escapeHtml(formatAccountDateTime(subscription.billingPeriod?.end))}</dd></div>
+            ${cancellationScheduled ? `<div><dt>Cancellation</dt><dd>Scheduled for ${escapeHtml(cancellationDate)}</dd></div>` : ""}
           </dl>
           ${mayManageSubscription ? `
             <div class="account-inline-actions">
@@ -4722,12 +4756,23 @@ function renderAccountOptionsSurface() {
   const summary = accountSubscriptionSummary();
   const signedIn = !!currentUser();
   const permissions = summary.permissions || {};
+  const subscription = summary.subscription || null;
   const dormantStatus = String(summary.subscription?.dormantStatus || "").trim().toLowerCase();
+  const subscriptionStatus = String(subscription?.status || "").trim().toLowerCase();
+  const cancellationScheduled = !!subscription?.cancelAtPeriodEnd && subscriptionStatus !== "canceled";
   const canRequestDormant = !!permissions.canRequestDormant
+    && !cancellationScheduled
+    && subscriptionStatus !== "canceled"
     && !["dormant", "pending_dormant", "pending_reactivation"].includes(dormantStatus);
   const canReactivate = !!permissions.canReactivate
+    && !cancellationScheduled
+    && subscriptionStatus !== "canceled"
     && ["dormant", "pending_dormant", "pending_reactivation"].includes(dormantStatus);
-  const mayOpen = !!(permissions.canRequestDormant || permissions.canReactivate || permissions.canRequestExport);
+  const canCancelSubscription = !!permissions.canCancelSubscription
+    && !!subscription
+    && !cancellationScheduled
+    && ["trialing", "active", "past_due", "unpaid"].includes(subscriptionStatus);
+  const mayOpen = !!(permissions.canRequestDormant || permissions.canReactivate || permissions.canRequestExport || canCancelSubscription || cancellationScheduled);
   if (modal) {
     modal.classList.toggle("hidden", !signedIn || !accountOptionsModalOpen || !mayOpen);
     modal.setAttribute("aria-hidden", !signedIn || !accountOptionsModalOpen || !mayOpen ? "true" : "false");
@@ -4765,6 +4810,24 @@ function renderAccountOptionsSurface() {
           <p class="muted">Download a copy of your homeschool records for your own files, backup, or transfer.</p>
         </div>
         <button id="account-export-btn" type="button">Request Data Export</button>
+      </article>
+    ` : "",
+    canCancelSubscription ? `
+      <article class="account-option-tile">
+        <div>
+          <h4>Cancel Subscription</h4>
+          <p class="muted">Stop renewal at the end of the current billing period. You can keep using Navigrader until then.</p>
+        </div>
+        <button id="account-cancel-subscription-btn" type="button">Cancel Subscription</button>
+      </article>
+    ` : "",
+    cancellationScheduled ? `
+      <article class="account-option-tile">
+        <div>
+          <h4>Cancellation Scheduled</h4>
+          <p class="muted">Your subscription is set to end on ${escapeHtml(formatAccountDateTime(subscription?.billingPeriod?.end))}. Request a Data Export before access ends if you need your records.</p>
+        </div>
+        <button id="account-keep-subscription-btn" type="button">Keep Subscription Active</button>
       </article>
     ` : ""
   ].filter(Boolean).join("");
@@ -4841,6 +4904,45 @@ function renderAccountOptionsSurface() {
       renderAccountOptionsSurface();
     }
   });
+  document.getElementById("account-cancel-subscription-btn")?.addEventListener("click", async () => {
+    if (!hostedModeEnabled) {
+      setAccountOptionsMessage("info", "Prototype mode does not include hosted subscription cancellation.");
+      renderAccountOptionsSurface();
+      return;
+    }
+    const endDate = formatAccountDateTime(subscription?.billingPeriod?.end);
+    const confirmed = window.confirm(`Cancel this subscription at the end of the current billing period (${endDate})? You will keep access until then. If you need a copy of your records, close this prompt and request a Data Export first.`);
+    if (!confirmed) return;
+    try {
+      const result = await requestHostedSubscriptionCancellation();
+      await refreshHostedAccountSummary();
+      setAccountOptionsMessage("success", result?.message || "Subscription cancellation scheduled.");
+      renderAccountOptionsSurface();
+      renderAccountSurface();
+    } catch (error) {
+      setAccountOptionsMessage("error", error.message || "Unable to schedule subscription cancellation.");
+      renderAccountOptionsSurface();
+    }
+  });
+  document.getElementById("account-keep-subscription-btn")?.addEventListener("click", async () => {
+    if (!hostedModeEnabled) {
+      setAccountOptionsMessage("info", "Prototype mode does not include hosted subscription cancellation changes.");
+      renderAccountOptionsSurface();
+      return;
+    }
+    const confirmed = window.confirm("Keep this subscription active and remove the scheduled cancellation?");
+    if (!confirmed) return;
+    try {
+      const result = await requestHostedKeepSubscriptionActive();
+      await refreshHostedAccountSummary();
+      setAccountOptionsMessage("success", result?.message || "Subscription will remain active.");
+      renderAccountOptionsSurface();
+      renderAccountSurface();
+    } catch (error) {
+      setAccountOptionsMessage("error", error.message || "Unable to keep the subscription active.");
+      renderAccountOptionsSurface();
+    }
+  });
 }
 
 function buildAccountLifecycleHelpText(dormantStatus) {
@@ -4858,7 +4960,9 @@ function renderAccountUpgradeSurface() {
   const signedIn = !!currentUser();
   const subscription = summary.subscription;
   const upgradeOptions = Array.isArray(summary.upgradeOptions) ? summary.upgradeOptions : [];
-  const mayManageSubscription = !!summary.permissions?.canManageSubscription && !!subscription;
+  const subscriptionStatus = String(subscription?.status || "").trim().toLowerCase();
+  const cancellationScheduled = !!subscription?.cancelAtPeriodEnd && subscriptionStatus !== "canceled";
+  const mayManageSubscription = !!summary.permissions?.canManageSubscription && !!subscription && !cancellationScheduled && subscriptionStatus !== "canceled";
   if (modal) {
     modal.classList.toggle("hidden", !signedIn || !accountUpgradeModalOpen || !mayManageSubscription);
     modal.setAttribute("aria-hidden", !signedIn || !accountUpgradeModalOpen || !mayManageSubscription ? "true" : "false");

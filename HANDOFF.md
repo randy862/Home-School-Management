@@ -1,6 +1,6 @@
 # Session Handoff
 
-Date: 2026-05-17
+Date: 2026-05-18
 
 ## Context
 
@@ -36,10 +36,16 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
   - APP001 export return page route `/home/debian/rollback/hsm/data-export-return-page-202605172014`
   - WEB001 `/var/www/home-school-management/rollback/web-data-export-20260516234316.tgz`
   - WEB001 export return page `/var/www/home-school-management/rollback/web-data-export-return-page-202605172014.tgz`
+- Subscriber cancellation flow is implemented and deployed:
+  - Account Options exposes Cancel Subscription for admins
+  - cancellation schedules Stripe `cancel_at_period_end`, keeps access through current period, and recommends Data Export first
+  - scheduled cancellations show a Keep Subscription Active reversal action
+  - APP001 rollback `/home/debian/rollback/hsm/subscription-cancel-202605181939`
+  - WEB001 rollback `/var/www/home-school-management/rollback/web-subscription-cancel-202605181939.tgz`
 
 ## Next Action
 
-1. Have user QA a new Data Export checkout return from Stripe and confirm the branded status page appears.
+1. Have user QA Cancel Subscription and Keep Subscription Active on `smoketest.navigrader.com`; do not test against real family data.
 2. Resume with backend/platform hardening or tenant/runtime correctness.
 
 ## Risks
@@ -58,3 +64,4 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 - APP001/WEB001 Data Export slice deployed; public health passed for `mitchell`, `smoketest`, and control API.
 - Friendly Data Export download filename route deployed on APP001; local/remote syntax checks and control API health passed.
 - Branded Data Export return page deployed; APP001 route syntax, tenant API health, public tenant health, and static page HTTPS checks passed.
+- Subscriber cancellation local/remote syntax checks passed; APP001 control/API health, public health, and static app bundle checks passed after deployment.
