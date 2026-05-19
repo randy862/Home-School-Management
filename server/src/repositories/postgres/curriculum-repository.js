@@ -344,6 +344,96 @@ function createCurriculumRepository(deps) {
       return result.rows.map(mapSectionEnrollmentRow);
     },
 
+    getCourseScheduleContext: async (courseId) => {
+      const pool = getPostgresPool();
+      await ensureCourseTableColumns(pool);
+      const result = await pool.query(`
+        SELECT
+          id,
+          name,
+          hours_per_day AS "hoursPerDay",
+          quarter_names_json AS "quarterNamesJson"
+        FROM courses
+        WHERE id = $1
+      `, [courseId]);
+      return result.rows[0] ? mapCourseScheduleContextRow(result.rows[0]) : null;
+    },
+
+    getCourseSectionSchedule: async (sectionId) => {
+      const pool = getPostgresPool();
+      await ensureCourseTableColumns(pool);
+      await ensureCourseSectionTables(pool);
+      const result = await pool.query(`
+        SELECT
+          cs.id,
+          cs.course_id AS "courseId",
+          cs.label,
+          cs.start_time AS "startTime",
+          cs.quarter_names_json AS "quarterNamesJson",
+          cs.weekdays_json AS "weekdaysJson",
+          c.name AS "courseName",
+          c.hours_per_day AS "hoursPerDay",
+          c.quarter_names_json AS "courseQuarterNamesJson"
+        FROM course_sections cs
+        JOIN courses c ON c.id = cs.course_id
+        WHERE cs.id = $1
+      `, [sectionId]);
+      return result.rows[0] ? mapCourseSectionScheduleRow(result.rows[0]) : null;
+    },
+
+    listSectionEnrollmentSchedulesForStudent: async (studentId, excludedSectionEnrollmentId = "") => {
+      const pool = getPostgresPool();
+      await ensureCourseTableColumns(pool);
+      await ensureCourseSectionTables(pool);
+      const result = await pool.query(`
+        SELECT
+          se.id AS "sectionEnrollmentId",
+          se.student_id AS "studentId",
+          cs.id,
+          cs.course_id AS "courseId",
+          cs.label,
+          cs.start_time AS "startTime",
+          cs.quarter_names_json AS "quarterNamesJson",
+          cs.weekdays_json AS "weekdaysJson",
+          c.name AS "courseName",
+          c.hours_per_day AS "hoursPerDay",
+          c.quarter_names_json AS "courseQuarterNamesJson"
+        FROM section_enrollments se
+        JOIN course_sections cs ON cs.id = se.course_section_id
+        JOIN courses c ON c.id = cs.course_id
+        WHERE se.student_id = $1
+          AND ($2 = '' OR se.id <> $2)
+        ORDER BY cs.start_time, lower(c.name), lower(cs.label), se.id
+      `, [studentId, excludedSectionEnrollmentId || ""]);
+      return result.rows.map(mapCourseSectionScheduleRow);
+    },
+
+    listSectionEnrollmentSchedulesForCourseSection: async (sectionId) => {
+      const pool = getPostgresPool();
+      await ensureCourseTableColumns(pool);
+      await ensureCourseSectionTables(pool);
+      const result = await pool.query(`
+        SELECT
+          se.id AS "sectionEnrollmentId",
+          se.student_id AS "studentId",
+          cs.id,
+          cs.course_id AS "courseId",
+          cs.label,
+          cs.start_time AS "startTime",
+          cs.quarter_names_json AS "quarterNamesJson",
+          cs.weekdays_json AS "weekdaysJson",
+          c.name AS "courseName",
+          c.hours_per_day AS "hoursPerDay",
+          c.quarter_names_json AS "courseQuarterNamesJson"
+        FROM section_enrollments se
+        JOIN course_sections cs ON cs.id = se.course_section_id
+        JOIN courses c ON c.id = cs.course_id
+        WHERE se.course_section_id = $1
+        ORDER BY se.id
+      `, [sectionId]);
+      return result.rows.map(mapCourseSectionScheduleRow);
+    },
+
     listStudentScheduleBlocksForUser: async (user) => {
       const pool = getPostgresPool();
       const result = user?.role === "student"
@@ -765,6 +855,31 @@ function mapSectionEnrollmentRow(row) {
     studentId: row.studentId,
     courseSectionId: row.courseSectionId,
     scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)
+  };
+}
+
+function mapCourseScheduleContextRow(row) {
+  return {
+    id: row.id,
+    name: row.name || "",
+    hoursPerDay: Number(row.hoursPerDay || 1),
+    quarterNames: Array.isArray(row.quarterNamesJson) ? row.quarterNamesJson.map((name) => String(name || "").trim()).filter(Boolean) : []
+  };
+}
+
+function mapCourseSectionScheduleRow(row) {
+  return {
+    sectionEnrollmentId: row.sectionEnrollmentId || "",
+    studentId: row.studentId || "",
+    id: row.id,
+    courseId: row.courseId,
+    label: row.label || "",
+    startTime: row.startTime || "08:00",
+    quarterNames: Array.isArray(row.quarterNamesJson) ? row.quarterNamesJson.map((name) => String(name || "").trim()).filter(Boolean) : [],
+    weekdays: Array.isArray(row.weekdaysJson) ? row.weekdaysJson.map((day) => Number(day)).filter(Number.isInteger) : [],
+    courseName: row.courseName || "",
+    hoursPerDay: Number(row.hoursPerDay || 1),
+    courseQuarterNames: Array.isArray(row.courseQuarterNamesJson) ? row.courseQuarterNamesJson.map((name) => String(name || "").trim()).filter(Boolean) : []
   };
 }
 

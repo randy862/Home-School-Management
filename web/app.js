@@ -887,6 +887,18 @@ function enrolledStudentIdsForCourseSection(sectionId) {
     .filter(Boolean);
 }
 
+function courseSectionEnrollmentForStudentInCourse(studentId, courseId, excludedSectionId = "") {
+  return state.sectionEnrollments.find((entry) => {
+    if (entry.studentId !== studentId || entry.courseSectionId === excludedSectionId) return false;
+    const section = getCourseSection(entry.courseSectionId);
+    return section?.courseId === courseId;
+  }) || null;
+}
+
+function courseEnrollmentForStudentCourse(studentId, courseId) {
+  return state.enrollments.find((entry) => entry.studentId === studentId && entry.courseId === courseId) || null;
+}
+
 function classInstructionActualEditKey(sectionId, courseId, date) {
   return `class||${sectionId}||${courseId}||${date}`;
 }
@@ -6281,6 +6293,7 @@ function renderSelects() {
   options("test-student", viewerStudents, (s) => `${s.firstName} ${s.lastName}`, viewerStudents.length ? null : "Add a student first");
   options("user-student-id", visibleStudents(), (s) => `${s.firstName} ${s.lastName}`, "Select student");
   renderStudentEnrollmentCourseChecklist(selectedStudentEnrollmentCourseIds, selectedStudentId);
+  renderCourseSectionStudentChecklist(getSelectedCourseSectionStudentIds());
   renderDailyBreakStudentChecklist(getSelectedDailyBreakStudentIds());
   renderAttendanceStudentChecklist();
   renderReportsFormMode();
@@ -10129,6 +10142,136 @@ function renderCourseSectionQuarterChecklist(selectedNames = []) {
   });
 }
 
+function courseSectionStudentName(student) {
+  return `${student?.firstName || ""} ${student?.lastName || ""}`.trim() || "Unnamed student";
+}
+
+function effectiveCourseSectionQuarterNames(section) {
+  const sectionNames = normalizeQuarterNames(section?.quarterNames);
+  if (sectionNames.length) return sectionNames;
+  return normalizeQuarterNames(getCourse(section?.courseId)?.quarterNames);
+}
+
+function quarterNameSetsOverlap(firstNames = [], secondNames = []) {
+  const first = new Set(firstNames.filter(Boolean));
+  const second = new Set(secondNames.filter(Boolean));
+  if (!first.size || !second.size) return true;
+  return [...first].some((name) => second.has(name));
+}
+
+function courseSectionDurationMinutes(section) {
+  const hoursPerDay = Number(getCourse(section?.courseId)?.hoursPerDay || 1);
+  return Math.max(15, Math.round((Number.isFinite(hoursPerDay) && hoursPerDay > 0 ? hoursPerDay : 1) * 60));
+}
+
+function courseSectionTimeWindow(section) {
+  const start = parseTimeToMinutes(section?.startTime || "08:00");
+  const durationMinutes = courseSectionDurationMinutes(section);
+  if (!Number.isFinite(start)) return null;
+  return { start, end: Math.min(24 * 60, start + durationMinutes) };
+}
+
+function courseSectionsHaveTimeConflict(firstSection, secondSection) {
+  if (!firstSection || !secondSection || firstSection.id === secondSection.id) return false;
+  if (firstSection.courseId && firstSection.courseId === secondSection.courseId) return false;
+  const firstWeekdays = normalizeWeekdays(firstSection.weekdays, [1, 2, 3, 4, 5]);
+  const secondWeekdays = normalizeWeekdays(secondSection.weekdays, [1, 2, 3, 4, 5]);
+  if (!firstWeekdays.some((day) => secondWeekdays.includes(day))) return false;
+  if (!quarterNameSetsOverlap(effectiveCourseSectionQuarterNames(firstSection), effectiveCourseSectionQuarterNames(secondSection))) return false;
+  const firstWindow = courseSectionTimeWindow(firstSection);
+  const secondWindow = courseSectionTimeWindow(secondSection);
+  if (!firstWindow || !secondWindow) return false;
+  return firstWindow.start < secondWindow.end && firstWindow.end > secondWindow.start;
+}
+
+function courseSectionConflictDisplay(section) {
+  return `${sectionDisplayName(section.id)}, ${weekdaySummary(section.weekdays)}, ${formatClockTime(section.startTime || "08:00")}`;
+}
+
+function courseSectionDraftFromForm({ courseId = null, startTime = null, quarterNames = null, weekdays = null } = {}) {
+  return {
+    id: editingCourseSectionId || "__new-course-section__",
+    courseId: courseId ?? (document.getElementById("course-section-course")?.value || ""),
+    label: document.getElementById("course-section-label")?.value?.trim() || "Class",
+    startTime: startTime ?? (document.getElementById("course-section-start-time")?.value || "08:00"),
+    quarterNames: quarterNames ?? getSelectedCourseSectionQuarterNames(),
+    weekdays: weekdays ?? Array.from(document.querySelectorAll("input[name='course-section-weekday']:checked")).map((checkbox) => Number(checkbox.value))
+  };
+}
+
+function courseSectionConflictForStudent(studentId, draftSection) {
+  if (!studentId || !draftSection?.courseId) return null;
+  return state.sectionEnrollments
+    .filter((entry) => entry.studentId === studentId && entry.courseSectionId !== draftSection.id)
+    .map((entry) => getCourseSection(entry.courseSectionId))
+    .filter(Boolean)
+    .find((section) => courseSectionsHaveTimeConflict(draftSection, section)) || null;
+}
+
+function courseSectionConflictMessages(draftSection, selectedStudentIds = []) {
+  return selectedStudentIds
+    .map((studentId) => {
+      const conflictSection = courseSectionConflictForStudent(studentId, draftSection);
+      if (!conflictSection) return "";
+      return `${getStudentName(studentId)} conflicts with ${courseSectionConflictDisplay(conflictSection)}.`;
+    })
+    .filter(Boolean);
+}
+
+function updateCourseSectionStudentSummary() {
+  const summary = document.getElementById("course-section-students-summary");
+  const allCheckbox = document.getElementById("course-section-student-all");
+  const studentCheckboxes = Array.from(document.querySelectorAll(".course-section-student-checkbox"));
+  const selectedCount = studentCheckboxes.filter((checkbox) => checkbox.checked).length;
+  if (summary) {
+    summary.textContent = selectedCount
+      ? `${selectedCount} student${selectedCount === 1 ? "" : "s"} selected`
+      : "No students selected";
+  }
+  if (allCheckbox instanceof HTMLInputElement) {
+    allCheckbox.checked = !!studentCheckboxes.length && selectedCount === studentCheckboxes.length;
+    allCheckbox.indeterminate = selectedCount > 0 && selectedCount < studentCheckboxes.length;
+  }
+}
+
+function renderCourseSectionStudentChecklist(selectedStudentIds = []) {
+  const optionsWrap = document.getElementById("course-section-students-options");
+  const summary = document.getElementById("course-section-students-summary");
+  if (!optionsWrap || !summary) return;
+  const students = visibleStudents()
+    .slice()
+    .sort((a, b) => courseSectionStudentName(a).localeCompare(courseSectionStudentName(b), undefined, { numeric: true }));
+  const selected = new Set(selectedStudentIds || []);
+  if (!students.length) {
+    optionsWrap.innerHTML = "<span>No active students.</span>";
+    summary.textContent = "No students available";
+    return;
+  }
+  const courseId = document.getElementById("course-section-course")?.value || "";
+  const draftSection = courseSectionDraftFromForm({ courseId });
+  const selectedActiveCount = students.filter((student) => selected.has(student.id)).length;
+  const allChecked = selectedActiveCount === students.length;
+  const allRow = `<div class="checklist-row course-section-student-all-row"><input id="course-section-student-all" type="checkbox" class="course-section-student-all-checkbox"${allChecked ? " checked" : ""}><label for="course-section-student-all">All active students</label></div>`;
+  const rows = students.map((student, index) => {
+    const inputId = `course-section-student-${index}`;
+    const checked = selected.has(student.id) ? " checked" : "";
+    const existingCourseEnrollment = courseId
+      ? courseSectionEnrollmentForStudentInCourse(student.id, courseId, editingCourseSectionId)
+      : null;
+    const existingFlexibleEnrollment = courseId ? courseEnrollmentForStudentCourse(student.id, courseId) : null;
+    const conflictSection = courseSectionConflictForStudent(student.id, draftSection);
+    const meta = [
+      student.grade ? `Grade ${student.grade}` : "",
+      existingCourseEnrollment ? `Currently in ${sectionDisplayName(existingCourseEnrollment.courseSectionId)}` : "",
+      existingFlexibleEnrollment ? "Currently enrolled outside a class" : "",
+      conflictSection ? `Conflict: ${courseSectionConflictDisplay(conflictSection)}` : ""
+    ].filter(Boolean);
+    return `<div class="checklist-row course-section-student-row${conflictSection ? " course-section-student-conflict-row" : ""}"><input id="${inputId}" type="checkbox" class="course-section-student-checkbox" value="${escapeHtml(student.id)}"${checked}><label for="${inputId}">${renderScheduleSourceCell(courseSectionStudentName(student), meta)}</label></div>`;
+  }).join("");
+  optionsWrap.innerHTML = `${allRow}${rows}`;
+  updateCourseSectionStudentSummary();
+}
+
 function getSelectedQuarterNames(checkboxClass) {
   return Array.from(document.querySelectorAll(`.${checkboxClass}:checked`)).map((checkbox) => checkbox.value);
 }
@@ -10139,6 +10282,12 @@ function getSelectedCourseQuarterNames() {
 
 function getSelectedCourseSectionQuarterNames() {
   return getSelectedQuarterNames("course-section-quarter-checkbox");
+}
+
+function getSelectedCourseSectionStudentIds() {
+  return Array.from(document.querySelectorAll(".course-section-student-checkbox:checked"))
+    .map((checkbox) => checkbox.value)
+    .filter(Boolean);
 }
 
 function setCourseWeekdaySelection(weekdays = [1, 2, 3, 4, 5]) {
@@ -10541,6 +10690,7 @@ function syncCourseSectionFormFromCourse(courseId, { preserveExisting = true } =
   if (!preserveExisting || !getSelectedCourseSectionQuarterNames().length) {
     renderCourseSectionQuarterChecklist(course.quarterNames || []);
   }
+  renderCourseSectionStudentChecklist(getSelectedCourseSectionStudentIds());
 }
 
 function resetCourseSectionForm() {
@@ -10552,6 +10702,7 @@ function resetCourseSectionForm() {
     checkbox.checked = true;
   });
   renderCourseSectionQuarterChecklist([]);
+  renderCourseSectionStudentChecklist([]);
   const timeInput = document.getElementById("course-section-start-time");
   if (timeInput) timeInput.value = normalizeSchoolDayStartTime(currentSchoolYear()?.schoolDayStartTime);
   const courseSelect = document.getElementById("course-section-course");
@@ -10570,6 +10721,7 @@ function beginCourseSectionEdit(sectionId) {
   document.getElementById("course-section-capacity").value = section.concurrentCapacity == null ? "" : String(section.concurrentCapacity);
   document.getElementById("course-section-start-time").value = section.startTime || "08:00";
   renderCourseSectionQuarterChecklist(section.quarterNames || []);
+  renderCourseSectionStudentChecklist(enrolledStudentIdsForCourseSection(section.id));
   document.querySelectorAll("input[name='course-section-weekday']").forEach((checkbox) => {
     checkbox.checked = Array.isArray(section.weekdays) && section.weekdays.includes(Number(checkbox.value));
   });
@@ -10585,6 +10737,7 @@ function beginCourseSectionCreate() {
     checkbox.checked = true;
   });
   renderCourseSectionQuarterChecklist([]);
+  renderCourseSectionStudentChecklist([]);
   const timeInput = document.getElementById("course-section-start-time");
   if (timeInput) timeInput.value = normalizeSchoolDayStartTime(currentSchoolYear()?.schoolDayStartTime);
   const courseSelect = document.getElementById("course-section-course");
@@ -10601,6 +10754,7 @@ function renderCourseSections() {
   if (showFormBtn) showFormBtn.classList.toggle("hidden", courseSectionFormOpen);
   if (submitBtn) submitBtn.textContent = editingCourseSectionId ? "Update Class" : "Add Class";
   renderCourseSectionQuarterChecklist(getSelectedCourseSectionQuarterNames());
+  renderCourseSectionStudentChecklist(getSelectedCourseSectionStudentIds());
   if (!tableBody) return;
   const rows = sortedCourseSections()
   .filter((section) => classReadinessFilter !== "no-enrollment" || classNeedsEnrollmentReview(section))
@@ -10612,8 +10766,12 @@ function renderCourseSections() {
     const courseMeta = [course ? getSubjectName(course.subjectId) : "Unknown Subject"];
     if (course?.subjectId && isRequiredSubject(course.subjectId)) courseMeta.push("Required subject");
     const enrolledCount = courseSectionEnrollmentCount(section.id);
+    const enrolledNames = enrolledStudentIdsForCourseSection(section.id)
+      .map((studentId) => getStudentName(studentId))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     const needsReview = classNeedsEnrollmentReview(section);
-    const enrolledCell = `<span class="enrollment-count-pill${needsReview ? " empty" : ""}">${enrolledCount}</span>${needsReview ? `<span class="enrollment-count-note">No students enrolled</span>` : ""}`;
+    const enrolledCell = `<span class="enrollment-count-pill${needsReview ? " empty" : ""}">${enrolledCount}</span>${enrolledNames.length ? `<span class="enrollment-count-note">${escapeHtml(enrolledNames.join(", "))}</span>` : `<span class="enrollment-count-note">No students enrolled</span>`}`;
     return `<tr class="${needsReview ? "readiness-review-row" : ""}"><td>${renderScheduleSourceCell(getCourseName(section.courseId), courseMeta)}</td><td>${renderScheduleSourceCell(section.label, ["Class row"])}</td><td>${renderScheduleSourceMeta(courseSectionSchoolDayMeta(section))}</td><td>${escapeHtml(resourceSummary)}</td><td>${enrolledCell}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course-section='${section.id}' type='button'>Edit</button><button data-remove-course-section='${section.id}' type='button'>Remove</button></div></td></tr>`;
   });
   rowOrEmpty(tableBody, rows, classReadinessFilter === "no-enrollment" ? "No classes need enrollment review." : "No classes added yet.", 6);
@@ -18543,14 +18701,19 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       const candidateStart = Math.max(gapStart, actualCursor == null ? gapStart : actualCursor);
       const gapMinutes = gapEnd - candidateStart;
       if (gapMinutes <= 0) return -1;
-      return pendingBlocks.findIndex((candidate, index) => {
-        if (index === 0 || !isFlexibleInstructionCandidate(candidate)) return false;
+      return pendingBlocks.findIndex((candidate) => {
+        if (!isFlexibleInstructionCandidate(candidate)) return false;
         const duration = blockActualDuration(candidate);
         const candidateEnd = candidateStart + duration;
         const requiredEnd = candidateEnd + minutesBetweenClasses;
         if (requiredEnd > gapEnd) return false;
         return !nextBlockedSectionWindow(fixedSectionWindows, candidateStart, candidateEnd, candidate.courseId);
       });
+    }
+
+    function nextFixedAnchorIndex(pendingBlocks, gapStart) {
+      return pendingBlocks.findIndex((candidate) =>
+        isFixedSectionAnchor(candidate) && blockAnchorStart(candidate) >= gapStart);
     }
 
     function pushAdjustedBlock(block, forcedStartMinutes = null) {
@@ -18615,15 +18778,22 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     const pendingPositionedBlocks = [...positionedBlocks];
     while (pendingPositionedBlocks.length) {
       const block = pendingPositionedBlocks[0];
-      const anchorStart = blockAnchorStart(block);
       const visibleGapStart = adjustedBlocks.length
         ? adjustedBlocks.reduce((latestEnd, entry) => Math.max(latestEnd, Number(entry.end) || 0), schoolDayStartMinutes)
         : schoolDayStartMinutes;
-      if (isFixedSectionAnchor(block) && visibleGapStart < anchorStart) {
+      const fixedAnchorIndex = nextFixedAnchorIndex(pendingPositionedBlocks, visibleGapStart);
+      const fixedAnchor = fixedAnchorIndex >= 0 ? pendingPositionedBlocks[fixedAnchorIndex] : null;
+      const anchorStart = fixedAnchor ? blockAnchorStart(fixedAnchor) : null;
+      if (fixedAnchor && visibleGapStart < anchorStart) {
         const fitIndex = findInstructionThatFitsGap(pendingPositionedBlocks, visibleGapStart, anchorStart);
-        if (fitIndex > 0) {
+        if (fitIndex >= 0) {
           const [fittingBlock] = pendingPositionedBlocks.splice(fitIndex, 1);
           pushAdjustedBlock(fittingBlock, visibleGapStart);
+          continue;
+        }
+        if (fixedAnchorIndex > 0) {
+          const [anchorBlock] = pendingPositionedBlocks.splice(fixedAnchorIndex, 1);
+          pushAdjustedBlock(anchorBlock);
           continue;
         }
       }
@@ -20058,7 +20228,9 @@ function removeLegacyLocalCourse(courseId) {
 function removeLegacyLocalEnrollment(enrollmentId) {
   const enrollment = state.enrollments.find((entry) => entry.id === enrollmentId);
   state.enrollments = state.enrollments.filter((entry) => entry.id !== enrollmentId);
-  if (enrollment) removePlansForStudentCourse(enrollment.studentId, enrollment.courseId);
+  if (enrollment && !studentEnrolledCourseIds(enrollment.studentId).has(enrollment.courseId)) {
+    removePlansForStudentCourse(enrollment.studentId, enrollment.courseId);
+  }
 }
 
 function removeLegacyLocalCourseSection(sectionId) {
@@ -20184,14 +20356,16 @@ function createLegacyLocalEnrollment(payload) {
 }
 
 function createLegacyLocalCourseSection(payload) {
-  state.courseSections.push({
-    id: uid(),
+  const section = {
+    id: payload.id || uid(),
     ...payload,
     resourceGroup: String(payload.resourceGroup || "").trim(),
     concurrentCapacity: payload.concurrentCapacity == null ? null : Number(payload.concurrentCapacity),
     quarterNames: normalizeQuarterNames(payload.quarterNames),
     weekdays: Array.isArray(payload.weekdays) ? payload.weekdays.slice() : [1, 2, 3, 4, 5]
-  });
+  };
+  state.courseSections.push(section);
+  return section;
 }
 
 function updateLegacyLocalCourseSection(existingSection, payload) {
@@ -20207,7 +20381,55 @@ function updateLegacyLocalCourseSection(existingSection, payload) {
 }
 
 function createLegacyLocalSectionEnrollment(payload) {
-  state.sectionEnrollments.push({ id: uid(), ...payload });
+  const enrollment = { id: payload.id || uid(), ...payload };
+  state.sectionEnrollments.push(enrollment);
+  return enrollment;
+}
+
+function syncLegacyCourseSectionEnrollments(sectionId, courseId, selectedStudentIds = []) {
+  const selected = new Set(selectedStudentIds.filter(Boolean));
+  const existingForSection = state.sectionEnrollments.filter((entry) => entry.courseSectionId === sectionId);
+  selected.forEach((studentId) => {
+    const alreadyInSection = existingForSection.some((entry) => entry.studentId === studentId);
+    const flexibleCourseEnrollment = courseEnrollmentForStudentCourse(studentId, courseId);
+    const otherCourseEnrollment = courseSectionEnrollmentForStudentInCourse(studentId, courseId, sectionId);
+    if (!alreadyInSection) {
+      createLegacyLocalSectionEnrollment({ studentId, courseSectionId: sectionId, scheduleOrder: null });
+    }
+    if (flexibleCourseEnrollment) {
+      removeLegacyLocalEnrollment(flexibleCourseEnrollment.id);
+    }
+    if (otherCourseEnrollment) {
+      state.sectionEnrollments = state.sectionEnrollments.filter((entry) => entry.id !== otherCourseEnrollment.id);
+    }
+  });
+  existingForSection
+    .filter((entry) => !selected.has(entry.studentId))
+    .forEach((entry) => removeLegacyLocalSectionEnrollment(entry.id));
+}
+
+async function syncHostedCourseSectionEnrollments(sectionId, courseId, selectedStudentIds = []) {
+  const selected = new Set(selectedStudentIds.filter(Boolean));
+  const existingForSection = state.sectionEnrollments.filter((entry) => entry.courseSectionId === sectionId);
+  for (const studentId of selected) {
+    const alreadyInSection = existingForSection.some((entry) => entry.studentId === studentId);
+    const flexibleCourseEnrollment = courseEnrollmentForStudentCourse(studentId, courseId);
+    const otherCourseEnrollment = courseSectionEnrollmentForStudentInCourse(studentId, courseId, sectionId);
+    if (!alreadyInSection) {
+      await createHostedSectionEnrollment({ id: uid(), studentId, courseSectionId: sectionId, scheduleOrder: null });
+    }
+    if (flexibleCourseEnrollment) {
+      await deleteHostedEnrollment(flexibleCourseEnrollment.id);
+    }
+    if (otherCourseEnrollment) {
+      await deleteHostedSectionEnrollment(otherCourseEnrollment.id);
+    }
+  }
+  for (const entry of existingForSection) {
+    if (!selected.has(entry.studentId)) {
+      await deleteHostedSectionEnrollment(entry.id);
+    }
+  }
 }
 
 function updateLegacyLocalAttendance(existingAttendance, payload) {
@@ -21063,6 +21285,9 @@ function bindEvents() {
     if (!(target instanceof HTMLSelectElement)) return;
     syncCourseSectionFormFromCourse(target.value);
   });
+  document.getElementById("course-section-start-time")?.addEventListener("input", () => {
+    renderCourseSectionStudentChecklist(getSelectedCourseSectionStudentIds());
+  });
   document.getElementById("course-section-form")?.addEventListener("submit", (e) => {
     e.preventDefault();
     if (!ensureAdminAction()) return;
@@ -21073,32 +21298,53 @@ function bindEvents() {
     const concurrentCapacity = capacityRaw === "" ? null : Number(capacityRaw);
     const startTime = document.getElementById("course-section-start-time").value;
     const quarterNames = getSelectedCourseSectionQuarterNames();
+    const selectedStudentIds = getSelectedCourseSectionStudentIds();
     const weekdays = Array.from(document.querySelectorAll("input[name='course-section-weekday']:checked")).map((checkbox) => Number(checkbox.value));
     if (!courseId || !label || !startTime || !weekdays.length) { alert("Provide a course, class label, start time, and at least one weekday."); return; }
     if (concurrentCapacity != null && (!Number.isInteger(concurrentCapacity) || concurrentCapacity <= 0)) { alert("Class capacity must be a whole number greater than 0."); return; }
     if (!confirmEarlyClassStart(startTime)) return;
     const payload = { courseId, label, resourceGroup, concurrentCapacity, startTime, quarterNames, weekdays, scheduleOrder: null };
+    const conflictMessages = courseSectionConflictMessages(
+      courseSectionDraftFromForm({ courseId, startTime, quarterNames, weekdays }),
+      selectedStudentIds
+    );
+    if (conflictMessages.length) {
+      renderCourseSectionStudentChecklist(selectedStudentIds);
+      alert(`Class time conflict:\n\n${conflictMessages.join("\n")}`);
+      return;
+    }
     if (hostedModeEnabled) {
       (async () => {
         try {
+          let sectionId = editingCourseSectionId;
           if (editingCourseSectionId) {
             await updateHostedCourseSection(editingCourseSectionId, payload);
           } else {
-            await createHostedCourseSection({ id: uid(), ...payload });
+            sectionId = uid();
+            await createHostedCourseSection({ id: sectionId, ...payload });
+          }
+          if (sectionId) {
+            await syncHostedCourseSectionEnrollments(sectionId, courseId, selectedStudentIds);
           }
           resetCourseSectionForm();
           await refreshHostedCourseSections();
+          await refreshHostedSectionEnrollments();
           renderAll();
         } catch (error) {
-          alert(error.message || "Unable to save course section.");
+          alert(error.message || "Unable to save class.");
         }
       })();
       return;
     }
+    let sectionId = editingCourseSectionId;
     if (editingCourseSectionId) {
       updateLegacyLocalCourseSection(getCourseSection(editingCourseSectionId), payload);
     } else {
-      createLegacyLocalCourseSection(payload);
+      sectionId = uid();
+      createLegacyLocalCourseSection({ id: sectionId, ...payload });
+    }
+    if (sectionId) {
+      syncLegacyCourseSectionEnrollments(sectionId, courseId, selectedStudentIds);
     }
     resetCourseSectionForm();
     saveState();
@@ -22985,6 +23231,22 @@ function bindEvents() {
     }
     if (t.classList.contains("course-section-quarter-checkbox")) {
       renderCourseSectionQuarterChecklist(getSelectedCourseSectionQuarterNames());
+      renderCourseSectionStudentChecklist(getSelectedCourseSectionStudentIds());
+      return;
+    }
+    if (t instanceof HTMLInputElement && t.name === "course-section-weekday") {
+      renderCourseSectionStudentChecklist(getSelectedCourseSectionStudentIds());
+      return;
+    }
+    if (t.classList.contains("course-section-student-all-checkbox") && t instanceof HTMLInputElement) {
+      document.querySelectorAll(".course-section-student-checkbox").forEach((checkbox) => {
+        checkbox.checked = t.checked;
+      });
+      updateCourseSectionStudentSummary();
+      return;
+    }
+    if (t.classList.contains("course-section-student-checkbox")) {
+      updateCourseSectionStudentSummary();
       return;
     }
     if (t.classList.contains("student-enroll-course-checkbox")) {

@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-18
+Date: 2026-05-19
 
 ## Active Workstream
 
@@ -8,25 +8,20 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Tenant Dashboard performance for production family data is deployed after Legal acceptance.
+Deeper workflow QA from real usage: Class bulk enrollment and fixed-class scheduling correctness are deployed and validated.
 
 ## Completed Recently
 
-- Production-safe hosted smoke credentials were set outside the repo.
-- Hosted release gate passed for `https://mitchell.navigrader.com`.
-- Account Upgrade, Dormant Mode, Data Export, subscriber cancellation, and Legal acceptance are deployed, committed, and pushed.
-- Legal acceptance is live: public `/terms` and `/privacy`, required signup checkbox, recurring billing disclosure, Stripe terms consent, `legal_acceptances` audit records, and authenticated legal links.
-- Dashboard performance first pass is deployed to WEB001:
-  - tenant app now serves `app.js?v=202605190135`
-  - Dashboard renders only the active dashboard tab instead of all hidden charts/tables
-  - Compliance subtabs render only their own heavy data path
-  - Overview no longer forces Performance and Compliance tables/charts during initial Dashboard load
-- User timing on `mitchell.navigrader.com` after first pass:
-  - login about 5 seconds
-  - return to Dashboard about 2.5 seconds
-  - Execution about 1 second
-  - Performance about 3 seconds
-  - Compliance Hours/Days about 5 seconds before second trimming pass
+- Production-safe hosted smoke credentials exist outside the repo.
+- Account Upgrade, Dormant Mode, Data Export, subscriber cancellation, Legal acceptance, and Dashboard performance are deployed, committed, and pushed.
+- Class configuration now supports bulk student enrollment directly from the Class form.
+- Class roster save moves same-course flexible enrollments or same-course class enrollments cleanly into the selected class.
+- Class list now shows enrolled student names under the class enrollment count.
+- School Day scheduling now reflows flexible/non-class courses around fixed classes and looks ahead to fill open windows before later fixed classes.
+- Class roster UI now flags fixed-class conflicts by student, weekday, quarter/date scope, and time window.
+- Class save is blocked when selected students have conflicting fixed classes.
+- Backend section-enrollment create/update and course-section update now reject fixed-class conflicts with `409`.
+- Students and Quarters class-form dropdowns were polished to use compact checklist layout.
 
 ## Production State
 
@@ -35,35 +30,38 @@ Tenant Dashboard performance for production family data is deployed after Legal 
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `styles.css?v=202605182130`
-  - `app.js?v=202605190135`
-- Latest WEB001 Dashboard rollback snapshot:
-  - `/var/www/home-school-management/rollback/web-dashboard-performance-202605190135.tgz`
-- Latest Legal acceptance rollback snapshots:
-  - APP001 `/home/debian/rollback/hsm/legal-acceptance-202605182130/control-api`
-  - WEB001 `/var/www/home-school-management/rollback/web-legal-acceptance-202605182130.tgz`
+  - `app.js?v=202605191515`
+  - `styles.css?v=202605191530`
+- APP001 class-conflict rollback:
+  - `/home/debian/rollback/hsm/class-conflict-202605191515/`
+- WEB001 class-related rollback snapshots:
+  - `/var/www/home-school-management/rollback/web-class-bulk-enroll-202605190845.tgz`
+  - `/var/www/home-school-management/rollback/web-school-day-gap-fill-anchor-fix-202605191445.tgz`
+  - `/var/www/home-school-management/rollback/web-class-conflict-202605191515.tgz`
+  - `/var/www/home-school-management/rollback/web-class-quarters-polish-202605191530.tgz`
 
 ## Validation
 
-- Dashboard performance local syntax check passed with `node --check web/app.js`.
-- WEB001 serves the updated tenant app bundle.
-- Public tenant page returns `200` and references `app.js?v=202605190135`.
-- Production data count check for `tenant_mitchell_family` showed 4 students, 558 attendance rows, 3,988 instruction actual rows, and 1,270 test rows.
-- Full hosted release gate last passed after Legal acceptance deploy.
+- Local syntax checks passed:
+  - `node --check web/app.js`
+  - `node --check server/src/services/curriculum-service.js`
+  - `node --check server/src/repositories/postgres/curriculum-repository.js`
+- Backend conflict/non-conflict service behavior checks passed with fake repository data.
+- APP001 `hsm-api` restarted healthy and `/health` returned `{"ok":true}`.
+- WEB001 public HTML references `app.js?v=202605191515` and `styles.css?v=202605191530`.
+- Full hosted release gate passed for `https://mitchell.navigrader.com` after class conflict deployment.
 
 ## Current Blockers
 
-- Optional control-plane release gate requires production-safe control credentials.
-- Hosted smoke credentials are not available inside this Codex shell, so full hosted release gate needs the user environment.
+- None for the class bulk enrollment slice.
 
 ## Current Risks
 
+- Continue using smoke/test tenant data for mutating QA where possible.
 - Do not store smoke credentials or Stripe secrets in repo files.
-- Use a smoke/test tenant, not a real family account, for mutating validation.
-- Dashboard performance improved through frontend lazy rendering; deeper API/bootstrap optimization remains available if needed.
 - Untracked local scratch assets remain outside committed work.
 
 ## Next Actions
 
-1. Re-test the second Dashboard performance pass in production.
-2. Then resume backend/platform hardening, tenant/runtime correctness, or deeper workflow QA.
+1. Address the user's remaining workflow QA item.
+2. Then close the deeper workflow QA slice or move to backend/platform hardening.

@@ -7,7 +7,11 @@ function createCurriculumService(deps) {
     createCourse: async (payload) => curriculumRepository.createCourse(normalizeCoursePayload(payload)),
     createCourseSection: async (payload) => curriculumRepository.createCourseSection(normalizeCourseSectionPayload(payload)),
     createEnrollment: async (payload) => curriculumRepository.createEnrollment(normalizeEnrollmentPayload(payload)),
-    createSectionEnrollment: async (payload) => curriculumRepository.createSectionEnrollment(normalizeSectionEnrollmentPayload(payload)),
+    createSectionEnrollment: async (payload) => {
+      const normalized = normalizeSectionEnrollmentPayload(payload);
+      await assertSectionEnrollmentHasNoClassConflict(curriculumRepository, normalized);
+      return curriculumRepository.createSectionEnrollment(normalized);
+    },
     createStudentScheduleBlock: async (payload) => curriculumRepository.createStudentScheduleBlock(normalizeStudentScheduleBlockPayload(payload)),
     createSubject: async (payload) => curriculumRepository.createSubject(normalizeSubjectPayload(payload)),
     deleteCourse: (id) => curriculumRepository.deleteCourse(id),
@@ -23,12 +27,122 @@ function createCurriculumService(deps) {
     listStudentScheduleBlocksForUser: (user) => curriculumRepository.listStudentScheduleBlocksForUser(user),
     listSubjectsForUser: (user) => curriculumRepository.listSubjectsForUser(user),
     updateCourse: async (id, payload) => curriculumRepository.updateCourse(id, normalizeCoursePayload({ ...payload, id })),
-    updateCourseSection: async (id, payload) => curriculumRepository.updateCourseSection(id, normalizeCourseSectionPayload({ ...payload, id })),
+    updateCourseSection: async (id, payload) => {
+      const normalized = normalizeCourseSectionPayload({ ...payload, id });
+      await assertCourseSectionUpdateHasNoClassConflict(curriculumRepository, normalized);
+      return curriculumRepository.updateCourseSection(id, normalized);
+    },
     updateEnrollment: async (id, payload) => curriculumRepository.updateEnrollment(id, normalizeEnrollmentPayload({ ...payload, id })),
-    updateSectionEnrollment: async (id, payload) => curriculumRepository.updateSectionEnrollment(id, normalizeSectionEnrollmentPayload({ ...payload, id })),
+    updateSectionEnrollment: async (id, payload) => {
+      const normalized = normalizeSectionEnrollmentPayload({ ...payload, id });
+      await assertSectionEnrollmentHasNoClassConflict(curriculumRepository, normalized, id);
+      return curriculumRepository.updateSectionEnrollment(id, normalized);
+    },
     updateStudentScheduleBlock: async (id, payload) => curriculumRepository.updateStudentScheduleBlock(id, normalizeStudentScheduleBlockPayload({ ...payload, id })),
     updateSubject: async (id, payload) => curriculumRepository.updateSubject(id, normalizeSubjectPayload({ ...payload, id }))
   };
+}
+
+async function assertSectionEnrollmentHasNoClassConflict(curriculumRepository, sectionEnrollment, excludedSectionEnrollmentId = "") {
+  const targetSection = await curriculumRepository.getCourseSectionSchedule(sectionEnrollment.courseSectionId);
+  if (!targetSection) {
+    const error = new Error("Class not found.");
+    error.statusCode = 400;
+    throw error;
+  }
+  const existingSections = await curriculumRepository.listSectionEnrollmentSchedulesForStudent(
+    sectionEnrollment.studentId,
+    excludedSectionEnrollmentId
+  );
+  const conflict = existingSections.find((section) => courseSectionsHaveClassTimeConflict(targetSection, section));
+  if (conflict) throw buildClassTimeConflictError(conflict);
+}
+
+async function assertCourseSectionUpdateHasNoClassConflict(curriculumRepository, section) {
+  const courseContext = await curriculumRepository.getCourseScheduleContext(section.courseId);
+  if (!courseContext) {
+    const error = new Error("Course not found.");
+    error.statusCode = 400;
+    throw error;
+  }
+  const targetSection = {
+    ...section,
+    courseName: courseContext.name,
+    hoursPerDay: courseContext.hoursPerDay,
+    courseQuarterNames: courseContext.quarterNames
+  };
+  const currentEnrollments = await curriculumRepository.listSectionEnrollmentSchedulesForCourseSection(section.id);
+  for (const enrollment of currentEnrollments) {
+    const existingSections = await curriculumRepository.listSectionEnrollmentSchedulesForStudent(
+      enrollment.studentId,
+      enrollment.sectionEnrollmentId
+    );
+    const conflict = existingSections.find((existingSection) => courseSectionsHaveClassTimeConflict(targetSection, existingSection));
+    if (conflict) throw buildClassTimeConflictError(conflict);
+  }
+}
+
+function buildClassTimeConflictError(conflictSection) {
+  const error = new Error(`Class time conflict with ${formatConflictSection(conflictSection)}.`);
+  error.statusCode = 409;
+  return error;
+}
+
+function normalizeScheduleWeekdays(input, fallback = [1, 2, 3, 4, 5]) {
+  const weekdays = Array.isArray(input)
+    ? Array.from(new Set(input.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5))).sort((a, b) => a - b)
+    : [];
+  return weekdays.length ? weekdays : [...fallback];
+}
+
+function effectiveScheduleQuarterNames(section) {
+  const sectionNames = Array.isArray(section?.quarterNames) ? section.quarterNames.filter(Boolean) : [];
+  if (sectionNames.length) return sectionNames;
+  return Array.isArray(section?.courseQuarterNames) ? section.courseQuarterNames.filter(Boolean) : [];
+}
+
+function quarterNamesOverlap(firstSection, secondSection) {
+  const first = new Set(effectiveScheduleQuarterNames(firstSection));
+  const second = new Set(effectiveScheduleQuarterNames(secondSection));
+  if (!first.size || !second.size) return true;
+  return [...first].some((name) => second.has(name));
+}
+
+function parseScheduleMinutes(value) {
+  const match = String(value || "").trim().match(/^(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
+}
+
+function courseSectionScheduleWindow(section) {
+  const start = parseScheduleMinutes(section?.startTime || "08:00");
+  const hoursPerDay = Number(section?.hoursPerDay || 1);
+  if (!Number.isFinite(start)) return null;
+  const durationMinutes = Math.max(15, Math.round((Number.isFinite(hoursPerDay) && hoursPerDay > 0 ? hoursPerDay : 1) * 60));
+  return { start, end: Math.min(24 * 60, start + durationMinutes) };
+}
+
+function courseSectionsHaveClassTimeConflict(firstSection, secondSection) {
+  if (!firstSection || !secondSection || firstSection.id === secondSection.id) return false;
+  if (firstSection.courseId && firstSection.courseId === secondSection.courseId) return false;
+  const firstWeekdays = normalizeScheduleWeekdays(firstSection.weekdays);
+  const secondWeekdays = normalizeScheduleWeekdays(secondSection.weekdays);
+  if (!firstWeekdays.some((day) => secondWeekdays.includes(day))) return false;
+  if (!quarterNamesOverlap(firstSection, secondSection)) return false;
+  const firstWindow = courseSectionScheduleWindow(firstSection);
+  const secondWindow = courseSectionScheduleWindow(secondSection);
+  if (!firstWindow || !secondWindow) return false;
+  return firstWindow.start < secondWindow.end && firstWindow.end > secondWindow.start;
+}
+
+function formatConflictSection(section) {
+  const courseName = String(section?.courseName || "Class").trim();
+  const label = String(section?.label || "").trim();
+  const startTime = String(section?.startTime || "08:00").trim();
+  return `${courseName}${label ? ` - ${label}` : ""} at ${startTime}`;
 }
 
 function normalizeSubjectPayload(input) {

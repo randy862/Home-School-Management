@@ -4476,6 +4476,7 @@ td {
 }
 
 .course-section-form label,
+.course-section-form .course-section-field,
 .course-section-form fieldset {
   min-width: 0;
 }
@@ -4496,6 +4497,10 @@ td {
 }
 
 .course-section-quarters-field {
+  grid-column: span 2;
+}
+
+.course-section-students-field {
   grid-column: span 2;
 }
 
@@ -13116,6 +13121,7 @@ tbody tr:hover {
 #app-shell #grade-type-form label,
 #app-shell #course-form label,
 #app-shell .course-section-form label,
+#app-shell .course-section-form .course-section-field,
 #app-shell .course-section-form fieldset,
 #app-shell #grading-criteria-form label {
   color: #5b6a80;
@@ -13206,6 +13212,82 @@ tbody tr:hover {
   gap: 0.3rem 0.65rem;
   min-height: 54px;
   padding: 0.25rem 0.55rem 0.35rem;
+}
+
+#app-shell .course-section-form .course-section-students-field,
+#app-shell .course-section-form .course-section-quarters-field {
+  display: grid;
+  gap: 0.2rem;
+  align-self: stretch;
+}
+
+#app-shell .course-section-form .course-section-field-label {
+  color: #5b6a80;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+#app-shell .course-section-form .course-section-students-field .multi-select-dropdown[open] .checklist-vertical,
+#app-shell .course-section-form .course-section-quarters-field .multi-select-dropdown[open] .checklist-vertical {
+  max-height: 260px;
+  overflow: auto;
+}
+
+#app-shell .course-section-form .course-section-students-field .checklist-row,
+#app-shell .course-section-form .course-section-quarters-field .checklist-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 0.45rem;
+  padding: 0.24rem 0.1rem;
+}
+
+#app-shell .course-section-form .course-section-students-field .checklist-row input[type="checkbox"],
+#app-shell .course-section-form .course-section-quarters-field .checklist-row input[type="checkbox"] {
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 0.14rem 0 0;
+  justify-self: start;
+}
+
+#app-shell .course-section-form .course-section-quarters-field .checklist-row label {
+  display: block;
+  min-width: 0;
+  color: #31435d;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+#app-shell .course-section-form .course-section-student-all-row label {
+  color: #31435d;
+  font-weight: 600;
+}
+
+#app-shell .course-section-form .course-section-student-row label {
+  display: block;
+  width: auto;
+  min-width: 0;
+  cursor: pointer;
+}
+
+#app-shell .course-section-form .course-section-student-row .schedule-source-cell {
+  gap: 0.18rem;
+}
+
+#app-shell .course-section-form .course-section-student-conflict-row {
+  border-radius: 10px;
+  background: #fff5f4;
+}
+
+#app-shell .course-section-form .course-section-student-conflict-row .schedule-source-meta span:last-child {
+  border-color: #f1b8b3;
+  background: #fff8f7;
+  color: #8b2520;
 }
 
 #app-shell #course-form .course-weekdays-field label,
