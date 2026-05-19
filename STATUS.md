@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Subscriber-facing cancellation is deployed after the Data Export slice.
+Subscriber-facing cancellation is deployed and smoke-QA passed after the Data Export slice.
 
 ## Completed Recently
 
@@ -30,6 +30,7 @@ Subscriber-facing cancellation is deployed after the Data Export slice.
 - Committed and pushed `ad9103c Add data export checkout return page`.
 - Subscriber cancellation is deployed: Account Options schedules Stripe period-end cancellation and can reverse it with Keep Subscription Active.
 - Subscriber cancellation status fix is deployed: tenant account summary now returns `cancelAtPeriodEnd` for Account/Profile UI.
+- User verified Cancel Subscription and Keep Subscription Active on `smoketest.navigrader.com`.
 - Public-site polish remains deployed and committed as `6fd203e Blend public closing cards`.
 
 ## Production State
@@ -91,5 +92,4 @@ Subscriber-facing cancellation is deployed after the Data Export slice.
 
 ## Next Actions
 
-1. Have user QA Cancel Subscription and Keep Subscription Active on `smoketest.navigrader.com`.
-2. Resume with backend/platform hardening or tenant/runtime correctness.
+1. Resume with backend/platform hardening or tenant/runtime correctness.

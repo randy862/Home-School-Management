@@ -45,11 +45,11 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
   - APP001 status fix rollback `/home/debian/rollback/hsm/subscription-cancel-status-fix-20260518195943`
   - WEB001 rollback `/var/www/home-school-management/rollback/web-subscription-cancel-202605181939.tgz`
   - WEB001 status fix rollback `/var/www/home-school-management/rollback/web-subscription-cancel-status-fix-20260518195943.tgz`
+  - smoke QA passed for Cancel Subscription and Keep Subscription Active
 
 ## Next Action
 
-1. Have user QA Cancel Subscription and Keep Subscription Active on `smoketest.navigrader.com`; do not test against real family data.
-2. Resume with backend/platform hardening or tenant/runtime correctness.
+1. Resume with backend/platform hardening or tenant/runtime correctness.
 
 ## Risks
 
@@ -68,3 +68,4 @@ Product/platform follow-up is active after public-site polish. Focus is authenti
 - Friendly Data Export download filename route deployed on APP001; local/remote syntax checks and control API health passed.
 - Branded Data Export return page deployed; APP001 route syntax, tenant API health, public tenant health, and static page HTTPS checks passed.
 - Subscriber cancellation local/remote syntax checks passed; APP001 control/API health, public health, and static app bundle checks passed after deployment and status fix.
+- User verified subscriber cancellation and Keep Subscription Active on `smoketest.navigrader.com`.
