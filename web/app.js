@@ -1536,6 +1536,7 @@ const expandedStudentInstructionalHourRows = new Set();
 let dashboardExpandableRenderCache = null;
 let dashboardExpandableMetricsCache = null;
 let dashboardDirty = true;
+const dashboardRenderedKeys = new Set();
 let currentComplianceTab = "instructional-hours";
 let requiredSubjectComplianceGrade = "all";
 let requiredSubjectComplianceStatus = "all";
@@ -3541,6 +3542,28 @@ function invalidateDashboardCache() {
   dashboardDirty = true;
   dashboardExpandableRenderCache = null;
   dashboardExpandableMetricsCache = null;
+  dashboardRenderedKeys.clear();
+}
+
+function normalizedDashboardTab() {
+  return ["overview", "execution", "performance", "compliance"].includes(currentDashboardTab)
+    ? currentDashboardTab
+    : "overview";
+}
+
+function normalizedComplianceTab() {
+  return ["instructional-hours", "instructional-days", "required-subjects"].includes(currentComplianceTab)
+    ? currentComplianceTab
+    : "instructional-hours";
+}
+
+function currentDashboardRenderKey() {
+  const tab = normalizedDashboardTab();
+  return tab === "compliance" ? `${tab}:${normalizedComplianceTab()}` : tab;
+}
+
+function dashboardNeedsRender() {
+  return dashboardDirty || !dashboardRenderedKeys.has(currentDashboardRenderKey());
 }
 
 function renderCurrentTabPanel() {
@@ -3585,7 +3608,8 @@ function renderCurrentTabPanel() {
       updateGradeEntryVisibility();
       break;
     case "dashboard":
-      if (dashboardDirty || !dashboardExpandableMetricsCache) renderDashboard();
+      if (dashboardNeedsRender()) renderDashboard();
+      else renderDashboardSectionVisibility();
       break;
     case "school-day":
       renderSchoolDay();
@@ -5334,9 +5358,7 @@ function applyAcademicYearViewContext(schoolYearId) {
   if (!getSchoolYear(schoolYearId)) return;
   setCurrentSchoolYear(schoolYearId);
   saveActiveAcademicYearPreference(schoolYearId);
-  dashboardDirty = true;
-  dashboardExpandableRenderCache = null;
-  dashboardExpandableMetricsCache = null;
+  invalidateDashboardCache();
   editingSearchAttendanceId = "";
   editingSearchGradeId = "";
   schoolDayInlineGradeKey = "";
@@ -9412,9 +9434,8 @@ function updateAdministrationWorkspaceSummary(config) {
 }
 
 function renderDashboardSectionVisibility() {
-  const visibleTab = ["overview", "execution", "performance", "compliance"].includes(currentDashboardTab)
-    ? currentDashboardTab
-    : "overview";
+  const visibleTab = normalizedDashboardTab();
+  currentDashboardTab = visibleTab;
   const config = workspaceConfig || DEFAULT_WORKSPACE_CONFIG;
   const tabSectionMap = {
     overview: [
@@ -11618,7 +11639,6 @@ function rerenderAfterEnrollmentChange() {
 function rerenderAfterSchoolCalendarConfigChange() {
   invalidateDashboardCache();
   renderAll();
-  if (currentTab !== "dashboard") renderDashboard();
   renderAlertsMenu();
 }
 
@@ -12591,7 +12611,7 @@ function openAverageGradeRiskWatchlist() {
   currentDashboardTab = "performance";
   activateTab("dashboard");
   renderDashboardSectionVisibility();
-  if (dashboardDirty || !dashboardExpandableMetricsCache) renderDashboard();
+  if (dashboardNeedsRender()) renderDashboard();
   const watchlist = document.getElementById("dashboard-section-grade-risk-watchlist");
   if (watchlist) {
     watchlist.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -15758,14 +15778,25 @@ function renderDashboardExpandableTables() {
   );
 }
 
-function buildDashboardExpandableMetrics(dashboardStudents, totalAttendanceDays, attendanceDatesThroughToday, quarterByName, studentPerformanceInstructorFilter, studentInstructionalHoursInstructorFilter) {
+function buildDashboardExpandableMetrics(
+  dashboardStudents,
+  totalAttendanceDays,
+  attendanceDatesThroughToday,
+  quarterByName,
+  studentPerformanceInstructorFilter,
+  studentInstructionalHoursInstructorFilter,
+  options = {}
+) {
+  const includePerformance = options.includePerformance !== false;
+  const includeAttendance = options.includeAttendance !== false;
+  const includeInstructionalHours = options.includeInstructionalHours !== false;
   const gradeTypeOrder = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final", "Quarter Final"];
   const q1 = quarterByName.get("Q1");
   const q2 = quarterByName.get("Q2");
   const q3 = quarterByName.get("Q3");
   const q4 = quarterByName.get("Q4");
 
-  const performanceMetrics = dashboardStudents
+  const performanceMetrics = includePerformance ? dashboardStudents
     .map((student) => {
       const studentTests = state.tests.filter((t) => t.studentId === student.id && testMatchesInstructorFilter(t, studentPerformanceInstructorFilter));
       const q1Tests = q1 ? studentTests.filter((t) => inRange(t.date, q1.startDate, q1.endDate)) : [];
@@ -15853,9 +15884,9 @@ function buildDashboardExpandableMetrics(dashboardStudents, totalAttendanceDays,
         subjects
       };
     })
-    .sort((a, b) => b.sortValue - a.sortValue || a.studentName.localeCompare(b.studentName));
+    .sort((a, b) => b.sortValue - a.sortValue || a.studentName.localeCompare(b.studentName)) : null;
 
-  const attendanceMetrics = dashboardStudents.map((student) => {
+  const attendanceMetrics = includeAttendance ? dashboardStudents.map((student) => {
     const summary = studentAttendanceSummary(student.id);
     return {
       studentId: student.id,
@@ -15875,30 +15906,34 @@ function buildDashboardExpandableMetrics(dashboardStudents, totalAttendanceDays,
         };
       })
     };
-  });
+  }) : null;
 
-  const instructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { instructorId: studentInstructionalHoursInstructorFilter });
-  const instructionalHourMetrics = dashboardStudents
-    .map((student) => {
-      const studentSummary = instructionalHours.summaryByStudent.get(student.id) || {
-        buckets: Object.fromEntries(instructionalHours.buckets.map((bucket) => [bucket.key, { earned: 0, projected: 0 }])),
-        subjects: new Map()
-      };
-      return {
-        studentId: student.id,
-        studentName: `${student.firstName} ${student.lastName}`,
-        earnedTotal: studentSummary.buckets.total.earned,
-        buckets: studentSummary.buckets,
-        subjects: Array.from(studentSummary.subjects.values())
-          .sort((a, b) => (b.buckets.total.earned - a.buckets.total.earned) || getSubjectName(a.subjectId).localeCompare(getSubjectName(b.subjectId)))
-          .map((subjectSummary) => ({
-            subjectId: subjectSummary.subjectId,
-            subjectName: getSubjectName(subjectSummary.subjectId),
-            buckets: subjectSummary.buckets
-          }))
-      };
-    })
-    .sort((a, b) => b.earnedTotal - a.earnedTotal || a.studentName.localeCompare(b.studentName));
+  let instructionalHours = null;
+  let instructionalHourMetrics = null;
+  if (includeInstructionalHours) {
+    instructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { instructorId: studentInstructionalHoursInstructorFilter });
+    instructionalHourMetrics = dashboardStudents
+      .map((student) => {
+        const studentSummary = instructionalHours.summaryByStudent.get(student.id) || {
+          buckets: Object.fromEntries(instructionalHours.buckets.map((bucket) => [bucket.key, { earned: 0, projected: 0 }])),
+          subjects: new Map()
+        };
+        return {
+          studentId: student.id,
+          studentName: `${student.firstName} ${student.lastName}`,
+          earnedTotal: studentSummary.buckets.total.earned,
+          buckets: studentSummary.buckets,
+          subjects: Array.from(studentSummary.subjects.values())
+            .sort((a, b) => (b.buckets.total.earned - a.buckets.total.earned) || getSubjectName(a.subjectId).localeCompare(getSubjectName(b.subjectId)))
+            .map((subjectSummary) => ({
+              subjectId: subjectSummary.subjectId,
+              subjectName: getSubjectName(subjectSummary.subjectId),
+              buckets: subjectSummary.buckets
+            }))
+        };
+      })
+      .sort((a, b) => b.earnedTotal - a.earnedTotal || a.studentName.localeCompare(b.studentName));
+  }
 
   return { performanceMetrics, attendanceMetrics, instructionalHours, instructionalHourMetrics };
 }
@@ -15908,10 +15943,11 @@ function renderDashboardExpandableTablesFast() {
   const metrics = dashboardExpandableMetricsCache;
   if (!context || !metrics) return;
 
-  const { selectedGradeMethods } = context;
+  const { selectedGradeMethods = STUDENT_PERFORMANCE_GRADE_METHODS } = context;
   const { performanceMetrics, attendanceMetrics, instructionalHours, instructionalHourMetrics } = metrics;
 
-  const studentRows = performanceMetrics.flatMap((entry) => {
+  if (Array.isArray(performanceMetrics)) {
+    const studentRows = performanceMetrics.flatMap((entry) => {
     const expanded = expandedStudentAverageRows.has(entry.studentId);
     const subjectRows = entry.subjects.flatMap((subject) => {
       const subjectKey = `${entry.studentId}::${subject.subjectId}`;
@@ -15925,19 +15961,21 @@ function renderDashboardExpandableTablesFast() {
     const detailRow = expanded ? (subjectRows || "<tr class='student-avg-detail-row'><td colspan='7' class='muted student-avg-detail-empty'>No subject grades yet.</td></tr>") : "";
     return detailRow ? [row, detailRow] : [row];
   });
-  if (performanceMetrics.length) {
-    const totals = {
-      total: performanceMetrics.filter((entry) => entry.totalCount > 0).map((entry) => entry.totalAvg),
-      q1: performanceMetrics.filter((entry) => entry.q1Count > 0).map((entry) => entry.q1Avg),
-      q2: performanceMetrics.filter((entry) => entry.q2Count > 0).map((entry) => entry.q2Avg),
-      q3: performanceMetrics.filter((entry) => entry.q3Count > 0).map((entry) => entry.q3Avg),
-      q4: performanceMetrics.filter((entry) => entry.q4Count > 0).map((entry) => entry.q4Avg)
-    };
-    studentRows.push(`<tr class="student-performance-row student-performance-average-row"><td><strong>Average</strong></td><td></td><td>${formatDashboardAverageCell(avg(totals.total), totals.total.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q1), totals.q1.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q2), totals.q2.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q3), totals.q3.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q4), totals.q4.length, selectedGradeMethods)}</td></tr>`);
+    if (performanceMetrics.length) {
+      const totals = {
+        total: performanceMetrics.filter((entry) => entry.totalCount > 0).map((entry) => entry.totalAvg),
+        q1: performanceMetrics.filter((entry) => entry.q1Count > 0).map((entry) => entry.q1Avg),
+        q2: performanceMetrics.filter((entry) => entry.q2Count > 0).map((entry) => entry.q2Avg),
+        q3: performanceMetrics.filter((entry) => entry.q3Count > 0).map((entry) => entry.q3Avg),
+        q4: performanceMetrics.filter((entry) => entry.q4Count > 0).map((entry) => entry.q4Avg)
+      };
+      studentRows.push(`<tr class="student-performance-row student-performance-average-row"><td><strong>Average</strong></td><td></td><td>${formatDashboardAverageCell(avg(totals.total), totals.total.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q1), totals.q1.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q2), totals.q2.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q3), totals.q3.length, selectedGradeMethods)}</td><td>${formatDashboardAverageCell(avg(totals.q4), totals.q4.length, selectedGradeMethods)}</td></tr>`);
+    }
+    rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 7);
   }
-  rowOrEmpty(document.getElementById("student-avg-table"), studentRows, "No students added yet.", 7);
 
-  const studentAttendanceRows = attendanceMetrics.flatMap((entry) => {
+  if (Array.isArray(attendanceMetrics)) {
+    const studentAttendanceRows = attendanceMetrics.flatMap((entry) => {
     const expandedAttendance = expandedStudentAttendanceRows.has(entry.studentId);
     const attendancePercent = entry.totalDays > 0 ? clamp(entry.attendanceAverage, 0, 100) : 0;
     const studentRow = `<tr class="student-analytics-row"><td><div class="student-analytics-name"><button type="button" class="student-avg-toggle" data-toggle-student-attendance="${entry.studentId}" aria-expanded="${expandedAttendance ? "true" : "false"}">${renderDashboardToggleGlyph(expandedAttendance)}</button>${renderStudentInitialsBadge(entry.studentName)}<span>${escapeHtml(entry.studentName)}<small>${entry.totalDays > 0 ? `${entry.present} present, ${entry.absent} absent` : "No days yet"}</small></span></div></td><td>${entry.totalDays}</td><td>${entry.present}</td><td>${entry.absent}</td><td><div class="hours-analytics-cell attendance-analytics-cell"><span>${entry.totalDays > 0 ? `${entry.attendanceAverage.toFixed(1)}%` : "No days yet"}</span><i><b style="width: ${attendancePercent.toFixed(1)}%"></b></i></div></td></tr>`;
@@ -15948,13 +15986,15 @@ function renderDashboardExpandableTablesFast() {
     });
     return [studentRow, ...quarterRows];
   });
-  rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
+    rowOrEmpty(document.getElementById("dashboard-student-attendance-table"), studentAttendanceRows, "No students added yet.", 5);
+  }
 
-  const selectedInstructionalHoursStudentId = studentInstructionalHoursSelectedStudentId || "all";
-  const visibleInstructionalHourMetrics = selectedInstructionalHoursStudentId === "all"
-    ? instructionalHourMetrics
-    : instructionalHourMetrics.filter((entry) => entry.studentId === selectedInstructionalHoursStudentId);
-  const instructionalHourRows = visibleInstructionalHourMetrics.flatMap((entry) => {
+  if (instructionalHours && Array.isArray(instructionalHourMetrics)) {
+    const selectedInstructionalHoursStudentId = studentInstructionalHoursSelectedStudentId || "all";
+    const visibleInstructionalHourMetrics = selectedInstructionalHoursStudentId === "all"
+      ? instructionalHourMetrics
+      : instructionalHourMetrics.filter((entry) => entry.studentId === selectedInstructionalHoursStudentId);
+    const instructionalHourRows = visibleInstructionalHourMetrics.flatMap((entry) => {
     const expanded = expandedStudentInstructionalHourRows.has(entry.studentId);
     const detailRows = entry.subjects.map((subjectSummary) => `<tr class="student-avg-detail-row"><td class="student-avg-subject-cell">${subjectNameWithRequiredBadge(subjectSummary.subjectId)}</td>${instructionalHours.buckets.map((bucket) => `<td>${formatDashboardInstructionalHoursCell(subjectSummary.buckets[bucket.key])}</td>`).join("")}<td></td></tr>`).join("");
     const projectedTotal = Number(entry.buckets.total?.projected || 0);
@@ -15966,12 +16006,13 @@ function renderDashboardExpandableTablesFast() {
     const detailRow = expanded ? (detailRows || "<tr class='student-avg-detail-row'><td colspan='7' class='muted student-avg-detail-empty'>No scheduled instructional hours yet.</td></tr>") : "";
     return detailRow ? [row, detailRow] : [row];
   });
-  rowOrEmpty(
-    document.getElementById("dashboard-student-instructional-hours-table"),
-    instructionalHourRows,
-    selectedInstructionalHoursStudentId === "all" ? "No students added yet." : "No instructional hours found for the selected student.",
-    6
-  );
+    rowOrEmpty(
+      document.getElementById("dashboard-student-instructional-hours-table"),
+      instructionalHourRows,
+      selectedInstructionalHoursStudentId === "all" ? "No students added yet." : "No instructional hours found for the selected student.",
+      6
+    );
+  }
 }
 
 function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filters = {}) {
@@ -17557,6 +17598,12 @@ function openRequiredSubjectComplianceStudents(subjectId, status) {
 
 function renderDashboard() {
   renderDashboardSectionVisibility();
+  const activeDashboardTab = normalizedDashboardTab();
+  const activeComplianceTab = normalizedComplianceTab();
+  const shouldRenderOverview = activeDashboardTab === "overview";
+  const shouldRenderExecution = activeDashboardTab === "execution";
+  const shouldRenderPerformance = activeDashboardTab === "performance";
+  const shouldRenderCompliance = activeDashboardTab === "compliance";
   const attendanceDialStatus = (value) => {
     const pct = Number(value || 0);
     if (pct >= 98) return { status: "attendance-outstanding", label: "Outstanding", text: "Exceptional consistency and participation", threshold: "98%" };
@@ -17601,122 +17648,153 @@ function renderDashboard() {
   };
   const dashboardStudents = visibleStudents();
   const referenceDate = defaultReferenceDateForActiveYear();
-  const dates = instructionalDates();
-  const yP = progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate));
-  const overviewDaySnapshot = buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate);
-  const projectedDayStatusNode = document.getElementById("kpi-instruction-days-status");
-  const projectedDayNoteNode = document.getElementById("kpi-instruction-days-note");
-  const projectedDayRequiredNode = document.getElementById("kpi-instruction-days-required");
-  const projectedDayProjectedNode = document.getElementById("kpi-instruction-days-projected");
-  const projectedDayIconNode = document.getElementById("kpi-instruction-days-icon");
-  const projectedDayCard = document.querySelector(".kpi-instruction-days-card");
-  const projectedToleranceDays = Math.max(1, Number(overviewDaySnapshot.requiredTotal || 0) * 0.01);
-  const projectedDayStatus = overviewDaySnapshot.requiredTotal <= 0.01 && overviewDaySnapshot.projected <= 0.01
-    ? { label: "Year Opening", className: "starting", note: "Projected instruction days will appear once the year begins." }
-    : overviewDaySnapshot.projectedDiff < -projectedToleranceDays
-      ? { label: "Projected Short", className: "behind", note: "Projected below the required instruction days." }
-      : { label: "On Track", className: "on-track", note: "Projected to meet the required instruction days." };
-  if (projectedDayStatusNode) projectedDayStatusNode.textContent = projectedDayStatus.label;
-  if (projectedDayNoteNode) projectedDayNoteNode.textContent = projectedDayStatus.note;
-  if (projectedDayRequiredNode) projectedDayRequiredNode.textContent = `${overviewDaySnapshot.requiredTotal.toFixed(0)} days`;
-  if (projectedDayProjectedNode) projectedDayProjectedNode.textContent = `${overviewDaySnapshot.projected.toFixed(0)} days`;
-  if (projectedDayIconNode) projectedDayIconNode.className = `kpi-projected-hours-icon ${projectedDayStatus.className}`;
-  if (projectedDayCard) projectedDayCard.dataset.status = projectedDayStatus.className;
-
-  const g = gradeAnalytics();
-  const dashboardInstructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { referenceDate });
-  const overviewHourPaceSnapshot = buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate);
-  const projectedHourStatusNode = document.getElementById("kpi-instruction-hours-status");
-  const projectedHourNoteNode = document.getElementById("kpi-instruction-hours-note");
-  const projectedHourRequiredNode = document.getElementById("kpi-instruction-hours-required");
-  const projectedHourProjectedNode = document.getElementById("kpi-instruction-hours-projected");
-  const projectedHourIconNode = document.getElementById("kpi-instruction-hours-icon");
-  const projectedHourCard = document.querySelector(".kpi-instruction-hours-card");
-  const projectedToleranceHours = Math.max(1, Number(overviewHourPaceSnapshot.requiredTotal || 0) * 0.01);
-  const projectedHourStatus = overviewHourPaceSnapshot.requiredTotal <= 0.01 && overviewHourPaceSnapshot.projectedTotal <= 0.01
-    ? { label: "Year Opening", className: "starting", note: "Projected instruction hours will appear once the year begins." }
-    : overviewHourPaceSnapshot.projectedVarianceHours < -projectedToleranceHours
-      ? { label: "Projected Short", className: "behind", note: "Projected below the required instruction hours." }
-      : { label: "On Track", className: "on-track", note: "Projected to exceed the required instruction hours." };
-  if (projectedHourStatusNode) projectedHourStatusNode.textContent = projectedHourStatus.label;
-  if (projectedHourNoteNode) projectedHourNoteNode.textContent = projectedHourStatus.note;
-  if (projectedHourRequiredNode) projectedHourRequiredNode.textContent = `${overviewHourPaceSnapshot.requiredTotal.toFixed(2)} hrs`;
-  if (projectedHourProjectedNode) projectedHourProjectedNode.textContent = `${overviewHourPaceSnapshot.projectedTotal.toFixed(2)} hrs`;
-  if (projectedHourIconNode) projectedHourIconNode.className = `kpi-projected-hours-icon ${projectedHourStatus.className}`;
-  if (projectedHourCard) projectedHourCard.dataset.status = projectedHourStatus.className;
-  const runningAverage = isStudentUser() && dashboardStudents.length === 1
-    ? studentOverallAverage(dashboardStudents[0].id)
-    : g.running;
-  const gradeDialStatus = performanceDialStatus(runningAverage);
-  setOverviewStatusCard({
-    cardId: "kpi-grade-card",
-    iconId: "kpi-grade-icon",
-    statusId: "kpi-grade-status",
-    noteId: "kpi-grade-note",
-    levelId: "kpi-grade-level",
-    levelLabel: gradeDialStatus.label,
-    valueId: "kpi-running-avg",
-    value: runningAverage,
-    status: gradeDialStatus
-  });
-
+  const renderInstructionDays = shouldRenderOverview || (shouldRenderCompliance && activeComplianceTab === "instructional-days");
+  const renderInstructionHours = shouldRenderOverview || (shouldRenderCompliance && activeComplianceTab === "instructional-hours");
+  const dates = renderInstructionDays ? instructionalDates() : [];
+  const yP = (shouldRenderOverview || shouldRenderCompliance)
+    ? progress(state.settings.schoolYear.startDate, state.settings.schoolYear.endDate, toDate(referenceDate))
+    : 0;
   const attendanceDatesThroughToday = dates.filter((d) => d <= referenceDate);
   const totalAttendanceDays = attendanceDatesThroughToday.length;
-  const attendanceTotals = dashboardStudents.reduce((totals, student) => {
-    const summary = studentAttendanceSummary(student.id);
-    totals.present += Number(summary.attended || 0);
-    return totals;
-  }, { present: 0 });
-  const totalPossibleAttendance = totalAttendanceDays * dashboardStudents.length;
-  const overallAttendanceAverage = totalPossibleAttendance > 0
-    ? (attendanceTotals.present / totalPossibleAttendance) * 100
-    : 0;
-  const attendanceDialStatusValue = attendanceDialStatus(overallAttendanceAverage);
-  setOverviewStatusCard({
-    cardId: "kpi-attendance-card",
-    iconId: "kpi-attendance-icon",
-    statusId: "kpi-attendance-status",
-    noteId: "kpi-attendance-note",
-    levelId: "kpi-attendance-level",
-    levelLabel: attendanceDialStatusValue.label,
-    valueId: "kpi-attendance-overall",
-    value: overallAttendanceAverage,
-    status: attendanceDialStatusValue
-  });
 
-  const q = currentQuarter(toDate(referenceDate));
-  const qP = q ? progress(q.startDate, q.endDate, toDate(referenceDate)) : 0;
+  let overviewDaySnapshot = null;
+  if (renderInstructionDays) {
+    overviewDaySnapshot = buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate);
+  }
+  if (shouldRenderOverview && overviewDaySnapshot) {
+    const projectedDayStatusNode = document.getElementById("kpi-instruction-days-status");
+    const projectedDayNoteNode = document.getElementById("kpi-instruction-days-note");
+    const projectedDayRequiredNode = document.getElementById("kpi-instruction-days-required");
+    const projectedDayProjectedNode = document.getElementById("kpi-instruction-days-projected");
+    const projectedDayIconNode = document.getElementById("kpi-instruction-days-icon");
+    const projectedDayCard = document.querySelector(".kpi-instruction-days-card");
+    const projectedToleranceDays = Math.max(1, Number(overviewDaySnapshot.requiredTotal || 0) * 0.01);
+    const projectedDayStatus = overviewDaySnapshot.requiredTotal <= 0.01 && overviewDaySnapshot.projected <= 0.01
+      ? { label: "Year Opening", className: "starting", note: "Projected instruction days will appear once the year begins." }
+      : overviewDaySnapshot.projectedDiff < -projectedToleranceDays
+        ? { label: "Projected Short", className: "behind", note: "Projected below the required instruction days." }
+        : { label: "On Track", className: "on-track", note: "Projected to meet the required instruction days." };
+    if (projectedDayStatusNode) projectedDayStatusNode.textContent = projectedDayStatus.label;
+    if (projectedDayNoteNode) projectedDayNoteNode.textContent = projectedDayStatus.note;
+    if (projectedDayRequiredNode) projectedDayRequiredNode.textContent = `${overviewDaySnapshot.requiredTotal.toFixed(0)} days`;
+    if (projectedDayProjectedNode) projectedDayProjectedNode.textContent = `${overviewDaySnapshot.projected.toFixed(0)} days`;
+    if (projectedDayIconNode) projectedDayIconNode.className = `kpi-projected-hours-icon ${projectedDayStatus.className}`;
+    if (projectedDayCard) projectedDayCard.dataset.status = projectedDayStatus.className;
+  }
 
-  document.getElementById("year-progress-fill").style.width = `${yP.toFixed(1)}%`;
-  document.getElementById("year-progress-text").textContent = `${state.settings.schoolYear.label}: ${yP.toFixed(1)}%`;
-  const yearProgressBadge = document.getElementById("year-progress-badge");
-  if (yearProgressBadge) yearProgressBadge.textContent = `${yP.toFixed(1)}%`;
-  const yearProgressStatus = document.getElementById("year-progress-status");
-  if (yearProgressStatus) yearProgressStatus.textContent = calendarProgressStatus(yP);
-  document.getElementById("quarter-progress-fill").style.width = `${qP.toFixed(1)}%`;
-  document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
-  const quarterProgressBadge = document.getElementById("quarter-progress-badge");
-  if (quarterProgressBadge) quarterProgressBadge.textContent = q ? `${qP.toFixed(1)}%` : "-";
-  const quarterProgressStatus = document.getElementById("quarter-progress-status");
-  if (quarterProgressStatus) quarterProgressStatus.textContent = q ? calendarProgressStatus(qP) : "No quarter set";
-  renderCompletionTodayFilterOptions(dashboardStudents);
-  const executionSnapshot = buildDashboardExecutionSnapshot(referenceDate, dashboardStudents);
-  const completionDetailStudents = completionTodaySelectedStudentIds.size
-    ? dashboardStudents.filter((student) => completionTodaySelectedStudentIds.has(student.id))
-    : dashboardStudents;
-  const completionDetailSnapshot = buildDashboardExecutionSnapshot(referenceDate, completionDetailStudents, {
-    instructorIds: Array.from(completionTodaySelectedInstructorIds),
-    subjectId: completionTodaySelectedSubjectId
-  });
-  renderDashboardExecutionSummary(executionSnapshot, completionDetailSnapshot);
-  renderDashboardInstructionHourPaceSummary(overviewHourPaceSnapshot);
-  renderDashboardWeeklyGradeRiskSummary(buildDashboardWeeklyGradeRiskSnapshot(dashboardStudents, referenceDate));
-  renderDashboardOpenClassesSummary(buildDashboardOpenClassesSnapshot(dashboardStudents));
-  renderDashboardMissingRequiredSubjectsSummary(buildDashboardMissingRequiredSubjectsSnapshot(dashboardStudents));
-  renderDashboardInstructionDayComplianceSummary(buildDashboardInstructionDayComplianceSnapshot(dashboardStudents, dates, yP, referenceDate));
-  renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
-  renderDashboardGradeRiskSummary(buildDashboardGradeRiskSnapshot(dashboardStudents));
-  renderRequiredSubjectCompliance();
+  let g = null;
+  let overviewHourPaceSnapshot = null;
+  if (renderInstructionHours) {
+    const dashboardInstructionalHours = buildInstructionalHoursSnapshot(dashboardStudents.map((student) => student.id), { referenceDate });
+    overviewHourPaceSnapshot = buildDashboardInstructionHourPaceSnapshot(dashboardStudents, dashboardInstructionalHours, yP, referenceDate);
+  }
+  if (shouldRenderOverview && overviewHourPaceSnapshot) {
+    const projectedHourStatusNode = document.getElementById("kpi-instruction-hours-status");
+    const projectedHourNoteNode = document.getElementById("kpi-instruction-hours-note");
+    const projectedHourRequiredNode = document.getElementById("kpi-instruction-hours-required");
+    const projectedHourProjectedNode = document.getElementById("kpi-instruction-hours-projected");
+    const projectedHourIconNode = document.getElementById("kpi-instruction-hours-icon");
+    const projectedHourCard = document.querySelector(".kpi-instruction-hours-card");
+    const projectedToleranceHours = Math.max(1, Number(overviewHourPaceSnapshot.requiredTotal || 0) * 0.01);
+    const projectedHourStatus = overviewHourPaceSnapshot.requiredTotal <= 0.01 && overviewHourPaceSnapshot.projectedTotal <= 0.01
+      ? { label: "Year Opening", className: "starting", note: "Projected instruction hours will appear once the year begins." }
+      : overviewHourPaceSnapshot.projectedVarianceHours < -projectedToleranceHours
+        ? { label: "Projected Short", className: "behind", note: "Projected below the required instruction hours." }
+        : { label: "On Track", className: "on-track", note: "Projected to exceed the required instruction hours." };
+    if (projectedHourStatusNode) projectedHourStatusNode.textContent = projectedHourStatus.label;
+    if (projectedHourNoteNode) projectedHourNoteNode.textContent = projectedHourStatus.note;
+    if (projectedHourRequiredNode) projectedHourRequiredNode.textContent = `${overviewHourPaceSnapshot.requiredTotal.toFixed(2)} hrs`;
+    if (projectedHourProjectedNode) projectedHourProjectedNode.textContent = `${overviewHourPaceSnapshot.projectedTotal.toFixed(2)} hrs`;
+    if (projectedHourIconNode) projectedHourIconNode.className = `kpi-projected-hours-icon ${projectedHourStatus.className}`;
+    if (projectedHourCard) projectedHourCard.dataset.status = projectedHourStatus.className;
+  }
+
+  if (shouldRenderOverview) {
+    g = gradeAnalytics();
+    const runningAverage = isStudentUser() && dashboardStudents.length === 1
+      ? studentOverallAverage(dashboardStudents[0].id)
+      : g.running;
+    const gradeDialStatus = performanceDialStatus(runningAverage);
+    setOverviewStatusCard({
+      cardId: "kpi-grade-card",
+      iconId: "kpi-grade-icon",
+      statusId: "kpi-grade-status",
+      noteId: "kpi-grade-note",
+      levelId: "kpi-grade-level",
+      levelLabel: gradeDialStatus.label,
+      valueId: "kpi-running-avg",
+      value: runningAverage,
+      status: gradeDialStatus
+    });
+
+    const attendanceTotals = dashboardStudents.reduce((totals, student) => {
+      const summary = studentAttendanceSummary(student.id);
+      totals.present += Number(summary.attended || 0);
+      return totals;
+    }, { present: 0 });
+    const totalPossibleAttendance = totalAttendanceDays * dashboardStudents.length;
+    const overallAttendanceAverage = totalPossibleAttendance > 0
+      ? (attendanceTotals.present / totalPossibleAttendance) * 100
+      : 0;
+    const attendanceDialStatusValue = attendanceDialStatus(overallAttendanceAverage);
+    setOverviewStatusCard({
+      cardId: "kpi-attendance-card",
+      iconId: "kpi-attendance-icon",
+      statusId: "kpi-attendance-status",
+      noteId: "kpi-attendance-note",
+      levelId: "kpi-attendance-level",
+      levelLabel: attendanceDialStatusValue.label,
+      valueId: "kpi-attendance-overall",
+      value: overallAttendanceAverage,
+      status: attendanceDialStatusValue
+    });
+
+    const q = currentQuarter(toDate(referenceDate));
+    const qP = q ? progress(q.startDate, q.endDate, toDate(referenceDate)) : 0;
+
+    document.getElementById("year-progress-fill").style.width = `${yP.toFixed(1)}%`;
+    document.getElementById("year-progress-text").textContent = `${state.settings.schoolYear.label}: ${yP.toFixed(1)}%`;
+    const yearProgressBadge = document.getElementById("year-progress-badge");
+    if (yearProgressBadge) yearProgressBadge.textContent = `${yP.toFixed(1)}%`;
+    const yearProgressStatus = document.getElementById("year-progress-status");
+    if (yearProgressStatus) yearProgressStatus.textContent = calendarProgressStatus(yP);
+    document.getElementById("quarter-progress-fill").style.width = `${qP.toFixed(1)}%`;
+    document.getElementById("quarter-progress-text").textContent = q ? `${q.name}: ${qP.toFixed(1)}%` : "No quarter set";
+    const quarterProgressBadge = document.getElementById("quarter-progress-badge");
+    if (quarterProgressBadge) quarterProgressBadge.textContent = q ? `${qP.toFixed(1)}%` : "-";
+    const quarterProgressStatus = document.getElementById("quarter-progress-status");
+    if (quarterProgressStatus) quarterProgressStatus.textContent = q ? calendarProgressStatus(qP) : "No quarter set";
+  }
+  if (shouldRenderExecution) renderCompletionTodayFilterOptions(dashboardStudents);
+  if (shouldRenderOverview || shouldRenderExecution) {
+    const executionSnapshot = buildDashboardExecutionSnapshot(referenceDate, dashboardStudents);
+    const completionDetailStudents = completionTodaySelectedStudentIds.size
+      ? dashboardStudents.filter((student) => completionTodaySelectedStudentIds.has(student.id))
+      : dashboardStudents;
+    const completionDetailSnapshot = buildDashboardExecutionSnapshot(referenceDate, completionDetailStudents, {
+      instructorIds: Array.from(completionTodaySelectedInstructorIds),
+      subjectId: completionTodaySelectedSubjectId
+    });
+    renderDashboardExecutionSummary(executionSnapshot, completionDetailSnapshot);
+    renderDashboardMissingGradesSummary(buildDashboardMissingGradesSnapshot(referenceDate, dashboardStudents));
+  }
+  if ((shouldRenderOverview || (shouldRenderCompliance && activeComplianceTab === "instructional-hours")) && overviewHourPaceSnapshot) {
+    renderDashboardInstructionHourPaceSummary(overviewHourPaceSnapshot);
+  }
+  if (shouldRenderOverview) {
+    renderDashboardWeeklyGradeRiskSummary(buildDashboardWeeklyGradeRiskSnapshot(dashboardStudents, referenceDate));
+    renderDashboardOpenClassesSummary(buildDashboardOpenClassesSnapshot(dashboardStudents));
+    renderDashboardMissingRequiredSubjectsSummary(buildDashboardMissingRequiredSubjectsSnapshot(dashboardStudents));
+  }
+  if ((shouldRenderOverview || (shouldRenderCompliance && activeComplianceTab === "instructional-days")) && overviewDaySnapshot) {
+    renderDashboardInstructionDayComplianceSummary(overviewDaySnapshot);
+  }
+  if (shouldRenderPerformance) {
+    renderDashboardGradeRiskSummary(buildDashboardGradeRiskSnapshot(dashboardStudents));
+  }
+  if (shouldRenderCompliance && activeComplianceTab === "required-subjects") {
+    renderRequiredSubjectCompliance();
+  }
 
   const validStudentIds = new Set(dashboardStudents.map((student) => student.id));
   Array.from(expandedStudentAverageRows).forEach((studentId) => {
@@ -17767,51 +17845,72 @@ function renderDashboard() {
   Array.from(studentInstructionalHoursSelectedInstructorIds).forEach((instructorId) => {
     if (!validInstructorIds.has(instructorId)) studentInstructionalHoursSelectedInstructorIds.delete(instructorId);
   });
-  renderStudentPerformanceInstructorChecklist(Array.from(studentPerformanceSelectedInstructorIds));
-  renderStudentInstructionalHoursStudentFilter(dashboardStudents);
-  renderStudentInstructionalHoursInstructorChecklist(Array.from(studentInstructionalHoursSelectedInstructorIds));
+  const includePerformanceMetrics = shouldRenderPerformance;
+  const includeAttendanceMetrics = shouldRenderCompliance && activeComplianceTab === "instructional-days";
+  const includeInstructionalHourMetrics = shouldRenderCompliance && activeComplianceTab === "instructional-hours";
+  if (includePerformanceMetrics || includeAttendanceMetrics || includeInstructionalHourMetrics) {
+    renderStudentPerformanceInstructorChecklist(Array.from(studentPerformanceSelectedInstructorIds));
+    renderStudentInstructionalHoursStudentFilter(dashboardStudents);
+    renderStudentInstructionalHoursInstructorChecklist(Array.from(studentInstructionalHoursSelectedInstructorIds));
 
-  const quarterByName = new Map(state.settings.quarters.map((entry) => [entry.name, entry]));
-  const selectedGradeMethods = getSelectedStudentPerformanceGradeMethods();
-  const studentPerformanceInstructorFilter = Array.from(studentPerformanceSelectedInstructorIds);
-  const studentInstructionalHoursInstructorFilter = Array.from(studentInstructionalHoursSelectedInstructorIds);
-  dashboardExpandableMetricsCache = buildDashboardExpandableMetrics(
-    dashboardStudents,
-    totalAttendanceDays,
-    attendanceDatesThroughToday,
-    quarterByName,
-    studentPerformanceInstructorFilter,
-    studentInstructionalHoursInstructorFilter
-  );
-  dashboardExpandableRenderCache = {
-    selectedGradeMethods
-  };
-  renderDashboardExpandableTablesFast();
-
-  renderGradeTrending();
-  renderInstructorGradeTrending();
-  renderComplianceHoursMonthlyChart();
-  renderComplianceDaysMonthlyChart();
-  renderGpaTrending();
-  renderInstructionHoursTrending();
-  renderInstructionDaysTrending();
-  renderGradeTypeVolumeChart();
-  renderWorkDistributionGradeTypeFilter();
-  renderWorkDistributionChart();
-
-  const subjectAvgTable = document.getElementById("subject-avg-table");
-  if (subjectAvgTable) {
-    rowOrEmpty(subjectAvgTable,
-      g.subject.sort((a,b)=>b.avg-a.avg).map((r)=>`<tr><td>${getSubjectName(r.subjectId)}</td><td>${r.avg.toFixed(1)}%</td><td>${r.count}</td></tr>`),
-      "No graded tests yet.", 3);
+    const quarterByName = new Map(state.settings.quarters.map((entry) => [entry.name, entry]));
+    const selectedGradeMethods = getSelectedStudentPerformanceGradeMethods();
+    const studentPerformanceInstructorFilter = Array.from(studentPerformanceSelectedInstructorIds);
+    const studentInstructionalHoursInstructorFilter = Array.from(studentInstructionalHoursSelectedInstructorIds);
+    dashboardExpandableMetricsCache = buildDashboardExpandableMetrics(
+      dashboardStudents,
+      totalAttendanceDays,
+      attendanceDatesThroughToday,
+      quarterByName,
+      studentPerformanceInstructorFilter,
+      studentInstructionalHoursInstructorFilter,
+      {
+        includePerformance: includePerformanceMetrics,
+        includeAttendance: includeAttendanceMetrics,
+        includeInstructionalHours: includeInstructionalHourMetrics
+      }
+    );
+    dashboardExpandableRenderCache = {
+      selectedGradeMethods
+    };
+    renderDashboardExpandableTablesFast();
   }
 
-  const periodTable = document.getElementById("period-avg-table");
-  if (periodTable) {
-    const periodRows = g.quarterRows.map((qRow)=>`<tr><td>${qRow.label}</td><td>${qRow.avg.toFixed(1)}%</td><td>${qRow.count}</td></tr>`);
-    periodRows.push(`<tr><td>Annual (${state.settings.schoolYear.label})</td><td>${g.annualAvg.toFixed(1)}%</td><td>${g.annualCount}</td></tr>`);
-    rowOrEmpty(periodTable, periodRows, "No period data.", 3);
+  if (shouldRenderPerformance) {
+    renderGradeTrending();
+    renderInstructorGradeTrending();
+    renderGpaTrending();
+    renderGradeTypeVolumeChart();
+    renderWorkDistributionGradeTypeFilter();
+    renderWorkDistributionChart();
   }
+
+  if (shouldRenderCompliance && activeComplianceTab === "instructional-hours") {
+    renderComplianceHoursMonthlyChart();
+    renderInstructionHoursTrending();
+  }
+
+  if (shouldRenderCompliance && activeComplianceTab === "instructional-days") {
+    renderComplianceDaysMonthlyChart();
+    renderInstructionDaysTrending();
+  }
+
+  if (shouldRenderOverview) {
+    const subjectAvgTable = document.getElementById("subject-avg-table");
+    if (subjectAvgTable) {
+      rowOrEmpty(subjectAvgTable,
+        g.subject.sort((a,b)=>b.avg-a.avg).map((r)=>`<tr><td>${getSubjectName(r.subjectId)}</td><td>${r.avg.toFixed(1)}%</td><td>${r.count}</td></tr>`),
+        "No graded tests yet.", 3);
+    }
+
+    const periodTable = document.getElementById("period-avg-table");
+    if (periodTable) {
+      const periodRows = g.quarterRows.map((qRow)=>`<tr><td>${qRow.label}</td><td>${qRow.avg.toFixed(1)}%</td><td>${qRow.count}</td></tr>`);
+      periodRows.push(`<tr><td>Annual (${state.settings.schoolYear.label})</td><td>${g.annualAvg.toFixed(1)}%</td><td>${g.annualCount}</td></tr>`);
+      rowOrEmpty(periodTable, periodRows, "No period data.", 3);
+    }
+  }
+  dashboardRenderedKeys.add(currentDashboardRenderKey());
   dashboardDirty = false;
 }
 function viewRange(view, refISO) {
@@ -23349,7 +23448,7 @@ function bindEvents() {
         currentComplianceTab = complianceTarget;
       }
       renderDashboardSectionVisibility();
-      if (currentTab === "dashboard" && (dashboardDirty || !dashboardExpandableMetricsCache)) {
+      if (currentTab === "dashboard" && dashboardNeedsRender()) {
         renderDashboard();
       }
       return;
@@ -23359,6 +23458,9 @@ function bindEvents() {
     if (complianceTab) {
       currentComplianceTab = ["instructional-hours", "instructional-days", "required-subjects"].includes(complianceTab) ? complianceTab : "instructional-hours";
       renderDashboardSectionVisibility();
+      if (currentTab === "dashboard" && dashboardNeedsRender()) {
+        renderDashboard();
+      }
       return;
     }
     if (t.id === "administration-open-instructors-btn") {
