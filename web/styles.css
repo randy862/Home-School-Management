@@ -11473,6 +11473,7 @@ tbody tr:hover {
 }
 
 #app-shell .school-day-date-nav button,
+#app-shell .school-day-bulk-status-btn,
 #app-shell #school-day-reset-student-btn,
 #app-shell #school-day-reset-day-btn {
   min-height: 32px;
@@ -11485,7 +11486,31 @@ tbody tr:hover {
   font-weight: 500;
 }
 
+#app-shell .school-day-bulk-status-btn {
+  border: 1px solid #cbd9ea;
+  background: #ffffff;
+  color: #31435d;
+}
+
+#app-shell .school-day-bulk-status-btn.complete {
+  border-color: #b9dfc9;
+  background: #eaf7ef;
+  color: #16623a;
+}
+
+#app-shell .school-day-bulk-status-btn.excused {
+  border-color: #f0d18d;
+  background: #fff7df;
+  color: #805600;
+}
+
+#app-shell .school-day-bulk-status-btn:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
 #app-shell .school-day-date-nav button:hover,
+#app-shell .school-day-bulk-status-btn:not(:disabled):hover,
 #app-shell #school-day-reset-student-btn:hover,
 #app-shell #school-day-reset-day-btn:hover {
   background: #edf3fa;
@@ -11503,8 +11528,14 @@ tbody tr:hover {
 #app-shell .school-day-reset-actions {
   justify-self: end;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  white-space: normal;
   margin: 0;
   gap: 0.35rem;
+}
+
+#app-shell .school-day-reset-actions button {
+  white-space: nowrap;
 }
 
 #app-shell .school-day-attendance-toolbar {

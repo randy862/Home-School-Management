@@ -18,12 +18,14 @@ Product/platform follow-up is active. Current slice is deeper workflow QA from r
 - Class roster UI detects fixed-class conflicts by student, weekdays, effective quarter scope, and class time window.
 - Backend validation rejects conflicting section enrollment create/update and conflicting course-section schedule edits.
 - Students and Quarters dropdowns in the Class form use compact checklist layout.
-- Production tenant app serves `app.js?v=202605191515` and `styles.css?v=202605191530`.
-- Full hosted release gate passed for `https://mitchell.navigrader.com` after deployment.
+- School Day Daily Schedule now supports bulk `Complete Open` and `Excuse Open` actions for the currently filtered open instruction queue.
+- Production tenant app serves `app.js?v=202605191700` and `styles.css?v=202605191700`.
+- WEB001 rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-status-202605191700.tgz`.
+- Full hosted release gate passed for `https://mitchell.navigrader.com` after the earlier class conflict deployment. Current bulk-status deployment has public HTTP checks only from Codex because smoke credentials are not in this process.
 
 ## Next Action
 
-Address the user's remaining workflow QA item. Start by reading `CODEX_CONTEXT.md`, `HANDOFF.md`, and `STATUS.md`, then inspect only the files needed for that specific workflow.
+Run the hosted release gate from a PowerShell session with smoke credentials loaded, then real-usage QA `Complete Open` / `Excuse Open` from the Open Classes dashboard link.
 
 ## Risks
 
@@ -31,6 +33,7 @@ Address the user's remaining workflow QA item. Start by reading `CODEX_CONTEXT.m
 - Do not store smoke credentials or Stripe secrets in repo files.
 - Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside commits.
 - Class conflict checks use course `hoursPerDay` as class duration, matching current School Day behavior.
+- Bulk status actions intentionally apply only to currently shown scheduled/open instruction rows and respect the active date, student, subject, course, status, and quick filters.
 
 ## Validation
 
@@ -41,3 +44,5 @@ Address the user's remaining workflow QA item. Start by reading `CODEX_CONTEXT.m
 - APP001 `hsm-api` restarted healthy and `/health` returned `{"ok":true}`.
 - WEB001 public HTML references the expected tenant app asset versions.
 - Hosted release gate passed from the user's PowerShell session.
+- `node --check web/app.js` passed after bulk status changes.
+- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the WEB001 bulk status deployment.

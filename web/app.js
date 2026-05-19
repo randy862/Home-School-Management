@@ -1623,6 +1623,7 @@ let schoolDayInlineGradeKey = "";
 let schoolDayDailyMessageState = { kind: "", text: "" };
 let schoolDayAttendanceMessageState = { kind: "", text: "" };
 let schoolDayGradesMessageState = { kind: "", text: "" };
+let schoolDayBulkStatusBusy = false;
 let schoolDayQuickFilters = {
   needsAttendance: false,
   needsCompletion: false,
@@ -12355,6 +12356,113 @@ function rowMatchesSchoolDayQuickFilters({ needsAttendance = false, needsComplet
   return true;
 }
 
+function schoolDayInstructionBlockQueueState(block, dateKey) {
+  const attendanceRecord = attendanceRecordForStudentDate(block.studentId, dateKey);
+  const status = effectiveInstructionStatus(block.studentId, block.courseId, dateKey);
+  const isExcused = status === INSTRUCTION_STATUS_EXCUSED;
+  return {
+    status,
+    needsAttendance: !attendanceRecord,
+    needsCompletion: status === INSTRUCTION_STATUS_SCHEDULED,
+    needsGrade: !isExcused && gradeRecordsForStudentCourseDate(block.studentId, block.courseId, dateKey).length === 0,
+    completed: status === INSTRUCTION_STATUS_COMPLETED,
+    pastDue: schoolDayInstructionPastDue(block, dateKey),
+    overridden: hasInstructionExecutionOverride(block.studentId, block.courseId, dateKey)
+  };
+}
+
+function currentSchoolDayBulkOpenInstructionBlocks() {
+  const dateInput = document.getElementById("school-day-date");
+  const dateKey = activeYearDateOrDefault(dateInput?.value || "");
+  const studentFilterIds = getSchoolDaySelectedStudentIds();
+  const subjectFilterIds = getSchoolDaySelectedSubjectIds();
+  const courseFilterIds = getSchoolDaySelectedCourseIds();
+  const statusFilter = getSchoolDaySelectedStatus();
+  const seen = new Set();
+  const blocks = Array.from(dailyScheduledBlocks(dateKey, studentFilterIds).values())
+    .flat()
+    .filter((block) => block.type === "instruction")
+    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
+    .filter((block) => schoolDayBlockMatchesStatusFilter(block, dateKey, statusFilter))
+    .filter((block) => rowMatchesSchoolDayQuickFilters(schoolDayInstructionBlockQueueState(block, dateKey)))
+    .filter((block) => effectiveInstructionStatus(block.studentId, block.courseId, dateKey) === INSTRUCTION_STATUS_SCHEDULED)
+    .filter((block) => {
+      const key = `${block.studentId}::${block.courseId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  return { dateKey, blocks };
+}
+
+function updateSchoolDayBulkStatusButtons() {
+  const { blocks } = currentSchoolDayBulkOpenInstructionBlocks();
+  const count = blocks.length;
+  const disabled = schoolDayBulkStatusBusy || !isAdminUser() || count === 0;
+  const buttonConfigs = [
+    { id: "school-day-complete-open-btn", label: "Complete Open" },
+    { id: "school-day-excuse-open-btn", label: "Excuse Open" }
+  ];
+  buttonConfigs.forEach(({ id, label }) => {
+    const button = document.getElementById(id);
+    if (!(button instanceof HTMLButtonElement)) return;
+    button.disabled = disabled;
+    button.textContent = count ? `${label} (${count})` : label;
+    button.title = count
+      ? `${label} for ${count} currently shown open ${count === 1 ? "class" : "classes"}.`
+      : "No open classes match the current School Day filters.";
+  });
+}
+
+async function applySchoolDayBulkInstructionStatus(status) {
+  const targetStatus = normalizeInstructionStatus(status);
+  if (![INSTRUCTION_STATUS_COMPLETED, INSTRUCTION_STATUS_EXCUSED].includes(targetStatus)) return;
+  if (!ensureAdminAction()) {
+    renderSchoolDay();
+    return;
+  }
+  const { dateKey, blocks } = currentSchoolDayBulkOpenInstructionBlocks();
+  if (!blocks.length) {
+    setSchoolDayDailyMessage("error", "No open classes match the current School Day filters.");
+    updateSchoolDayBulkStatusButtons();
+    return;
+  }
+  const actionLabel = targetStatus === INSTRUCTION_STATUS_COMPLETED ? "complete" : "excuse";
+  const statusLabel = instructionStatusLabel(targetStatus).toLowerCase();
+  const classLabel = blocks.length === 1 ? "open class" : "open classes";
+  const studentCount = new Set(blocks.map((block) => block.studentId)).size;
+  const studentLabel = studentCount === 1 ? "1 student" : `${studentCount} students`;
+  const confirmed = window.confirm(`Mark ${blocks.length} ${classLabel} as ${statusLabel} for ${formatDisplayDate(dateKey)} across ${studentLabel}?`);
+  if (!confirmed) return;
+
+  schoolDayBulkStatusBusy = true;
+  updateSchoolDayBulkStatusButtons();
+  setSchoolDayDailyMessage("", `Updating ${blocks.length} ${classLabel}...`);
+  try {
+    await Promise.all(blocks.map((block) => {
+      const existing = findInstructionActualRecord(block.studentId, block.courseId, dateKey);
+      return saveInstructionActualMinutes({
+        studentId: block.studentId,
+        courseId: block.courseId,
+        instructorId: effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey),
+        date: dateKey,
+        actualMinutes: persistedInstructionActualMinutes(block.studentId, block.courseId, dateKey),
+        startMinutes: existing?.startMinutes ?? null,
+        orderIndex: existing?.orderIndex ?? null,
+        status: targetStatus
+      });
+    }));
+    setSchoolDayDailyMessage("success", `Marked ${blocks.length} ${classLabel} as ${statusLabel} for ${formatDisplayDate(dateKey)}.`);
+    rerenderAfterInstructionChange();
+  } catch (error) {
+    setSchoolDayDailyMessage("error", error.message || `Unable to ${actionLabel} the selected open classes.`);
+    alert(error.message || `Unable to ${actionLabel} the selected open classes.`);
+  } finally {
+    schoolDayBulkStatusBusy = false;
+    updateSchoolDayBulkStatusButtons();
+  }
+}
+
 function setSchoolDayQuickFilterState(key, active) {
   if (key === "needs-attendance") schoolDayQuickFilters.needsAttendance = active;
   if (key === "needs-completion") schoolDayQuickFilters.needsCompletion = active;
@@ -19473,6 +19581,7 @@ function renderSchoolDay() {
     subjectIds: subjectFilterIds,
     courseIds: courseFilterIds
   });
+  updateSchoolDayBulkStatusButtons();
   const attendanceOpenCount = schoolDayRosterStudents(ref).filter((student) => !attendanceRecordForStudentDate(student.id, ref)).length;
   updateSchoolDaySubtabCounts({
     scheduleCount: rows.length,
@@ -23761,6 +23870,12 @@ function bindEvents() {
       schoolDayInlineGradeKey = "";
       clearSchoolDayDailyMessage();
       renderSchoolDay();
+      return;
+    }
+    const bulkStatusTarget = t.closest("[data-school-day-bulk-status]");
+    if (bulkStatusTarget instanceof HTMLElement) {
+      const bulkStatus = bulkStatusTarget.getAttribute("data-school-day-bulk-status") || "";
+      applySchoolDayBulkInstructionStatus(bulkStatus);
       return;
     }
     const schoolDaySwitchTab = t.getAttribute("data-school-day-switch-tab");

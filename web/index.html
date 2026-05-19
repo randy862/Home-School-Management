@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605191530">
+  <link rel="stylesheet" href="styles.css?v=202605191700">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1400,6 +1400,8 @@
             <button id="school-day-next-period" type="button">Next</button>
           </div>
           <div class="table-action-row school-day-reset-actions">
+            <button type="button" class="school-day-bulk-status-btn complete" id="school-day-complete-open-btn" data-school-day-bulk-status="completed" disabled>Complete Open</button>
+            <button type="button" class="school-day-bulk-status-btn excused" id="school-day-excuse-open-btn" data-school-day-bulk-status="excused" disabled>Excuse Open</button>
             <button type="button" id="school-day-reset-student-btn">Reset Student Day</button>
             <button type="button" id="school-day-reset-day-btn">Reset Filtered Day</button>
           </div>
@@ -2582,6 +2584,6 @@
       <div id="account-options-modal-body" class="account-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605191515"></script>
+  <script src="app.js?v=202605191700"></script>
   </body>
   </html>
