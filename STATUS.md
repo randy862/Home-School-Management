@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Curriculum Courses and Classes edit actions now scroll the top editor into view.
+Student Current Schedule edit mode now has clear schedule-wide labeling and Cancel Changes.
 
 ## Completed Recently
 
@@ -32,6 +32,7 @@ Curriculum Courses and Classes edit actions now scroll the top editor into view.
 - School Day pull-forward scheduling now treats the visible gap before a fixed class as usable, so a 60-minute flexible class can fill a 65-minute opening and leave the transition buffer before the fixed class.
 - Ordered schedule blocks now act as placement barriers before fixed classes, so later flexible courses do not jump ahead of Lunch/Recess and push them late in the day.
 - Course and Class Edit/Create actions scroll the top editor into view and focus the first field, so long configured lists no longer make the action look invisible.
+- Student Current Schedule row actions now say `Edit Schedule`, show `Save Schedule Changes` plus `Cancel Changes`, and discard draft schedule edits without leaving the student page.
 
 ## Production State
 
@@ -40,7 +41,7 @@ Curriculum Courses and Classes edit actions now scroll the top editor into view.
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605200905`
+  - `app.js?v=202605200916`
   - `styles.css?v=202605191900`
 - APP001 class-conflict rollback:
   - `/home/debian/rollback/hsm/class-conflict-202605191515/`
@@ -57,6 +58,7 @@ Curriculum Courses and Classes edit actions now scroll the top editor into view.
   - `/var/www/home-school-management/rollback/web-school-day-gap-fill-visible-window-webroot-202605191930.tgz`
   - `/var/www/home-school-management/rollback/web-school-day-ordered-break-placement-202605191950.tgz`
   - `/var/www/home-school-management/rollback/web-curriculum-editor-scroll-202605200905.tgz`
+  - `/var/www/home-school-management/rollback/web-student-schedule-edit-cancel-202605200916.tgz`
 
 ## Validation
 
@@ -66,12 +68,13 @@ Curriculum Courses and Classes edit actions now scroll the top editor into view.
   - `node --check server/src/repositories/postgres/curriculum-repository.js`
 - Backend conflict/non-conflict service behavior checks passed with fake repository data.
 - APP001 `hsm-api` restarted healthy and `/health` returned `{"ok":true}`.
-- WEB001 public HTML references `app.js?v=202605200905` and `styles.css?v=202605191900`.
+- WEB001 public HTML references `app.js?v=202605200916` and `styles.css?v=202605191900`.
 - Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the class conflict cleanup deployment.
 - Full hosted release gate passed for `https://mitchell.navigrader.com` after class conflict deployment.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605191930`; served app JS contains the visible-gap fix.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605191950`; served app JS contains the ordered-break placement fix.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605200905`; served app JS contains the editor-scroll fix.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605200916`; served app JS contains the student schedule edit/cancel fix.
 
 ## Current Blockers
 
@@ -86,5 +89,5 @@ Curriculum Courses and Classes edit actions now scroll the top editor into view.
 ## Next Actions
 
 1. Run the hosted release gate from a PowerShell session with smoke credentials loaded.
-2. Real-usage QA Course and Class Edit buttons from low in long Curriculum lists.
+2. Real-usage QA Student Current Schedule `Edit Schedule`, `Save Schedule Changes`, and `Cancel Changes`.
 3. Then close the deeper workflow QA slice or move to backend/platform hardening.

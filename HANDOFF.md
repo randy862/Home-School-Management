@@ -26,8 +26,8 @@ Product/platform follow-up is active. Current slice is deeper workflow QA from r
 - Hosted class edits now remove unchecked students before backend conflict validation, allowing cleanup of already-conflicting rosters.
 - School Day pull-forward scheduling now uses the visible opening before a fixed class, so a later 60-minute flexible class can fill a 65-minute gap while leaving the transition buffer before the fixed class.
 - Ordered schedule blocks now act as placement barriers before fixed classes, so later flexible courses do not jump ahead of Lunch/Recess and push them late in the day.
-- Course and Class Edit/Create actions scroll the top editor into view and focus the first field.
-- Production tenant app serves `app.js?v=202605200905` and `styles.css?v=202605191900`.
+- Course/Class editor scroll and Student Current Schedule edit/cancel polish are deployed.
+- Production tenant app serves `app.js?v=202605200916` and `styles.css?v=202605191900`.
 - WEB001 rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-status-202605191700.tgz`.
 - WEB001 subtle bulk-actions rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-actions-subtle-202605191730.tgz`.
 - WEB001 quarter recommendation rollback snapshot exists at `/var/www/home-school-management/rollback/web-quarter-recommendations-202605191815.tgz`.
@@ -35,12 +35,12 @@ Product/platform follow-up is active. Current slice is deeper workflow QA from r
 - WEB001 class conflict cleanup rollback snapshot exists at `/var/www/home-school-management/rollback/web-class-conflict-removal-fix-202605191900.tgz`.
 - WEB001 visible-gap rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-gap-fill-visible-window-webroot-202605191930.tgz`.
 - WEB001 ordered-break rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-ordered-break-placement-202605191950.tgz`.
-- WEB001 editor-scroll rollback snapshot exists at `/var/www/home-school-management/rollback/web-curriculum-editor-scroll-202605200905.tgz`.
-- Full hosted release gate passed for `https://mitchell.navigrader.com` after the earlier class conflict deployment. Current editor-scroll deployment has public HTTP checks only from Codex because smoke credentials are not in this process.
+- WEB001 editor-scroll rollback exists at `/var/www/home-school-management/rollback/web-curriculum-editor-scroll-202605200905.tgz`; student schedule edit rollback exists at `/var/www/home-school-management/rollback/web-student-schedule-edit-cancel-202605200916.tgz`.
+- Full hosted release gate passed for `https://mitchell.navigrader.com` after the earlier class conflict deployment. Current student schedule edit deployment has public HTTP checks only from Codex because smoke credentials are not in this process.
 
 ## Next Action
 
-Run the hosted release gate from a PowerShell session with smoke credentials loaded, then real-usage QA Course and Class Edit buttons from low in long Curriculum lists.
+Run the hosted release gate from a PowerShell session with smoke credentials loaded, then real-usage QA Student Current Schedule `Edit Schedule`, `Save Schedule Changes`, and `Cancel Changes`.
 
 ## Risks
 
@@ -68,8 +68,8 @@ Run the hosted release gate from a PowerShell session with smoke credentials loa
 - `node --check web/app.js` passed after class conflict cleanup changes.
 - `node --check web/app.js` passed after the visible-gap fix.
 - `node --check web/app.js` passed after the ordered-break placement fix.
-- `node --check web/app.js` passed after the editor-scroll fix.
-- WEB001 public HTML references `app.js?v=202605200905` and `styles.css?v=202605191900`.
+- `node --check web/app.js` passed after the editor-scroll and student schedule edit/cancel fixes.
+- WEB001 public HTML references `app.js?v=202605200916` and `styles.css?v=202605191900`.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605191930`; served app JS contains the visible-gap fix.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605191950`; served app JS contains the ordered-break placement fix.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605200905`; served app JS contains the editor-scroll fix.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605200916`; served app JS contains the student schedule edit/cancel fix.

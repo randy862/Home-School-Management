@@ -11160,8 +11160,12 @@ function renderStudentDetail() {
   }
   const applyBtn = document.getElementById("student-detail-apply-btn");
   if (applyBtn) {
-    applyBtn.textContent = "Apply Changes";
+    applyBtn.textContent = "Save Schedule Changes";
     applyBtn.classList.toggle("hidden", !studentEnrollmentEditMode);
+  }
+  const cancelScheduleEditBtn = document.getElementById("student-detail-cancel-schedule-edit-btn");
+  if (cancelScheduleEditBtn) {
+    cancelScheduleEditBtn.classList.toggle("hidden", !studentEnrollmentEditMode);
   }
 
   const quarterSelect = document.getElementById("student-detail-quarter-filter");
@@ -11218,8 +11222,8 @@ function renderStudentDetail() {
         ? `<select class="student-schedule-order-select" data-enrollment-order-id="${e.id}" data-enrollment-item-type="${entryType}" aria-label="Schedule order for ${escapeHtml(studentScheduledEntryDisplayName(e))}"${studentEnrollmentEditMode ? "" : " disabled"}>${orderOptions}</select>`
         : (parseScheduleOrderValue(e.scheduleOrder) != null ? String(parseScheduleOrderValue(e.scheduleOrder)) : "Auto");
       const actions = studentEnrollmentEditMode
-        ? `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button' disabled>Editing</button><button data-remove-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button'>Remove</button></div>`
-        : `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button'>Edit</button></div>`;
+        ? `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button' disabled>Editing Schedule</button><button data-remove-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button'>Remove</button></div>`
+        : `<div class="table-action-row"><button data-edit-student-enrollment='${e.id}' data-enrollment-item-type='${entryType}' type='button'>Edit Schedule</button></div>`;
       const requiredCell = course?.subjectId ? requiredSubjectBadge(course.subjectId) : "<span class=\"muted\">-</span>";
       return `<tr><td>${renderScheduleSourceCell(studentScheduledEntryDisplayName(e), studentScheduledEntrySchoolDayMeta(e))}</td><td>${escapeHtml(subject)}</td><td>${requiredCell}</td><td>${orderControl}</td><td>${avgDisplay}</td><td>${actions}</td></tr>`;
     });
@@ -12013,6 +12017,21 @@ function rerenderAfterGradeChange() {
 function rerenderAfterEnrollmentChange() {
   invalidateDashboardCache();
   renderCurrentTabPanel();
+}
+
+function beginStudentScheduleEdit() {
+  if (!selectedStudentId) return;
+  if (studentEnrollmentDraftStudentId !== selectedStudentId) {
+    primeStudentEnrollmentDraft(selectedStudentId);
+  }
+  studentEnrollmentEditMode = true;
+  renderStudentDetail();
+}
+
+function cancelStudentScheduleEdit() {
+  if (!selectedStudentId) return;
+  primeStudentEnrollmentDraft(selectedStudentId);
+  renderStudentDetail();
 }
 
 function rerenderAfterSchoolCalendarConfigChange() {
@@ -22120,6 +22139,12 @@ function bindEvents() {
       renderAll();
     });
   }
+  const studentDetailCancelScheduleEditBtn = document.getElementById("student-detail-cancel-schedule-edit-btn");
+  if (studentDetailCancelScheduleEditBtn) {
+    studentDetailCancelScheduleEditBtn.addEventListener("click", () => {
+      cancelStudentScheduleEdit();
+    });
+  }
 
   const studentDetailApplyBtn = document.getElementById("student-detail-apply-btn");
   if (studentDetailApplyBtn) {
@@ -25364,10 +25389,7 @@ function bindEvents() {
     const editEnrollmentId = t.getAttribute("data-edit-student-enrollment");
     if (editEnrollmentId) {
       if (!ensureAdminAction()) return;
-      if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === selectedStudentId) {
-        studentEnrollmentEditMode = true;
-        renderStudentDetail();
-      }
+      if (studentViewMode === "detail" && selectedStudentId) beginStudentScheduleEdit();
       return;
     }
     const editScheduleBlockId = t.getAttribute("data-edit-schedule-block");
