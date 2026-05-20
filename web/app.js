@@ -19020,18 +19020,43 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       return block && block.type !== "instruction" && SCHEDULE_BLOCK_TYPE_OPTIONS.includes(block.type);
     }
 
-    function findInstructionThatFitsGap(pendingBlocks, gapStart, gapEnd) {
+    function isOrderedScheduleBlock(block) {
+      return block && block.type !== "instruction" && !!block.scheduleBlockId;
+    }
+
+    function firstScheduleBlockBeforeIndex(pendingBlocks, beforeIndex) {
+      const limit = Math.max(0, Math.min(beforeIndex, pendingBlocks.length));
+      for (let index = 0; index < limit; index += 1) {
+        if (isOrderedScheduleBlock(pendingBlocks[index])) return index;
+      }
+      return -1;
+    }
+
+    function scheduleBlockFitsGap(block, gapStart, gapEnd) {
+      if (!isOrderedScheduleBlock(block)) return false;
+      const plannedStart = Number.isFinite(block.plannedStart) ? block.plannedStart : block.start;
+      const cursorStart = actualCursor == null ? gapStart : actualCursor;
+      const start = Math.max(plannedStart, gapStart, cursorStart);
+      const end = start + blockActualDuration(block);
+      const requiredEnd = blockRequiresFollowingClassGap(block) ? end + minutesBetweenClasses : end;
+      return start < gapEnd && requiredEnd <= gapEnd;
+    }
+
+    function findInstructionThatFitsGap(pendingBlocks, gapStart, gapEnd, beforeIndex = pendingBlocks.length) {
       const candidateStart = gapStart;
       const gapMinutes = gapEnd - candidateStart;
       if (gapMinutes <= 0) return -1;
-      return pendingBlocks.findIndex((candidate) => {
-        if (!isFlexibleInstructionCandidate(candidate)) return false;
+      const limit = Math.max(0, Math.min(beforeIndex, pendingBlocks.length));
+      for (let index = 0; index < limit; index += 1) {
+        const candidate = pendingBlocks[index];
+        if (!isFlexibleInstructionCandidate(candidate)) continue;
         const duration = blockActualDuration(candidate);
         const candidateEnd = candidateStart + duration;
         const requiredEnd = candidateEnd + minutesBetweenClasses;
-        if (requiredEnd > gapEnd) return false;
-        return !nextBlockedSectionWindow(fixedSectionWindows, candidateStart, candidateEnd, candidate.courseId);
-      });
+        if (requiredEnd > gapEnd) continue;
+        if (!nextBlockedSectionWindow(fixedSectionWindows, candidateStart, candidateEnd, candidate.courseId)) return index;
+      }
+      return -1;
     }
 
     function nextFixedAnchorIndex(pendingBlocks, gapStart) {
@@ -19072,7 +19097,7 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         : (block.type === "instruction" && !hasStartOverride
           ? actualCursor
           : hasFlexibleScheduleBlockTiming
-          ? actualCursor
+          ? Math.max(actualStartTarget, actualCursor)
           : Math.max(actualStartTarget, actualCursor));
       let resolvedActualStart = actualStart;
       let resolvedActualEnd = Math.min(24 * 60, resolvedActualStart + actualDuration);
@@ -19113,10 +19138,17 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
       const fixedAnchor = fixedAnchorIndex >= 0 ? pendingPositionedBlocks[fixedAnchorIndex] : null;
       const anchorStart = fixedAnchor ? blockAnchorStart(fixedAnchor) : null;
       if (fixedAnchor && visibleGapStart < anchorStart) {
-        const fitIndex = findInstructionThatFitsGap(pendingPositionedBlocks, visibleGapStart, anchorStart);
+        const scheduleBlockIndex = firstScheduleBlockBeforeIndex(pendingPositionedBlocks, fixedAnchorIndex);
+        const instructionSearchLimit = scheduleBlockIndex >= 0 ? scheduleBlockIndex : pendingPositionedBlocks.length;
+        const fitIndex = findInstructionThatFitsGap(pendingPositionedBlocks, visibleGapStart, anchorStart, instructionSearchLimit);
         if (fitIndex >= 0) {
           const [fittingBlock] = pendingPositionedBlocks.splice(fitIndex, 1);
           pushAdjustedBlock(fittingBlock, visibleGapStart);
+          continue;
+        }
+        if (scheduleBlockIndex >= 0 && scheduleBlockFitsGap(pendingPositionedBlocks[scheduleBlockIndex], visibleGapStart, anchorStart)) {
+          const [scheduleBlock] = pendingPositionedBlocks.splice(scheduleBlockIndex, 1);
+          pushAdjustedBlock(scheduleBlock);
           continue;
         }
         if (fixedAnchorIndex > 0) {
