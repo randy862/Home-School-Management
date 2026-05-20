@@ -5,6 +5,7 @@ function startProvisioningWorker(options) {
     claimNextProvisioningJob,
     reconcilePendingSetups,
     executeProvisioningJob,
+    runMaintenance,
     logger = console
   } = options;
 
@@ -19,6 +20,14 @@ function startProvisioningWorker(options) {
   async function tick() {
     if (stopped) return;
     try {
+      if (runMaintenance) {
+        try {
+          await runMaintenance();
+        } catch (error) {
+          logger.error("Control API maintenance tick failed:", error.message);
+        }
+      }
+
       const job = await claimNextProvisioningJob();
       if (job) {
         await executeProvisioningJob(job);

@@ -1280,6 +1280,65 @@ async function getCancellationExportRequestByPaymentReference(paymentReference) 
   return mapCancellationExportRequestRow(result.rows[0]);
 }
 
+async function listExpiredCancellationExportRequests(options = {}) {
+  const pool = getPostgresPool();
+  const requestedLimit = Math.floor(Number(options.limit || 50));
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(500, requestedLimit)) : 50;
+  const result = await pool.query(`
+    SELECT
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      status,
+      price_cents AS "priceCents",
+      currency,
+      requested_by_email AS "requestedByEmail",
+      payment_reference AS "paymentReference",
+      export_job_id AS "exportJobId",
+      artifact_path AS "artifactPath",
+      artifact_expires_at AS "artifactExpiresAt",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+    FROM cancellation_export_requests
+    WHERE status = 'ready'
+      AND artifact_expires_at IS NOT NULL
+      AND artifact_expires_at <= NOW()
+    ORDER BY artifact_expires_at ASC, created_at ASC
+    LIMIT $1
+  `, [limit]);
+  return result.rows.map(mapCancellationExportRequestRow);
+}
+
+async function markCancellationExportRequestExpired(id, failureReason = "Export artifact expired.") {
+  const pool = getPostgresPool();
+  const result = await pool.query(`
+    UPDATE cancellation_export_requests
+    SET
+      status = 'expired',
+      failure_reason = $2,
+      updated_at = NOW()
+    WHERE id = $1
+      AND status = 'ready'
+    RETURNING
+      id,
+      customer_account_id AS "customerAccountId",
+      customer_subscription_id AS "customerSubscriptionId",
+      status,
+      price_cents AS "priceCents",
+      currency,
+      requested_by_email AS "requestedByEmail",
+      payment_reference AS "paymentReference",
+      export_job_id AS "exportJobId",
+      artifact_path AS "artifactPath",
+      artifact_expires_at AS "artifactExpiresAt",
+      failure_reason AS "failureReason",
+      created_at AS "createdAt",
+      updated_at AS "updatedAt"
+  `, [id, failureReason]);
+  return mapCancellationExportRequestRow(result.rows[0]);
+}
+
 async function updateCancellationExportRequest(id, updates = {}) {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -2130,9 +2189,11 @@ module.exports = {
   getSubscriptionByStripeSubscriptionId,
   listBillingEventsBySubscriptionId,
   listCancellationExportRequestsBySubscriptionId,
+  listExpiredCancellationExportRequests,
   listCommercialOverview,
   listPublicCommercialPlans
   ,
+  markCancellationExportRequestExpired,
   markCheckoutSessionCompleted,
   updateAccessHandoffByProvisioningRequestId,
   updateBillingEventProcessing,

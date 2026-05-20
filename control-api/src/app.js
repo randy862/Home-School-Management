@@ -5,6 +5,7 @@ const {
   commercialProvisioning: commercialProvisioningConfig,
   internal: internalConfig,
   mail: mailConfig,
+  maintenance: maintenanceConfig,
   session: sessionConfig,
   public: publicConfig,
   stripe: stripeConfig
@@ -88,6 +89,8 @@ const {
   updateCustomerAccountStatus,
   updateLegalAcceptance,
   updateLegalAcceptanceByStripeCheckoutSessionId,
+  listExpiredCancellationExportRequests,
+  markCancellationExportRequestExpired,
   updateProvisioningRequest,
   updateSubscriptionByStripeCheckoutSessionId,
   updateSubscriptionByStripeSubscriptionId
@@ -108,6 +111,7 @@ const { registerTenantRoutes } = require("./routes/tenant-routes");
 const { processStripeBillingEvent } = require("./services/commercial-webhook-service");
 const { createCommercialProvisioningService } = require("./services/commercial-provisioning-service");
 const { createMailService } = require("./services/mail-service");
+const { createMaintenanceService } = require("./services/maintenance-service");
 const { createStripeService } = require("./services/stripe-service");
 const { startProvisioningWorker } = require("./provisioning-worker");
 const { createTenantRuntimeAutomation } = require("./tenant-runtime-automation");
@@ -116,6 +120,14 @@ const { createSetupSyncService } = require("./setup-sync");
 const app = express();
 const stripeService = createStripeService(stripeConfig);
 const mailService = createMailService(mailConfig);
+const maintenanceService = createMaintenanceService({
+  enabled: maintenanceConfig.enabled,
+  cleanupIntervalMs: maintenanceConfig.cleanupIntervalMs,
+  expiredExportBatchSize: maintenanceConfig.expiredExportBatchSize,
+  exportArtifactDir: maintenanceConfig.dataExportDir,
+  listExpiredCancellationExportRequests,
+  markCancellationExportRequestExpired
+});
 const runtimeAutomation = createTenantRuntimeAutomation(automationConfig);
 const commercialProvisioningService = createCommercialProvisioningService({
   appendProvisioningJobEvent,
@@ -399,6 +411,7 @@ app.listen(appConfig.port, () => {
     pollIntervalMs: internalConfig.workerPollMs,
     claimNextProvisioningJob,
     reconcilePendingSetups: automationConfig.setupSyncEnabled ? () => setupSyncService.reconcilePendingSetups() : null,
-    executeProvisioningJob
+    executeProvisioningJob,
+    runMaintenance: () => maintenanceService.runDueCleanup()
   });
 });

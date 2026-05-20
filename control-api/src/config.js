@@ -60,6 +60,12 @@ module.exports = {
     workerEnabled: toBool(process.env.CONTROL_WORKER_ENABLED, true),
     workerPollMs: Number(process.env.CONTROL_WORKER_POLL_MS || 5000)
   },
+  maintenance: {
+    enabled: toBool(process.env.CONTROL_MAINTENANCE_ENABLED, true),
+    cleanupIntervalMs: Number(process.env.CONTROL_MAINTENANCE_CLEANUP_INTERVAL_MS || 60 * 60 * 1000),
+    expiredExportBatchSize: Number(process.env.CONTROL_MAINTENANCE_EXPIRED_EXPORT_BATCH_SIZE || 50),
+    dataExportDir: process.env.CONTROL_DATA_EXPORT_DIR || path.resolve(__dirname, "../../runtime-bundles/data-exports")
+  },
   automation: {
     repoRoot: process.env.CONTROL_REPO_ROOT || path.resolve(__dirname, "../.."),
     runtimeBundleDir: process.env.CONTROL_RUNTIME_BUNDLE_DIR || path.resolve(__dirname, "../../runtime-bundles"),

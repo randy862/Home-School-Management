@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-In-app Help Center content is deployed so Help entry points are functional instead of placeholders.
+Backend/platform hardening: expired paid data export artifacts now have control-plane cleanup and retention handling.
 
 ## Completed Recently
 
@@ -34,6 +34,7 @@ In-app Help Center content is deployed so Help entry points are functional inste
 - Course and Class Edit/Create actions scroll the top editor into view and focus the first field, so long configured lists no longer make the action look invisible.
 - Student Current Schedule row actions now say `Edit Schedule`, show `Save Schedule Changes` plus `Cancel Changes`, and discard draft schedule edits without leaving the student page.
 - Topbar Help and sidebar `Need Help?` now open a task-based Help Center with parent-friendly guidance and related-page shortcuts.
+- Control API maintenance now expires ready data-export requests after `artifact_expires_at` and removes expired ZIP artifacts from the configured export directory.
 
 ## Production State
 
@@ -46,6 +47,8 @@ In-app Help Center content is deployed so Help entry points are functional inste
   - `styles.css?v=202605201454`
 - APP001 class-conflict rollback:
   - `/home/debian/rollback/hsm/class-conflict-202605191515/`
+- APP001 control-api rollback:
+  - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 class-related rollback snapshots:
   - `/var/www/home-school-management/rollback/web-class-bulk-enroll-202605190845.tgz`
   - `/var/www/home-school-management/rollback/web-school-day-gap-fill-anchor-fix-202605191445.tgz`
@@ -78,10 +81,15 @@ In-app Help Center content is deployed so Help entry points are functional inste
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605200905`; served app JS contains the editor-scroll fix.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605200916`; served app JS contains the student schedule edit/cancel fix.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605201454` and `styles.css?v=202605201454`; served app JS/CSS contain the Help Center implementation.
+- Control API syntax checks passed for app, worker, commercial store, and maintenance service.
+- Focused cleanup simulation passed for expired, missing-file, and unsafe-path export artifacts.
+- Maintenance retry timing simulation passed.
+- APP001 control migrations applied through `012_export_cleanup_indexes.sql`.
+- APP001 `hsm-control-api.service` restarted active and `/control-api/health` returned `{"ok":true}` locally and publicly.
 
 ## Current Blockers
 
-- None for the Help Center/product polish slice.
+- None for the export cleanup/backend hardening slice.
 
 ## Current Risks
 
@@ -92,5 +100,5 @@ In-app Help Center content is deployed so Help entry points are functional inste
 ## Next Actions
 
 1. Run the hosted release gate from a PowerShell session with smoke credentials loaded.
-2. QA topbar Help and sidebar `Need Help?` on a hosted tenant.
-3. Then close the product polish slice or move to backend/platform hardening.
+2. Monitor control-api logs for the next export cleanup interval.
+3. Continue backend/platform hardening with control-plane job retention or operational alerting.
