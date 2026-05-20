@@ -76,6 +76,7 @@ function createCurriculumRepository(deps) {
           id,
           course_id,
           label,
+          instructor_id,
           resource_group,
           concurrent_capacity,
           start_time,
@@ -83,11 +84,12 @@ function createCurriculumRepository(deps) {
           weekdays_json,
           schedule_order
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10)
         RETURNING
           id,
           course_id AS "courseId",
           label,
+          instructor_id AS "instructorId",
           resource_group AS "resourceGroup",
           concurrent_capacity AS "concurrentCapacity",
           start_time AS "startTime",
@@ -98,6 +100,7 @@ function createCurriculumRepository(deps) {
         section.id,
         section.courseId,
         section.label,
+        section.instructorId || null,
         section.resourceGroup || "",
         section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
         section.startTime,
@@ -288,6 +291,7 @@ function createCurriculumRepository(deps) {
               cs.id,
               cs.course_id AS "courseId",
               cs.label,
+              cs.instructor_id AS "instructorId",
               cs.resource_group AS "resourceGroup",
               cs.concurrent_capacity AS "concurrentCapacity",
               cs.start_time AS "startTime",
@@ -306,6 +310,7 @@ function createCurriculumRepository(deps) {
             id,
             course_id AS "courseId",
             label,
+            instructor_id AS "instructorId",
             resource_group AS "resourceGroup",
             concurrent_capacity AS "concurrentCapacity",
             start_time AS "startTime",
@@ -368,6 +373,7 @@ function createCurriculumRepository(deps) {
           cs.id,
           cs.course_id AS "courseId",
           cs.label,
+          cs.instructor_id AS "instructorId",
           cs.start_time AS "startTime",
           cs.quarter_names_json AS "quarterNamesJson",
           cs.weekdays_json AS "weekdaysJson",
@@ -392,6 +398,7 @@ function createCurriculumRepository(deps) {
           cs.id,
           cs.course_id AS "courseId",
           cs.label,
+          cs.instructor_id AS "instructorId",
           cs.start_time AS "startTime",
           cs.quarter_names_json AS "quarterNamesJson",
           cs.weekdays_json AS "weekdaysJson",
@@ -419,6 +426,7 @@ function createCurriculumRepository(deps) {
           cs.id,
           cs.course_id AS "courseId",
           cs.label,
+          cs.instructor_id AS "instructorId",
           cs.start_time AS "startTime",
           cs.quarter_names_json AS "quarterNamesJson",
           cs.weekdays_json AS "weekdaysJson",
@@ -584,17 +592,19 @@ function createCurriculumRepository(deps) {
         SET
           course_id = $2,
           label = $3,
-          resource_group = $4,
-          concurrent_capacity = $5,
-          start_time = $6,
-          quarter_names_json = $7::jsonb,
-          weekdays_json = $8::jsonb,
-          schedule_order = $9
+          instructor_id = $4,
+          resource_group = $5,
+          concurrent_capacity = $6,
+          start_time = $7,
+          quarter_names_json = $8::jsonb,
+          weekdays_json = $9::jsonb,
+          schedule_order = $10
         WHERE id = $1
         RETURNING
           id,
           course_id AS "courseId",
           label,
+          instructor_id AS "instructorId",
           resource_group AS "resourceGroup",
           concurrent_capacity AS "concurrentCapacity",
           start_time AS "startTime",
@@ -605,6 +615,7 @@ function createCurriculumRepository(deps) {
         id,
         section.courseId,
         section.label,
+        section.instructorId || null,
         section.resourceGroup || "",
         section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
         section.startTime,
@@ -720,6 +731,7 @@ async function ensureCourseSectionTables(pool) {
       id TEXT PRIMARY KEY,
       course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
       label TEXT NOT NULL,
+      instructor_id TEXT NULL REFERENCES instructors(id) ON DELETE SET NULL,
       resource_group TEXT NOT NULL DEFAULT '',
       concurrent_capacity INTEGER,
       start_time TEXT NOT NULL DEFAULT '08:00',
@@ -733,6 +745,10 @@ async function ensureCourseSectionTables(pool) {
     ADD COLUMN IF NOT EXISTS quarter_names_json JSONB NOT NULL DEFAULT '[]'::jsonb
   `);
   await pool.query(`
+    ALTER TABLE course_sections
+    ADD COLUMN IF NOT EXISTS instructor_id TEXT NULL REFERENCES instructors(id) ON DELETE SET NULL
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS section_enrollments (
       id TEXT PRIMARY KEY,
       student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
@@ -744,6 +760,10 @@ async function ensureCourseSectionTables(pool) {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_course_sections_course_id
     ON course_sections(course_id)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_course_sections_instructor_id
+    ON course_sections(instructor_id)
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_section_enrollments_student_id
@@ -840,6 +860,7 @@ function mapCourseSectionRow(row) {
     id: row.id,
     courseId: row.courseId,
     label: row.label || "",
+    instructorId: row.instructorId || "",
     resourceGroup: row.resourceGroup || "",
     concurrentCapacity: row.concurrentCapacity == null ? null : Number(row.concurrentCapacity),
     startTime: row.startTime || "08:00",
@@ -874,6 +895,7 @@ function mapCourseSectionScheduleRow(row) {
     id: row.id,
     courseId: row.courseId,
     label: row.label || "",
+    instructorId: row.instructorId || "",
     startTime: row.startTime || "08:00",
     quarterNames: Array.isArray(row.quarterNamesJson) ? row.quarterNamesJson.map((name) => String(name || "").trim()).filter(Boolean) : [],
     weekdays: Array.isArray(row.weekdaysJson) ? row.weekdaysJson.map((day) => Number(day)).filter(Number.isInteger) : [],

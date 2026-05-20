@@ -253,6 +253,7 @@ function normalizeCourseSectionPayload(input) {
   const id = String(input?.id || "").trim() || randomUUID();
   const courseId = String(input?.courseId || "").trim();
   const label = String(input?.label || "").trim();
+  const instructorId = String(input?.instructorId || "").trim();
   const resourceGroup = String(input?.resourceGroup || "").trim();
   const concurrentCapacity = input?.concurrentCapacity === "" || input?.concurrentCapacity == null
     ? null
@@ -270,7 +271,7 @@ function normalizeCourseSectionPayload(input) {
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), courseId, label, resourceGroup, concurrentCapacity, startTime, quarterNames, weekdays, scheduleOrder };
+  return { ...(id ? { id } : {}), courseId, label, instructorId, resourceGroup, concurrentCapacity, startTime, quarterNames, weekdays, scheduleOrder };
 }
 
 function normalizeWeekdays(input, fallback = []) {

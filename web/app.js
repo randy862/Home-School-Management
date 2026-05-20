@@ -41,6 +41,18 @@ const API_TESTS_ENDPOINT = `${API_BASE_URL}/api/tests`;
 const API_WORKSPACE_CONFIG_ENDPOINT = `${API_BASE_URL}/api/admin/workspace-config`;
 const SESSION_KEY = "hsm_session_v1";
 
+const INDEPENDENT_LEARNING_INSTRUCTOR_ID = "independent-learning";
+const INDEPENDENT_LEARNING_INSTRUCTOR_LABEL = "Independent Learning";
+const INDEPENDENT_LEARNING_INSTRUCTOR = {
+  id: INDEPENDENT_LEARNING_INSTRUCTOR_ID,
+  firstName: "Independent",
+  lastName: "Learning",
+  category: "other",
+  educationLevel: "other",
+  birthdate: "1900-01-01",
+  ageRecorded: null,
+  createdAt: "1900-01-01"
+};
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DEFAULT_GRADE_TYPES = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final"];
 const GRADE_TYPE_ICON_OPTIONS = [
@@ -554,7 +566,11 @@ function normalizeInstructorsShape(inputState) {
     return;
   }
   s.instructors = s.instructors
-    .filter((instructor) => instructor && String(instructor.firstName || "").trim() && String(instructor.lastName || "").trim())
+    .filter((instructor) =>
+      instructor
+      && String(instructor.id || "").trim() !== INDEPENDENT_LEARNING_INSTRUCTOR_ID
+      && String(instructor.firstName || "").trim()
+      && String(instructor.lastName || "").trim())
     .map((instructor) => {
       const rawCategory = String(instructor.category || "").trim().toLowerCase();
       const category = INSTRUCTOR_CATEGORY_OPTIONS.includes(rawCategory) ? rawCategory : "other";
@@ -711,6 +727,7 @@ function normalizeCourseSectionsShape(inputState) {
         id: section.id || uid(),
         courseId: String(section.courseId || "").trim(),
         label: String(section.label || "").trim(),
+        instructorId: String(section.instructorId || "").trim(),
         resourceGroup: String(section.resourceGroup || "").trim(),
         concurrentCapacity: Number.isInteger(concurrentCapacity) && concurrentCapacity > 0 ? concurrentCapacity : null,
         startTime: /^\d{2}:\d{2}$/.test(String(section.startTime || "")) ? String(section.startTime) : "08:00",
@@ -2434,7 +2451,7 @@ async function refreshHostedInstructors() {
         ? String(instructor.educationLevel || "").trim().toLowerCase()
         : "",
       ageRecorded: instructor.ageRecorded == null ? null : Number(instructor.ageRecorded || 0)
-    }));
+    })).filter((instructor) => String(instructor.id || "").trim() !== INDEPENDENT_LEARNING_INSTRUCTOR_ID);
   }
 }
 
@@ -2476,6 +2493,7 @@ async function refreshHostedCourseSections() {
   if (Array.isArray(courseSections)) {
     state.courseSections = courseSections.map((section) => ({
       ...section,
+      instructorId: String(section.instructorId || "").trim(),
       resourceGroup: String(section.resourceGroup || "").trim(),
       concurrentCapacity: section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
       startTime: /^\d{2}:\d{2}$/.test(String(section.startTime || "")) ? String(section.startTime) : "08:00",
@@ -5562,7 +5580,37 @@ async function bootstrapApplicationState() {
 
 function getStudentName(id) { const s = state.students.find((x) => x.id === id); return s ? `${s.firstName} ${s.lastName}` : "Unknown Student"; }
 function studentIsArchived(student) { return !!(student && student.archivedAt); }
-function getInstructorName(id) { const instructor = state.instructors.find((entry) => entry.id === id); return instructor ? `${instructor.firstName} ${instructor.lastName}` : "Unknown Instructor"; }
+function isIndependentLearningInstructorId(id) {
+  return String(id || "").trim() === INDEPENDENT_LEARNING_INSTRUCTOR_ID;
+}
+
+function instructorDisplayName(instructor) {
+  if (!instructor) return "Unknown Instructor";
+  if (isIndependentLearningInstructorId(instructor.id)) return INDEPENDENT_LEARNING_INSTRUCTOR_LABEL;
+  return `${instructor.firstName || ""} ${instructor.lastName || ""}`.trim() || "Unknown Instructor";
+}
+
+function assignableInstructorOptions({ includeIndependent = true } = {}) {
+  const configured = state.instructors
+    .filter((instructor) => !isIndependentLearningInstructorId(instructor.id))
+    .slice()
+    .sort((a, b) => `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`));
+  return includeIndependent ? [INDEPENDENT_LEARNING_INSTRUCTOR, ...configured] : configured;
+}
+
+function getInstructorById(id) {
+  const normalizedId = String(id || "").trim();
+  if (!normalizedId) return null;
+  if (isIndependentLearningInstructorId(normalizedId)) return INDEPENDENT_LEARNING_INSTRUCTOR;
+  return state.instructors.find((entry) => entry.id === normalizedId) || null;
+}
+
+function getInstructorName(id) {
+  const normalizedId = String(id || "").trim();
+  const instructor = getInstructorById(normalizedId);
+  return instructor ? instructorDisplayName(instructor) : "Unknown Instructor";
+}
+
 function normalizeInstructorFilterIds(filterSelection) {
   if (!filterSelection || filterSelection === "all") return null;
   if (filterSelection instanceof Set) {
@@ -5586,6 +5634,12 @@ function assignedInstructorIdForCourse(courseId) {
   const course = getCourse(courseId);
   return String(course?.instructorId || "").trim();
 }
+
+function assignedInstructorIdForCourseSection(sectionId) {
+  const section = getCourseSection(sectionId);
+  return String(section?.instructorId || assignedInstructorIdForCourse(section?.courseId || "") || "").trim();
+}
+
 function testInstructorId(test) {
   return effectiveInstructionInstructorId(test?.studentId || "", test?.courseId || "", test?.date || "");
 }
@@ -5594,6 +5648,12 @@ function testMatchesInstructorFilter(test, filterInstructorId) {
 }
 function instructionMatchesInstructorFilter(studentId, courseId, date, filterInstructorId) {
   return matchesInstructorFilter(effectiveInstructionInstructorId(studentId, courseId, date), filterInstructorId);
+}
+
+function courseMatchesInstructorFilter(courseId, filterInstructorId) {
+  if (matchesInstructorFilter(assignedInstructorIdForCourse(courseId), filterInstructorId)) return true;
+  return getCourseSectionsForCourse(courseId)
+    .some((section) => matchesInstructorFilter(assignedInstructorIdForCourseSection(section.id), filterInstructorId));
 }
 function getInstructorCategoryLabel(category) { return INSTRUCTOR_CATEGORY_LABELS[String(category || "").trim().toLowerCase()] || "Other"; }
 function getInstructorEducationLevelLabel(educationLevel) { return INSTRUCTOR_EDUCATION_LEVEL_LABELS[String(educationLevel || "").trim().toLowerCase()] || "Not recorded"; }
@@ -6782,7 +6842,8 @@ function renderSelects() {
   const selectedStudentEnrollmentCourseIds = getSelectedStudentEnrollmentCourseIds();
   const viewerStudents = visibleStudents();
   options("course-subject", state.subjects, (s) => s.name, state.subjects.length ? null : "Add a subject first");
-  options("course-instructor", [{ id: "", firstName: "Unassigned", lastName: "" }, ...state.instructors], (instructor) => instructor.id ? `${instructor.firstName} ${instructor.lastName}` : "Unassigned");
+  options("course-instructor", [{ id: "", firstName: "Unassigned", lastName: "" }, ...assignableInstructorOptions()], (instructor) => instructor.id ? instructorDisplayName(instructor) : "Unassigned");
+  options("course-section-instructor", [{ id: "", firstName: "Use course instructor", lastName: "" }, ...assignableInstructorOptions()], (instructor) => instructor.id ? instructorDisplayName(instructor) : "Use course instructor");
   options("course-section-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
   options("test-subject", state.subjects, (s) => s.name, state.subjects.length ? null : "Add a subject first");
   options("test-course", state.courses, (c) => `${c.name} (${getSubjectName(c.subjectId)})`, state.courses.length ? null : "Add a course first");
@@ -7230,15 +7291,14 @@ function updateAttendanceStudentSummary() {
 function renderStudentPerformanceInstructorChecklist(preselectedInstructorIds = []) {
   const optionsWrap = document.getElementById("student-performance-instructor-options");
   if (!optionsWrap) return;
-  const validIds = new Set(state.instructors.map((instructor) => instructor.id));
+  const instructors = assignableInstructorOptions();
+  const validIds = new Set(instructors.map((instructor) => instructor.id));
   const selected = new Set(preselectedInstructorIds.filter((id) => validIds.has(id)));
-  const checkboxes = state.instructors
-    .slice()
-    .sort((a, b) => `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`))
+  const checkboxes = instructors
     .map((instructor, idx) => {
       const checked = selected.has(instructor.id) ? " checked" : "";
       const inputId = `student-performance-instructor-${idx}-${instructor.id}`;
-      return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-performance-instructor-checkbox" value="${instructor.id}"${checked}><label for="${inputId}">${instructor.firstName} ${instructor.lastName}</label></div>`;
+      return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-performance-instructor-checkbox" value="${instructor.id}"${checked}><label for="${inputId}">${escapeHtml(instructorDisplayName(instructor))}</label></div>`;
     }).join("");
   optionsWrap.innerHTML = checkboxes || "<span>No instructors available.</span>";
   updateStudentPerformanceInstructorSummary();
@@ -7258,15 +7318,14 @@ function getSelectedStudentPerformanceInstructorIds() {
 function renderStudentInstructionalHoursInstructorChecklist(preselectedInstructorIds = []) {
   const optionsWrap = document.getElementById("student-instructional-hours-instructor-options");
   if (!optionsWrap) return;
-  const validIds = new Set(state.instructors.map((instructor) => instructor.id));
+  const instructors = assignableInstructorOptions();
+  const validIds = new Set(instructors.map((instructor) => instructor.id));
   const selected = new Set(preselectedInstructorIds.filter((id) => validIds.has(id)));
-  const checkboxes = state.instructors
-    .slice()
-    .sort((a, b) => `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`))
+  const checkboxes = instructors
     .map((instructor, idx) => {
       const checked = selected.has(instructor.id) ? " checked" : "";
       const inputId = `student-instructional-hours-instructor-${idx}-${instructor.id}`;
-      return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-instructional-hours-instructor-checkbox" value="${instructor.id}"${checked}><label for="${inputId}">${instructor.firstName} ${instructor.lastName}</label></div>`;
+      return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="student-instructional-hours-instructor-checkbox" value="${instructor.id}"${checked}><label for="${inputId}">${escapeHtml(instructorDisplayName(instructor))}</label></div>`;
     }).join("");
   optionsWrap.innerHTML = checkboxes || "<span>No instructors available.</span>";
   updateStudentInstructionalHoursInstructorSummary();
@@ -7354,13 +7413,11 @@ function populateInstructorFilterSelect(selectId, allLabel = "All Instructors") 
   if (!select) return;
   const current = select.value || "all";
   select.innerHTML = `<option value="all">${escapeHtml(allLabel)}</option>`;
-  state.instructors
-    .slice()
-    .sort((a, b) => `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`))
+  assignableInstructorOptions()
     .forEach((instructor) => {
       const option = document.createElement("option");
       option.value = instructor.id;
-      option.textContent = `${instructor.firstName} ${instructor.lastName}`;
+      option.textContent = instructorDisplayName(instructor);
       select.appendChild(option);
     });
   if (Array.from(select.options).some((option) => option.value === current)) {
@@ -7762,7 +7819,7 @@ function reportStudentCourseDetailRows(studentIds, options = {}) {
       if (seenCourseIds.has(enrollment.courseId)) return;
       seenCourseIds.add(enrollment.courseId);
       const course = getCourse(enrollment.courseId);
-      if (!course || !matchesInstructorFilter(assignedInstructorIdForCourse(course.id), instructorId)) return;
+      if (!course || !courseMatchesInstructorFilter(course.id, instructorId)) return;
       if (!reportCourseMatchesSubject(course.id, subjectId)) return;
       const materials = normalizeCourseMaterials(course.materials || course.material);
       materials.forEach((material) => {
@@ -7878,10 +7935,10 @@ function reportInstructorSessionRows(range, instructorId = "all", options = {}) 
       const sessionKey = `${effectiveInstructorId}||${block.courseId}||${dateKey}||${block.plannedStart || block.start}||${block.plannedEnd || block.end}`;
       const existing = sessionMap.get(sessionKey);
       if (existing && existing.minutes >= minutes) return;
-      const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+      const instructor = getInstructorById(effectiveInstructorId);
       sessionMap.set(sessionKey, {
         instructorId: effectiveInstructorId,
-        instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : "Unknown Instructor",
+        instructorName: getInstructorName(effectiveInstructorId),
         instructorCategory: instructor ? getInstructorCategoryLabel(instructor.category) : "Other",
         courseId: block.courseId,
         courseName: getCourseName(block.courseId),
@@ -7935,12 +7992,12 @@ function reportInstructorOverviewRows(range, instructorId = "all", options = {})
   const sessionRows = reportInstructorSessionRows(range, instructorId, options);
   if (!sessionRows.length) {
     if (instructorId === "all") {
-      return state.instructors
+      return assignableInstructorOptions()
         .slice()
         .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`))
         .map((instructor) => ({
           instructorId: instructor.id,
-          instructorName: `${instructor.firstName} ${instructor.lastName}`,
+          instructorName: instructorDisplayName(instructor),
           age: instructor.birthdate ? String(calculateAge(instructor.birthdate)) : "-",
           educationLevel: getInstructorEducationLevelLabel(instructor.educationLevel || ""),
           instructionDays: 0,
@@ -7958,10 +8015,10 @@ function reportInstructorOverviewRows(range, instructorId = "all", options = {})
   }
 
   if (instructorId !== "all") {
-    const instructor = state.instructors.find((entry) => entry.id === instructorId);
+    const instructor = getInstructorById(instructorId);
     return [{
       instructorId,
-      instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : getInstructorName(instructorId),
+      instructorName: instructor ? instructorDisplayName(instructor) : getInstructorName(instructorId),
       age: instructor?.birthdate ? String(calculateAge(instructor.birthdate)) : "-",
       educationLevel: getInstructorEducationLevelLabel(instructor?.educationLevel || ""),
       instructionDays: new Set(sessionRows.map((row) => row.date)).size,
@@ -7971,13 +8028,13 @@ function reportInstructorOverviewRows(range, instructorId = "all", options = {})
 
   const overviewMap = new Map();
   const sourceInstructors = instructorId === "all"
-    ? state.instructors
-    : state.instructors.filter((entry) => entry.id === instructorId);
+    ? assignableInstructorOptions()
+    : assignableInstructorOptions().filter((entry) => entry.id === instructorId);
 
   sourceInstructors.forEach((instructor) => {
     overviewMap.set(instructor.id, {
       instructorId: instructor.id,
-      instructorName: `${instructor.firstName} ${instructor.lastName}`,
+      instructorName: instructorDisplayName(instructor),
       age: instructor.birthdate ? String(calculateAge(instructor.birthdate)) : "-",
       educationLevel: getInstructorEducationLevelLabel(instructor.educationLevel || ""),
       taughtDates: new Set(),
@@ -8066,7 +8123,7 @@ function reportInstructorInstructionBlockRows(range, instructorId = "all", optio
       if (!effectiveInstructorId || !matchesInstructorFilter(effectiveInstructorId, instructorId)) return;
       const minutes = Number(block.actualMinutes || 0);
       if (!(minutes > 0)) return;
-      const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+      const instructor = getInstructorById(effectiveInstructorId);
       const course = getCourse(block.courseId);
       const subjectId = course?.subjectId || "";
       rows.push({
@@ -8110,7 +8167,7 @@ function reportInstructorSubjectPerformanceSummaryRows(range, instructorId = "al
   });
   reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
     const effectiveInstructorId = testInstructorId(test);
-    const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+    const instructor = getInstructorById(effectiveInstructorId);
     const course = getCourse(test.courseId);
     const subjectId = course?.subjectId || test.subjectId || "";
     const group = ensureGroup({
@@ -8165,7 +8222,7 @@ function reportInstructorStudentPerformanceSummaryRows(range, instructorId = "al
   });
   reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
     const effectiveInstructorId = testInstructorId(test);
-    const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+    const instructor = getInstructorById(effectiveInstructorId);
     const group = ensureGroup({
       instructorId: effectiveInstructorId,
       instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : (effectiveInstructorId ? getInstructorName(effectiveInstructorId) : "Unknown Instructor"),
@@ -8224,7 +8281,7 @@ function reportInstructorGradePerformanceSummaryRows(range, instructorId = "all"
   });
   reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
     const effectiveInstructorId = testInstructorId(test);
-    const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+    const instructor = getInstructorById(effectiveInstructorId);
     const group = ensureGroup({
       instructorId: effectiveInstructorId,
       instructorName: instructor ? `${instructor.firstName} ${instructor.lastName}` : (effectiveInstructorId ? getInstructorName(effectiveInstructorId) : "Unknown Instructor"),
@@ -8255,7 +8312,7 @@ function reportInstructorPerformanceByCourseRows(range, instructorId = "all", op
   const groups = new Map();
   reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
     const effectiveInstructorId = testInstructorId(test);
-    const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+    const instructor = getInstructorById(effectiveInstructorId);
     const course = getCourse(test.courseId);
     const subjectId = course?.subjectId || test.subjectId || "";
     const section = courseSectionForStudentCourse(test.studentId, test.courseId);
@@ -8298,7 +8355,7 @@ function reportInstructorStudentPerformanceRows(range, instructorId = "all", opt
   const groups = new Map();
   reportInstructorPerformanceSourceTests(range, instructorId, options).forEach((test) => {
     const effectiveInstructorId = testInstructorId(test);
-    const instructor = state.instructors.find((entry) => entry.id === effectiveInstructorId);
+    const instructor = getInstructorById(effectiveInstructorId);
     const course = getCourse(test.courseId);
     const subjectId = course?.subjectId || test.subjectId || "";
     const section = courseSectionForStudentCourse(test.studentId, test.courseId);
@@ -9208,13 +9265,11 @@ function renderInstructorGradeTrendInstructorChecklist(preselectedInstructorIds 
   const optionsWrap = document.getElementById("instructor-grade-trend-instructor-options");
   if (!optionsWrap) return;
   const selected = new Set(preselectedInstructorIds);
-  optionsWrap.innerHTML = state.instructors
-    .slice()
-    .sort((a, b) => `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`))
+  optionsWrap.innerHTML = assignableInstructorOptions()
     .map((instructor, idx) => {
       const checked = selected.has(instructor.id) ? " checked" : "";
       const inputId = `instructor-grade-trend-instructor-${idx}-${instructor.id}`;
-      return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="instructor-grade-trend-instructor-checkbox" value="${instructor.id}"${checked}><label for="${inputId}">${instructor.firstName} ${instructor.lastName}</label></div>`;
+      return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="instructor-grade-trend-instructor-checkbox" value="${instructor.id}"${checked}><label for="${inputId}">${escapeHtml(instructorDisplayName(instructor))}</label></div>`;
     }).join("") || "<span>No instructors available.</span>";
   updateInstructorGradeTrendInstructorSummary();
 }
@@ -10855,7 +10910,9 @@ function courseSchoolDayMeta(course) {
 
 function courseSectionSchoolDayMeta(section) {
   if (!section) return [];
+  const instructorId = assignedInstructorIdForCourseSection(section.id);
   return [
+    instructorId ? `Instructor: ${getInstructorName(instructorId)}` : "Instructor: Unassigned",
     `Fixed ${formatClockTime(section.startTime || "08:00")}`,
     weekdaySummary(section.weekdays),
     quarterSummary(section.quarterNames, "Course quarters"),
@@ -11193,7 +11250,11 @@ function syncCourseSectionFormFromCourse(courseId, { preserveExisting = true } =
   const course = getCourse(courseId);
   const resourceGroupInput = document.getElementById("course-section-resource-group");
   const capacityInput = document.getElementById("course-section-capacity");
+  const instructorInput = document.getElementById("course-section-instructor");
   if (!course || !resourceGroupInput || !capacityInput) return;
+  if (!preserveExisting && instructorInput) {
+    instructorInput.value = "";
+  }
   if (!preserveExisting || !resourceGroupInput.value.trim()) {
     resourceGroupInput.value = courseResourceGroup(course);
   }
@@ -11219,6 +11280,8 @@ function resetCourseSectionForm() {
   renderCourseSectionStudentChecklist([]);
   const timeInput = document.getElementById("course-section-start-time");
   if (timeInput) timeInput.value = normalizeSchoolDayStartTime(currentSchoolYear()?.schoolDayStartTime);
+  const instructorInput = document.getElementById("course-section-instructor");
+  if (instructorInput) instructorInput.value = "";
   const courseSelect = document.getElementById("course-section-course");
   if (courseSelect?.value) syncCourseSectionFormFromCourse(courseSelect.value, { preserveExisting: false });
   renderCourseSections();
@@ -11231,6 +11294,7 @@ function beginCourseSectionEdit(sectionId) {
   courseSectionFormOpen = true;
   document.getElementById("course-section-course").value = section.courseId;
   document.getElementById("course-section-label").value = section.label || "";
+  document.getElementById("course-section-instructor").value = section.instructorId || "";
   document.getElementById("course-section-resource-group").value = section.resourceGroup || "";
   document.getElementById("course-section-capacity").value = section.concurrentCapacity == null ? "" : String(section.concurrentCapacity);
   document.getElementById("course-section-start-time").value = section.startTime || "08:00";
@@ -11255,6 +11319,8 @@ function beginCourseSectionCreate() {
   renderCourseSectionStudentChecklist([]);
   const timeInput = document.getElementById("course-section-start-time");
   if (timeInput) timeInput.value = normalizeSchoolDayStartTime(currentSchoolYear()?.schoolDayStartTime);
+  const instructorInput = document.getElementById("course-section-instructor");
+  if (instructorInput) instructorInput.value = "";
   const courseSelect = document.getElementById("course-section-course");
   if (courseSelect?.value) syncCourseSectionFormFromCourse(courseSelect.value, { preserveExisting: false });
   renderCourseSections();
@@ -13965,7 +14031,7 @@ function syncGradesFilterSubjectCourseOptions() {
     coursePool = enrolledCourses;
   }
   if (instructorFilter !== "all") {
-    coursePool = coursePool.filter((course) => matchesInstructorFilter(course.instructorId, instructorFilter));
+    coursePool = coursePool.filter((course) => courseMatchesInstructorFilter(course.id, instructorFilter));
   }
   const subjectIds = new Set(coursePool.map((course) => course.subjectId));
   const subjectPool = state.subjects.filter((subject) => subjectIds.has(subject.id));
@@ -16995,7 +17061,7 @@ function renderCompletionTodayFilterOptions(dashboardStudents) {
     if (!validIds.has(studentId)) completionTodaySelectedStudentIds.delete(studentId);
   });
   Array.from(completionTodaySelectedInstructorIds).forEach((instructorId) => {
-    if (!state.instructors.some((instructor) => instructor.id === instructorId)) completionTodaySelectedInstructorIds.delete(instructorId);
+    if (!assignableInstructorOptions().some((instructor) => instructor.id === instructorId)) completionTodaySelectedInstructorIds.delete(instructorId);
   });
   if (completionTodaySelectedSubjectId !== "all" && !state.subjects.some((subject) => subject.id === completionTodaySelectedSubjectId)) {
     completionTodaySelectedSubjectId = "all";
@@ -17017,13 +17083,11 @@ function renderCompletionTodayFilterOptions(dashboardStudents) {
 
   const instructorOptions = document.getElementById("completion-today-instructor-options");
   if (instructorOptions) {
-    instructorOptions.innerHTML = state.instructors
-      .slice()
-      .sort((a, b) => `${a.lastName}, ${a.firstName}`.localeCompare(`${b.lastName}, ${b.firstName}`))
+    instructorOptions.innerHTML = assignableInstructorOptions()
       .map((instructor, idx) => {
         const checked = completionTodaySelectedInstructorIds.has(instructor.id) ? " checked" : "";
         const inputId = `completion-today-instructor-${idx}-${instructor.id}`;
-        return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="completion-today-instructor-checkbox" value="${instructor.id}"${checked}><label for="${inputId}">${instructor.firstName} ${instructor.lastName}</label></div>`;
+        return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="completion-today-instructor-checkbox" value="${instructor.id}"${checked}><label for="${inputId}">${escapeHtml(instructorDisplayName(instructor))}</label></div>`;
       }).join("") || "<span>No instructors available.</span>";
   }
   const instructorSummary = document.getElementById("completion-today-instructor-summary");
@@ -18717,7 +18781,7 @@ function renderDashboard() {
   Array.from(reportSelectedStudentIds).forEach((studentId) => {
     if (!validReportStudentIds.has(studentId)) reportSelectedStudentIds.delete(studentId);
   });
-  const validInstructorIds = new Set(state.instructors.map((instructor) => instructor.id));
+  const validInstructorIds = new Set(assignableInstructorOptions().map((instructor) => instructor.id));
   Array.from(studentPerformanceSelectedInstructorIds).forEach((instructorId) => {
     if (!validInstructorIds.has(instructorId)) studentPerformanceSelectedInstructorIds.delete(instructorId);
   });
@@ -20490,11 +20554,15 @@ function defaultInstructorIdForCourse(courseId) {
   return assignedInstructorIdForCourse(courseId);
 }
 
+function defaultInstructorIdForCourseSection(sectionId) {
+  return assignedInstructorIdForCourseSection(sectionId);
+}
+
 function effectiveInstructionInstructorId(studentId, courseId, date) {
   const section = courseSectionForStudentCourse(studentId, courseId);
   if (section) {
     const sharedRecord = sharedClassInstructionActual(section.id, date);
-    return String(sharedRecord?.instructorId || defaultInstructorIdForCourse(courseId) || "").trim();
+    return String(sharedRecord?.instructorId || defaultInstructorIdForCourseSection(section.id) || "").trim();
   }
   const existing = findInstructionActualRecord(studentId, courseId, date);
   return String(existing?.instructorId || defaultInstructorIdForCourse(courseId) || "").trim();
@@ -20526,7 +20594,8 @@ function hasInstructionExecutionOverride(studentId, courseId, date) {
   const sectionBound = !!section;
   if (Number.isInteger(existing.startMinutes) && existing.startMinutes >= 0) return true;
   if (!sectionBound && Number.isInteger(existing.orderIndex) && existing.orderIndex > 0) return true;
-  if (String(existing.instructorId || "").trim() !== String(defaultInstructorIdForCourse(courseId) || "").trim()) return true;
+  const defaultInstructorId = sectionBound ? defaultInstructorIdForCourseSection(section.id) : defaultInstructorIdForCourse(courseId);
+  if (String(existing.instructorId || "").trim() !== String(defaultInstructorId || "").trim()) return true;
   if (Number.isInteger(existing.actualMinutes) && existing.actualMinutes > 0 && existing.actualMinutes !== plannedInstructionMinutesForCourse(courseId)) return true;
   return false;
 }
@@ -20534,9 +20603,9 @@ function hasInstructionExecutionOverride(studentId, courseId, date) {
 function buildInstructionInstructorOptions(selectedInstructorId) {
   const normalizedSelected = String(selectedInstructorId || "").trim();
   const optionRows = [{ value: "", label: "Unassigned" }]
-    .concat(state.instructors.map((instructor) => ({
+    .concat(assignableInstructorOptions().map((instructor) => ({
       value: instructor.id,
-      label: `${instructor.firstName} ${instructor.lastName}`
+      label: instructorDisplayName(instructor)
     })));
   return optionRows
     .map((option) => `<option value="${escapeHtml(option.value)}"${option.value === normalizedSelected ? " selected" : ""}>${escapeHtml(option.label)}</option>`)
@@ -20616,7 +20685,7 @@ async function saveSharedClassInstructionActual({ courseSectionId, instructorId,
 async function resetSharedClassInstructionActuals(courseSectionId, date) {
   const section = getCourseSection(courseSectionId);
   if (!section) return;
-  const defaultInstructorId = defaultInstructorIdForCourse(section.courseId);
+  const defaultInstructorId = defaultInstructorIdForCourseSection(section.id);
   const plannedMinutes = plannedInstructionMinutesForCourse(section.courseId);
   const studentIds = enrolledStudentIdsForCourseSection(courseSectionId);
   for (const studentId of studentIds) {
@@ -21123,6 +21192,7 @@ function createLegacyLocalCourseSection(payload) {
   const section = {
     id: payload.id || uid(),
     ...payload,
+    instructorId: String(payload.instructorId || "").trim(),
     resourceGroup: String(payload.resourceGroup || "").trim(),
     concurrentCapacity: payload.concurrentCapacity == null ? null : Number(payload.concurrentCapacity),
     quarterNames: normalizeQuarterNames(payload.quarterNames),
@@ -21136,6 +21206,7 @@ function updateLegacyLocalCourseSection(existingSection, payload) {
   if (!existingSection) return;
   existingSection.courseId = payload.courseId;
   existingSection.label = payload.label;
+  existingSection.instructorId = String(payload.instructorId || "").trim();
   existingSection.resourceGroup = String(payload.resourceGroup || "").trim();
   existingSection.concurrentCapacity = payload.concurrentCapacity == null ? null : Number(payload.concurrentCapacity);
   existingSection.startTime = payload.startTime;
@@ -22090,6 +22161,7 @@ function bindEvents() {
     if (!ensureAdminAction()) return;
     const courseId = document.getElementById("course-section-course").value;
     const label = document.getElementById("course-section-label").value.trim();
+    const instructorId = document.getElementById("course-section-instructor").value.trim();
     const resourceGroup = document.getElementById("course-section-resource-group").value.trim();
     const capacityRaw = document.getElementById("course-section-capacity").value.trim();
     const concurrentCapacity = capacityRaw === "" ? null : Number(capacityRaw);
@@ -22100,7 +22172,7 @@ function bindEvents() {
     if (!courseId || !label || !startTime || !weekdays.length) { alert("Provide a course, class label, start time, and at least one weekday."); return; }
     if (concurrentCapacity != null && (!Number.isInteger(concurrentCapacity) || concurrentCapacity <= 0)) { alert("Class capacity must be a whole number greater than 0."); return; }
     if (!confirmEarlyClassStart(startTime)) return;
-    const payload = { courseId, label, resourceGroup, concurrentCapacity, startTime, quarterNames, weekdays, scheduleOrder: null };
+    const payload = { courseId, label, instructorId, resourceGroup, concurrentCapacity, startTime, quarterNames, weekdays, scheduleOrder: null };
     const conflictMessages = courseSectionConflictMessages(
       courseSectionDraftFromForm({ courseId, startTime, quarterNames, weekdays }),
       selectedStudentIds

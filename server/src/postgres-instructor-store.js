@@ -1,5 +1,7 @@
 const { getPostgresPool } = require("./postgres-db");
 
+const INDEPENDENT_LEARNING_INSTRUCTOR_ID = "independent-learning";
+
 async function listInstructors() {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -13,8 +15,9 @@ async function listInstructors() {
       age_recorded AS "ageRecorded",
       created_at AS "createdAt"
     FROM instructors
+    WHERE id <> $1
     ORDER BY lower(last_name), lower(first_name)
-  `);
+  `, [INDEPENDENT_LEARNING_INSTRUCTOR_ID]);
   return result.rows;
 }
 
@@ -35,17 +38,19 @@ async function listInstructorsForUser(user) {
         ON e.course_id = c.id
       WHERE e.student_id = $1
         AND c.instructor_id IS NOT NULL
+        AND c.instructor_id <> $2
 
       UNION
 
-      SELECT c.instructor_id
+      SELECT COALESCE(cs.instructor_id, c.instructor_id) AS instructor_id
       FROM courses c
       JOIN course_sections cs
         ON cs.course_id = c.id
       JOIN section_enrollments se
         ON se.course_section_id = cs.id
       WHERE se.student_id = $1
-        AND c.instructor_id IS NOT NULL
+        AND COALESCE(cs.instructor_id, c.instructor_id) IS NOT NULL
+        AND COALESCE(cs.instructor_id, c.instructor_id) <> $2
 
       UNION
 
@@ -53,6 +58,7 @@ async function listInstructorsForUser(user) {
       FROM actual_instruction_minutes
       WHERE student_id = $1
         AND instructor_id IS NOT NULL
+        AND instructor_id <> $2
     )
     SELECT
       id,
@@ -80,7 +86,7 @@ async function listInstructorsForUser(user) {
         ON assigned.instructor_id = i.id
     ) scoped_instructors
     ORDER BY sort_last_name, sort_first_name
-  `, [studentId]);
+  `, [studentId, INDEPENDENT_LEARNING_INSTRUCTOR_ID]);
   return result.rows;
 }
 
@@ -131,6 +137,7 @@ async function createInstructor(instructor) {
 }
 
 async function updateInstructor(id, instructor) {
+  if (id === INDEPENDENT_LEARNING_INSTRUCTOR_ID) return null;
   const pool = getPostgresPool();
   const result = await pool.query(`
     UPDATE instructors
@@ -165,6 +172,7 @@ async function updateInstructor(id, instructor) {
 }
 
 async function deleteInstructor(id) {
+  if (id === INDEPENDENT_LEARNING_INSTRUCTOR_ID) return false;
   const pool = getPostgresPool();
   const result = await pool.query("DELETE FROM instructors WHERE id = $1", [id]);
   return result.rowCount > 0;
