@@ -10237,6 +10237,23 @@ function renderCourses() {
   renderSchoolDayReadinessPanels();
 }
 
+function scrollManagementEditorIntoView(formId, focusSelector) {
+  requestAnimationFrame(() => {
+    const form = document.getElementById(formId);
+    if (!form || form.classList.contains("hidden")) return;
+    const target = form.closest(".card") || form;
+    const top = Math.max(0, window.scrollY + target.getBoundingClientRect().top - 84);
+    window.scrollTo({ top, behavior: "smooth" });
+    const focusTarget = focusSelector ? form.querySelector(focusSelector) : null;
+    if (!focusTarget) return;
+    try {
+      focusTarget.focus({ preventScroll: true });
+    } catch (error) {
+      focusTarget.focus();
+    }
+  });
+}
+
 function renderQuarterChecklist({ optionsWrapId, summaryId, checkboxClass, selectedNames = [] }) {
   const optionsWrap = document.getElementById(optionsWrapId);
   const summary = document.getElementById(summaryId);
@@ -10860,6 +10877,7 @@ function beginCourseSectionEdit(sectionId) {
     checkbox.checked = Array.isArray(section.weekdays) && section.weekdays.includes(Number(checkbox.value));
   });
   renderCourseSections();
+  scrollManagementEditorIntoView("course-section-form", "#course-section-course");
 }
 
 function beginCourseSectionCreate() {
@@ -10877,6 +10895,7 @@ function beginCourseSectionCreate() {
   const courseSelect = document.getElementById("course-section-course");
   if (courseSelect?.value) syncCourseSectionFormFromCourse(courseSelect.value, { preserveExisting: false });
   renderCourseSections();
+  scrollManagementEditorIntoView("course-section-form", "#course-section-course");
 }
 
 function renderCourseSections() {
@@ -20338,6 +20357,7 @@ function beginCourseEdit(courseId) {
   setCourseWeekdaySelection(course.weekdays || [1, 2, 3, 4, 5]);
   fillCourseMaterialFields(course.materials || course.material);
   renderCourses();
+  scrollManagementEditorIntoView("course-form", "#course-name");
 }
 
 function cancelCourseEdit() {
@@ -20364,6 +20384,7 @@ function beginCourseCreate() {
   fillCourseMaterialFields();
   renderSelects();
   renderCourses();
+  scrollManagementEditorIntoView("course-form", "#course-name");
 }
 
 function fillCourseMaterialFields(materialsInput = []) {
