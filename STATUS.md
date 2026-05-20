@@ -25,6 +25,7 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - Class-level instructor override persists in `course_sections.instructor_id`; School Day defaults class rows to the class instructor before falling back to the course instructor.
 - APP001 deployed migration `031_independent_learning_instructor.sql`, seeding the protected instructor and adding `course_sections.instructor_id`.
 - WEB001 deployed tenant app `app.js?v=202605202030`.
+- Full hosted release gate passed after deployment.
 
 ## Production State
 
@@ -56,10 +57,11 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605202030`.
 - Served tenant app JS contains `INDEPENDENT_LEARNING_INSTRUCTOR_ID`.
+- Full hosted release gate passed for `https://mitchell.navigrader.com`.
 
 ## Current Blockers
 
-- Full hosted release gate still needs to be run from the user's PowerShell session because Codex does not have hosted smoke credentials in-process.
+- None.
 
 ## Current Risks
 
@@ -70,6 +72,4 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 
 ## Next Actions
 
-1. Run the hosted release gate from a credentialed PowerShell session:
-   `powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -PublicBaseUrl https://mitchell.navigrader.com`
-2. QA `Independent Learning` on `smoketest.navigrader.com` by assigning it to a Course and a Class, then checking School Day and instructor filters.
+1. QA `Independent Learning` on `smoketest.navigrader.com` by assigning it to a Course and a Class, then checking School Day and instructor filters.

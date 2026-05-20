@@ -17,17 +17,14 @@ Workflow polish is active. Current slice added a self-led instruction option nam
 - Reports, grade filters, dashboard gauges/checklists, and instructor trend filters use the assignable instructor list, including `Independent Learning`.
 - APP001 deployed API files and tenant migration `031_independent_learning_instructor.sql`.
 - WEB001 deployed `app.js?v=202605202030`.
+- Hosted release gate passed for `https://mitchell.navigrader.com` after deployment.
 - Rollbacks:
   - APP001: `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
   - WEB001: `/var/www/home-school-management/rollback/web-independent-learning-instructor-202605202030.tgz`
 
 ## Next Action
 
-Run the hosted release gate from a PowerShell session with smoke credentials loaded:
-
-`powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -PublicBaseUrl https://mitchell.navigrader.com`
-
-Then smoke-test `Independent Learning` in `smoketest.navigrader.com`:
+Smoke-test `Independent Learning` in `smoketest.navigrader.com`:
 
 - Set a Course instructor to `Independent Learning`.
 - Set a Class instructor override to `Independent Learning`.
@@ -35,7 +32,6 @@ Then smoke-test `Independent Learning` in `smoketest.navigrader.com`:
 
 ## Risks
 
-- Codex does not have hosted smoke credentials in-process, so full release gate must be run from the user's shell.
 - Use smoke/test tenant data for mutating QA where possible.
 - Do not store smoke credentials, Stripe secrets, or Postmark secrets in repo files.
 - Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside commits.
@@ -50,3 +46,4 @@ Then smoke-test `Independent Learning` in `smoketest.navigrader.com`:
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
 - Public `mitchell` and `smoketest` roots reference `app.js?v=202605202030`.
 - Served tenant app JS contains `INDEPENDENT_LEARNING_INSTRUCTOR_ID`.
+- Full hosted release gate passed for `https://mitchell.navigrader.com`.
