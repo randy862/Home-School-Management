@@ -18,9 +18,10 @@ Workflow polish is active. Current slice added a self-led instruction option nam
 - APP001 deployed API files and tenant migration `031_independent_learning_instructor.sql`.
 - WEB001 deployed `app.js?v=202605202030`.
 - Hosted release gate passed for `https://mitchell.navigrader.com` after deployment.
+- Class form Weekdays field is deployed as a compact, content-width control in `styles.css?v=202605202115`.
 - Rollbacks:
   - APP001: `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
-  - WEB001: `/var/www/home-school-management/rollback/web-independent-learning-instructor-202605202030.tgz`
+  - WEB001: `/var/www/home-school-management/rollback/web-class-weekdays-compact-202605202115.tgz`
 
 ## Next Action
 
@@ -47,3 +48,5 @@ Smoke-test `Independent Learning` in `smoketest.navigrader.com`:
 - Public `mitchell` and `smoketest` roots reference `app.js?v=202605202030`.
 - Served tenant app JS contains `INDEPENDENT_LEARNING_INSTRUCTOR_ID`.
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
+- Public `mitchell` and `smoketest` roots reference `styles.css?v=202605202115`.
+- Served tenant CSS contains the compact Class weekdays selector.

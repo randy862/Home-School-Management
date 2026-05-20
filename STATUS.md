@@ -26,6 +26,7 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - APP001 deployed migration `031_independent_learning_instructor.sql`, seeding the protected instructor and adding `course_sections.instructor_id`.
 - WEB001 deployed tenant app `app.js?v=202605202030`.
 - Full hosted release gate passed after deployment.
+- Class form Weekdays field is deployed as a compact, content-width control.
 
 ## Production State
 
@@ -35,13 +36,13 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
   - `saas.js?v=202605182130`
 - Tenant app assets:
   - `app.js?v=202605202030`
-  - `styles.css?v=202605201454`
+  - `styles.css?v=202605202115`
 - APP001 latest rollback:
   - `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
 - APP001 control-api rollback:
   - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-independent-learning-instructor-202605202030.tgz`
+  - `/var/www/home-school-management/rollback/web-class-weekdays-compact-202605202115.tgz`
 
 ## Validation
 
@@ -58,6 +59,8 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605202030`.
 - Served tenant app JS contains `INDEPENDENT_LEARNING_INSTRUCTOR_ID`.
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
+- Public `mitchell` and `smoketest` tenant roots reference `styles.css?v=202605202115`.
+- Served tenant CSS contains the compact Class weekdays selector.
 
 ## Current Blockers
 

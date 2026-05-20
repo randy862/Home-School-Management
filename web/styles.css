@@ -13560,6 +13560,12 @@ tbody tr:hover {
   padding: 0.25rem 0.55rem 0.35rem;
 }
 
+#app-shell .course-section-form .course-section-weekdays-field {
+  justify-self: start;
+  width: fit-content;
+  max-width: 100%;
+}
+
 #app-shell .course-section-form .course-section-students-field,
 #app-shell .course-section-form .course-section-quarters-field {
   display: grid;
