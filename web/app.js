@@ -1640,6 +1640,7 @@ let schoolDayInlineGradeKey = "";
 let schoolDayDailyMessageState = { kind: "", text: "" };
 let schoolDayAttendanceMessageState = { kind: "", text: "" };
 let schoolDayGradesMessageState = { kind: "", text: "" };
+const schoolDayInstructionEditDrafts = new Map();
 let schoolDayBulkStatusBusy = false;
 let schoolDayQuickFilters = {
   needsAttendance: false,
@@ -19961,6 +19962,49 @@ function renderWeekCalendar(referenceISO, studentFilterIds = [], subjectFilterId
   return { start, end };
 }
 
+function schoolDayInstructionEditDraftKey(scope, key) {
+  return `${scope}::${key}`;
+}
+
+function schoolDayInstructionEditSelectorValue(value) {
+  return String(value || "").replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+}
+
+function getSchoolDayInstructionEditDraft(scope, key) {
+  return schoolDayInstructionEditDrafts.get(schoolDayInstructionEditDraftKey(scope, key)) || null;
+}
+
+function clearSchoolDayInstructionEditDraft(scope, key) {
+  if (!key) return;
+  schoolDayInstructionEditDrafts.delete(schoolDayInstructionEditDraftKey(scope, key));
+}
+
+function clearSchoolDayInstructionEditDrafts() {
+  schoolDayInstructionEditDrafts.clear();
+}
+
+function captureSchoolDayInstructionEditDraft(scope, key) {
+  if (!key) return;
+  const normalizedScope = scope === "class" ? "class" : "instruction";
+  const safeKey = schoolDayInstructionEditSelectorValue(key);
+  const inputPrefix = normalizedScope === "class" ? "class-instruction-actual" : "instruction-actual";
+  const minutesInput = document.querySelector(`[data-${inputPrefix}-input="${safeKey}"]`);
+  const startInput = document.querySelector(`[data-${inputPrefix}-start="${safeKey}"]`);
+  const instructorInput = document.querySelector(`[data-${inputPrefix}-instructor="${safeKey}"]`);
+  if (!minutesInput && !startInput && !instructorInput) return;
+
+  const draft = { ...(getSchoolDayInstructionEditDraft(normalizedScope, key) || {}) };
+  if (minutesInput instanceof HTMLInputElement) draft.actualMinutes = minutesInput.value;
+  if (startInput instanceof HTMLInputElement) draft.startTime = startInput.value;
+  if (instructorInput instanceof HTMLSelectElement) draft.instructorId = instructorInput.value;
+  schoolDayInstructionEditDrafts.set(schoolDayInstructionEditDraftKey(normalizedScope, key), draft);
+}
+
+function preserveActiveSchoolDayInstructionEditDraft() {
+  if (editingInstructionActualKey) captureSchoolDayInstructionEditDraft("instruction", editingInstructionActualKey);
+  if (editingSharedClassActualKey) captureSchoolDayInstructionEditDraft("class", editingSharedClassActualKey);
+}
+
 function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = [], options = {}) {
   const ref = toDate(referenceISO || todayISO());
   const dateKey = toISO(ref);
@@ -20055,15 +20099,29 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
       const isEditing = isSectionBoundInstruction
         ? editingSharedClassActualKey === sharedEditKey
         : editingInstructionActualKey === editKey;
+      const editDraft = isEditing
+        ? getSchoolDayInstructionEditDraft(isSectionBoundInstruction ? "class" : "instruction", isSectionBoundInstruction ? sharedEditKey : editKey)
+        : null;
+      const draftHasInstructor = editDraft && Object.prototype.hasOwnProperty.call(editDraft, "instructorId");
+      const draftHasStartTime = editDraft && Object.prototype.hasOwnProperty.call(editDraft, "startTime");
+      const draftHasActualMinutes = editDraft && Object.prototype.hasOwnProperty.call(editDraft, "actualMinutes");
       const canEditActualMinutes = isAdminUser();
-      const instructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
+      const instructorId = draftHasInstructor
+        ? String(editDraft.instructorId || "").trim()
+        : effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
       const startTimeValue = Number.isFinite(block.start)
         ? block.start
         : effectiveInstructionStartMinutes(block.studentId, block.courseId, dateKey, block.plannedStart);
+      const startTimeInputValue = draftHasStartTime
+        ? String(editDraft.startTime || "")
+        : formatTimeInputValue(startTimeValue);
+      const actualMinutesInputValue = draftHasActualMinutes
+        ? String(editDraft.actualMinutes || "")
+        : String(Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId)));
       const hourCell = isEditing
         ? (isSectionBoundInstruction
-          ? `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Class Start<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-class-instruction-actual-start="${sharedEditKey}"></label></div>`
-          : `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Start Time<input type="time" value="${formatTimeInputValue(startTimeValue)}" data-instruction-actual-start="${editKey}"></label></div>`)
+          ? `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Class Start<input type="time" value="${escapeHtml(startTimeInputValue)}" data-class-instruction-actual-start="${sharedEditKey}"></label></div>`
+          : `<div class="calendar-inline-editor school-day-start-editor"><label class="calendar-inline-label">Start Time<input type="time" value="${escapeHtml(startTimeInputValue)}" data-instruction-actual-start="${editKey}"></label></div>`)
         : isExcused
           ? `${plannedRange}<br><span class="muted">Excused</span>`
           : actualRange;
@@ -20071,7 +20129,7 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
         ? `<select class="school-day-instructor-editor" ${isSectionBoundInstruction ? `data-class-instruction-actual-instructor="${sharedEditKey}"` : `data-instruction-actual-instructor="${editKey}"`}>${buildInstructionInstructorOptions(instructorId)}</select>`
         : escapeHtml(instructorId ? getInstructorName(instructorId) : "Unassigned");
       const minutesCell = isEditing
-        ? `<input class="school-day-minutes-editor" type="number" min="1" step="1" value="${Number(block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId))}" ${isSectionBoundInstruction ? `data-class-instruction-actual-input="${sharedEditKey}"` : `data-instruction-actual-input="${editKey}"`}>`
+        ? `<input class="school-day-minutes-editor" type="number" min="1" step="1" value="${escapeHtml(actualMinutesInputValue)}" ${isSectionBoundInstruction ? `data-class-instruction-actual-input="${sharedEditKey}"` : `data-instruction-actual-input="${editKey}"`}>`
         : `${Number(isExcused ? plannedInstructionMinutesForCourse(block.courseId) : (block.actualMinutes || plannedInstructionMinutesForCourse(block.courseId)))} min`;
       const statusCell = mode === "school-day" && canEditActualMinutes
         ? renderSchoolDayStatusControl({ studentId: block.studentId, courseId: block.courseId, date: dateKey, status: instructionStatus })
@@ -20248,6 +20306,7 @@ function renderCalendar() {
 }
 
 function renderSchoolDay() {
+  preserveActiveSchoolDayInstructionEditDraft();
   const dateInput = document.getElementById("school-day-date");
   const ref = activeYearDateOrDefault(dateInput?.value || "");
   if (dateInput && dateInput.value !== ref) dateInput.value = ref;
@@ -24902,6 +24961,7 @@ function bindEvents() {
     const schoolDayEditFlexBlockKey = t.getAttribute("data-school-day-edit-flex-block");
     if (schoolDayEditFlexBlockKey) {
       if (!ensureAdminAction()) return;
+      clearSchoolDayInstructionEditDrafts();
       editingInstructionActualKey = "";
       editingSharedClassActualKey = "";
       editingFlexBlockKey = schoolDayEditFlexBlockKey;
@@ -24941,6 +25001,7 @@ function bindEvents() {
     const schoolDayEditInstructionActualKey = t.getAttribute("data-school-day-edit-instruction-actual");
     if (schoolDayEditInstructionActualKey) {
       if (!ensureAdminAction()) return;
+      clearSchoolDayInstructionEditDrafts();
       editingFlexBlockKey = "";
       editingSharedClassActualKey = "";
       editingInstructionActualKey = schoolDayEditInstructionActualKey;
@@ -24950,6 +25011,7 @@ function bindEvents() {
     const schoolDayEditClassActualKey = t.getAttribute("data-school-day-edit-class-actual");
     if (schoolDayEditClassActualKey) {
       if (!ensureAdminAction()) return;
+      clearSchoolDayInstructionEditDrafts();
       editingInstructionActualKey = "";
       editingFlexBlockKey = "";
       editingSharedClassActualKey = schoolDayEditClassActualKey;
@@ -24958,6 +25020,7 @@ function bindEvents() {
     }
     const schoolDayCancelInstructionActualKey = t.getAttribute("data-school-day-cancel-instruction-actual");
     if (schoolDayCancelInstructionActualKey) {
+      clearSchoolDayInstructionEditDraft("instruction", schoolDayCancelInstructionActualKey);
       editingInstructionActualKey = "";
       editingSharedClassActualKey = "";
       editingFlexBlockKey = "";
@@ -24966,6 +25029,7 @@ function bindEvents() {
     }
     const schoolDayCancelClassActualKey = t.getAttribute("data-school-day-cancel-class-actual");
     if (schoolDayCancelClassActualKey) {
+      clearSchoolDayInstructionEditDraft("class", schoolDayCancelClassActualKey);
       editingSharedClassActualKey = "";
       editingFlexBlockKey = "";
       renderSchoolDay();
@@ -24994,6 +25058,7 @@ function bindEvents() {
       (async () => {
         try {
           await saveInstructionActualMinutes({ studentId, courseId, instructorId, date, actualMinutes, startMinutes });
+          clearSchoolDayInstructionEditDraft("instruction", schoolDaySaveInstructionActualKey);
           editingInstructionActualKey = "";
           rerenderAfterInstructionChange();
         } catch (error) {
@@ -25025,6 +25090,7 @@ function bindEvents() {
       (async () => {
         try {
           await saveSharedClassInstructionActual({ courseSectionId, instructorId, date, actualMinutes, startMinutes });
+          clearSchoolDayInstructionEditDraft("class", schoolDaySaveClassActualKey);
           editingSharedClassActualKey = "";
           rerenderAfterInstructionChange();
         } catch (error) {
@@ -25039,6 +25105,7 @@ function bindEvents() {
       (async () => {
         try {
           await resetInstructionActualMinutes(schoolDayResetInstructionActualId);
+          clearSchoolDayInstructionEditDraft("instruction", editingInstructionActualKey);
           editingInstructionActualKey = "";
           rerenderAfterInstructionChange();
         } catch (error) {
@@ -25055,6 +25122,7 @@ function bindEvents() {
       (async () => {
         try {
           await resetSharedClassInstructionActuals(courseSectionId, date);
+          clearSchoolDayInstructionEditDraft("class", editingSharedClassActualKey);
           editingSharedClassActualKey = "";
           rerenderAfterInstructionChange();
         } catch (error) {
@@ -25088,7 +25156,9 @@ function bindEvents() {
         try {
           await resetInstructionActualMinutesBatch(recordIds);
           schoolDayInlineGradeKey = "";
+          clearSchoolDayInstructionEditDrafts();
           editingInstructionActualKey = "";
+          editingSharedClassActualKey = "";
           setSchoolDayDailyMessage("success", `Reset ${getStudentName(studentIds[0])}'s School Day to planned for ${formatDisplayDate(date)}.`);
           rerenderAfterInstructionChange();
         } catch (error) {
@@ -25113,7 +25183,9 @@ function bindEvents() {
         try {
           await resetInstructionActualMinutesBatch(recordIds);
           schoolDayInlineGradeKey = "";
+          clearSchoolDayInstructionEditDrafts();
           editingInstructionActualKey = "";
+          editingSharedClassActualKey = "";
           setSchoolDayDailyMessage("success", `Reset the filtered School Day to planned for ${formatDisplayDate(date)}.`);
           rerenderAfterInstructionChange();
         } catch (error) {

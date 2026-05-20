@@ -28,6 +28,7 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - Full hosted release gate passed after deployment.
 - Class form Weekdays field is deployed as a compact, content-width control.
 - Curriculum sidebar icon no longer renders as a white square when active.
+- School Day row editor now preserves unsaved start time, instructor, and minutes while status/grade actions re-render the row.
 
 ## Production State
 
@@ -36,14 +37,14 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605202030`
+  - `app.js?v=202605202145`
   - `styles.css?v=202605202115`
 - APP001 latest rollback:
   - `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
 - APP001 control-api rollback:
   - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-curriculum-icon-fix-202605202130.tgz`
+  - `/var/www/home-school-management/rollback/web-school-day-edit-draft-preserve-202605202145.tgz`
 
 ## Validation
 
@@ -57,8 +58,8 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605202030`.
-- Served tenant app JS contains `INDEPENDENT_LEARNING_INSTRUCTOR_ID`.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605202145`.
+- Served tenant app JS contains `preserveActiveSchoolDayInstructionEditDraft`.
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public `mitchell` and `smoketest` tenant roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.

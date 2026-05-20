@@ -14,15 +14,16 @@ Workflow polish is active. Current slice added a self-led instruction option nam
 - Class configuration now has an Instructor dropdown with `Use course instructor` default and `Independent Learning`/configured instructors as options.
 - Backend persists class instructor overrides in `course_sections.instructor_id`.
 - School Day editable rows include `Independent Learning` and class rows default to the class instructor before falling back to course instructor.
+- School Day row editor preserves unsaved start time, instructor, and minutes while status/grade actions re-render the row.
 - Reports, grade filters, dashboard gauges/checklists, and instructor trend filters use the assignable instructor list, including `Independent Learning`.
 - APP001 deployed API files and tenant migration `031_independent_learning_instructor.sql`.
-- WEB001 deployed `app.js?v=202605202030`.
+- WEB001 deployed `app.js?v=202605202145`.
 - Hosted release gate passed for `https://mitchell.navigrader.com` after deployment.
 - Class form Weekdays field is deployed as a compact, content-width control in `styles.css?v=202605202115`.
 - Curriculum sidebar icon was replaced with a clean outline SVG and cache-busted as `book-open.svg?v=202605202130`.
 - Rollbacks:
   - APP001: `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
-  - WEB001: `/var/www/home-school-management/rollback/web-curriculum-icon-fix-202605202130.tgz`
+  - WEB001: `/var/www/home-school-management/rollback/web-school-day-edit-draft-preserve-202605202145.tgz`
 
 ## Next Action
 
@@ -46,8 +47,8 @@ Smoke-test `Independent Learning` in `smoketest.navigrader.com`:
 - APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` roots reference `app.js?v=202605202030`.
-- Served tenant app JS contains `INDEPENDENT_LEARNING_INSTRUCTOR_ID`.
+- Public `mitchell` and `smoketest` roots reference `app.js?v=202605202145`.
+- Served tenant app JS contains `preserveActiveSchoolDayInstructionEditDraft`.
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public `mitchell` and `smoketest` roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.
