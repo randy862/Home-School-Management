@@ -6503,6 +6503,10 @@ tbody tr:hover {
   width: min(720px, calc(100vw - 2rem));
 }
 
+.help-center-modal-panel {
+  width: min(1040px, calc(100vw - 2rem));
+}
+
 .account-modal-header {
   display: flex;
   align-items: start;
@@ -6536,6 +6540,139 @@ tbody tr:hover {
   display: grid;
   gap: 0.75rem;
   padding: 0.9rem;
+}
+
+.help-center-modal-body {
+  grid-template-columns: minmax(220px, 0.36fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 0;
+  padding: 0;
+}
+
+.help-topic-list {
+  display: grid;
+  gap: 0.9rem;
+  max-height: calc(100vh - 7.3rem);
+  overflow: auto;
+  padding: 0.9rem;
+  border-right: 1px solid #e3eaf4;
+  background: #f8fbff;
+}
+
+.help-topic-group {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.help-topic-group h3 {
+  margin: 0;
+  color: #5c6f89;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.help-topic-btn {
+  display: grid;
+  gap: 0.18rem;
+  width: 100%;
+  min-height: 0;
+  padding: 0.56rem 0.62rem;
+  border: 1px solid #dce6f2;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #17243d;
+  box-shadow: none;
+  text-align: left;
+}
+
+.help-topic-btn strong {
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+.help-topic-btn span {
+  color: #5f6f87;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.help-topic-btn.active,
+.help-topic-btn:hover,
+.help-topic-btn:focus-visible {
+  border-color: #98b9e8;
+  background: #edf5ff;
+  color: #0d55c7;
+}
+
+.help-article-wrap {
+  max-height: calc(100vh - 7.3rem);
+  overflow: auto;
+  padding: 1rem;
+}
+
+.help-article {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.help-article-category {
+  margin: 0;
+  color: #557092;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.help-article h3 {
+  margin: 0;
+  color: #17243d;
+  font-size: 1.28rem;
+  line-height: 1.15;
+}
+
+.help-article-summary {
+  margin: 0;
+  max-width: 56rem;
+  color: #4d627c;
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.help-article-section {
+  display: grid;
+  gap: 0.38rem;
+  padding: 0.8rem;
+  border: 1px solid #dfe8f4;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.help-article-section h4 {
+  margin: 0;
+  color: #17243d;
+  font-size: 0.94rem;
+}
+
+.help-article-section ul {
+  display: grid;
+  gap: 0.38rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #3f5069;
+  font-size: 0.88rem;
+  line-height: 1.42;
+}
+
+.help-open-page-btn {
+  justify-self: start;
+  min-height: 34px;
+  padding: 0.42rem 0.72rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.84rem;
 }
 
 .account-overview-grid {
@@ -7095,6 +7232,20 @@ tbody tr:hover {
     flex-direction: column;
   }
 
+  .help-center-modal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .help-topic-list,
+  .help-article-wrap {
+    max-height: none;
+  }
+
+  .help-topic-list {
+    border-right: 0;
+    border-bottom: 1px solid #e3eaf4;
+  }
+
   .account-summary-strip {
     grid-template-columns: 1fr;
   }
@@ -7450,6 +7601,21 @@ tbody tr:hover {
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 12px 28px rgba(30, 54, 83, 0.05);
+}
+
+#app-shell button.sidebar-support-card {
+  width: 100%;
+  min-height: 0;
+  color: inherit;
+  box-shadow: 0 12px 28px rgba(30, 54, 83, 0.05);
+  text-align: left;
+}
+
+#app-shell button.sidebar-support-card:hover,
+#app-shell button.sidebar-support-card:focus-visible {
+  border-color: #98b9e8;
+  background: #edf5ff;
+  transform: none;
 }
 
 #app-shell .sidebar-year-card {

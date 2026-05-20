@@ -4,72 +4,42 @@ Date: 2026-05-20
 
 ## Context
 
-Product/platform follow-up is active. Current slice is deeper workflow QA from real usage, focused on Classes, enrollment workflows, and School Day schedule correctness.
+Product polish slice is active. Current slice made the in-app Help entry points functional with parent-friendly, task-based help content.
 
 ## Current State
 
-- Class bulk enrollment is implemented, deployed, and validated.
-- Class configuration has a Students multi-select with all-active-students support.
-- Saving a class synchronizes the selected roster:
-  - same-course flexible enrollments move into the class
-  - same-course class enrollments move between class sections
-  - unrelated course/class enrollments are preserved
-- School Day schedule placement now reflows flexible/non-class work around fixed classes and can fill open windows before later fixed classes.
-- Class roster UI detects fixed-class conflicts by student, weekdays, effective quarter scope, and class time window.
-- Backend validation rejects conflicting section enrollment create/update and conflicting course-section schedule edits.
-- Students and Quarters dropdowns in the Class form use compact checklist layout.
-- School Day Daily Schedule now supports bulk `Complete Open` and `Excuse Open` actions for the currently filtered open instruction queue.
-- Bulk status actions are tucked behind a subtle `Bulk Actions` disclosure and still require a confirmation dialog.
-- Schedule configuration now recommends balanced Q1-Q4 ranges from School Year dates, weekdays, and Holidays/Breaks.
-- New School Years auto-create recommended quarters; Holiday/Break changes rebalance only quarters that still match the prior recommendation.
-- Recommended Quarters is a collapsible disclosure in the Quarters tab.
-- Hosted class edits now remove unchecked students before backend conflict validation, allowing cleanup of already-conflicting rosters.
-- School Day pull-forward scheduling now uses the visible opening before a fixed class, so a later 60-minute flexible class can fill a 65-minute gap while leaving the transition buffer before the fixed class.
-- Ordered schedule blocks now act as placement barriers before fixed classes, so later flexible courses do not jump ahead of Lunch/Recess and push them late in the day.
-- Course/Class editor scroll and Student Current Schedule edit/cancel polish are deployed.
-- Production tenant app serves `app.js?v=202605200916` and `styles.css?v=202605191900`.
-- WEB001 rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-status-202605191700.tgz`.
-- WEB001 subtle bulk-actions rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-bulk-actions-subtle-202605191730.tgz`.
-- WEB001 quarter recommendation rollback snapshot exists at `/var/www/home-school-management/rollback/web-quarter-recommendations-202605191815.tgz`.
-- WEB001 collapsible recommendation rollback snapshot exists at `/var/www/home-school-management/rollback/web-quarter-recommendations-disclosure-202605191830.tgz`.
-- WEB001 class conflict cleanup rollback snapshot exists at `/var/www/home-school-management/rollback/web-class-conflict-removal-fix-202605191900.tgz`.
-- WEB001 visible-gap rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-gap-fill-visible-window-webroot-202605191930.tgz`.
-- WEB001 ordered-break rollback snapshot exists at `/var/www/home-school-management/rollback/web-school-day-ordered-break-placement-202605191950.tgz`.
-- WEB001 editor-scroll rollback exists at `/var/www/home-school-management/rollback/web-curriculum-editor-scroll-202605200905.tgz`; student schedule edit rollback exists at `/var/www/home-school-management/rollback/web-student-schedule-edit-cancel-202605200916.tgz`.
-- Full hosted release gate passed for `https://mitchell.navigrader.com` after the earlier class conflict deployment. Current student schedule edit deployment has public HTTP checks only from Codex because smoke credentials are not in this process.
+- Course/Class editor scroll polish and Student Current Schedule edit/cancel polish are deployed and pushed.
+- Hosted release gate passed from the user's PowerShell session before the Help Center slice began.
+- Topbar Help icon now opens an authenticated Help Center modal.
+- Sidebar `Need Help?` card is now a button that opens Quick Start help.
+- Help Center includes task-based articles for Quick Start, Dashboard, Students, Courses, Classes, Schedule, School Day, Grades, Attendance, Reports, Account/Billing, and Troubleshooting.
+- Help opens contextually from the current app tab when possible.
+- Help articles include `Open Related Page` actions to jump to the relevant app area.
+- Tenant app production assets now serve:
+  - `app.js?v=202605201454`
+  - `styles.css?v=202605201454`
+- WEB001 Help Center rollback snapshot:
+  - `/var/www/home-school-management/rollback/web-help-center-202605201454.tgz`
 
 ## Next Action
 
-Run the hosted release gate from a PowerShell session with smoke credentials loaded, then real-usage QA Student Current Schedule `Edit Schedule`, `Save Schedule Changes`, and `Cancel Changes`.
+Run the hosted release gate from a PowerShell session with smoke credentials loaded:
+
+`powershell -ExecutionPolicy Bypass -File .\scripts\Invoke-HostedReleaseGate.ps1 -PublicBaseUrl https://mitchell.navigrader.com`
+
+Then QA the Help icon and sidebar Help card in `mitchell.navigrader.com` or `smoketest.navigrader.com`.
 
 ## Risks
 
-- Use smoke/test tenants for destructive or mutating QA where practical.
+- Codex does not have hosted smoke credentials in-process, so only public HTTP checks were run after the Help Center deployment.
+- Use smoke/test tenants for mutating QA where practical.
 - Do not store smoke credentials or Stripe secrets in repo files.
 - Untracked scratch screenshots/icons and `tmp/` remain local and intentionally outside commits.
-- Class conflict checks use course `hoursPerDay` as class duration, matching current School Day behavior.
-- Bulk status actions intentionally apply only to currently shown scheduled/open instruction rows and respect the active date, student, subject, course, status, and quick filters.
-- Quarter recommendations infer auto-managed quarters by matching saved Q1-Q4 dates to the current recommendation; manually edited quarter dates are left alone.
-- If a class edit removes students and a later update still fails, the UI refreshes class/enrollment state so the roster does not stay stale.
 
 ## Validation
 
 - `node --check web/app.js` passed.
-- `node --check server/src/services/curriculum-service.js` passed.
-- `node --check server/src/repositories/postgres/curriculum-repository.js` passed.
-- Backend conflict and non-conflict service behavior checks passed.
-- APP001 `hsm-api` restarted healthy and `/health` returned `{"ok":true}`.
-- WEB001 public HTML references the expected tenant app asset versions.
-- Hosted release gate passed from the user's PowerShell session.
-- `node --check web/app.js` passed after bulk status changes.
-- Public hosted `/`, `/terms`, and `/privacy` returned HTTP 200 after the WEB001 bulk status deployment.
-- `node --check web/app.js` passed after the subtle bulk-actions UI refinement.
-- `node --check web/app.js` passed after quarter recommendation changes.
-- `node --check web/app.js` passed after class conflict cleanup changes.
-- `node --check web/app.js` passed after the visible-gap fix.
-- `node --check web/app.js` passed after the ordered-break placement fix.
-- `node --check web/app.js` passed after the editor-scroll and student schedule edit/cancel fixes.
-- WEB001 public HTML references `app.js?v=202605200916` and `styles.css?v=202605191900`.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605191930`; served app JS contains the visible-gap fix.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605191950`; served app JS contains the ordered-break placement fix.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605200916`; served app JS contains the student schedule edit/cancel fix.
+- WEB001 public HTML references `app.js?v=202605201454` and `styles.css?v=202605201454`.
+- Public `mitchell` and `smoketest` tenant roots returned HTTP 200 and reference the new asset versions.
+- Served tenant app JS contains `HELP_ARTICLES` and `renderHelpCenterSurface`.
+- Served tenant CSS contains `help-center-modal-body`.

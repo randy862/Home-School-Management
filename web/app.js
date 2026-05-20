@@ -1688,6 +1688,276 @@ let accountViewMessageState = { kind: "", text: "" };
 let accountPasswordMessageState = { kind: "", text: "" };
 let accountOptionsMessageState = { kind: "", text: "" };
 let accountUpgradeMessageState = { kind: "", text: "" };
+let helpCenterOpen = false;
+let activeHelpArticleId = "quick-start";
+const HELP_ARTICLES = [
+  {
+    id: "quick-start",
+    category: "Start Here",
+    title: "Quick Start",
+    summary: "A practical setup order for getting Navigrader ready for a homeschool year.",
+    tab: "dashboard",
+    sections: [
+      {
+        heading: "Best setup order",
+        items: [
+          "Create or review the active School Year in Schedule.",
+          "Add students and confirm each student's grade level.",
+          "Add subjects, then mark required subjects for your homeschool requirements.",
+          "Add flexible Courses for work that can move around the day.",
+          "Add Classes for fixed-time group instruction, shared instructors, or shared resources.",
+          "Use School Day each day to record attendance, completion, grades, and schedule changes."
+        ]
+      },
+      {
+        heading: "Good first check",
+        items: [
+          "Open Dashboard after setup. Missing required subjects, open classes, and schedule readiness items will point you to anything still needing attention."
+        ]
+      }
+    ]
+  },
+  {
+    id: "dashboard",
+    category: "Daily Work",
+    title: "Dashboard",
+    summary: "Use Dashboard as the command center for today's open work, performance trends, and compliance pace.",
+    tab: "dashboard",
+    sections: [
+      {
+        heading: "What to look at first",
+        items: [
+          "Overview shows today's open attendance, class completion, grade, and override work.",
+          "Execution focuses on work that needs action now.",
+          "Performance shows academic trends and grade risk.",
+          "Compliance tracks instructional hours, instructional days, and required subjects."
+        ]
+      },
+      {
+        heading: "Common actions",
+        items: [
+          "Click counts or linked gauges to jump directly to the filtered School Day, Students, or compliance detail that needs review.",
+          "Use Dashboard as a review page; use School Day as the page where most daily recordkeeping happens."
+        ]
+      }
+    ]
+  },
+  {
+    id: "students",
+    category: "Setup",
+    title: "Students",
+    summary: "Manage student profiles, enrollment, schedule order, and required-subject gaps.",
+    tab: "students",
+    sections: [
+      {
+        heading: "Current Schedule",
+        items: [
+          "Use Add Scheduled Item to enroll a student in courses, classes, or schedule blocks such as Lunch.",
+          "Use Edit Schedule to change order or remove scheduled items. Save Schedule Changes applies the draft; Cancel Changes discards it.",
+          "Classes with fixed times are managed by their class time, so their schedule order is not edited from the student row."
+        ]
+      },
+      {
+        heading: "Required subjects",
+        items: [
+          "Required-subject callouts show which subjects are missing from the student's schedule.",
+          "Use Find Item to focus the enrollment picker on the missing subject."
+        ]
+      }
+    ]
+  },
+  {
+    id: "curriculum-courses",
+    category: "Setup",
+    title: "Courses",
+    summary: "Courses are flexible instruction blocks that Navigrader can place around fixed classes.",
+    tab: "management",
+    sections: [
+      {
+        heading: "When to use a course",
+        items: [
+          "Use a Course for subjects or work that can move during the day, such as Math, Literature, or independent study.",
+          "Set daily minutes with Hours Per Day. This duration is what School Day uses when building the schedule.",
+          "Assign quarters and weekdays so the course appears only when it should."
+        ]
+      },
+      {
+        heading: "Editing",
+        items: [
+          "Click Edit in the configured course list. Navigrader scrolls back to the course editor at the top of the page.",
+          "If a course has no enrolled students, Dashboard readiness may point you back here."
+        ]
+      }
+    ]
+  },
+  {
+    id: "curriculum-classes",
+    category: "Setup",
+    title: "Classes",
+    summary: "Classes are fixed-time group instruction for shared teachers, students, or resources.",
+    tab: "management",
+    sections: [
+      {
+        heading: "When to use a class",
+        items: [
+          "Use a Class when multiple students meet together at a set time.",
+          "Use the Students checklist to enroll several students at once.",
+          "Navigrader checks fixed-class conflicts by student, weekdays, quarter/date scope, and time."
+        ]
+      },
+      {
+        heading: "Schedule behavior",
+        items: [
+          "Fixed classes stay fixed on School Day.",
+          "Flexible courses can move around fixed classes and fill open windows when they fit.",
+          "If you remove students from an already-conflicting class, the cleanup is allowed so you can fix old schedule problems."
+        ]
+      }
+    ]
+  },
+  {
+    id: "schedule",
+    category: "Setup",
+    title: "Schedule, Quarters, Holidays, and Breaks",
+    summary: "Define the school year, quarter ranges, holidays, and recurring schedule blocks.",
+    tab: "planning",
+    sections: [
+      {
+        heading: "School year and quarters",
+        items: [
+          "Create the School Year first. Navigrader can recommend balanced Q1-Q4 date ranges from instructional days.",
+          "Recommended quarters account for weekdays and configured holidays/breaks.",
+          "Manual quarter edits are preserved unless you explicitly replace them with the recommendation."
+        ]
+      },
+      {
+        heading: "Schedule blocks",
+        items: [
+          "Use schedule blocks for Lunch, Recess, or other regular non-instruction time.",
+          "Assign schedule blocks to students from the Student page and use schedule order to place them in the day."
+        ]
+      }
+    ]
+  },
+  {
+    id: "school-day",
+    category: "Daily Work",
+    title: "School Day",
+    summary: "The daily workspace for attendance, class completion, grading, and schedule adjustments.",
+    tab: "school-day",
+    sections: [
+      {
+        heading: "Daily schedule",
+        items: [
+          "Record attendance, mark instruction complete, enter grades, and make same-day schedule edits from one page.",
+          "Open classes and past-due rows stay visible until they are completed, excused, or otherwise resolved.",
+          "Bulk Actions can complete or excuse the currently filtered open queue after confirmation."
+        ]
+      },
+      {
+        heading: "Why a schedule moved",
+        items: [
+          "Fixed classes keep their class time.",
+          "Flexible courses move around fixed classes, schedule blocks, and conflicts.",
+          "Flex Blocks show open time between scheduled work and can be labeled for recovery, corrections, or another purpose."
+        ]
+      }
+    ]
+  },
+  {
+    id: "grades",
+    category: "Daily Work",
+    title: "Grades",
+    summary: "Record graded work and review averages across students, subjects, courses, and quarters.",
+    tab: "grades",
+    sections: [
+      {
+        heading: "Recording grades",
+        items: [
+          "Grades can be entered from School Day when a row needs grading, or from the Grades page for broader grade entry.",
+          "Grade Types and Grading Criteria are configured under Curriculum.",
+          "Dashboard Performance surfaces grade risks when averages or individual grades need attention."
+        ]
+      }
+    ]
+  },
+  {
+    id: "attendance",
+    category: "Daily Work",
+    title: "Attendance",
+    summary: "Track daily attendance and connect attendance records to instructional activity.",
+    tab: "attendance",
+    sections: [
+      {
+        heading: "Daily use",
+        items: [
+          "Use School Day for normal attendance recording during daily work.",
+          "Use the Attendance page for review, filtering, and correction across dates.",
+          "Missed or excused days should be recorded intentionally so reports and compliance views remain accurate."
+        ]
+      }
+    ]
+  },
+  {
+    id: "reports",
+    category: "Records",
+    title: "Reports",
+    summary: "Generate homeschool records for students, instructors, grades, attendance, and instruction detail.",
+    tab: "reports",
+    sections: [
+      {
+        heading: "Before generating",
+        items: [
+          "Confirm the active academic year and quarter filters.",
+          "Review School Day open items so attendance, completion, and grades are current.",
+          "Use Data Export from Account Options when you need a downloadable archive of your records."
+        ]
+      }
+    ]
+  },
+  {
+    id: "account-billing",
+    category: "Account",
+    title: "Account, Billing, and Data Export",
+    summary: "Manage profile details, subscription state, dormant mode, cancellation, and data export.",
+    tab: "dashboard",
+    sections: [
+      {
+        heading: "Account menu",
+        items: [
+          "View Account shows profile, plan, subscription status, billing activity, and export requests.",
+          "Account Options includes Dormant Mode, Data Export, and Cancel Subscription when available to your role and subscription state.",
+          "Data Export downloads a parent-readable record archive after checkout and export generation completes."
+        ]
+      }
+    ]
+  },
+  {
+    id: "troubleshooting",
+    category: "Troubleshooting",
+    title: "Common Questions",
+    summary: "Quick explanations for the most common schedule and setup surprises.",
+    tab: "dashboard",
+    sections: [
+      {
+        heading: "Schedule surprises",
+        items: [
+          "A class conflict means the same student is in two fixed classes that overlap by date, weekday, and time.",
+          "A Flex Block means there is open time after Navigrader places fixed classes, flexible courses, and schedule blocks.",
+          "If Lunch or Recess appears too late, check the student's Current Schedule order and save schedule changes."
+        ]
+      },
+      {
+        heading: "Setup warnings",
+        items: [
+          "Missing required subjects mean a student is not scheduled for one or more subjects marked Required.",
+          "No students enrolled means a course or class exists but has not been assigned to any active student.",
+          "Open Classes means previous scheduled instruction still needs completion, excuse, attendance, or grade work."
+        ]
+      }
+    ]
+  }
+];
 let globalSearchResults = [];
 let globalSearchActiveIndex = -1;
 let hostedSetupChecked = false;
@@ -1873,6 +2143,7 @@ function resetAccountUiState() {
   accountPasswordModalOpen = false;
   accountOptionsModalOpen = false;
   accountUpgradeModalOpen = false;
+  helpCenterOpen = false;
   accountViewMessageState = { kind: "", text: "" };
   accountPasswordMessageState = { kind: "", text: "" };
   accountOptionsMessageState = { kind: "", text: "" };
@@ -4048,6 +4319,7 @@ function renderSessionChrome() {
   renderAccountPasswordSurface();
   renderAccountOptionsSurface();
   renderAccountUpgradeSurface();
+  renderHelpCenterSurface();
 }
 
 function roleDisplayLabel(role) {
@@ -4464,6 +4736,97 @@ function closeAccountUpgradeView() {
   accountUpgradeModalOpen = false;
   setAccountUpgradeMessage("", "");
   renderSessionChrome();
+}
+
+function helpArticleForCurrentContext() {
+  if (currentTab === "school-day") return "school-day";
+  if (currentTab === "students") return "students";
+  if (currentTab === "management") return currentManagementCoursesTab === "course-sections" ? "curriculum-classes" : "curriculum-courses";
+  if (currentTab === "planning" || currentTab === "calendar") return "schedule";
+  if (currentTab === "grades") return "grades";
+  if (currentTab === "attendance") return "attendance";
+  if (currentTab === "reports") return "reports";
+  if (currentTab === "administration") return "account-billing";
+  return "dashboard";
+}
+
+function helpArticleById(articleId) {
+  return HELP_ARTICLES.find((article) => article.id === articleId) || HELP_ARTICLES[0];
+}
+
+function openHelpCenter(articleId = "") {
+  accountMenuOpen = false;
+  helpCenterOpen = true;
+  activeHelpArticleId = articleId || helpArticleForCurrentContext();
+  renderSessionChrome();
+}
+
+function closeHelpCenter() {
+  helpCenterOpen = false;
+  renderSessionChrome();
+}
+
+function renderHelpArticle(article) {
+  if (!article) return "";
+  const sectionHtml = (article.sections || []).map((section) => `
+    <section class="help-article-section">
+      <h4>${escapeHtml(section.heading)}</h4>
+      <ul>
+        ${(section.items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+      </ul>
+    </section>
+  `).join("");
+  return `
+    <article class="help-article">
+      <p class="help-article-category">${escapeHtml(article.category || "Help")}</p>
+      <h3>${escapeHtml(article.title)}</h3>
+      <p class="help-article-summary">${escapeHtml(article.summary || "")}</p>
+      ${sectionHtml}
+      ${article.tab ? `<button type="button" class="help-open-page-btn" data-help-open-tab="${escapeHtml(article.tab)}">Open Related Page</button>` : ""}
+    </article>
+  `;
+}
+
+function renderHelpCenterSurface() {
+  const modal = document.getElementById("help-center-modal");
+  const body = document.getElementById("help-center-modal-body");
+  const signedIn = !!currentUser();
+  if (modal) {
+    modal.classList.toggle("hidden", !signedIn || !helpCenterOpen);
+    modal.setAttribute("aria-hidden", !signedIn || !helpCenterOpen ? "true" : "false");
+  }
+  if (!body) return;
+  if (!signedIn || !helpCenterOpen) {
+    body.innerHTML = "";
+    return;
+  }
+  const activeArticle = helpArticleById(activeHelpArticleId);
+  activeHelpArticleId = activeArticle.id;
+  const categories = Array.from(new Set(HELP_ARTICLES.map((article) => article.category || "Help")));
+  const topicHtml = categories.map((category) => {
+    const topics = HELP_ARTICLES
+      .filter((article) => (article.category || "Help") === category)
+      .map((article) => `
+        <button type="button" class="help-topic-btn${article.id === activeArticle.id ? " active" : ""}" data-help-topic="${escapeHtml(article.id)}">
+          <strong>${escapeHtml(article.title)}</strong>
+          <span>${escapeHtml(article.summary)}</span>
+        </button>
+      `).join("");
+    return `
+      <section class="help-topic-group">
+        <h3>${escapeHtml(category)}</h3>
+        ${topics}
+      </section>
+    `;
+  }).join("");
+  body.innerHTML = `
+    <aside class="help-topic-list" aria-label="Help topics">
+      ${topicHtml}
+    </aside>
+    <div class="help-article-wrap">
+      ${renderHelpArticle(activeArticle)}
+    </div>
+  `;
 }
 
 async function changeHostedPassword(currentPassword, newPassword) {
@@ -21170,6 +21533,24 @@ function bindEvents() {
   document.getElementById("account-options-modal-backdrop")?.addEventListener("click", () => closeAccountOptionsView());
   document.getElementById("account-upgrade-modal-close-btn")?.addEventListener("click", () => closeAccountUpgradeView());
   document.getElementById("account-upgrade-modal-backdrop")?.addEventListener("click", () => closeAccountUpgradeView());
+  document.getElementById("help-center-open-btn")?.addEventListener("click", () => openHelpCenter());
+  document.getElementById("help-center-sidebar-btn")?.addEventListener("click", () => openHelpCenter("quick-start"));
+  document.getElementById("help-center-modal-close-btn")?.addEventListener("click", () => closeHelpCenter());
+  document.getElementById("help-center-modal-backdrop")?.addEventListener("click", () => closeHelpCenter());
+  document.getElementById("help-center-modal-body")?.addEventListener("click", (event) => {
+    const topicButton = event.target.closest("[data-help-topic]");
+    if (topicButton) {
+      activeHelpArticleId = topicButton.getAttribute("data-help-topic") || "quick-start";
+      renderHelpCenterSurface();
+      return;
+    }
+    const tabButton = event.target.closest("[data-help-open-tab]");
+    if (tabButton) {
+      const tab = tabButton.getAttribute("data-help-open-tab") || "dashboard";
+      closeHelpCenter();
+      activateTab(tab);
+    }
+  });
   document.getElementById("account-password-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!hostedModeEnabled) {
@@ -21236,6 +21617,10 @@ function bindEvents() {
     }
     if (event.key === "Escape" && accountViewOpen) {
       closeAccountView();
+      return;
+    }
+    if (event.key === "Escape" && helpCenterOpen) {
+      closeHelpCenter();
       return;
     }
     if (event.key === "Escape" && accountMenuOpen) {

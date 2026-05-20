@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Student Current Schedule edit mode now has clear schedule-wide labeling and Cancel Changes.
+In-app Help Center content is deployed so Help entry points are functional instead of placeholders.
 
 ## Completed Recently
 
@@ -33,6 +33,7 @@ Student Current Schedule edit mode now has clear schedule-wide labeling and Canc
 - Ordered schedule blocks now act as placement barriers before fixed classes, so later flexible courses do not jump ahead of Lunch/Recess and push them late in the day.
 - Course and Class Edit/Create actions scroll the top editor into view and focus the first field, so long configured lists no longer make the action look invisible.
 - Student Current Schedule row actions now say `Edit Schedule`, show `Save Schedule Changes` plus `Cancel Changes`, and discard draft schedule edits without leaving the student page.
+- Topbar Help and sidebar `Need Help?` now open a task-based Help Center with parent-friendly guidance and related-page shortcuts.
 
 ## Production State
 
@@ -41,8 +42,8 @@ Student Current Schedule edit mode now has clear schedule-wide labeling and Canc
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605200916`
-  - `styles.css?v=202605191900`
+  - `app.js?v=202605201454`
+  - `styles.css?v=202605201454`
 - APP001 class-conflict rollback:
   - `/home/debian/rollback/hsm/class-conflict-202605191515/`
 - WEB001 class-related rollback snapshots:
@@ -59,6 +60,7 @@ Student Current Schedule edit mode now has clear schedule-wide labeling and Canc
   - `/var/www/home-school-management/rollback/web-school-day-ordered-break-placement-202605191950.tgz`
   - `/var/www/home-school-management/rollback/web-curriculum-editor-scroll-202605200905.tgz`
   - `/var/www/home-school-management/rollback/web-student-schedule-edit-cancel-202605200916.tgz`
+  - `/var/www/home-school-management/rollback/web-help-center-202605201454.tgz`
 
 ## Validation
 
@@ -75,10 +77,11 @@ Student Current Schedule edit mode now has clear schedule-wide labeling and Canc
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605191950`; served app JS contains the ordered-break placement fix.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605200905`; served app JS contains the editor-scroll fix.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605200916`; served app JS contains the student schedule edit/cancel fix.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605201454` and `styles.css?v=202605201454`; served app JS/CSS contain the Help Center implementation.
 
 ## Current Blockers
 
-- None for the class bulk enrollment slice.
+- None for the Help Center/product polish slice.
 
 ## Current Risks
 
@@ -89,5 +92,5 @@ Student Current Schedule edit mode now has clear schedule-wide labeling and Canc
 ## Next Actions
 
 1. Run the hosted release gate from a PowerShell session with smoke credentials loaded.
-2. Real-usage QA Student Current Schedule `Edit Schedule`, `Save Schedule Changes`, and `Cancel Changes`.
-3. Then close the deeper workflow QA slice or move to backend/platform hardening.
+2. QA topbar Help and sidebar `Need Help?` on a hosted tenant.
+3. Then close the product polish slice or move to backend/platform hardening.
