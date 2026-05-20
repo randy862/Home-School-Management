@@ -19,9 +19,10 @@ Workflow polish is active. Current slice added a self-led instruction option nam
 - WEB001 deployed `app.js?v=202605202030`.
 - Hosted release gate passed for `https://mitchell.navigrader.com` after deployment.
 - Class form Weekdays field is deployed as a compact, content-width control in `styles.css?v=202605202115`.
+- Curriculum sidebar icon was replaced with a clean outline SVG and cache-busted as `book-open.svg?v=202605202130`.
 - Rollbacks:
   - APP001: `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
-  - WEB001: `/var/www/home-school-management/rollback/web-class-weekdays-compact-202605202115.tgz`
+  - WEB001: `/var/www/home-school-management/rollback/web-curriculum-icon-fix-202605202130.tgz`
 
 ## Next Action
 
@@ -50,3 +51,5 @@ Smoke-test `Independent Learning` in `smoketest.navigrader.com`:
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public `mitchell` and `smoketest` roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.
+- Public `mitchell` and `smoketest` roots reference `book-open.svg?v=202605202130`.
+- Served Curriculum icon SVG no longer contains a white background rectangle.

@@ -27,6 +27,7 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - WEB001 deployed tenant app `app.js?v=202605202030`.
 - Full hosted release gate passed after deployment.
 - Class form Weekdays field is deployed as a compact, content-width control.
+- Curriculum sidebar icon no longer renders as a white square when active.
 
 ## Production State
 
@@ -42,7 +43,7 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - APP001 control-api rollback:
   - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-class-weekdays-compact-202605202115.tgz`
+  - `/var/www/home-school-management/rollback/web-curriculum-icon-fix-202605202130.tgz`
 
 ## Validation
 
@@ -61,6 +62,8 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public `mitchell` and `smoketest` tenant roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.
+- Public `mitchell` and `smoketest` tenant roots reference `book-open.svg?v=202605202130`.
+- Served Curriculum icon SVG no longer contains a white background rectangle.
 
 ## Current Blockers
 
