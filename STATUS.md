@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-20
+Date: 2026-05-21
 
 ## Active Workstream
 
@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Workflow polish: homeschool courses/classes now support self-led instruction through a protected `Independent Learning` instructor option.
+Workflow polish: Help Center Quick Start now walks parents through complete setup and daily operation.
 
 ## Completed Recently
 
@@ -29,6 +29,7 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - Class form Weekdays field is deployed as a compact, content-width control.
 - Curriculum sidebar icon no longer renders as a white square when active.
 - School Day row editor now preserves unsaved start time, instructor, and minutes while status/grade actions re-render the row.
+- Quick Start Help article now provides a detailed setup-to-operation walkthrough for new homeschool families.
 
 ## Production State
 
@@ -37,14 +38,14 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605202145`
+  - `app.js?v=202605211015`
   - `styles.css?v=202605202115`
 - APP001 latest rollback:
   - `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
 - APP001 control-api rollback:
   - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-school-day-edit-draft-preserve-202605202145.tgz`
+  - `/var/www/home-school-management/rollback/web-help-quick-start-expanded-202605211015.tgz`
 
 ## Validation
 
@@ -58,8 +59,8 @@ Workflow polish: homeschool courses/classes now support self-led instruction thr
 - APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605202145`.
-- Served tenant app JS contains `preserveActiveSchoolDayInstructionEditDraft`.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605211015`.
+- Served tenant app JS contains expanded Quick Start Help content.
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public `mitchell` and `smoketest` tenant roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.

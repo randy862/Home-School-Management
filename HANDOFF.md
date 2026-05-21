@@ -1,10 +1,10 @@
 # Session Handoff
 
-Date: 2026-05-20
+Date: 2026-05-21
 
 ## Context
 
-Workflow polish is active. Current slice added a self-led instruction option named `Independent Learning` across instructor assignment and filtering paths.
+Workflow polish is active. Current slice expanded the Quick Start Help article into a full setup-to-operation walkthrough.
 
 ## Current State
 
@@ -16,22 +16,21 @@ Workflow polish is active. Current slice added a self-led instruction option nam
 - School Day editable rows include `Independent Learning` and class rows default to the class instructor before falling back to course instructor.
 - School Day row editor preserves unsaved start time, instructor, and minutes while status/grade actions re-render the row.
 - Reports, grade filters, dashboard gauges/checklists, and instructor trend filters use the assignable instructor list, including `Independent Learning`.
+- Quick Start Help now walks through workspace review, school year, quarters, holidays, students, subjects, instructors, courses, classes, student schedules, readiness review, daily School Day use, and reporting/export habits.
 - APP001 deployed API files and tenant migration `031_independent_learning_instructor.sql`.
-- WEB001 deployed `app.js?v=202605202145`.
+- WEB001 deployed `app.js?v=202605211015`.
 - Hosted release gate passed for `https://mitchell.navigrader.com` after deployment.
 - Class form Weekdays field is deployed as a compact, content-width control in `styles.css?v=202605202115`.
 - Curriculum sidebar icon was replaced with a clean outline SVG and cache-busted as `book-open.svg?v=202605202130`.
 - Rollbacks:
   - APP001: `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
-  - WEB001: `/var/www/home-school-management/rollback/web-school-day-edit-draft-preserve-202605202145.tgz`
+  - WEB001: `/var/www/home-school-management/rollback/web-help-quick-start-expanded-202605211015.tgz`
 
 ## Next Action
 
-Smoke-test `Independent Learning` in `smoketest.navigrader.com`:
+Review the expanded Quick Start article in `smoketest.navigrader.com`:
 
-- Set a Course instructor to `Independent Learning`.
-- Set a Class instructor override to `Independent Learning`.
-- Confirm School Day row edit and instructor filters show/select it.
+- Open Help, choose Quick Start, and scan the setup steps for tone, sequencing, and missing parent-facing guidance.
 
 ## Risks
 
@@ -47,8 +46,8 @@ Smoke-test `Independent Learning` in `smoketest.navigrader.com`:
 - APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` roots reference `app.js?v=202605202145`.
-- Served tenant app JS contains `preserveActiveSchoolDayInstructionEditDraft`.
+- Public `mitchell` and `smoketest` roots reference `app.js?v=202605211015`.
+- Served tenant app JS contains expanded Quick Start Help content.
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public `mitchell` and `smoketest` roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.
