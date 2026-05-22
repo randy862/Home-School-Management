@@ -17614,6 +17614,7 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
         key: "attendance",
         label: "Attendance Open",
         value: snapshot.needsAttendanceCount,
+        tab: "attendance",
         quickFilter: "needs-attendance",
         note: `${snapshot.needsAttendanceCount} attendance record${snapshot.needsAttendanceCount === 1 ? "" : "s"} still open for ${formatDisplayDate(snapshot.date)}.`,
         icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>`
@@ -17662,7 +17663,7 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
         <span class="dashboard-open-gauge-note">${item.note}</span>
       </div>`
       : `
-      <button type="button" class="dashboard-open-gauge dashboard-open-gauge-${item.key}" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="daily-schedule" data-date="${snapshot.date}" data-school-day-quick-filter="${item.quickFilter}" data-dashboard-context-label="${item.label}">
+      <button type="button" class="dashboard-open-gauge dashboard-open-gauge-${item.key}" data-dashboard-open-school-day="1" data-dashboard-school-day-tab="${item.tab || "daily-schedule"}" data-date="${snapshot.date}" data-school-day-quick-filter="${item.quickFilter}" data-dashboard-context-label="${item.label}">
         <span class="dashboard-open-gauge-icon">${item.icon}</span>
         <span class="dashboard-open-gauge-label">${item.label}</span>
         <span class="dashboard-open-gauge-value">${item.value}</span>
