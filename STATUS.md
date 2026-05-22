@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Workflow polish: Dashboard Attendance Open now takes parents directly to the School Day Attendance tab.
+Workflow polish: Help Center Quick Start now uses the detailed step-by-step setup guidance.
 
 ## Completed Recently
 
@@ -31,6 +31,7 @@ Workflow polish: Dashboard Attendance Open now takes parents directly to the Sch
 - School Day row editor now preserves unsaved start time, instructor, and minutes while status/grade actions re-render the row.
 - Quick Start Help article now provides a detailed setup-to-operation walkthrough for new homeschool families.
 - Dashboard Attendance Open gauge now opens School Day on the Attendance tab instead of requiring an extra click from Daily Schedule.
+- Quick Start Help article was replaced with the provided step-by-step setup guidance; the prior version is saved at `web/help/quick-start-previous-20260522.md`.
 
 ## Production State
 
@@ -39,14 +40,14 @@ Workflow polish: Dashboard Attendance Open now takes parents directly to the Sch
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605221010`
-  - `styles.css?v=202605202115`
+  - `app.js?v=202605221130`
+  - `styles.css?v=202605221130`
 - APP001 latest rollback:
   - `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
 - APP001 control-api rollback:
   - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-dashboard-attendance-tab-link-202605221010.tgz`
+  - `/var/www/home-school-management/rollback/web-quick-start-guidance-202605221130.tgz`
 
 ## Validation
 
@@ -60,8 +61,9 @@ Workflow polish: Dashboard Attendance Open now takes parents directly to the Sch
 - APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605221010`.
-- Served tenant app JS contains the Attendance Open gauge tab target.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605221130` and `styles.css?v=202605221130`.
+- Served tenant app JS contains the new Quick Start guidance.
+- Served tenant CSS contains rich Help article styles.
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public `mitchell` and `smoketest` tenant roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.
@@ -81,4 +83,4 @@ Workflow polish: Dashboard Attendance Open now takes parents directly to the Sch
 
 ## Next Actions
 
-1. QA the Dashboard Attendance Open card on `smoketest.navigrader.com` by clicking it from Dashboard and confirming School Day opens on the Attendance tab.
+1. QA Help Center Quick Start on `smoketest.navigrader.com` for readability, scrolling, and source-content accuracy.

@@ -4,7 +4,7 @@ Date: 2026-05-22
 
 ## Context
 
-Workflow polish is active. Current slice routed the Dashboard Attendance Open gauge directly to the School Day Attendance tab.
+Workflow polish is active. Current slice replaced the Help Center Quick Start article with the provided detailed setup guidance.
 
 ## Current State
 
@@ -18,20 +18,22 @@ Workflow polish is active. Current slice routed the Dashboard Attendance Open ga
 - Reports, grade filters, dashboard gauges/checklists, and instructor trend filters use the assignable instructor list, including `Independent Learning`.
 - Quick Start Help now walks through workspace review, school year, quarters, holidays, students, subjects, instructors, courses, classes, student schedules, readiness review, daily School Day use, and reporting/export habits.
 - Dashboard Attendance Open gauge now targets School Day > Attendance while the other open-item gauges continue to target Daily Schedule as appropriate.
+- Quick Start Help now uses the provided detailed step-by-step guidance from `navigrader_help_center_quick_start.md`.
+- The previous in-app Quick Start article is saved at `web/help/quick-start-previous-20260522.md`.
 - APP001 deployed API files and tenant migration `031_independent_learning_instructor.sql`.
-- WEB001 deployed `app.js?v=202605221010`.
+- WEB001 deployed `app.js?v=202605221130` and `styles.css?v=202605221130`.
 - Hosted release gate passed for `https://mitchell.navigrader.com` after deployment.
 - Class form Weekdays field is deployed as a compact, content-width control in `styles.css?v=202605202115`.
 - Curriculum sidebar icon was replaced with a clean outline SVG and cache-busted as `book-open.svg?v=202605202130`.
 - Rollbacks:
   - APP001: `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
-  - WEB001: `/var/www/home-school-management/rollback/web-dashboard-attendance-tab-link-202605221010.tgz`
+  - WEB001: `/var/www/home-school-management/rollback/web-quick-start-guidance-202605221130.tgz`
 
 ## Next Action
 
-Review the Dashboard Attendance Open gauge in `smoketest.navigrader.com`:
+Review the updated Quick Start article in `smoketest.navigrader.com`:
 
-- Open Dashboard, click Attendance Open, and confirm School Day opens on the Attendance tab for the dashboard date.
+- Open Help, choose Quick Start, and scan the detailed setup guidance for readability and accuracy.
 
 ## Risks
 
@@ -47,8 +49,9 @@ Review the Dashboard Attendance Open gauge in `smoketest.navigrader.com`:
 - APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` roots reference `app.js?v=202605221010`.
-- Served tenant app JS contains the Attendance Open gauge tab target.
+- Public `mitchell` and `smoketest` roots reference `app.js?v=202605221130` and `styles.css?v=202605221130`.
+- Served tenant app JS contains the new Quick Start guidance.
+- Served tenant CSS contains rich Help article styles.
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public `mitchell` and `smoketest` roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.

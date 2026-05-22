@@ -1713,141 +1713,296 @@ const HELP_ARTICLES = [
     id: "quick-start",
     category: "Start Here",
     title: "Quick Start",
-    summary: "A step-by-step setup path for getting Navigrader ready to operate, manage, and record your homeschool year.",
+    summary: "Step-by-step guidance for setting up Navigrader so you can operate, manage, and record your homeschool efforts.",
     tab: "dashboard",
-    sections: [
-      {
-        heading: "1. Confirm the workspace",
-        items: [
-          "Sign in as the administrator and open Account from the account menu to confirm the family, profile, and subscription details look correct.",
-          "Open Administration if you need to add users, connect student logins, or review workspace options before daily use.",
-          "Decide who will manage records day to day. Most families use one parent administrator and optionally create student logins later.",
-          "Keep setup simple at first. You can add more detail after the first successful School Day."
-        ]
-      },
-      {
-        heading: "2. Create the school year",
-        items: [
-          "Open Schedule, then School Years, and create the active school year with a clear label such as 2026-2027.",
-          "Enter the school year start and end dates. These dates define the reporting window for attendance, grades, instructional days, and instructional hours.",
-          "Save the school year as current so Dashboard, School Day, Calendar, and Reports all use the same academic year.",
-          "Review the recommended quarter dates that Navigrader creates. These are balanced by instructional days instead of just calendar days.",
-          "Use the recommended quarters if they look right, or adjust the saved quarter dates if your family uses a different academic rhythm."
-        ]
-      },
-      {
-        heading: "3. Add holidays, breaks, and daily rhythm",
-        items: [
-          "Open Schedule, then Holidays and Breaks, and enter known days off such as holidays, planned travel, co-op breaks, or family events.",
-          "Open Schedule, then School Day, and set the normal school day start time and the transition time between classes.",
-          "Open Schedule Blocks and add recurring non-instruction blocks such as Lunch, Recess, Chores, Reading Time, or Corrections and Grade Recovery.",
-          "Assign schedule blocks to the students who use them and choose the weekdays they apply.",
-          "After changing holidays or breaks, review the recommended quarters again so the quarter day distribution stays reasonable."
-        ]
-      },
-      {
-        heading: "4. Add students",
-        items: [
-          "Open Students and add each child who will be tracked in Navigrader.",
-          "Enter each student's name and grade level. Grade level powers dashboard filters, report grouping, and setup checks.",
-          "Use the profile details that matter for your records, but do not overfill fields you do not need yet.",
-          "Keep students active while they are part of the current homeschool year. Archive only when a student should no longer appear in daily workflows."
-        ]
-      },
-      {
-        heading: "5. Build the curriculum foundation",
-        items: [
-          "Open Curriculum, then Subjects, and add the subjects you teach such as Math, Language Arts, Science, History, Bible, Music, or PE.",
-          "Mark subjects as Required when they are required by your homeschool plan or local recordkeeping needs.",
-          "Open Grade Types and decide which types of grade records you want, such as Assignment, Quiz, Test, Project, Lab, or Final.",
-          "Open Grading Criteria and review the grading scale. Adjust the scale if your family uses different letter-grade cutoffs.",
-          "This foundation should be created before courses so every course can be tied to the correct subject and grading structure."
-        ]
-      },
-      {
-        heading: "6. Add instructors and independent learning",
-        items: [
-          "Open Administration, then Instructors, and add adults or outside teachers who provide instruction you want to track.",
-          "Use Instructor fields for parent-led teaching, tutors, co-op teachers, online instructors, or other formal instruction sources.",
-          "For self-led work with no live instructor, select Independent Learning when assigning a Course, Class, or School Day row.",
-          "Use Independent Learning for video lessons, textbook-led study, online modules, reading assignments, or work the student completes on their own.",
-          "Instructor choices flow into School Day, reports, performance filters, and instructional tracking."
-        ]
-      },
-      {
-        heading: "7. Create flexible courses",
-        items: [
-          "Open Curriculum, then Courses, and add each course or recurring subject block the student will complete.",
-          "Use a Course for work that can move around the day, such as daily Math, Literature, Spelling, Science reading, or independent study.",
-          "Choose the subject, instructor or Independent Learning, daily duration, weekdays, and quarters for each course.",
-          "Enter materials such as textbooks, workbooks, online programs, or other curriculum resources if you want them to appear in reports and exports.",
-          "If a course uses a shared resource with limited capacity, enter the resource group and capacity so scheduling can avoid overbooking.",
-          "Courses are flexible. School Day can move them around fixed classes, breaks, and schedule blocks."
-        ]
-      },
-      {
-        heading: "8. Create fixed-time classes",
-        items: [
-          "Open Curriculum, then Classes, when multiple students meet together or when a course must happen at a fixed time.",
-          "Use Classes for co-op sessions, piano groups, family read-alouds, shared science labs, live online lessons, or anything tied to a specific start time.",
-          "Choose the course, class label, instructor or Independent Learning, start time, weekdays, quarters, and any shared resource details.",
-          "Use the Students selector to enroll all students who attend that class at the same time.",
-          "If a selected student already has another fixed class at the same time, Navigrader warns and blocks the conflicting class enrollment.",
-          "When a student is enrolled in a class, School Day keeps that class fixed and moves flexible courses around it."
-        ]
-      },
-      {
-        heading: "9. Build each student's current schedule",
-        items: [
-          "Open Students, select a student, and use Current Schedule to add courses, classes, and schedule blocks to that student's day.",
-          "Add the student's flexible courses, then add any classes they attend, then add schedule blocks such as Lunch or Recess.",
-          "Use Edit Schedule to adjust the order of flexible courses and schedule blocks. Save Schedule Changes when the order looks right.",
-          "Fixed-time classes keep their configured class time, so their placement is controlled from the Class configuration.",
-          "Repeat this process for each student until every child has the courses, classes, and blocks needed for a typical school day."
-        ]
-      },
-      {
-        heading: "10. Review readiness before the first day",
-        items: [
-          "Open Dashboard and look for setup warnings, missing required subjects, open classes, or schedule readiness items.",
-          "Open Calendar to preview how student schedules are laying out across days and weeks.",
-          "Open School Day for a future or current date and confirm the daily schedule looks realistic.",
-          "If a day looks wrong, return to Students for schedule order, Curriculum for course/class setup, or Schedule for school-day settings and blocks.",
-          "Do one test day before relying on the system for official records. It is easier to adjust setup before weeks of records exist."
-        ]
-      },
-      {
-        heading: "11. Operate School Day each day",
-        items: [
-          "Open School Day at the start of each homeschool day.",
-          "Record attendance for each active student.",
-          "Use the Daily Schedule tab as the single place to manage the day: completion, excused work, grades, attendance prompts, instructor changes, and schedule edits.",
-          "Mark instruction Completed when the work was done and should count toward completed instructional hours.",
-          "Mark instruction Excused when the item should be closed without counting as completed instruction, such as illness, appointment, or family schedule change.",
-          "Use Edit on a row to change that day's start time, instructor, or minutes without changing the master course or class setup.",
-          "Use Grade to add a grade directly from the day's schedule when a test, quiz, assignment, or project is completed.",
-          "Use Bulk Actions carefully when many open rows should be completed or excused at once."
-        ]
-      },
-      {
-        heading: "12. Manage records over time",
-        items: [
-          "Use Dashboard to review open work, grade risk, performance trends, instructional hours, instructional days, and required-subject coverage.",
-          "Use Grades to search, review, correct, or add grade records outside the daily workflow.",
-          "Use Attendance to review or correct attendance records.",
-          "Use Reports when you need printable summaries of grades, attendance, instructional time, subjects, curriculum materials, or instructor activity.",
-          "Use Account Options to export your records when you need a backup, transfer file, or end-of-year archive.",
-          "At the end of a school year, complete any open School Day items, run reports, export records if desired, then create the next school year."
-        ]
-      },
-      {
-        heading: "Ready to begin",
-        items: [
-          "You are ready for daily use when the active school year exists, students are added, subjects and required subjects are set, courses/classes are configured, students are scheduled, and School Day shows a realistic daily plan.",
-          "From that point forward, most daily work happens in School Day and most review work happens in Dashboard, Grades, Attendance, and Reports."
-        ]
-      }
-    ]
+    contentHtml: String.raw`<p>Welcome to Navigrader! This Quick Start guide will walk you through the basic setup steps needed to begin using Navigrader to manage your homeschool schedule, curriculum, students, grading, and daily instruction.</p>
+<p>Getting started follows three main steps:</p>
+<ol>
+<li><strong>Create Your Schedule</strong></li>
+<li><strong>Build Your Curriculum</strong></li>
+<li><strong>Add and Enroll Students</strong></li>
+</ol>
+<p>Once these steps are complete, Navigrader can automatically build student schedules, track instruction, manage grades, and help you <strong>Teach More and Manage Less</strong>.</p>
+<hr>
+<section class="help-article-section help-article-rich-section">
+<h4>1. Create Your Schedule</h4>
+<p>Your schedule settings define the structure of your school year, including school dates, holidays, breaks, quarters, school day start time, and reusable non-academic schedule blocks such as lunch and recess.</p>
+<h5>Define the School Year</h5>
+<ol>
+<li>Click <strong>Schedule</strong> from the main menu.</li>
+<li>Click the <strong>School Year</strong> tab.</li>
+<li>A default school year is created automatically using January 1 through December 31 of the current year. This default school year will be loaded for editing.</li>
+<li>Enter the desired values for the following fields:</li>
+</ol>
+<ul>
+<li><strong>Year Label:</strong> Enter a name used to identify the school year. It is recommended to include the school year dates in the label, such as <strong>2026-2027 School Year</strong>.</li>
+<li><strong>Start Date:</strong> Enter the first day of your school year.</li>
+<li><strong>End Date:</strong> Enter the last day of your school year.</li>
+<li><strong>Required Instructional Hours:</strong> Enter the number of instructional hours required by your applicable governing body.</li>
+<li><strong>Required Instructional Days:</strong> Enter the number of instructional days required by your applicable governing body.</li>
+</ul>
+<ol start="5">
+<li>Click <strong>Save School Year</strong>.</li>
+<li>The first school year you create will be marked as the <strong>Current</strong> school year.</li>
+</ol>
+<p><strong>Note:</strong> It is important to research, verify, and comply with the homeschool requirements for your local jurisdiction. If your state or governing authority does not define required instructional hours or instructional days, you may find it helpful to adopt the requirements used by your local public school system. This can support Navigrader tracking, recordkeeping credibility, defensible records, good-faith compliance efforts, and transcript consistency.</p>
+<hr>
+<h5>Enter Holidays and Breaks</h5>
+<ol>
+<li>From the <strong>Schedule</strong> page, click the <strong>Holidays and Breaks</strong> tab.</li>
+<li>Create a separate entry for each holiday or break from instruction.</li>
+</ol>
+<ul>
+<li><strong>Holiday:</strong> A day or group of days off from instruction to observe a holiday.</li>
+<li><strong>Break:</strong> A planned vacation break from instruction, usually lasting multiple days. Examples include Spring Break, Fall Break, Christmas Break, or similar school breaks.</li>
+</ul>
+<ol start="3">
+<li>Complete the following fields:</li>
+</ol>
+<ul>
+<li><strong>Name:</strong> Enter the name or description of the holiday or break.</li>
+<li><strong>Type:</strong> Select whether the entry is a <strong>Holiday</strong> or <strong>Break</strong>.</li>
+<li><strong>Start Date:</strong> Enter the first day instruction will be dismissed.</li>
+<li><strong>End Date:</strong> Enter the final day instruction will be dismissed.</li>
+</ul>
+<ol start="4">
+<li>Click <strong>Add</strong>.</li>
+<li>Repeat this process for each planned holiday or break.</li>
+</ol>
+<hr>
+<h5>Define Quarters</h5>
+<ol>
+<li>From the <strong>Schedule</strong> page, click the <strong>Quarters</strong> tab.</li>
+<li>The current School Year will be loaded into the Quarters configuration fields.</li>
+<li>Navigrader will automatically calculate the available instructional days between the school year start and end dates, excluding weekends and any defined Holidays or Breaks.</li>
+<li>Navigrader will then recommend quarter start and end dates based on an even distribution of instructional days.</li>
+<li>Review the recommended quarter dates shown in the configuration fields and in the Quarters table below.</li>
+<li>The Quarters table also displays the number of instructional days in each quarter and the total number of instructional days for the school year.</li>
+<li>You may accept Navigrader&#039;s recommended quarter dates or manually adjust them.</li>
+<li>Click <strong>Save Quarters</strong>.</li>
+</ol>
+<hr>
+<h5>Configure School Day Parameters</h5>
+<ol>
+<li>From the <strong>Schedule</strong> page, click the <strong>School Day</strong> tab.</li>
+<li>These settings are used by Navigrader to automatically build student schedules.</li>
+<li>Complete the following fields:</li>
+</ol>
+<ul>
+<li><strong>School Year:</strong> The current School Year will be pre-selected.</li>
+<li><strong>School Day Start Time:</strong> Enter the normal start time for your school day.</li>
+<li><strong>Time Between Classes:</strong> Enter the desired amount of transition time between scheduled Courses and Classes.</li>
+</ul>
+<ol start="4">
+<li>Click <strong>Save School Day Settings</strong>.</li>
+</ol>
+<hr>
+<h5>Configure Schedule Blocks</h5>
+<p><strong>Schedule Blocks</strong> are reusable non-academic schedule items used to reserve time in a student&#039;s daily schedule for activities such as lunch, recess, breaks, study hall, or other recurring non-instructional events. Schedule Blocks can be assigned to individual students during Student Schedule Item enrollment and may be shared across students of different grade levels.</p>
+<ol>
+<li>From the <strong>Schedule</strong> page, click the <strong>Schedule Blocks</strong> tab.</li>
+<li>Complete the Schedule Block fields:</li>
+</ol>
+<ul>
+<li><strong>Name:</strong> Enter the name of the Schedule Block, such as Lunch, Recess, Nap Time, or Study Hall.</li>
+<li><strong>Type:</strong> Select the block type, such as Lunch, Break, or Other.</li>
+<li><strong>Description:</strong> If <strong>Other</strong> is selected, enter a concise description of the Schedule Block.</li>
+<li><strong>Duration:</strong> Enter the length of the Schedule Block in minutes.</li>
+<li><strong>Weekdays:</strong> Select the days of the week when the Schedule Block occurs.</li>
+</ul>
+<ol start="3">
+<li>Click <strong>Add Block</strong>.</li>
+<li>Repeat as needed for each reusable Schedule Block.</li>
+</ol>
+<hr>
+</section>
+<section class="help-article-section help-article-rich-section">
+<h4>2. Build Your Curriculum</h4>
+<p>After your schedule is created, the next step is to build your curriculum. This includes adding instructors if needed, defining Subjects, creating Courses and Classes, and configuring grading settings.</p>
+<h5>Optional: Add Instructors</h5>
+<p>Courses may be assigned to dedicated instructors for scheduling, instructional management, and reporting purposes. If you plan to use instructor assignments, it is recommended that instructors be added to Navigrader before configuring Courses and Classes.</p>
+<p>Refer to the <strong>Instructor Setup</strong> section of the Help Center for detailed instructions.</p>
+<hr>
+<h5>Create Subjects</h5>
+<p><strong>Subjects</strong> are high-level academic classifications used to organize instruction within your curriculum. Subjects represent major areas of learning commonly recognized by homeschool governing bodies, educational standards, and academic reporting requirements.</p>
+<p>Examples include:</p>
+<ul>
+<li>Math</li>
+<li>Science</li>
+<li>Language Arts</li>
+<li>History</li>
+<li>Physical Education</li>
+</ul>
+<ol>
+<li>From the <strong>Curriculum</strong> page, click the <strong>Subjects</strong> tab.</li>
+<li>Enter the <strong>Subject Name</strong>.</li>
+<li>Check the <strong>Required</strong> box if the Subject is required by your applicable governing body.</li>
+<li>Click <strong>Add Subject</strong>.</li>
+<li>Repeat this process for each required or desired Subject.</li>
+</ol>
+<hr>
+<h5>Create Courses and Classes</h5>
+<p>Navigrader uses both <strong>Courses</strong> and <strong>Classes</strong> to support flexible homeschool instruction.</p>
+<p><strong>Course:</strong> A Course is an individual learning activity or program that a student can complete independently, without needing to participate in a scheduled group session with other students. Each student works through a Course individually.</p>
+<p><strong>Class:</strong> A Class is a shared learning activity where multiple students participate together at the same scheduled time while using shared instructional resources such as instructors, classrooms, electronics, equipment, labs, or other group learning environments. Because Classes are shared learning sessions, all enrolled students are scheduled together during the same instructional time.</p>
+<p><strong>Note:</strong> A Class is a scheduled and shared group instance of a Course. To create a Class in Navigrader, you first select the underlying Course, which provides the learning content, grading structure, and academic requirements for the Class.</p>
+<hr>
+<h5>Create Courses</h5>
+<ol>
+<li>From the <strong>Curriculum</strong> page, click the <strong>Courses/Classes</strong> tab.</li>
+<li>Click the <strong>Courses</strong> sub-tab.</li>
+<li>Click <strong>Add Course</strong>.</li>
+<li>Complete the Course configuration fields:</li>
+</ol>
+<ul>
+<li><strong>Course Name:</strong> Enter the name of the Course, such as Second Grade Basic Math Fundamentals.</li>
+<li><strong>Subject:</strong> Select the Subject that best matches the Course content.</li>
+<li><strong>Instructor:</strong> Select the appropriate instructor option.</li>
+</ul>
+<ol start="5">
+<li>Choose one of the following <strong>Instructor</strong> options:</li>
+</ol>
+<ul>
+<li><strong>Instructor Name:</strong> Select a specific instructor when the Course is taught, managed, or overseen by a dedicated individual. Assigning an instructor allows Navigrader to support instructor scheduling, instructional management, and instructor-based reporting and analytics.</li>
+<li><strong>Independent Learning:</strong> Select this option when the Course is completed autonomously by the student without dedicated live instruction. This is commonly used for self-paced, video-based, online, textbook-driven, or other self-directed learning activities.</li>
+<li><strong>Unassigned:</strong> Select this option when no instructor assignment has been determined or when instructor tracking is not currently needed for the Course. This may be used temporarily during setup or for learning activities where instructor association is not important.</li>
+</ul>
+<ol start="6">
+<li>Complete the remaining Course fields:</li>
+</ol>
+<ul>
+<li><strong>Hours/Day:</strong> Enter the amount of daily instructional time for the Course, using .25 hour increments.</li>
+<li><strong>Quarters:</strong> Select the quarters in which the Course will be assigned.</li>
+<li><strong>Weekdays:</strong> Select the days of the week when the Course will be assigned.</li>
+</ul>
+<ol start="7">
+<li>Click <strong>Add Course</strong>.</li>
+</ol>
+<hr>
+<h5>Add Course Materials</h5>
+<p>Course Materials are optional, but they can be useful for documenting the textbooks, workbooks, online content, or other instructional resources used for a Course. This information may appear in Navigrader reports and can be helpful for homeschool recordkeeping or reporting requirements.</p>
+<ol>
+<li>If you want to add Course Material details, click the <strong>Course Materials</strong> drop-down arrow.</li>
+<li>Click <strong>Add Material</strong>.</li>
+<li>Complete the Course Material fields:</li>
+</ol>
+<ul>
+<li><strong>Material Type:</strong> Select the type of material, such as Textbook, Workbook, Worksheet, Online Content, or Other.</li>
+<li><strong>ISBN:</strong> Enter the ISBN number, if applicable.</li>
+<li><strong>Title:</strong> Enter the title of the material.</li>
+<li><strong>Publisher:</strong> Enter the name of the publisher, if applicable.</li>
+</ul>
+<ol start="4">
+<li>Click <strong>Add Material</strong>.</li>
+<li>Repeat as needed for additional materials.</li>
+</ol>
+<hr>
+<h5>Create Classes</h5>
+<ol>
+<li>From the <strong>Curriculum</strong> page, click the <strong>Courses/Classes</strong> tab.</li>
+<li>Click the <strong>Classes</strong> sub-tab.</li>
+<li>Click <strong>Add Class</strong>.</li>
+<li>Complete the Class configuration fields:</li>
+</ol>
+<ul>
+<li><strong>Course:</strong> Select the underlying Course for the Class.</li>
+<li><strong>Class Label:</strong> Enter a label that helps distinguish this Class instance from the underlying Course title.</li>
+<li><strong>Instructor:</strong> Select the appropriate instructor option.</li>
+<li><strong>Concurrent Capacity:</strong> Enter the maximum number of enrolled students the Class can accommodate.</li>
+<li><strong>Start Time:</strong> Enter the time the Class will begin. The Class will appear on all enrolled student schedules at this time.</li>
+<li><strong>Students:</strong> Select students to enroll in the Class, if students have already been created.</li>
+<li><strong>Quarters:</strong> Select the quarters when the Class will be offered.</li>
+<li><strong>Weekdays:</strong> Select the days of the week when the Class will be offered.</li>
+</ul>
+<ol start="5">
+<li>Choose one of the following <strong>Instructor</strong> options:</li>
+</ol>
+<ul>
+<li><strong>Use Course Instructor:</strong> Select this option to automatically use the instructor assigned to the underlying Course. This is recommended when the Class will be taught or managed by the same instructor associated with the Course.</li>
+<li><strong>Independent Learning:</strong> Select this option when the Class does not use a dedicated live instructor and students primarily complete the instructional activities autonomously or through self-directed learning methods.</li>
+<li><strong>Instructor Name:</strong> Select a specific instructor when this Class will be taught, supervised, or managed by a dedicated instructor different from the instructor assigned to the underlying Course. This allows instructor assignments to vary between individual Classes created from the same Course.</li>
+</ul>
+<ol start="6">
+<li>For the <strong>Students</strong> field, you may leave this blank during the Quick Start process if students have not yet been created. Students are added in the next Quick Start step.</li>
+<li>After students are created, you can enroll them individually from the Student profile or return to the Class configuration to add students in bulk.</li>
+<li>Click <strong>Add Class</strong>.</li>
+</ol>
+<hr>
+<h5>Configure Grade Types</h5>
+<p><strong>Grade Types</strong> define the categories of graded work used within a Course, such as Assignments, Quizzes, Tests, or Final Exams. Weighting allows each Grade Type to contribute a specific percentage toward the student&#039;s overall Course grade.</p>
+<ol>
+<li>From the <strong>Curriculum</strong> page, click the <strong>Grade Types</strong> tab.</li>
+<li>Click <strong>Add Grade Type</strong>.</li>
+<li>Complete the following fields:</li>
+</ol>
+<ul>
+<li><strong>Grade Type:</strong> Enter the name of the graded work category, such as Assignment, Quiz, Test, or Final Exam.</li>
+<li><strong>Grade Weight:</strong> Enter the percentage this Grade Type should contribute toward the overall Course grade.</li>
+<li><strong>Icon:</strong> Select an icon that can be used for Grade Type dashboard gauges.</li>
+</ul>
+<ol start="4">
+<li>Click <strong>Add Grade Type</strong>.</li>
+<li>Repeat this process for each desired Grade Type.</li>
+</ol>
+<p><strong>Note:</strong> The combined weight of all configured Grade Types must equal 100%. Navigrader uses these weights to calculate the student&#039;s overall Course grade proportionally across all graded work categories.</p>
+<hr>
+<h5>Configure Grading Criteria</h5>
+<p><strong>Grading Criteria</strong> define how numeric scores are translated into letter grades and GPA values throughout Navigrader. These settings are used for grade calculations, report cards, transcripts, GPA reporting, and other academic reports.</p>
+<p><strong>Letter Grading Scale:</strong> The Letter Grading Scale defines the numeric score ranges associated with each letter grade, such as A, B, C, D, and F. Navigrader uses these ranges to automatically determine student letter grades based on calculated course averages.</p>
+<p><strong>GPA Scale:</strong> The GPA Scale defines the grade point system used when calculating Grade Point Average values for students. Common GPA scales include 4.0 and other weighted or alternative grading systems used by homeschool programs, co-ops, or educational organizations.</p>
+<ol>
+<li>From the <strong>Curriculum</strong> page, click the <strong>Grading Criteria</strong> tab.</li>
+<li>You may leave the Letter Grading Scale fields blank to use the listed defaults.</li>
+<li>To customize the scale, click <strong>Edit Grading Criteria</strong> and enter your desired score ranges.</li>
+<li>To modify the GPA Scale, click the GPA drop-down menu and select an existing scale, or choose <strong>Other</strong> to enter a custom GPA maximum value.</li>
+<li>Click <strong>Save Grading Criteria</strong>.</li>
+</ol>
+<p><strong>Note:</strong> Ensure the Letter Grading Scale does not contain gaps or overlapping score ranges. All possible numeric scores should fall within one clearly defined letter grade range to ensure accurate grade calculations and reporting.</p>
+<hr>
+</section>
+<section class="help-article-section help-article-rich-section">
+<h4>3. Add and Enroll Students</h4>
+<p>After your schedule and curriculum are configured, create student profiles and enroll students into their Courses, Classes, and Schedule Blocks.</p>
+<h5>Create Students</h5>
+<ol>
+<li>Click <strong>Student</strong> from the main menu.</li>
+<li>Click <strong>New Student</strong>.</li>
+<li>Complete the following fields:</li>
+</ol>
+<ul>
+<li><strong>First Name:</strong> Enter the student&#039;s first name.</li>
+<li><strong>Last Name:</strong> Enter the student&#039;s last name.</li>
+<li><strong>Birthdate:</strong> Enter the student&#039;s date of birth.</li>
+<li><strong>Grade:</strong> Select the student&#039;s current grade level.</li>
+</ul>
+<ol start="4">
+<li>Click <strong>Create Student</strong>.</li>
+<li>Navigrader will return to the main Student page.</li>
+<li>Newly created students who are not yet enrolled in required Courses or Classes will display a <strong>Fix Enrollment</strong> button in the Action column.</li>
+<li>If no Courses or Subjects were marked as required, an <strong>Edit/Enroll</strong> button will be displayed instead.</li>
+</ol>
+<hr>
+<h5>Enroll Students in Courses, Classes, and Schedule Blocks</h5>
+<ol>
+<li>From the Student page, click either <strong>Fix Enrollment</strong> or <strong>Edit/Enroll</strong>.</li>
+<li>The Student Detail page will open.</li>
+<li>Locate the following sections:</li>
+</ol>
+<ul>
+<li><strong>Add Scheduled Item:</strong> Displays available Courses, Classes, and Schedule Blocks that the student can be enrolled in.</li>
+<li><strong>Current Schedule:</strong> Displays the Courses, Classes, and Schedule Blocks the student is currently enrolled in and allows you to set the daily schedule order.</li>
+</ul>
+<ol start="4">
+<li>In the <strong>Schedule Item</strong> field, open the drop-down menu.</li>
+<li>Select the desired Courses, Classes, and Schedule Blocks by checking the box beside each item.</li>
+<li>Click <strong>Add Selected Items</strong>.</li>
+<li>The selected items will appear in the <strong>Current Schedule</strong> section.</li>
+<li>Use <strong>Edit Schedule</strong> and <strong>Schedule Order</strong> to configure the student&#039;s daily schedule order.</li>
+<li>If <strong>Schedule Order</strong> is set to <strong>Auto</strong>, Navigrader will automatically determine the order for the Course.</li>
+<li>Click <strong>Save Schedule Changes</strong>.</li>
+</ol>
+<p>Navigrader will now automatically build student schedules based on your School Year, School Day settings, Courses, Classes, Schedule Blocks, and student enrollment selections. You are now ready to <strong>Teach More and Manage Less!</strong> To learn how to manage daily instruction, attendance, completion status, grades, and schedule activity from one convenient location, see the <strong>School Day</strong> section of the Help Center.</p>
+</section>`
   },
   {
     id: "dashboard",
@@ -4901,6 +5056,9 @@ function closeHelpCenter() {
 
 function renderHelpArticle(article) {
   if (!article) return "";
+  const richContentHtml = article.contentHtml
+    ? `<div class="help-article-rich">${article.contentHtml}</div>`
+    : "";
   const sectionHtml = (article.sections || []).map((section) => `
     <section class="help-article-section">
       <h4>${escapeHtml(section.heading)}</h4>
@@ -4914,7 +5072,7 @@ function renderHelpArticle(article) {
       <p class="help-article-category">${escapeHtml(article.category || "Help")}</p>
       <h3>${escapeHtml(article.title)}</h3>
       <p class="help-article-summary">${escapeHtml(article.summary || "")}</p>
-      ${sectionHtml}
+      ${richContentHtml || sectionHtml}
       ${article.tab ? `<button type="button" class="help-open-page-btn" data-help-open-tab="${escapeHtml(article.tab)}">Open Related Page</button>` : ""}
     </article>
   `;
