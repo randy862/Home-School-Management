@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Workflow polish: Help Center Quick Start now uses the detailed step-by-step setup guidance.
+Workflow polish: Help Center can pop out into a separate reference window.
 
 ## Completed Recently
 
@@ -32,6 +32,7 @@ Workflow polish: Help Center Quick Start now uses the detailed step-by-step setu
 - Quick Start Help article now provides a detailed setup-to-operation walkthrough for new homeschool families.
 - Dashboard Attendance Open gauge now opens School Day on the Attendance tab instead of requiring an extra click from Daily Schedule.
 - Quick Start Help article was replaced with the provided step-by-step setup guidance; the prior version is saved at `web/help/quick-start-previous-20260522.md`.
+- Help Center has an `Open in Window` action that opens a movable reference window while the main app stays usable.
 
 ## Production State
 
@@ -40,14 +41,14 @@ Workflow polish: Help Center Quick Start now uses the detailed step-by-step setu
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605221130`
-  - `styles.css?v=202605221130`
+  - `app.js?v=202605221245`
+  - `styles.css?v=202605221245`
 - APP001 latest rollback:
   - `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
 - APP001 control-api rollback:
   - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-quick-start-guidance-202605221130.tgz`
+  - `/var/www/home-school-management/rollback/web-help-center-popout-202605221245.tgz`
 
 ## Validation
 
@@ -61,9 +62,9 @@ Workflow polish: Help Center Quick Start now uses the detailed step-by-step setu
 - APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605221130` and `styles.css?v=202605221130`.
-- Served tenant app JS contains the new Quick Start guidance.
-- Served tenant CSS contains rich Help article styles.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605221245` and `styles.css?v=202605221245`.
+- Served tenant app JS contains the Help Center pop-out code.
+- Served tenant CSS contains the Help Center pop-out button style.
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public `mitchell` and `smoketest` tenant roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.
@@ -83,4 +84,4 @@ Workflow polish: Help Center Quick Start now uses the detailed step-by-step setu
 
 ## Next Actions
 
-1. QA Help Center Quick Start on `smoketest.navigrader.com` for readability, scrolling, and source-content accuracy.
+1. QA Help Center `Open in Window` on `smoketest.navigrader.com`, including topic changes and `Open Related Page`.

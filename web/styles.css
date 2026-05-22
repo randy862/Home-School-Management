@@ -6528,12 +6528,25 @@ tbody tr:hover {
   margin: 0.22rem 0 0;
 }
 
+.account-modal-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
 .account-modal-close-btn {
   min-height: 32px;
   padding: 0.34rem 0.62rem;
   border-radius: 8px;
   box-shadow: none;
   font-size: 0.84rem;
+}
+
+.help-center-popout-btn {
+  background: #ffffff;
+  color: #155da8;
+  border: 1px solid #bdd4ee;
 }
 
 .account-modal-body {

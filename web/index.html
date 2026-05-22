@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605221130">
+  <link rel="stylesheet" href="styles.css?v=202605221245">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -2615,11 +2615,14 @@
           <h2 id="help-center-modal-title">Help Center</h2>
           <p class="muted">Task-based guidance for setting up and running your homeschool records.</p>
         </div>
-        <button id="help-center-modal-close-btn" class="account-modal-close-btn" type="button" aria-label="Close help center">Close</button>
+        <div class="account-modal-header-actions">
+          <button id="help-center-popout-btn" class="account-modal-close-btn help-center-popout-btn" type="button" aria-label="Open help center in a separate window">Open in Window</button>
+          <button id="help-center-modal-close-btn" class="account-modal-close-btn" type="button" aria-label="Close help center">Close</button>
+        </div>
       </div>
       <div id="help-center-modal-body" class="account-modal-body help-center-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605221130"></script>
+  <script src="app.js?v=202605221245"></script>
   </body>
   </html>

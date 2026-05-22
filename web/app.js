@@ -1708,6 +1708,8 @@ let accountOptionsMessageState = { kind: "", text: "" };
 let accountUpgradeMessageState = { kind: "", text: "" };
 let helpCenterOpen = false;
 let activeHelpArticleId = "quick-start";
+let helpCenterPopoutWindow = null;
+let helpCenterPopoutArticleId = "quick-start";
 const HELP_ARTICLES = [
   {
     id: "quick-start",
@@ -5078,23 +5080,9 @@ function renderHelpArticle(article) {
   `;
 }
 
-function renderHelpCenterSurface() {
-  const modal = document.getElementById("help-center-modal");
-  const body = document.getElementById("help-center-modal-body");
-  const signedIn = !!currentUser();
-  if (modal) {
-    modal.classList.toggle("hidden", !signedIn || !helpCenterOpen);
-    modal.setAttribute("aria-hidden", !signedIn || !helpCenterOpen ? "true" : "false");
-  }
-  if (!body) return;
-  if (!signedIn || !helpCenterOpen) {
-    body.innerHTML = "";
-    return;
-  }
-  const activeArticle = helpArticleById(activeHelpArticleId);
-  activeHelpArticleId = activeArticle.id;
+function renderHelpTopicGroups(activeArticle) {
   const categories = Array.from(new Set(HELP_ARTICLES.map((article) => article.category || "Help")));
-  const topicHtml = categories.map((category) => {
+  return categories.map((category) => {
     const topics = HELP_ARTICLES
       .filter((article) => (article.category || "Help") === category)
       .map((article) => `
@@ -5110,14 +5098,324 @@ function renderHelpCenterSurface() {
       </section>
     `;
   }).join("");
-  body.innerHTML = `
+}
+
+function renderHelpCenterContent(activeArticle) {
+  return `
     <aside class="help-topic-list" aria-label="Help topics">
-      ${topicHtml}
+      ${renderHelpTopicGroups(activeArticle)}
     </aside>
     <div class="help-article-wrap">
       ${renderHelpArticle(activeArticle)}
     </div>
   `;
+}
+
+function helpCenterPopoutStyles() {
+  return `
+    :root {
+      color-scheme: light;
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      color: #17243d;
+      background: #f6f9fd;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: #f6f9fd;
+    }
+    .help-popout-header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid #dce6f2;
+      background: #ffffff;
+      box-shadow: 0 10px 30px rgba(14, 33, 59, 0.08);
+    }
+    .help-popout-title {
+      display: grid;
+      gap: 0.16rem;
+    }
+    .help-popout-title h1 {
+      margin: 0;
+      color: #17243d;
+      font-size: 1.08rem;
+      line-height: 1.2;
+    }
+    .help-popout-title p {
+      margin: 0;
+      color: #5f6f87;
+      font-size: 0.84rem;
+      line-height: 1.35;
+    }
+    .help-popout-close-btn,
+    .help-open-page-btn {
+      min-height: 34px;
+      padding: 0.42rem 0.72rem;
+      border: 1px solid #bdd4ee;
+      border-radius: 10px;
+      background: #155da8;
+      color: #ffffff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .help-open-page-btn {
+      justify-self: start;
+      font-size: 0.84rem;
+    }
+    .help-center-modal-body {
+      display: grid;
+      grid-template-columns: minmax(230px, 0.34fr) minmax(0, 1fr);
+      align-items: start;
+      min-height: calc(100vh - 4.6rem);
+    }
+    .help-topic-list {
+      position: sticky;
+      top: 4.6rem;
+      display: grid;
+      gap: 0.9rem;
+      max-height: calc(100vh - 4.6rem);
+      overflow: auto;
+      padding: 0.9rem;
+      border-right: 1px solid #e3eaf4;
+      background: #f8fbff;
+    }
+    .help-topic-group {
+      display: grid;
+      gap: 0.38rem;
+    }
+    .help-topic-group h3 {
+      margin: 0;
+      color: #5c6f89;
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .help-topic-btn {
+      display: grid;
+      gap: 0.18rem;
+      width: 100%;
+      padding: 0.56rem 0.62rem;
+      border: 1px solid #dce6f2;
+      border-radius: 10px;
+      background: #ffffff;
+      color: #17243d;
+      text-align: left;
+      cursor: pointer;
+    }
+    .help-topic-btn strong {
+      font-size: 0.86rem;
+      line-height: 1.2;
+    }
+    .help-topic-btn span {
+      color: #5f6f87;
+      font-size: 0.76rem;
+      line-height: 1.25;
+    }
+    .help-topic-btn.active,
+    .help-topic-btn:hover,
+    .help-topic-btn:focus-visible {
+      border-color: #98b9e8;
+      background: #edf5ff;
+      color: #0d55c7;
+    }
+    .help-article-wrap {
+      padding: 1rem;
+    }
+    .help-article {
+      display: grid;
+      gap: 0.75rem;
+      max-width: 64rem;
+    }
+    .help-article-category {
+      margin: 0;
+      color: #557092;
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .help-article h3 {
+      margin: 0;
+      color: #17243d;
+      font-size: 1.28rem;
+      line-height: 1.15;
+    }
+    .help-article-summary {
+      margin: 0;
+      max-width: 56rem;
+      color: #4d627c;
+      font-size: 0.94rem;
+      line-height: 1.45;
+    }
+    .help-article-section {
+      display: grid;
+      gap: 0.38rem;
+      padding: 0.8rem;
+      border: 1px solid #dfe8f4;
+      border-radius: 12px;
+      background: #ffffff;
+    }
+    .help-article-section h4 {
+      margin: 0;
+      color: #17243d;
+      font-size: 0.94rem;
+    }
+    .help-article-section ul {
+      display: grid;
+      gap: 0.38rem;
+      margin: 0;
+      padding-left: 1.1rem;
+      color: #3f5069;
+      font-size: 0.88rem;
+      line-height: 1.42;
+    }
+    .help-article-rich {
+      display: grid;
+      gap: 0.72rem;
+      color: #3f5069;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .help-article-rich p,
+    .help-article-rich ol,
+    .help-article-rich ul {
+      margin: 0;
+    }
+    .help-article-rich ol,
+    .help-article-rich ul {
+      padding-left: 1.25rem;
+    }
+    .help-article-rich li + li {
+      margin-top: 0.28rem;
+    }
+    .help-article-rich h4 {
+      margin: 0;
+      color: #17243d;
+      font-size: 1rem;
+    }
+    .help-article-rich h5 {
+      margin: 0.12rem 0 0;
+      color: #24405f;
+      font-size: 0.92rem;
+    }
+    .help-article-rich strong {
+      color: #17243d;
+    }
+    .help-article-rich hr {
+      width: 100%;
+      margin: 0.1rem 0;
+      border: 0;
+      border-top: 1px solid #e3eaf4;
+    }
+    .help-article-rich-section {
+      gap: 0.52rem;
+    }
+    @media (max-width: 760px) {
+      .help-center-modal-body {
+        grid-template-columns: 1fr;
+      }
+      .help-topic-list {
+        position: static;
+        max-height: none;
+        border-right: 0;
+        border-bottom: 1px solid #e3eaf4;
+      }
+    }
+  `;
+}
+
+function renderHelpCenterPopout() {
+  if (!helpCenterPopoutWindow || helpCenterPopoutWindow.closed) return false;
+  const activeArticle = helpArticleById(helpCenterPopoutArticleId || activeHelpArticleId);
+  helpCenterPopoutArticleId = activeArticle.id;
+  const doc = helpCenterPopoutWindow.document;
+  doc.open();
+  doc.write(`<!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Navigrader Help Center - ${escapeHtml(activeArticle.title)}</title>
+      <style>${helpCenterPopoutStyles()}</style>
+    </head>
+    <body>
+      <header class="help-popout-header">
+        <div class="help-popout-title">
+          <h1>Navigrader Help Center</h1>
+          <p>Keep this window open while you work in the main app.</p>
+        </div>
+        <button type="button" class="help-popout-close-btn" data-help-popout-close="1">Close</button>
+      </header>
+      <main id="help-center-popout-body" class="help-center-modal-body">
+        ${renderHelpCenterContent(activeArticle)}
+      </main>
+    </body>
+    </html>`);
+  doc.close();
+  doc.addEventListener("click", (event) => {
+    const closeButton = event.target.closest("[data-help-popout-close]");
+    if (closeButton) {
+      helpCenterPopoutWindow.close();
+      return;
+    }
+    const topicButton = event.target.closest("[data-help-topic]");
+    if (topicButton) {
+      helpCenterPopoutArticleId = topicButton.getAttribute("data-help-topic") || "quick-start";
+      activeHelpArticleId = helpCenterPopoutArticleId;
+      renderHelpCenterPopout();
+      return;
+    }
+    const tabButton = event.target.closest("[data-help-open-tab]");
+    if (tabButton) {
+      const tab = tabButton.getAttribute("data-help-open-tab") || "dashboard";
+      activateTab(tab);
+      window.focus();
+    }
+  });
+  return true;
+}
+
+function openHelpCenterPopout(articleId = "") {
+  const activeArticle = helpArticleById(articleId || activeHelpArticleId || helpArticleForCurrentContext());
+  helpCenterPopoutArticleId = activeArticle.id;
+  if (!helpCenterPopoutWindow || helpCenterPopoutWindow.closed) {
+    helpCenterPopoutWindow = window.open("", "navigrader-help-center", "popup,width=1120,height=780,resizable=yes,scrollbars=yes");
+  }
+  if (!helpCenterPopoutWindow) {
+    alert("Your browser blocked the Help Center pop-out. Allow pop-ups for this site, then try again.");
+    return;
+  }
+  renderHelpCenterPopout();
+  helpCenterPopoutWindow.focus();
+  helpCenterOpen = false;
+  renderSessionChrome();
+}
+
+function renderHelpCenterSurface() {
+  const modal = document.getElementById("help-center-modal");
+  const body = document.getElementById("help-center-modal-body");
+  const signedIn = !!currentUser();
+  if (modal) {
+    modal.classList.toggle("hidden", !signedIn || !helpCenterOpen);
+    modal.setAttribute("aria-hidden", !signedIn || !helpCenterOpen ? "true" : "false");
+  }
+  if (!body) return;
+  if (!signedIn || !helpCenterOpen) {
+    body.innerHTML = "";
+    return;
+  }
+  const activeArticle = helpArticleById(activeHelpArticleId);
+  activeHelpArticleId = activeArticle.id;
+  body.innerHTML = renderHelpCenterContent(activeArticle);
 }
 
 async function changeHostedPassword(currentPassword, newPassword) {
@@ -21938,6 +22236,7 @@ function bindEvents() {
   document.getElementById("account-upgrade-modal-backdrop")?.addEventListener("click", () => closeAccountUpgradeView());
   document.getElementById("help-center-open-btn")?.addEventListener("click", () => openHelpCenter());
   document.getElementById("help-center-sidebar-btn")?.addEventListener("click", () => openHelpCenter("quick-start"));
+  document.getElementById("help-center-popout-btn")?.addEventListener("click", () => openHelpCenterPopout(activeHelpArticleId));
   document.getElementById("help-center-modal-close-btn")?.addEventListener("click", () => closeHelpCenter());
   document.getElementById("help-center-modal-backdrop")?.addEventListener("click", () => closeHelpCenter());
   document.getElementById("help-center-modal-body")?.addEventListener("click", (event) => {

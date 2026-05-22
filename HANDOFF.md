@@ -4,7 +4,7 @@ Date: 2026-05-22
 
 ## Context
 
-Workflow polish is active. Current slice replaced the Help Center Quick Start article with the provided detailed setup guidance.
+Workflow polish is active. Current slice added a Help Center pop-out reference window.
 
 ## Current State
 
@@ -20,20 +20,21 @@ Workflow polish is active. Current slice replaced the Help Center Quick Start ar
 - Dashboard Attendance Open gauge now targets School Day > Attendance while the other open-item gauges continue to target Daily Schedule as appropriate.
 - Quick Start Help now uses the provided detailed step-by-step guidance from `navigrader_help_center_quick_start.md`.
 - The previous in-app Quick Start article is saved at `web/help/quick-start-previous-20260522.md`.
+- Help Center now has an `Open in Window` action that opens a separate movable reference window without requiring a second login.
 - APP001 deployed API files and tenant migration `031_independent_learning_instructor.sql`.
-- WEB001 deployed `app.js?v=202605221130` and `styles.css?v=202605221130`.
+- WEB001 deployed `app.js?v=202605221245` and `styles.css?v=202605221245`.
 - Hosted release gate passed for `https://mitchell.navigrader.com` after deployment.
 - Class form Weekdays field is deployed as a compact, content-width control in `styles.css?v=202605202115`.
 - Curriculum sidebar icon was replaced with a clean outline SVG and cache-busted as `book-open.svg?v=202605202130`.
 - Rollbacks:
   - APP001: `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
-  - WEB001: `/var/www/home-school-management/rollback/web-quick-start-guidance-202605221130.tgz`
+  - WEB001: `/var/www/home-school-management/rollback/web-help-center-popout-202605221245.tgz`
 
 ## Next Action
 
-Review the updated Quick Start article in `smoketest.navigrader.com`:
+Review the Help Center pop-out in `smoketest.navigrader.com`:
 
-- Open Help, choose Quick Start, and scan the detailed setup guidance for readability and accuracy.
+- Open Help, click `Open in Window`, change Help topics in the pop-out, and test `Open Related Page`.
 
 ## Risks
 
@@ -49,9 +50,9 @@ Review the updated Quick Start article in `smoketest.navigrader.com`:
 - APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` roots reference `app.js?v=202605221130` and `styles.css?v=202605221130`.
-- Served tenant app JS contains the new Quick Start guidance.
-- Served tenant CSS contains rich Help article styles.
+- Public `mitchell` and `smoketest` roots reference `app.js?v=202605221245` and `styles.css?v=202605221245`.
+- Served tenant app JS contains the Help Center pop-out code.
+- Served tenant CSS contains the Help Center pop-out button style.
 - Full hosted release gate passed for `https://mitchell.navigrader.com`.
 - Public `mitchell` and `smoketest` roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.
