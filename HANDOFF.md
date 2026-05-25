@@ -23,10 +23,11 @@ Dashboard polish is active for `mitchell.navigrader.com`.
 - Dashboard Running Grade Average and Attendance status cards now use the same one-decimal rounded value for threshold classification that they display to users.
 - WEB001 deployed `app.js?v=202605251234`.
 - Rollback: `/var/www/home-school-management/rollback/web-dashboard-status-rounded-threshold-202605251234.tgz`.
+- Added `RUNBOOKS/application-architecture.md` for a practical, non-code-heavy map of browser, `WEB001`, `APP001`, and `SQL001` responsibilities.
 
 ## Next Action
 
-Verify in the Dashboard UI that a displayed `90.0%` Running Grade Average shows `Strong`.
+Review `RUNBOOKS/application-architecture.md` for wording and any desired business-facing adjustments.
 
 ## Risks
 

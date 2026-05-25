@@ -26,6 +26,7 @@ Dashboard correctness and performance polish.
 - Added `scripts/Measure-HostedPerformance.ps1` for hosted endpoint timing, payload size, and row-count baselines.
 - Dashboard instructional-hours rendering now uses cached instructional-hour snapshots, cached daily scheduled blocks, indexed instruction/flex lookups, and cached compliance monthly series.
 - Dashboard Running Grade Average and Attendance status cards now classify against the same one-decimal value shown to users.
+- Added `RUNBOOKS/application-architecture.md` documenting browser, `WEB001`, `APP001`, and `SQL001` responsibilities.
 
 ## Production State
 
@@ -69,5 +70,6 @@ Dashboard correctness and performance polish.
 
 ## Next Actions
 
-1. Verify in the UI that a displayed `90.0%` Running Grade Average shows `Strong`.
-2. Keep the current Dashboard performance slice closed unless larger tenants expose new lag.
+1. Review `RUNBOOKS/application-architecture.md` for wording and any desired business-facing adjustments.
+2. Verify in the UI that a displayed `90.0%` Running Grade Average shows `Strong`.
+3. Keep the current Dashboard performance slice closed unless larger tenants expose new lag.
