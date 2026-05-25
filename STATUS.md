@@ -35,6 +35,7 @@ Performance baseline instrumentation for large-tenant optimization.
 - Help Center has an `Open in Window` action that opens a movable reference window while the main app stays usable.
 - Tenant app now has opt-in performance diagnostics enabled by `?perf=1`, recording API timing/payloads, hydration sections, and Dashboard render builders to `window.__navigraderPerfMetrics`.
 - Added `scripts/Measure-HostedPerformance.ps1` to capture hosted endpoint timing, payload size, and row-count baselines from outside the browser.
+- Dashboard instructional-hours rendering now uses cached instructional-hour snapshots, cached daily scheduled blocks, and indexed instruction/flex record lookups.
 
 ## Production State
 
@@ -43,14 +44,14 @@ Performance baseline instrumentation for large-tenant optimization.
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605242103`
+  - `app.js?v=202605242149`
   - `styles.css?v=202605221245`
 - APP001 latest rollback:
   - `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
 - APP001 control-api rollback:
   - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-performance-instrumentation-served-202605242103.tgz`
+  - `/var/www/home-school-management/rollback/web-dashboard-instruction-hours-cache-202605242149.tgz`
 
 ## Validation
 
@@ -64,7 +65,7 @@ Performance baseline instrumentation for large-tenant optimization.
 - APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605221245` and `styles.css?v=202605221245`.
+- Earlier Help Center validation confirmed the tenant app and stylesheet served the pop-out assets.
 - Served tenant app JS contains the Help Center pop-out code.
 - Served tenant CSS contains the Help Center pop-out button style.
 - Previous full hosted release gate passed for `https://mitchell.navigrader.com`; rerun after this slice from a shell with credentials.
@@ -72,10 +73,12 @@ Performance baseline instrumentation for large-tenant optimization.
   - `node --check web/app.js`
   - PowerShell parser check for `scripts/Measure-HostedPerformance.ps1`
   - `git diff --check`
-- WEB001 served root returns `app.js?v=202605242103`.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605242103`.
 - Served tenant app JS contains `hsm_perf_diagnostics`, `hydrate.total`, and `dashboard.render`.
 - Public `https://mitchell.navigrader.com/health`, `/terms`, and `/privacy` returned HTTP 200.
+- Local `node --check web/app.js` and `git diff --check` passed after Dashboard cache optimization.
+- WEB001 served root returns `app.js?v=202605242149`.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605242149`.
+- Served tenant app JS contains `instructionalHoursSnapshotCache`, `dashboardDailyBlocksCache`, and `instructionActualsByKey`.
 - Public `mitchell` and `smoketest` tenant roots reference `styles.css?v=202605202115`.
 - Served tenant CSS contains the compact Class weekdays selector.
 - Public `mitchell` and `smoketest` tenant roots reference `book-open.svg?v=202605202130`.
@@ -95,6 +98,6 @@ Performance baseline instrumentation for large-tenant optimization.
 
 ## Next Actions
 
-1. Run `scripts/Measure-HostedPerformance.ps1` against `mitchell.navigrader.com` with performance or hosted smoke credentials.
-2. Open `https://mitchell.navigrader.com/?perf=1`, exercise Dashboard tabs, and inspect `window.__navigraderPerfMetrics`.
-3. Use the baseline to choose the first data-scope/backend summary endpoint optimization.
+1. Refresh `https://mitchell.navigrader.com/?perf=1`, exercise Dashboard tabs, and compare `dashboard.render` plus `dashboard.buildInstructionalHoursSnapshot` timings.
+2. Rerun `scripts/Measure-HostedPerformance.ps1` if backend endpoint timing needs another baseline.
+3. Use the new browser baseline to decide whether scoped record APIs or backend dashboard summaries are the next slice.

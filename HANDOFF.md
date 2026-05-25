@@ -24,22 +24,20 @@ Performance optimization workstream is active. Current slice added baseline meas
 - Added opt-in browser performance diagnostics enabled by `?perf=1`.
 - Diagnostics record API timing/payload/row counts, `hydrate.total`, per-hydration task timing, `dashboard.render`, and the major Dashboard builder timings to `window.__navigraderPerfMetrics`.
 - Added `scripts/Measure-HostedPerformance.ps1` for hosted endpoint timing, payload size, and row-count baselines.
+- Browser metrics from Mitchell tenant showed Dashboard instructional-hours rendering as the primary lag, with `dashboard.render` up to ~7.5s and repeated `dashboard.buildInstructionalHoursSnapshot` calls up to ~3.3s.
+- Added Dashboard instructional-hours caches plus indexed instruction/flex lookups to avoid repeated full scans and repeated snapshot rebuilds.
 - APP001 deployed API files and tenant migration `031_independent_learning_instructor.sql`.
-- WEB001 deployed `app.js?v=202605242103` and `styles.css?v=202605221245`.
+- WEB001 deployed `app.js?v=202605242149` and `styles.css?v=202605221245`.
 - Hosted release gate has not been rerun from this shell because hosted smoke credentials were not present.
 - Class form Weekdays field is deployed as a compact, content-width control in `styles.css?v=202605202115`.
 - Curriculum sidebar icon was replaced with a clean outline SVG and cache-busted as `book-open.svg?v=202605202130`.
 - Rollbacks:
   - APP001: `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
-  - WEB001: `/var/www/home-school-management/rollback/web-performance-instrumentation-served-202605242103.tgz`
+  - WEB001: `/var/www/home-school-management/rollback/web-dashboard-instruction-hours-cache-202605242149.tgz`
 
 ## Next Action
 
-Run the hosted performance baseline from a shell with credentials:
-
-- `powershell -ExecutionPolicy Bypass -File .\scripts\Measure-HostedPerformance.ps1 -BaseUrl https://mitchell.navigrader.com`
-
-Then open `https://mitchell.navigrader.com/?perf=1`, navigate login and Dashboard tabs, and inspect `window.__navigraderPerfMetrics`.
+Refresh `https://mitchell.navigrader.com/?perf=1`, navigate Dashboard tabs, and inspect `window.__navigraderPerfMetrics` to confirm the instructional-hours render drop.
 
 ## Risks
 
@@ -58,8 +56,9 @@ Then open `https://mitchell.navigrader.com/?perf=1`, navigate login and Dashboar
 - APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` roots reference `app.js?v=202605242103` and `styles.css?v=202605221245`.
+- Public `mitchell` and `smoketest` roots reference `app.js?v=202605242149` and `styles.css?v=202605221245`.
 - Served tenant app JS contains `hsm_perf_diagnostics`, `hydrate.total`, and `dashboard.render`.
+- Served tenant app JS contains `instructionalHoursSnapshotCache`, `dashboardDailyBlocksCache`, and `instructionActualsByKey`.
 - Served tenant app JS contains the Help Center pop-out code.
 - Served tenant CSS contains the Help Center pop-out button style.
 - Previous full hosted release gate passed for `https://mitchell.navigrader.com`; rerun after this slice from a shell with credentials.

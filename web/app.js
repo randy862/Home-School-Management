@@ -1637,8 +1637,15 @@ const expandedStudentAttendanceRows = new Set();
 const expandedStudentInstructionalHourRows = new Set();
 let dashboardExpandableRenderCache = null;
 let dashboardExpandableMetricsCache = null;
+let instructionalHoursSnapshotCache = new Map();
+let dashboardDailyBlocksCache = new Map();
 let dashboardDirty = true;
 const dashboardRenderedKeys = new Set();
+let attendanceDataVersion = 0;
+let instructionActualsDataVersion = 0;
+let flexBlocksDataVersion = 0;
+let instructionActualsIndexCache = { version: -1, byKey: new Map() };
+let flexBlocksIndexCache = { version: -1, byKey: new Map() };
 let currentComplianceTab = "instructional-hours";
 let requiredSubjectComplianceGrade = "all";
 let requiredSubjectComplianceStatus = "all";
@@ -2991,6 +2998,7 @@ async function refreshHostedAttendance() {
   const attendance = await response.json();
   if (Array.isArray(attendance)) {
     state.attendance = attendance.map(normalizeHostedAttendanceRecord);
+    markAttendanceChanged();
   }
 }
 
@@ -3000,6 +3008,7 @@ async function refreshHostedInstructionActuals() {
   const instructionActuals = await response.json();
   if (Array.isArray(instructionActuals)) {
     state.instructionActuals = instructionActuals.map(normalizeHostedInstructionActualRecord);
+    markInstructionActualsChanged();
   }
 }
 
@@ -3009,6 +3018,7 @@ async function refreshHostedFlexBlocks() {
   const flexBlocks = await response.json();
   if (Array.isArray(flexBlocks)) {
     state.flexBlocks = flexBlocks.map(normalizeHostedFlexBlockRecord);
+    markFlexBlocksChanged();
   }
 }
 
@@ -3675,6 +3685,7 @@ function upsertHostedAttendanceState(row) {
     ...state.attendance.filter((entry) => entry.id !== normalized.id),
     normalized
   ];
+  markAttendanceChanged();
 }
 
 function upsertHostedInstructionActualState(row) {
@@ -3683,6 +3694,7 @@ function upsertHostedInstructionActualState(row) {
     ...state.instructionActuals.filter((entry) => entry.id !== normalized.id),
     normalized
   ];
+  markInstructionActualsChanged();
 }
 
 function upsertHostedFlexBlockState(row) {
@@ -3691,23 +3703,21 @@ function upsertHostedFlexBlockState(row) {
     ...state.flexBlocks.filter((entry) => entry.id !== normalized.id),
     normalized
   ];
+  markFlexBlocksChanged();
 }
 
 function removeHostedFlexBlockState(recordId) {
   state.flexBlocks = state.flexBlocks.filter((entry) => entry.id !== recordId);
+  markFlexBlocksChanged();
 }
 
 function removeHostedInstructionActualState(recordId) {
   state.instructionActuals = state.instructionActuals.filter((entry) => entry.id !== recordId);
+  markInstructionActualsChanged();
 }
 
 function findFlexBlockRecord(studentId, date, startMinutes, endMinutes) {
-  return state.flexBlocks.find((entry) =>
-    entry.studentId === studentId
-    && entry.date === date
-    && entry.startMinutes === startMinutes
-    && entry.endMinutes === endMinutes
-  ) || null;
+  return flexBlocksByKey().get(flexBlockRecordKey(studentId, date, startMinutes, endMinutes)) || null;
 }
 
 function flexBlockEditKey(studentId, date, startMinutes, endMinutes) {
@@ -3717,6 +3727,40 @@ function flexBlockEditKey(studentId, date, startMinutes, endMinutes) {
 function flexBlockDisplayLabel(block) {
   const purpose = String(block?.purpose || "").trim();
   return purpose ? `Flex Block - ${purpose}` : "Flex Block";
+}
+
+function instructionActualRecordKey(studentId, courseId, date) {
+  return `${String(studentId || "").trim()}||${String(courseId || "").trim()}||${String(date || "").trim()}`;
+}
+
+function flexBlockRecordKey(studentId, date, startMinutes, endMinutes) {
+  return `${String(studentId || "").trim()}||${String(date || "").trim()}||${Number(startMinutes)}||${Number(endMinutes)}`;
+}
+
+function instructionActualsByKey() {
+  if (instructionActualsIndexCache.version === instructionActualsDataVersion) {
+    return instructionActualsIndexCache.byKey;
+  }
+  const byKey = new Map();
+  state.instructionActuals.forEach((entry) => {
+    const key = instructionActualRecordKey(entry.studentId, entry.courseId, entry.date);
+    if (key !== "||||") byKey.set(key, entry);
+  });
+  instructionActualsIndexCache = { version: instructionActualsDataVersion, byKey };
+  return byKey;
+}
+
+function flexBlocksByKey() {
+  if (flexBlocksIndexCache.version === flexBlocksDataVersion) {
+    return flexBlocksIndexCache.byKey;
+  }
+  const byKey = new Map();
+  state.flexBlocks.forEach((entry) => {
+    const key = flexBlockRecordKey(entry.studentId, entry.date, entry.startMinutes, entry.endMinutes);
+    byKey.set(key, entry);
+  });
+  flexBlocksIndexCache = { version: flexBlocksDataVersion, byKey };
+  return byKey;
 }
 
 function upsertHostedTestState(row) {
@@ -4234,10 +4278,33 @@ function renderStudentDetailSectionVisibility() {
   renderStudentsDashboardReturn();
 }
 
-function invalidateDashboardCache() {
-  dashboardDirty = true;
+function clearDashboardComputationCaches() {
   dashboardExpandableRenderCache = null;
   dashboardExpandableMetricsCache = null;
+  instructionalHoursSnapshotCache.clear();
+  dashboardDailyBlocksCache.clear();
+}
+
+function markAttendanceChanged() {
+  attendanceDataVersion += 1;
+  clearDashboardComputationCaches();
+}
+
+function markInstructionActualsChanged() {
+  instructionActualsDataVersion += 1;
+  instructionActualsIndexCache = { version: -1, byKey: new Map() };
+  clearDashboardComputationCaches();
+}
+
+function markFlexBlocksChanged() {
+  flexBlocksDataVersion += 1;
+  flexBlocksIndexCache = { version: -1, byKey: new Map() };
+  clearDashboardComputationCaches();
+}
+
+function invalidateDashboardCache() {
+  dashboardDirty = true;
+  clearDashboardComputationCaches();
   dashboardRenderedKeys.clear();
 }
 
@@ -7059,7 +7126,55 @@ function instructionalHourBuckets() {
   ];
 }
 
+function instructorFilterCacheKey(filterSelection) {
+  const instructorIds = normalizeInstructorFilterIds(filterSelection);
+  if (!instructorIds) return "all";
+  return Array.from(instructorIds).sort().join(",");
+}
+
+function instructionalHoursSnapshotCacheKey(studentIds = null, options = {}) {
+  const targetStudentIds = (studentIds && studentIds.length
+    ? studentIds
+    : state.students.map((student) => student.id))
+    .map((studentId) => String(studentId || "").trim())
+    .filter(Boolean)
+    .sort();
+  const schoolYear = currentSchoolYear();
+  const referenceDate = options.referenceDate || defaultReferenceDateForActiveYear();
+  return [
+    schoolYear?.id || state.settings.currentSchoolYearId || "",
+    schoolYear?.startDate || "",
+    schoolYear?.endDate || "",
+    referenceDate,
+    targetStudentIds.join(","),
+    instructorFilterCacheKey(options.instructorId || "all"),
+    attendanceDataVersion,
+    instructionActualsDataVersion,
+    flexBlocksDataVersion
+  ].join("||");
+}
+
+function dashboardDailyScheduledBlocks(dateKey, targetStudentIds) {
+  const studentIds = Array.from(targetStudentIds || [])
+    .map((studentId) => String(studentId || "").trim())
+    .filter(Boolean)
+    .sort();
+  const cacheKey = [
+    dateKey,
+    studentIds.join(","),
+    instructionActualsDataVersion,
+    flexBlocksDataVersion
+  ].join("||");
+  if (dashboardDailyBlocksCache.has(cacheKey)) return dashboardDailyBlocksCache.get(cacheKey);
+  const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
+  dashboardDailyBlocksCache.set(cacheKey, blocksByStudent);
+  return blocksByStudent;
+}
+
 function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
+  const cacheKey = instructionalHoursSnapshotCacheKey(studentIds, options);
+  const cached = instructionalHoursSnapshotCache.get(cacheKey);
+  if (cached) return cached;
   const snapshotStartedAt = performanceDiagnosticsEnabled() ? performanceNow() : 0;
   const targetStudentIds = studentIds && studentIds.length
     ? new Set(studentIds)
@@ -7072,13 +7187,15 @@ function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
   const yearEnd = toDate(state.settings.schoolYear.endDate);
   const referenceDate = options.referenceDate || defaultReferenceDateForActiveYear();
   if (Number.isNaN(yearStart.getTime()) || Number.isNaN(yearEnd.getTime()) || yearEnd < yearStart) {
+    const snapshot = { buckets, summaryByStudent };
+    instructionalHoursSnapshotCache.set(cacheKey, snapshot);
     if (snapshotStartedAt) {
       recordPerformanceMetric("dashboard.buildInstructionalHoursSnapshot", performanceNow() - snapshotStartedAt, {
         students: targetStudentIds.size,
         invalidSchoolYear: true
       });
     }
-    return { buckets, summaryByStudent };
+    return snapshot;
   }
 
   const ensureBucketMetrics = () => ({ earned: 0, projected: 0 });
@@ -7121,7 +7238,7 @@ function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
   const cursor = new Date(yearStart);
   while (cursor <= yearEnd) {
     const dateKey = toISO(cursor);
-    const blocksByStudent = dailyScheduledBlocks(dateKey, Array.from(targetStudentIds));
+    const blocksByStudent = dashboardDailyScheduledBlocks(dateKey, targetStudentIds);
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction" || !targetStudentIds.has(block.studentId)) return;
       if (!instructionMatchesInstructorFilter(block.studentId, block.courseId, dateKey, instructorId)) return;
@@ -7160,7 +7277,9 @@ function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
       endDate: state.settings.schoolYear.endDate
     });
   }
-  return { buckets, summaryByStudent };
+  const snapshot = { buckets, summaryByStudent };
+  instructionalHoursSnapshotCache.set(cacheKey, snapshot);
+  return snapshot;
 }
 
 function dateDiffDays(a, b){ return Math.floor((b - a) / (1000 * 60 * 60 * 24)); }
@@ -21236,7 +21355,9 @@ function removeStudent(id) {
   state.enrollments = state.enrollments.filter((e)=>e.studentId!==id);
   state.plans = state.plans.filter((p)=>p.studentId!==id);
   state.attendance = state.attendance.filter((a)=>a.studentId!==id);
+  markAttendanceChanged();
   state.instructionActuals = state.instructionActuals.filter((entry) => entry.studentId !== id);
+  markInstructionActualsChanged();
   state.tests = state.tests.filter((t)=>t.studentId!==id);
   state.settings.dailyBreaks = (state.settings.dailyBreaks || [])
     .map((entry) => ({ ...entry, studentIds: (entry.studentIds || []).filter((studentId) => studentId !== id) }))
@@ -21260,6 +21381,7 @@ function removeCourse(id) {
   state.enrollments = state.enrollments.filter((e)=>e.courseId!==id);
   state.plans = state.plans.filter((p)=>p.courseId!==id);
   state.instructionActuals = state.instructionActuals.filter((entry) => entry.courseId !== id);
+  markInstructionActualsChanged();
   state.tests = state.tests.filter((t)=>t.courseId!==id);
   if (editingCourseId === id) {
     editingCourseId = "";
@@ -21269,10 +21391,7 @@ function removeCourse(id) {
 }
 
 function findInstructionActualRecord(studentId, courseId, date) {
-  return state.instructionActuals.find((entry) =>
-    entry.studentId === studentId
-    && entry.courseId === courseId
-    && entry.date === date);
+  return instructionActualsByKey().get(instructionActualRecordKey(studentId, courseId, date)) || null;
 }
 
 function plannedInstructionMinutesForCourse(courseId) {
@@ -21345,6 +21464,7 @@ function createLegacyLocalInstructionActual(payload) {
     startMinutes: payload.startMinutes == null ? null : payload.startMinutes,
     orderIndex: payload.orderIndex == null ? null : payload.orderIndex
   });
+  markInstructionActualsChanged();
 }
 
 function updateLegacyLocalInstructionActual(existing, payload) {
@@ -21359,10 +21479,12 @@ function updateLegacyLocalInstructionActual(existing, payload) {
   existing.actualMinutes = payload.actualMinutes;
   existing.startMinutes = payload.startMinutes == null ? null : payload.startMinutes;
   existing.orderIndex = payload.orderIndex == null ? null : payload.orderIndex;
+  markInstructionActualsChanged();
 }
 
 function deleteLegacyLocalInstructionActual(id) {
   state.instructionActuals = state.instructionActuals.filter((entry) => entry.id !== id);
+  markInstructionActualsChanged();
 }
 
 function defaultInstructorIdForCourse(courseId) {
@@ -21533,6 +21655,7 @@ function createLegacyLocalFlexBlock(payload) {
     endMinutes: payload.endMinutes,
     purpose: payload.purpose || ""
   });
+  markFlexBlocksChanged();
 }
 
 function updateLegacyLocalFlexBlock(existing, payload) {
@@ -21542,10 +21665,12 @@ function updateLegacyLocalFlexBlock(existing, payload) {
   existing.startMinutes = payload.startMinutes;
   existing.endMinutes = payload.endMinutes;
   existing.purpose = payload.purpose || "";
+  markFlexBlocksChanged();
 }
 
 function deleteLegacyLocalFlexBlock(id) {
   state.flexBlocks = state.flexBlocks.filter((entry) => entry.id !== id);
+  markFlexBlocksChanged();
 }
 
 async function saveFlexBlockPurpose({ studentId, date, startMinutes, endMinutes, purpose }) {
@@ -22098,14 +22223,17 @@ function updateLegacyLocalAttendance(existingAttendance, payload) {
   existingAttendance.studentId = payload.studentId;
   existingAttendance.date = payload.date;
   existingAttendance.present = payload.present;
+  markAttendanceChanged();
 }
 
 function createLegacyLocalAttendance(payload) {
   state.attendance.push({ id: uid(), ...payload });
+  markAttendanceChanged();
 }
 
 function deleteLegacyLocalAttendance(attendanceId) {
   state.attendance = state.attendance.filter((entry) => entry.id !== attendanceId);
+  markAttendanceChanged();
 }
 
 function updateLegacyLocalGrade(existingGrade, payload) {
@@ -26189,6 +26317,7 @@ function bindEvents() {
             if (editingSearchAttendanceId === removeAttendanceId) editingSearchAttendanceId = "";
             if (editingAttendanceId === removeAttendanceId) resetAttendanceEditMode();
             state.attendance = state.attendance.filter((entry) => entry.id !== removeAttendanceId);
+            markAttendanceChanged();
             rerenderAfterAttendanceChange();
           } catch (error) {
             alert(error.message || "Unable to remove attendance.");
