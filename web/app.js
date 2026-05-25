@@ -1639,6 +1639,7 @@ let dashboardExpandableRenderCache = null;
 let dashboardExpandableMetricsCache = null;
 let instructionalHoursSnapshotCache = new Map();
 let dashboardDailyBlocksCache = new Map();
+let complianceMonthlySeriesCache = new Map();
 let dashboardDirty = true;
 const dashboardRenderedKeys = new Set();
 let attendanceDataVersion = 0;
@@ -4283,6 +4284,7 @@ function clearDashboardComputationCaches() {
   dashboardExpandableMetricsCache = null;
   instructionalHoursSnapshotCache.clear();
   dashboardDailyBlocksCache.clear();
+  complianceMonthlySeriesCache.clear();
 }
 
 function markAttendanceChanged() {
@@ -15988,9 +15990,9 @@ function renderGpaTrending() {
 }
 
 function renderInstructionHoursTrending() {
+  const renderStartedAt = performanceDiagnosticsEnabled() ? performanceNow() : 0;
   const chartHost = document.getElementById("instruction-hours-trending-chart");
   if (!chartHost) return;
-  const allowedStudentIds = visibleStudentIds();
 
   const sy = state.settings.schoolYear;
   const syStart = toDate(sy.startDate);
@@ -16018,78 +16020,52 @@ function renderInstructionHoursTrending() {
       : (quarterFilter !== "all"
         ? "<p class='muted'>No elapsed months in the selected quarter yet.</p>"
         : "<p class='muted'>No school year range set.</p>");
+    if (renderStartedAt) {
+      recordPerformanceMetric("dashboard.renderInstructionHoursTrending", performanceNow() - renderStartedAt, {
+        months: 0,
+        series: 0
+      });
+    }
     return;
   }
 
-  const targetStudentIds = selectedStudentIds.length
-    ? selectedStudentIds.filter((studentId) => allowedStudentIds.has(studentId))
-    : (isStudentUser() ? visibleStudents().map((student) => student.id) : []);
-  const targetStudentIdSet = new Set(targetStudentIds);
-  const seriesBase = targetStudentIds.length
-    ? targetStudentIds.map((studentId) => ({ id: studentId, label: getStudentName(studentId) }))
-    : [{ id: "all", label: "All Students" }];
-  const seriesIndex = new Map(seriesBase.map((entry) => [entry.id, entry]));
-  const monthlyHours = new Map(seriesBase.map((entry) => [entry.id, new Map(months.map((month) => [`${month.year}-${month.month}`, 0]))]));
-  const attendanceByStudentDate = new Map();
-
-  state.attendance.forEach((record) => {
-    if (!allowedStudentIds.has(record.studentId)) return;
-    const key = `${record.studentId}||${record.date}`;
-    if (!attendanceByStudentDate.has(key)) {
-      attendanceByStudentDate.set(key, !!record.present);
-      return;
-    }
-    const existingPresent = attendanceByStudentDate.get(key);
-    if (existingPresent && !record.present) attendanceByStudentDate.set(key, false);
-  });
-
-  const cursor = new Date(syStart);
-  while (cursor <= effectiveEnd) {
-    const dateKey = toISO(cursor);
-    const events = calendarEventsForDate(dateKey, Array.from(allowedStudentIds));
-    events.forEach((event) => {
-      if (!allowedStudentIds.has(event.studentId)) return;
-      if (targetStudentIds.length && !targetStudentIdSet.has(event.studentId)) return;
-      if (quarterRange && quarterFilter !== "all" && !inRange(dateKey, quarterRange.startDate, quarterRange.endDate)) return;
-      if (attendanceByStudentDate.get(`${event.studentId}||${dateKey}`) !== true) return;
-      const course = getCourse(event.courseId);
-      if (!course) return;
-      if (subjectFilter !== "all" && course.subjectId !== subjectFilter) return;
-      if (!instructionMatchesInstructorFilter(event.studentId, event.courseId, dateKey, instructorFilter)) return;
-      if (!instructionCountsTowardCompletedHours(event.studentId, event.courseId, dateKey)) return;
-      const block = Array.from(dailyScheduledBlocks(dateKey, [event.studentId], subjectFilter !== "all" ? [course.subjectId] : [], [event.courseId]).values()).flat()
-        .find((entry) => entry.type === "instruction" && entry.studentId === event.studentId && entry.courseId === event.courseId);
-      const hours = Number(block?.actualMinutes || 0) / 60;
-      if (!(hours > 0)) return;
-
-      const monthKey = `${cursor.getFullYear()}-${cursor.getMonth()}`;
-      if (!monthlyHours.get(seriesBase[0].id)?.has(monthKey)) return;
-
-      if (seriesIndex.has(event.studentId)) {
-        monthlyHours.set(event.studentId, monthlyHours.get(event.studentId) || new Map());
-        monthlyHours.get(event.studentId).set(monthKey, (monthlyHours.get(event.studentId).get(monthKey) || 0) + hours);
-        return;
-      }
-      if (monthlyHours.has("all")) {
-        monthlyHours.get("all").set(monthKey, (monthlyHours.get("all").get(monthKey) || 0) + hours);
-      }
-    });
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
   const palette = ["#875422", "#2f6f3e", "#1f4d7a", "#8a3434", "#7c5f1f", "#5a3a88", "#35736f", "#9b4d2f"];
-  const series = seriesBase.map((entry, idx) => ({
-    ...entry,
-    color: palette[idx % palette.length],
-    monthly: months.map((monthEntry) => {
-      const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
-      const total = Number(monthlyHours.get(entry.id)?.get(`${monthEntry.year}-${monthEntry.month}`) || 0);
-      return {
-        label: monthStart.toLocaleDateString(undefined, { month: "short" }),
-        hours: total
-      };
-    })
-  }));
+  const monthlySeries = buildComplianceMonthlySeries(selectedStudentIds, {
+    quarterFilter,
+    subjectFilter,
+    instructorFilter
+  });
+  if (!monthlySeries.series.length) {
+    chartHost.innerHTML = "<p class='muted'>No visible students for the current filter.</p>";
+    if (renderStartedAt) {
+      recordPerformanceMetric("dashboard.renderInstructionHoursTrending", performanceNow() - renderStartedAt, {
+        months: monthlySeries.months.length,
+        series: 0
+      });
+    }
+    return;
+  }
+  const series = (!selectedStudentIds.length && !isStudentUser())
+    ? [{
+      id: "all",
+      label: "All Students",
+      color: palette[0],
+      monthly: monthlySeries.months.map((monthEntry, monthIdx) => {
+        const monthStart = new Date(monthEntry.year, monthEntry.month, 1, 12, 0, 0);
+        return {
+          label: monthStart.toLocaleDateString(undefined, { month: "short" }),
+          hours: monthlySeries.series.reduce((sum, entry) => sum + Number(entry.monthly[monthIdx]?.hours || 0), 0)
+        };
+      })
+    }]
+    : monthlySeries.series.map((entry, idx) => ({
+      ...entry,
+      color: entry.color || palette[idx % palette.length],
+      monthly: entry.monthly.map((row) => ({
+        label: row.label,
+        hours: Number(row.hours || 0)
+      }))
+    }));
 
   const plottedValues = series.flatMap((lineSeries) => lineSeries.monthly.map((row) => row.hours));
   const rawMax = plottedValues.length ? Math.max(...plottedValues) : 0;
@@ -16210,6 +16186,12 @@ function renderInstructionHoursTrending() {
       <text x="12" y="${(margin.top + plotH / 2).toFixed(2)}" text-anchor="middle" transform="rotate(-90 12 ${(margin.top + plotH / 2).toFixed(2)})" class="trend-axis-title">Instruction Hours</text>
     </svg>
     ${legendHtml}`;
+  if (renderStartedAt) {
+    recordPerformanceMetric("dashboard.renderInstructionHoursTrending", performanceNow() - renderStartedAt, {
+      months: months.length,
+      series: series.length
+    });
+  }
 }
 
 function renderInstructionDaysTrending() {
@@ -16356,13 +16338,52 @@ function renderInstructionDaysTrending() {
     ${legendHtml}`;
 }
 
+function complianceMonthlySeriesCacheKey(selectedStudentIds = [], options = {}) {
+  const selectedIds = Array.isArray(selectedStudentIds)
+    ? selectedStudentIds.map((studentId) => String(studentId || "").trim()).filter(Boolean).sort()
+    : [];
+  const visibleIds = Array.from(visibleStudentIds()).sort();
+  const quarterSignature = state.settings.quarters
+    .map((quarter) => `${quarter.name}:${quarter.startDate}:${quarter.endDate}`)
+    .join(",");
+  const schoolYear = currentSchoolYear();
+  return [
+    schoolYear?.id || state.settings.currentSchoolYearId || "",
+    state.settings.schoolYear?.startDate || "",
+    state.settings.schoolYear?.endDate || "",
+    todayISO(),
+    selectedIds.join(","),
+    visibleIds.join(","),
+    options.quarterFilter || "all",
+    options.subjectFilter || "all",
+    options.instructorFilter || "all",
+    quarterSignature,
+    attendanceDataVersion,
+    instructionActualsDataVersion,
+    flexBlocksDataVersion
+  ].join("||");
+}
+
 function buildComplianceMonthlySeries(selectedStudentIds = [], options = {}) {
+  const cacheKey = complianceMonthlySeriesCacheKey(selectedStudentIds, options);
+  const cached = complianceMonthlySeriesCache.get(cacheKey);
+  if (cached) {
+    if (performanceDiagnosticsEnabled()) {
+      recordPerformanceMetric("dashboard.buildComplianceMonthlySeries", 0, {
+        months: cached.months.length,
+        students: cached.series.length,
+        rows: cached.series.reduce((sum, entry) => sum + entry.monthly.length, 0),
+        cached: true
+      });
+    }
+    return cached;
+  }
+  const seriesStartedAt = performanceDiagnosticsEnabled() ? performanceNow() : 0;
   const allowedStudentIds = visibleStudentIds();
   const sy = state.settings.schoolYear;
   const syEnd = toDate(sy.endDate);
   const today = toDate(todayISO());
   const effectiveEnd = syEnd < today ? syEnd : today;
-  const months = schoolYearMonths(sy.startDate, toISO(effectiveEnd));
   const quarterFilter = options.quarterFilter || "all";
   const subjectFilter = options.subjectFilter || "all";
   const instructorFilter = options.instructorFilter || "all";
@@ -16378,7 +16399,17 @@ function buildComplianceMonthlySeries(selectedStudentIds = [], options = {}) {
     ? selectedStudentIds.filter((studentId) => allowedStudentIds.has(studentId))
     : Array.from(allowedStudentIds);
   if (!filteredMonths.length || !targetStudentIds.length) {
-    return { months: filteredMonths, series: [] };
+    const emptySeries = { months: filteredMonths, series: [] };
+    complianceMonthlySeriesCache.set(cacheKey, emptySeries);
+    if (seriesStartedAt) {
+      recordPerformanceMetric("dashboard.buildComplianceMonthlySeries", performanceNow() - seriesStartedAt, {
+        months: filteredMonths.length,
+        students: targetStudentIds.length,
+        rows: 0,
+        cached: false
+      });
+    }
+    return emptySeries;
   }
 
   const targetStudentIdSet = new Set(targetStudentIds);
@@ -16398,7 +16429,7 @@ function buildComplianceMonthlySeries(selectedStudentIds = [], options = {}) {
   const cursor = new Date(toDate(monthStartIso));
   while (cursor <= effectiveEnd && toISO(cursor) <= monthEndIso) {
     const dateKey = toISO(cursor);
-    const blocksByStudent = dailyScheduledBlocks(dateKey, targetStudentIds);
+    const blocksByStudent = dashboardDailyScheduledBlocks(dateKey, targetStudentIds);
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction" || !targetStudentIdSet.has(block.studentId)) return;
       if (quarterRange && quarterFilter !== "all" && !inRange(dateKey, quarterRange.startDate, quarterRange.endDate)) return;
@@ -16426,7 +16457,17 @@ function buildComplianceMonthlySeries(selectedStudentIds = [], options = {}) {
       days: Number(monthlyDays.get(studentId)?.get(`${monthEntry.year}-${monthEntry.month}`)?.size || 0)
     }))
   }));
-  return { months: filteredMonths, series };
+  const result = { months: filteredMonths, series };
+  complianceMonthlySeriesCache.set(cacheKey, result);
+  if (seriesStartedAt) {
+    recordPerformanceMetric("dashboard.buildComplianceMonthlySeries", performanceNow() - seriesStartedAt, {
+      months: filteredMonths.length,
+      students: targetStudentIds.length,
+      rows: series.reduce((sum, entry) => sum + entry.monthly.length, 0),
+      cached: false
+    });
+  }
+  return result;
 }
 
 function renderComplianceMonthlyBarChart(chartHostId, valueKey, emptyMessage, ariaLabel, yAxisTitle, selectedStudentIds = [], options = {}) {
@@ -16523,6 +16564,7 @@ function renderComplianceHoursMonthlyChart() {
 }
 
 function renderComplianceHoursMonthlyModernChart() {
+  const renderStartedAt = performanceDiagnosticsEnabled() ? performanceNow() : 0;
   const chartHost = document.getElementById("compliance-hours-monthly-chart");
   if (!chartHost) return;
   const sy = state.settings.schoolYear;
@@ -16538,10 +16580,22 @@ function renderComplianceHoursMonthlyModernChart() {
     chartHost.innerHTML = syStart > today
       ? "<p class='muted'>School year has not started yet.</p>"
       : "<p class='muted'>No school year range set.</p>";
+    if (renderStartedAt) {
+      recordPerformanceMetric("dashboard.renderComplianceHoursMonthlyChart", performanceNow() - renderStartedAt, {
+        months: 0,
+        series: 0
+      });
+    }
     return;
   }
   if (!series.length) {
     chartHost.innerHTML = "<p class='muted'>No visible students for the current filter.</p>";
+    if (renderStartedAt) {
+      recordPerformanceMetric("dashboard.renderComplianceHoursMonthlyChart", performanceNow() - renderStartedAt, {
+        months: months.length,
+        series: 0
+      });
+    }
     return;
   }
 
@@ -16751,6 +16805,12 @@ function renderComplianceHoursMonthlyModernChart() {
       ${legendHtml}
     </div>
     ${summaryHtml}`;
+  if (renderStartedAt) {
+    recordPerformanceMetric("dashboard.renderComplianceHoursMonthlyChart", performanceNow() - renderStartedAt, {
+      months: months.length,
+      series: series.length
+    });
+  }
 }
 
 function renderComplianceDaysMonthlyChart() {

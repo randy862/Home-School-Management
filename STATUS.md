@@ -8,34 +8,23 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Performance baseline instrumentation for large-tenant optimization.
+Large-tenant Dashboard performance optimization.
 
 ## Completed Recently
 
 - Production-safe hosted smoke credentials exist outside the repo.
-- Account Upgrade, Dormant Mode, Data Export, subscriber cancellation, Legal acceptance, Dashboard performance, and Help Center are deployed, committed, and pushed.
-- Class configuration supports bulk student enrollment, roster conflict warnings, and backend fixed-class conflict validation.
-- School Day scheduling reflows flexible courses around fixed classes, uses visible gaps before fixed classes, and respects ordered Lunch/Recess placement.
-- School Day has subtle bulk open-item actions for completing/excusing filtered instruction rows.
+- Account Upgrade, Dormant Mode, Data Export, subscriber cancellation, Legal acceptance, Dashboard performance diagnostics, and Help Center polish are deployed, committed, and pushed.
+- Class configuration supports bulk enrollment, roster conflict warnings, and backend fixed-class conflict validation.
+- School Day scheduling reflows flexible courses around fixed classes, uses visible gaps before fixed classes, respects ordered Lunch/Recess placement, and has subtle bulk open-item actions.
 - School Years create balanced recommended quarters; Holiday/Break changes rebalance quarters when saved dates still match recommendations.
-- Course/Class edit actions scroll the top editor into view.
-- Student Current Schedule has row-specific edit/cancel behavior.
-- Control API maintenance expires ready data-export requests and removes expired ZIP artifacts from the configured export directory.
-- `Independent Learning` is now a system instructor option for Course instructor, Class instructor override, School Day instructor edits, reports, and dashboard/grade filters.
-- Class-level instructor override persists in `course_sections.instructor_id`; School Day defaults class rows to the class instructor before falling back to the course instructor.
-- APP001 deployed migration `031_independent_learning_instructor.sql`, seeding the protected instructor and adding `course_sections.instructor_id`.
-- WEB001 deployed tenant app `app.js?v=202605202030`.
-- Full hosted release gate passed after deployment.
-- Class form Weekdays field is deployed as a compact, content-width control.
-- Curriculum sidebar icon no longer renders as a white square when active.
-- School Day row editor now preserves unsaved start time, instructor, and minutes while status/grade actions re-render the row.
-- Quick Start Help article now provides a detailed setup-to-operation walkthrough for new homeschool families.
-- Dashboard Attendance Open gauge now opens School Day on the Attendance tab instead of requiring an extra click from Daily Schedule.
-- Quick Start Help article was replaced with the provided step-by-step setup guidance; the prior version is saved at `web/help/quick-start-previous-20260522.md`.
-- Help Center has an `Open in Window` action that opens a movable reference window while the main app stays usable.
-- Tenant app now has opt-in performance diagnostics enabled by `?perf=1`, recording API timing/payloads, hydration sections, and Dashboard render builders to `window.__navigraderPerfMetrics`.
-- Added `scripts/Measure-HostedPerformance.ps1` to capture hosted endpoint timing, payload size, and row-count baselines from outside the browser.
-- Dashboard instructional-hours rendering now uses cached instructional-hour snapshots, cached daily scheduled blocks, and indexed instruction/flex record lookups.
+- Course/Class edit actions scroll the top editor into view; Student Current Schedule has row-specific edit/cancel behavior.
+- `Independent Learning` is a protected system instructor option across Course, Class, School Day row edits, reports, dashboard filters, and grade filters.
+- Quick Start Help now uses the detailed setup guide; the prior version is saved at `web/help/quick-start-previous-20260522.md`.
+- Help Center has an `Open in Window` action.
+- Dashboard Attendance Open gauge opens School Day on the Attendance tab.
+- Tenant app has opt-in performance diagnostics enabled by `?perf=1`, recording API, hydration, and Dashboard timings to `window.__navigraderPerfMetrics`.
+- Added `scripts/Measure-HostedPerformance.ps1` for hosted endpoint timing, payload size, and row-count baselines.
+- Dashboard instructional-hours rendering now uses cached instructional-hour snapshots, cached daily scheduled blocks, indexed instruction/flex lookups, and cached compliance monthly series.
 
 ## Production State
 
@@ -44,45 +33,27 @@ Performance baseline instrumentation for large-tenant optimization.
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605242149`
+  - `app.js?v=202605242212`
   - `styles.css?v=202605221245`
-- APP001 latest rollback:
+- APP001 rollback:
   - `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
 - APP001 control-api rollback:
   - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-dashboard-instruction-hours-cache-202605242149.tgz`
+  - `/var/www/home-school-management/rollback/web-dashboard-monthly-series-cache-202605242212.tgz`
 
 ## Validation
 
-- Local syntax checks passed:
-  - `node --check web/app.js`
-  - `node --check server/src/postgres-instructor-store.js`
-  - `node --check server/src/repositories/postgres/curriculum-repository.js`
-  - `node --check server/src/services/curriculum-service.js`
-- APP001 deployed syntax checks passed for the touched API files.
-- APP001 tenant migrations applied through `031_independent_learning_instructor.sql`.
-- APP001 `hsm-api.service` restarted active and local `/health` returned `{"ok":true}`.
-- WEB001 root returned HTTP 200.
-- Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Earlier Help Center validation confirmed the tenant app and stylesheet served the pop-out assets.
-- Served tenant app JS contains the Help Center pop-out code.
-- Served tenant CSS contains the Help Center pop-out button style.
-- Previous full hosted release gate passed for `https://mitchell.navigrader.com`; rerun after this slice from a shell with credentials.
-- Local syntax checks passed for performance instrumentation:
+- Local checks passed:
   - `node --check web/app.js`
   - PowerShell parser check for `scripts/Measure-HostedPerformance.ps1`
   - `git diff --check`
-- Served tenant app JS contains `hsm_perf_diagnostics`, `hydrate.total`, and `dashboard.render`.
-- Public `https://mitchell.navigrader.com/health`, `/terms`, and `/privacy` returned HTTP 200.
-- Local `node --check web/app.js` and `git diff --check` passed after Dashboard cache optimization.
-- WEB001 served root returns `app.js?v=202605242149`.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605242149`.
-- Served tenant app JS contains `instructionalHoursSnapshotCache`, `dashboardDailyBlocksCache`, and `instructionActualsByKey`.
-- Public `mitchell` and `smoketest` tenant roots reference `styles.css?v=202605202115`.
-- Served tenant CSS contains the compact Class weekdays selector.
-- Public `mitchell` and `smoketest` tenant roots reference `book-open.svg?v=202605202130`.
-- Served Curriculum icon SVG no longer contains a white background rectangle.
+- APP001 tenant migrations applied through `031_independent_learning_instructor.sql`.
+- WEB001 root returned HTTP 200.
+- Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605242212` and `styles.css?v=202605221245`.
+- Served tenant app JS contains `hsm_perf_diagnostics`, `dashboard.render`, `instructionalHoursSnapshotCache`, `dashboardDailyBlocksCache`, `instructionActualsByKey`, `complianceMonthlySeriesCache`, `dashboard.buildComplianceMonthlySeries`, and `dashboard.renderInstructionHoursTrending`.
+- Previous full hosted release gate passed for `https://mitchell.navigrader.com`; rerun after this slice from a shell with credentials.
 
 ## Current Blockers
 
@@ -90,7 +61,6 @@ Performance baseline instrumentation for large-tenant optimization.
 
 ## Current Risks
 
-- Verify in the UI that `Independent Learning` appears in Course, Class, School Day row edit, Reports, and Dashboard/Grades instructor filters.
 - Full hosted release gate still needs to be run from a shell where `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` are present.
 - Continue using smoke/test tenant data for mutating QA where possible.
 - Do not store smoke credentials or Stripe/Postmark secrets in repo files.
@@ -98,6 +68,6 @@ Performance baseline instrumentation for large-tenant optimization.
 
 ## Next Actions
 
-1. Refresh `https://mitchell.navigrader.com/?perf=1`, exercise Dashboard tabs, and compare `dashboard.render` plus `dashboard.buildInstructionalHoursSnapshot` timings.
+1. Refresh `https://mitchell.navigrader.com/?perf=1`, exercise Dashboard tabs, and compare `dashboard.render`, `dashboard.buildComplianceMonthlySeries`, and `dashboard.renderInstructionHoursTrending` timings.
 2. Rerun `scripts/Measure-HostedPerformance.ps1` if backend endpoint timing needs another baseline.
-3. Use the new browser baseline to decide whether scoped record APIs or backend dashboard summaries are the next slice.
+3. Use the latest browser baseline to decide whether scoped record APIs or backend dashboard summaries are the next slice.
