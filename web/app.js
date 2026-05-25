@@ -19475,8 +19475,9 @@ function renderDashboard() {
   const shouldRenderExecution = activeDashboardTab === "execution";
   const shouldRenderPerformance = activeDashboardTab === "performance";
   const shouldRenderCompliance = activeDashboardTab === "compliance";
+  const roundedStatusPercent = (value) => Number(Number(value || 0).toFixed(1));
   const attendanceDialStatus = (value) => {
-    const pct = Number(value || 0);
+    const pct = roundedStatusPercent(value);
     if (pct >= 98) return { status: "attendance-outstanding", label: "Outstanding", text: "Exceptional consistency and participation", threshold: "98%" };
     if (pct >= 95) return { status: "attendance-excellent", label: "Excellent", text: "Consistently above target", threshold: "95%" };
     if (pct >= 92) return { status: "attendance-strong", label: "Strong", text: "Meeting attendance expectations", threshold: "92%" };
@@ -19485,7 +19486,7 @@ function renderDashboard() {
     return { status: "attendance-critical", label: "Critical", text: "Immediate improvement needed", threshold: "<80%" };
   };
   const performanceDialStatus = (value) => {
-    const pct = Number(value || 0);
+    const pct = roundedStatusPercent(value);
     if (pct >= 95) return { status: "performance-exceptional", label: "Exceptional", text: "Mastery-level academic progress", threshold: "95%" };
     if (pct >= 90) return { status: "performance-strong", label: "Strong", text: "Above the target threshold", threshold: "90%" };
     if (pct >= 80) return { status: "performance-satisfactory", label: "Satisfactory", text: "Maintaining expected performance", threshold: "80%" };
@@ -19515,7 +19516,7 @@ function renderDashboard() {
     if (statusNode) statusNode.textContent = status.label;
     if (noteNode) noteNode.textContent = status.text;
     if (levelNode) levelNode.textContent = `${levelLabel} = ${status.threshold}`;
-    if (valueNode) valueNode.textContent = `${Number(value || 0).toFixed(1)}%`;
+    if (valueNode) valueNode.textContent = `${roundedStatusPercent(value).toFixed(1)}%`;
   };
   const dashboardStudents = visibleStudents();
   const referenceDate = defaultReferenceDateForActiveYear();

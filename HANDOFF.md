@@ -1,10 +1,10 @@
 # Session Handoff
 
-Date: 2026-05-24
+Date: 2026-05-25
 
 ## Context
 
-Large-tenant performance optimization is active for `mitchell.navigrader.com`.
+Dashboard polish is active for `mitchell.navigrader.com`.
 
 ## Current State
 
@@ -20,10 +20,13 @@ Large-tenant performance optimization is active for `mitchell.navigrader.com`.
 - WEB001 deployed `app.js?v=202605242212` and `styles.css?v=202605221245`.
 - Rollback: `/var/www/home-school-management/rollback/web-dashboard-monthly-series-cache-202605242212.tgz`.
 - Full hosted release gate passed from the user's PowerShell session after this deployment.
+- Dashboard Running Grade Average and Attendance status cards now use the same one-decimal rounded value for threshold classification that they display to users.
+- WEB001 deployed `app.js?v=202605251234`.
+- Rollback: `/var/www/home-school-management/rollback/web-dashboard-status-rounded-threshold-202605251234.tgz`.
 
 ## Next Action
 
-Refresh `https://mitchell.navigrader.com/?perf=1`, navigate Dashboard tabs, and inspect `window.__navigraderPerfMetrics` for `dashboard.render`, `dashboard.buildComplianceMonthlySeries`, and `dashboard.renderInstructionHoursTrending`.
+Verify in the Dashboard UI that a displayed `90.0%` Running Grade Average shows `Strong`.
 
 ## Risks
 
@@ -41,3 +44,6 @@ Refresh `https://mitchell.navigrader.com/?perf=1`, navigate Dashboard tabs, and 
 - Served tenant app JS contains `complianceMonthlySeriesCache`, `dashboard.buildComplianceMonthlySeries`, and `dashboard.renderInstructionHoursTrending`.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
 - Full hosted release gate passed, including APP001 local health, public health, public legal pages, and hosted tenant smoke.
+- `node --check web/app.js` and `git diff --check` passed after the rounded-threshold status fix.
+- Public `mitchell` and `smoketest` roots reference `app.js?v=202605251234`.
+- Served tenant app JS contains `roundedStatusPercent`.

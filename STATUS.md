@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-24
+Date: 2026-05-25
 
 ## Active Workstream
 
@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Large-tenant Dashboard performance optimization.
+Dashboard correctness and performance polish.
 
 ## Completed Recently
 
@@ -25,6 +25,7 @@ Large-tenant Dashboard performance optimization.
 - Tenant app has opt-in performance diagnostics enabled by `?perf=1`, recording API, hydration, and Dashboard timings to `window.__navigraderPerfMetrics`.
 - Added `scripts/Measure-HostedPerformance.ps1` for hosted endpoint timing, payload size, and row-count baselines.
 - Dashboard instructional-hours rendering now uses cached instructional-hour snapshots, cached daily scheduled blocks, indexed instruction/flex lookups, and cached compliance monthly series.
+- Dashboard Running Grade Average and Attendance status cards now classify against the same one-decimal value shown to users.
 
 ## Production State
 
@@ -33,14 +34,14 @@ Large-tenant Dashboard performance optimization.
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605242212`
+  - `app.js?v=202605251234`
   - `styles.css?v=202605221245`
 - APP001 rollback:
   - `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
 - APP001 control-api rollback:
   - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-dashboard-monthly-series-cache-202605242212.tgz`
+  - `/var/www/home-school-management/rollback/web-dashboard-status-rounded-threshold-202605251234.tgz`
 
 ## Validation
 
@@ -51,7 +52,8 @@ Large-tenant Dashboard performance optimization.
 - APP001 tenant migrations applied through `031_independent_learning_instructor.sql`.
 - WEB001 root returned HTTP 200.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605242212` and `styles.css?v=202605221245`.
+- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605251234` and `styles.css?v=202605221245`.
+- Served tenant app JS contains `roundedStatusPercent`.
 - Served tenant app JS contains `hsm_perf_diagnostics`, `dashboard.render`, `instructionalHoursSnapshotCache`, `dashboardDailyBlocksCache`, `instructionActualsByKey`, `complianceMonthlySeriesCache`, `dashboard.buildComplianceMonthlySeries`, and `dashboard.renderInstructionHoursTrending`.
 - Full hosted release gate passed for `https://mitchell.navigrader.com` after the `app.js?v=202605242212` deployment.
 
@@ -67,5 +69,5 @@ Large-tenant Dashboard performance optimization.
 
 ## Next Actions
 
-1. Keep the current Dashboard performance slice closed unless larger tenants expose new lag.
-2. Use the latest browser baseline to decide whether scoped record APIs or backend dashboard summaries are the next future performance slice.
+1. Verify in the UI that a displayed `90.0%` Running Grade Average shows `Strong`.
+2. Keep the current Dashboard performance slice closed unless larger tenants expose new lag.
