@@ -40,6 +40,7 @@ const API_GRADING_CRITERIA_ENDPOINT = `${API_BASE_URL}/api/grading-criteria`;
 const API_TESTS_ENDPOINT = `${API_BASE_URL}/api/tests`;
 const API_WORKSPACE_CONFIG_ENDPOINT = `${API_BASE_URL}/api/admin/workspace-config`;
 const SESSION_KEY = "hsm_session_v1";
+const PERF_DIAGNOSTICS_STORAGE_KEY = "hsm_perf_diagnostics";
 
 const INDEPENDENT_LEARNING_INSTRUCTOR_ID = "independent-learning";
 const INDEPENDENT_LEARNING_INSTRUCTOR_LABEL = "Independent Learning";
@@ -79,6 +80,78 @@ const DEFAULT_MINUTES_BETWEEN_CLASSES = 5;
 const FLEX_BLOCK_MIN_GAP_MINUTES = 10;
 const FLEX_BLOCK_PURPOSE_OPTIONS = ["Study", "Homework", "Project Work", "Corrections / Grade Recovery", "Test Prep"];
 const EXCLUDED_GRADE_TYPE_FILTER_OPTIONS = new Set(["homework"]);
+
+function performanceNow() {
+  return window.performance?.now ? window.performance.now() : Date.now();
+}
+
+function performanceDiagnosticsEnabled() {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const perfParam = params.get("perf");
+    if (perfParam === "1" || perfParam === "true") {
+      localStorage.setItem(PERF_DIAGNOSTICS_STORAGE_KEY, "1");
+      return true;
+    }
+    if (perfParam === "0" || perfParam === "false") {
+      localStorage.removeItem(PERF_DIAGNOSTICS_STORAGE_KEY);
+      return false;
+    }
+    return localStorage.getItem(PERF_DIAGNOSTICS_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function performanceByteLength(text) {
+  const value = String(text || "");
+  if (window.TextEncoder) return new TextEncoder().encode(value).length;
+  return value.length;
+}
+
+function apiPathForPerformance(url) {
+  try {
+    return new URL(url, window.location.origin).pathname;
+  } catch {
+    return String(url || "");
+  }
+}
+
+function recordPerformanceMetric(name, durationMs, details = {}) {
+  if (!performanceDiagnosticsEnabled()) return;
+  const metric = {
+    name,
+    durationMs: Number(Number(durationMs || 0).toFixed(1)),
+    at: new Date().toISOString(),
+    ...details
+  };
+  window.__navigraderPerfMetrics = Array.isArray(window.__navigraderPerfMetrics)
+    ? window.__navigraderPerfMetrics
+    : [];
+  window.__navigraderPerfMetrics.push(metric);
+  if (window.__navigraderPerfMetrics.length > 300) window.__navigraderPerfMetrics.shift();
+  console.info("[Navigrader perf]", metric);
+}
+
+function measurePerformanceSync(name, details, callback) {
+  if (!performanceDiagnosticsEnabled()) return callback();
+  const startedAt = performanceNow();
+  try {
+    return callback();
+  } finally {
+    recordPerformanceMetric(name, performanceNow() - startedAt, typeof details === "function" ? details() : details);
+  }
+}
+
+async function measurePerformanceAsync(name, details, callback) {
+  if (!performanceDiagnosticsEnabled()) return callback();
+  const startedAt = performanceNow();
+  try {
+    return await callback();
+  } finally {
+    recordPerformanceMetric(name, performanceNow() - startedAt, typeof details === "function" ? details() : details);
+  }
+}
 const STUDENT_PERFORMANCE_GRADE_METHODS = ["Percentage", "Letter", "GPA"];
 const LETTER_GRADE_ORDER = ["A", "B", "C", "D", "F"];
 const DEFAULT_LETTER_GRADE_SCALE = [
@@ -2589,15 +2662,54 @@ function setHostedModeEnabled(value) {
   saveHostedModePreference(hostedModeEnabled);
 }
 
-function authFetch(url, options = {}) {
-  return fetch(url, {
-    credentials: "include",
-    ...options,
-    headers: {
-      "Accept": "application/json",
-      ...(options.headers || {})
+async function authFetch(url, options = {}) {
+  const diagnosticsEnabled = performanceDiagnosticsEnabled();
+  const startedAt = diagnosticsEnabled ? performanceNow() : 0;
+  const method = String(options.method || "GET").toUpperCase();
+  const path = apiPathForPerformance(url);
+  try {
+    const response = await fetch(url, {
+      credentials: "include",
+      ...options,
+      headers: {
+        "Accept": "application/json",
+        ...(options.headers || {})
+      }
+    });
+    if (diagnosticsEnabled) {
+      let payloadBytes = null;
+      let rowCount = null;
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json") && !path.includes("/download")) {
+        try {
+          const text = await response.clone().text();
+          payloadBytes = performanceByteLength(text);
+          const parsed = text ? JSON.parse(text) : null;
+          if (Array.isArray(parsed)) rowCount = parsed.length;
+          else if (parsed && typeof parsed === "object" && Array.isArray(parsed.rows)) rowCount = parsed.rows.length;
+        } catch {
+          // Keep fetch timing even when the payload is empty or not parseable JSON.
+        }
+      }
+      recordPerformanceMetric("api.fetch", performanceNow() - startedAt, {
+        method,
+        path,
+        status: response.status,
+        payloadBytes,
+        rowCount
+      });
     }
-  });
+    return response;
+  } catch (error) {
+    if (diagnosticsEnabled) {
+      recordPerformanceMetric("api.fetch.error", performanceNow() - startedAt, {
+        method,
+        path,
+        message: error.message || "Request failed"
+      });
+    }
+    throw error;
+  }
 }
 
 async function parseApiResponse(response, fallbackMessage) {
@@ -3617,37 +3729,47 @@ function upsertHostedTestState(row) {
 
 async function hydrateHostedDomainState() {
   if (!currentUser()) return;
-  await Promise.all([
-    refreshHostedAccountSummary(),
-    refreshHostedWorkspaceConfig(),
-    refreshHostedStudents(),
-    refreshHostedInstructors(),
-    refreshHostedSubjects(),
-    refreshHostedCourses(),
-    refreshHostedCourseSections(),
-    refreshHostedEnrollments(),
-    refreshHostedSectionEnrollments(),
-    refreshHostedScheduleBlocks(),
-    refreshHostedStudentScheduleBlocks(),
-    refreshHostedSchoolYears(),
-    refreshHostedQuarters(),
-    refreshHostedAttendance(),
-    refreshHostedInstructionActuals(),
-    refreshHostedFlexBlocks(),
-    refreshHostedDailyBreaks(),
-    refreshHostedHolidays(),
-    refreshHostedPlans(),
-    refreshHostedGradeTypes(),
-    refreshHostedGradingCriteria(),
-    refreshHostedTests()
-  ]);
-  if (isAdminUser()) {
-    await refreshHostedUsers();
-  }
-  normalizeSettingsShape(state);
-  applyPreferredAcademicYearContext();
-  gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
-  invalidateDashboardCache();
+  await measurePerformanceAsync("hydrate.total", () => ({
+    role: currentUser()?.role || "",
+    students: state.students.length,
+    attendance: state.attendance.length,
+    instructionActuals: state.instructionActuals.length,
+    flexBlocks: state.flexBlocks.length,
+    tests: state.tests.length
+  }), async () => {
+    const tasks = [
+      ["account", refreshHostedAccountSummary],
+      ["workspaceConfig", refreshHostedWorkspaceConfig],
+      ["students", refreshHostedStudents],
+      ["instructors", refreshHostedInstructors],
+      ["subjects", refreshHostedSubjects],
+      ["courses", refreshHostedCourses],
+      ["courseSections", refreshHostedCourseSections],
+      ["enrollments", refreshHostedEnrollments],
+      ["sectionEnrollments", refreshHostedSectionEnrollments],
+      ["scheduleBlocks", refreshHostedScheduleBlocks],
+      ["studentScheduleBlocks", refreshHostedStudentScheduleBlocks],
+      ["schoolYears", refreshHostedSchoolYears],
+      ["quarters", refreshHostedQuarters],
+      ["attendance", refreshHostedAttendance],
+      ["instructionActuals", refreshHostedInstructionActuals],
+      ["flexBlocks", refreshHostedFlexBlocks],
+      ["dailyBreaks", refreshHostedDailyBreaks],
+      ["holidays", refreshHostedHolidays],
+      ["plans", refreshHostedPlans],
+      ["gradeTypes", refreshHostedGradeTypes],
+      ["gradingCriteria", refreshHostedGradingCriteria],
+      ["tests", refreshHostedTests]
+    ];
+    await Promise.all(tasks.map(([name, callback]) => measurePerformanceAsync(`hydrate.${name}`, {}, callback)));
+    if (isAdminUser()) {
+      await measurePerformanceAsync("hydrate.users", {}, refreshHostedUsers);
+    }
+    normalizeSettingsShape(state);
+    applyPreferredAcademicYearContext();
+    gradeTypesDraft = cloneGradeTypes(state.settings.gradeTypes);
+    invalidateDashboardCache();
+  });
 }
 
 async function refreshHostedCurriculumState() {
@@ -6938,6 +7060,7 @@ function instructionalHourBuckets() {
 }
 
 function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
+  const snapshotStartedAt = performanceDiagnosticsEnabled() ? performanceNow() : 0;
   const targetStudentIds = studentIds && studentIds.length
     ? new Set(studentIds)
     : new Set(state.students.map((student) => student.id));
@@ -6949,6 +7072,12 @@ function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
   const yearEnd = toDate(state.settings.schoolYear.endDate);
   const referenceDate = options.referenceDate || defaultReferenceDateForActiveYear();
   if (Number.isNaN(yearStart.getTime()) || Number.isNaN(yearEnd.getTime()) || yearEnd < yearStart) {
+    if (snapshotStartedAt) {
+      recordPerformanceMetric("dashboard.buildInstructionalHoursSnapshot", performanceNow() - snapshotStartedAt, {
+        students: targetStudentIds.size,
+        invalidSchoolYear: true
+      });
+    }
     return { buckets, summaryByStudent };
   }
 
@@ -7021,6 +7150,16 @@ function buildInstructionalHoursSnapshot(studentIds = null, options = {}) {
     cursor.setDate(cursor.getDate() + 1);
   }
 
+  if (snapshotStartedAt) {
+    recordPerformanceMetric("dashboard.buildInstructionalHoursSnapshot", performanceNow() - snapshotStartedAt, {
+      students: targetStudentIds.size,
+      attendance: state.attendance.length,
+      instructionActuals: state.instructionActuals.length,
+      instructorId,
+      startDate: state.settings.schoolYear.startDate,
+      endDate: state.settings.schoolYear.endDate
+    });
+  }
   return { buckets, summaryByStudent };
 }
 
@@ -17309,6 +17448,7 @@ function buildDashboardExpandableMetrics(
   const includePerformance = options.includePerformance !== false;
   const includeAttendance = options.includeAttendance !== false;
   const includeInstructionalHours = options.includeInstructionalHours !== false;
+  const metricsStartedAt = performanceDiagnosticsEnabled() ? performanceNow() : 0;
   const gradeTypeOrder = ["Assignment", "Quiz", "Test", "Quarterly Final", "Final", "Quarter Final"];
   const q1 = quarterByName.get("Q1");
   const q2 = quarterByName.get("Q2");
@@ -17454,6 +17594,17 @@ function buildDashboardExpandableMetrics(
       .sort((a, b) => b.earnedTotal - a.earnedTotal || a.studentName.localeCompare(b.studentName));
   }
 
+  if (metricsStartedAt) {
+    recordPerformanceMetric("dashboard.buildExpandableMetrics", performanceNow() - metricsStartedAt, {
+      students: dashboardStudents.length,
+      includePerformance,
+      includeAttendance,
+      includeInstructionalHours,
+      tests: state.tests.length,
+      attendance: state.attendance.length,
+      instructionActuals: state.instructionActuals.length
+    });
+  }
   return { performanceMetrics, attendanceMetrics, instructionalHours, instructionalHourMetrics };
 }
 
@@ -17535,6 +17686,7 @@ function renderDashboardExpandableTablesFast() {
 }
 
 function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filters = {}) {
+  const snapshotStartedAt = performanceDiagnosticsEnabled() ? performanceNow() : 0;
   const targetStudents = Array.isArray(dashboardStudents) ? dashboardStudents : visibleStudents();
   const studentIds = targetStudents.map((student) => student.id);
   const blocksByStudent = dailyScheduledBlocks(referenceISO, studentIds);
@@ -17614,7 +17766,7 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filter
     scheduledMinutes: 0
   });
 
-  return {
+  const snapshot = {
     date: referenceISO,
     students,
     completionPercent: totals.completableCount > 0 ? (totals.completedCount / totals.completableCount) * 100 : 0,
@@ -17623,6 +17775,17 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filter
     attentionTotal: totals.needsAttendanceCount + totals.needsGradeCount + totals.needsCompletionCount + totals.pastDueCount + totals.overrideCount,
     ...totals
   };
+  if (snapshotStartedAt) {
+    recordPerformanceMetric("dashboard.buildExecutionSnapshot", performanceNow() - snapshotStartedAt, {
+      date: referenceISO,
+      students: targetStudents.length,
+      filteredStudents: students.length,
+      attendance: state.attendance.length,
+      instructionActuals: state.instructionActuals.length,
+      tests: state.tests.length
+    });
+  }
+  return snapshot;
 }
 
 function renderCompletionTodayFilterOptions(dashboardStudents) {
@@ -17793,6 +17956,7 @@ function buildDashboardMissingGradesSnapshot(referenceISO, dashboardStudents) {
 }
 
 function buildDashboardGradeRiskSnapshot(dashboardStudents) {
+  const snapshotStartedAt = performanceDiagnosticsEnabled() ? performanceNow() : 0;
   const allowedStudentIds = new Set((dashboardStudents || []).map((student) => student.id));
   const quarter = currentQuarter(toDate(defaultReferenceDateForActiveYear()));
   const quarterTests = state.tests.filter((test) => {
@@ -17825,11 +17989,20 @@ function buildDashboardGradeRiskSnapshot(dashboardStudents) {
   })
     .filter((row) => row.averageScore < 85)
     .sort((a, b) => a.averageScore - b.averageScore || a.studentName.localeCompare(b.studentName) || a.courseName.localeCompare(b.courseName));
-  return {
+  const snapshot = {
     quarterName: quarter?.name || "Current Quarter",
     count: rows.length,
     rows
   };
+  if (snapshotStartedAt) {
+    recordPerformanceMetric("dashboard.buildGradeRiskSnapshot", performanceNow() - snapshotStartedAt, {
+      students: allowedStudentIds.size,
+      tests: state.tests.length,
+      scopedTests: quarterTests.length,
+      rows: rows.length
+    });
+  }
+  return snapshot;
 }
 
 function currentSchoolWeekRange(referenceISO = defaultReferenceDateForActiveYear()) {
@@ -19118,6 +19291,7 @@ function renderDashboard() {
   renderDashboardSectionVisibility();
   const activeDashboardTab = normalizedDashboardTab();
   const activeComplianceTab = normalizedComplianceTab();
+  const dashboardRenderStartedAt = performanceDiagnosticsEnabled() ? performanceNow() : 0;
   const shouldRenderOverview = activeDashboardTab === "overview";
   const shouldRenderExecution = activeDashboardTab === "execution";
   const shouldRenderPerformance = activeDashboardTab === "performance";
@@ -19427,6 +19601,17 @@ function renderDashboard() {
       periodRows.push(`<tr><td>Annual (${state.settings.schoolYear.label})</td><td>${g.annualAvg.toFixed(1)}%</td><td>${g.annualCount}</td></tr>`);
       rowOrEmpty(periodTable, periodRows, "No period data.", 3);
     }
+  }
+  if (dashboardRenderStartedAt) {
+    recordPerformanceMetric("dashboard.render", performanceNow() - dashboardRenderStartedAt, {
+      tab: activeDashboardTab,
+      complianceTab: activeComplianceTab,
+      students: dashboardStudents.length,
+      attendance: state.attendance.length,
+      instructionActuals: state.instructionActuals.length,
+      flexBlocks: state.flexBlocks.length,
+      tests: state.tests.length
+    });
   }
   dashboardRenderedKeys.add(currentDashboardRenderKey());
   dashboardDirty = false;
