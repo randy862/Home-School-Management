@@ -19,7 +19,7 @@ Large-tenant performance optimization is active for `mitchell.navigrader.com`.
 - Added helper metrics for `dashboard.buildComplianceMonthlySeries`, `dashboard.renderComplianceHoursMonthlyChart`, and `dashboard.renderInstructionHoursTrending`.
 - WEB001 deployed `app.js?v=202605242212` and `styles.css?v=202605221245`.
 - Rollback: `/var/www/home-school-management/rollback/web-dashboard-monthly-series-cache-202605242212.tgz`.
-- Hosted release gate has not been rerun from this shell because hosted smoke credentials were not present.
+- Full hosted release gate passed from the user's PowerShell session after this deployment.
 
 ## Next Action
 
@@ -40,3 +40,4 @@ Refresh `https://mitchell.navigrader.com/?perf=1`, navigate Dashboard tabs, and 
 - Public `mitchell` and `smoketest` roots reference `app.js?v=202605242212`.
 - Served tenant app JS contains `complianceMonthlySeriesCache`, `dashboard.buildComplianceMonthlySeries`, and `dashboard.renderInstructionHoursTrending`.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
+- Full hosted release gate passed, including APP001 local health, public health, public legal pages, and hosted tenant smoke.

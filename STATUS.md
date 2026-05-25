@@ -53,7 +53,7 @@ Large-tenant Dashboard performance optimization.
 - Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
 - Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605242212` and `styles.css?v=202605221245`.
 - Served tenant app JS contains `hsm_perf_diagnostics`, `dashboard.render`, `instructionalHoursSnapshotCache`, `dashboardDailyBlocksCache`, `instructionActualsByKey`, `complianceMonthlySeriesCache`, `dashboard.buildComplianceMonthlySeries`, and `dashboard.renderInstructionHoursTrending`.
-- Previous full hosted release gate passed for `https://mitchell.navigrader.com`; rerun after this slice from a shell with credentials.
+- Full hosted release gate passed for `https://mitchell.navigrader.com` after the `app.js?v=202605242212` deployment.
 
 ## Current Blockers
 
@@ -61,13 +61,11 @@ Large-tenant Dashboard performance optimization.
 
 ## Current Risks
 
-- Full hosted release gate still needs to be run from a shell where `HSM_HOSTED_SMOKE_USERNAME` and `HSM_HOSTED_SMOKE_PASSWORD` are present.
 - Continue using smoke/test tenant data for mutating QA where possible.
 - Do not store smoke credentials or Stripe/Postmark secrets in repo files.
 - Untracked local scratch assets remain outside committed work.
 
 ## Next Actions
 
-1. Refresh `https://mitchell.navigrader.com/?perf=1`, exercise Dashboard tabs, and compare `dashboard.render`, `dashboard.buildComplianceMonthlySeries`, and `dashboard.renderInstructionHoursTrending` timings.
-2. Rerun `scripts/Measure-HostedPerformance.ps1` if backend endpoint timing needs another baseline.
-3. Use the latest browser baseline to decide whether scoped record APIs or backend dashboard summaries are the next slice.
+1. Keep the current Dashboard performance slice closed unless larger tenants expose new lag.
+2. Use the latest browser baseline to decide whether scoped record APIs or backend dashboard summaries are the next future performance slice.
