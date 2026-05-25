@@ -24,10 +24,11 @@ Dashboard polish is active for `mitchell.navigrader.com`.
 - WEB001 deployed `app.js?v=202605251234`.
 - Rollback: `/var/www/home-school-management/rollback/web-dashboard-status-rounded-threshold-202605251234.tgz`.
 - Added `RUNBOOKS/application-architecture.md` for a practical, non-code-heavy map of browser, `WEB001`, `APP001`, and `SQL001` responsibilities.
+- Added `RUNBOOKS/aws-budget-migration.md` for the low-cost AWS proof-of-concept plan that mirrors the lab environment and includes `MAINT001`.
 
 ## Next Action
 
-Review `RUNBOOKS/application-architecture.md` for wording and any desired business-facing adjustments.
+Review `RUNBOOKS/application-architecture.md` and `RUNBOOKS/aws-budget-migration.md` for wording and any desired business-facing adjustments.
 
 ## Risks
 

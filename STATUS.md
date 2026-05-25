@@ -27,6 +27,7 @@ Dashboard correctness and performance polish.
 - Dashboard instructional-hours rendering now uses cached instructional-hour snapshots, cached daily scheduled blocks, indexed instruction/flex lookups, and cached compliance monthly series.
 - Dashboard Running Grade Average and Attendance status cards now classify against the same one-decimal value shown to users.
 - Added `RUNBOOKS/application-architecture.md` documenting browser, `WEB001`, `APP001`, and `SQL001` responsibilities.
+- Added `RUNBOOKS/aws-budget-migration.md` documenting the initial low-cost AWS plan that mirrors the lab server layout with `WEB001`, `APP001`, `SQL001`, and `MAINT001`.
 
 ## Production State
 
@@ -70,6 +71,6 @@ Dashboard correctness and performance polish.
 
 ## Next Actions
 
-1. Review `RUNBOOKS/application-architecture.md` for wording and any desired business-facing adjustments.
+1. Review `RUNBOOKS/application-architecture.md` and `RUNBOOKS/aws-budget-migration.md` for wording and any desired business-facing adjustments.
 2. Verify in the UI that a displayed `90.0%` Running Grade Average shows `Strong`.
 3. Keep the current Dashboard performance slice closed unless larger tenants expose new lag.
