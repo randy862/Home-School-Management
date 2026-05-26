@@ -43,7 +43,7 @@ Servers:
 | `WEB001` | created and updated | public subnet | Elastic IP associated, Apache installed, public HTTP verified. |
 | `APP001` | created and updated | private subnet | Private IP `10.40.131.149`, Node/npm installed, `navigrader` service user/directories created. |
 | `SQL001` | created and updated | private subnet | Private IP `10.40.138.78`, PostgreSQL 17 installed, `appdb` and `navigrader_app` created, APP001 database login verified. |
-| `TEMP-NAT` | temporary bootstrap server | public subnet | Used to install private server packages. Remove the private `0.0.0.0/0` route and terminate this instance when private bootstrap is complete. |
+| `TEMP-NAT` | terminated after bootstrap | public subnet | Used to install private server packages; private subnet `0.0.0.0/0` route was removed after bootstrap. Recreate only for future private update/download windows. |
 
 Security posture:
 
@@ -63,12 +63,17 @@ Backup posture:
 - Logical `pg_dump` backup to S3 is configured and restore-tested once.
 - pgBackRest WAL/PITR backup to S3 is configured and first full backup completed.
 
+Completed pause/cost-control actions:
+
+- temporary private subnet route `0.0.0.0/0 -> TEMP-NAT ENI` removed
+- `TEMP-NAT` terminated
+- servers stopped for cost control while pausing AWS buildout
+
 Immediate resume point:
 
-1. Remove temporary private subnet route `0.0.0.0/0 -> TEMP-NAT ENI`.
-2. Terminate `TEMP-NAT`.
-3. Configure EBS snapshot lifecycle policies.
-4. Continue app deployment and AWS validation.
+1. Start required servers for the next build session, beginning with `MAINT001`.
+2. Configure EBS snapshot lifecycle policies.
+3. Continue app deployment and AWS validation.
 
 ## AWS Audit And Journaling Reality
 

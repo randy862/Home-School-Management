@@ -38,10 +38,11 @@ Dashboard polish is active for `mitchell.navigrader.com`.
 - WAL/PITR is configured with pgBackRest 2.55.1 on SQL001. Config is `/etc/pgbackrest.conf`, stanza is `main`, repository path is `s3://navigrader-prod-backups-016365604963-us-east-2-an/postgres/pgbackrest/`, PostgreSQL archives WAL via `archive_command='pgbackrest --stanza=main archive-push %p'`, `pgbackrest check` succeeded, and first full backup `20260526-002743F` completed successfully.
 - Root cron now runs pgBackRest full backups Sundays at `06:30 UTC` and differential backups Monday-Saturday at `06:30 UTC`.
 - Expanded `RUNBOOKS/aws-budget-migration.md` with current AWS build state, AWS audit/logging reality, resume point, full commercial production go-live gates, post-go-live stabilization, and pause/shutdown cost guidance.
+- User reported pause/cost-control steps completed: temporary private subnet NAT route removed, `TEMP-NAT` terminated, and servers stopped while pausing AWS buildout.
 
 ## Next Action
 
-Continue AWS buildout. Next action: remove the temporary private subnet NAT route, terminate `TEMP-NAT`, stop servers if pausing, then configure EBS snapshot lifecycle policies.
+Continue AWS buildout. Next action: start required servers for the next session, beginning with `MAINT001`, then configure EBS snapshot lifecycle policies.
 
 ## Risks
 
