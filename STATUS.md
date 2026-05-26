@@ -28,6 +28,17 @@ Dashboard correctness and performance polish.
 - Dashboard Running Grade Average and Attendance status cards now classify against the same one-decimal value shown to users.
 - Added `RUNBOOKS/application-architecture.md` documenting browser, `WEB001`, `APP001`, and `SQL001` responsibilities.
 - Added `RUNBOOKS/aws-budget-migration.md` documenting the initial low-cost AWS plan that mirrors the lab server layout with `WEB001`, `APP001`, `SQL001`, and `MAINT001`.
+- Updated the AWS budget plan to include a temporary NAT instance for private-server updates and component downloads without an always-on NAT Gateway.
+- Adjusted the AWS plan so `MAINT001` is a public-subnet jumpbox locked to the administrator IP, with `APP001` and `SQL001` private-only.
+- Began AWS foundation build: created `navigrader-prod-vpc`, public/private subnets, S3 Gateway Endpoint, no NAT Gateway, security groups, and launched/updated `MAINT001`.
+- Launched `WEB001`, associated an Elastic IP, verified SSH through `MAINT001`, installed Apache, and verified local Apache response.
+- Launched `TEMP-NAT`, enabled temporary private-subnet egress, corrected `APP001` into the private subnet at `10.40.131.149`, verified NAT egress, and bootstrapped APP001 with base tools, Node/npm, and the `navigrader` service account/directories.
+- Launched `SQL001` in the private subnet at `10.40.138.78`, installed PostgreSQL 17, created `appdb`/`navigrader_app`, configured private PostgreSQL listening and APP001 `pg_hba.conf` access, and verified APP001 reaches password authentication.
+- Verified APP001-to-SQL001 login using the real `navigrader_app` password.
+- Created S3 backup bucket `navigrader-prod-backups-016365604963-us-east-2-an`, attached `navigrader-prod-sql001-backup-role` to SQL001, and verified SQL001 can list/upload under `postgres/` without access keys.
+- Added SQL001 logical backup script `/usr/local/sbin/navigrader-pg-dump-backup.sh`, uploaded first `appdb` dump/checksum to S3, verified restore into a temporary database, and scheduled daily root cron at `07:15 UTC`.
+- Configured WAL/PITR with pgBackRest 2.55.1 on SQL001 using S3 path `postgres/pgbackrest/`; `pgbackrest check` succeeded, first full backup `20260526-002743F` completed, and root cron schedules weekly full plus daily differential physical backups.
+- Expanded the AWS migration runbook with current resource state, audit/logging coverage, exact resume point, commercial go-live gates, post-go-live stabilization, and pause/shutdown guidance.
 
 ## Production State
 
@@ -71,6 +82,6 @@ Dashboard correctness and performance polish.
 
 ## Next Actions
 
-1. Review `RUNBOOKS/application-architecture.md` and `RUNBOOKS/aws-budget-migration.md` for wording and any desired business-facing adjustments.
+1. Remove the temporary private subnet NAT route, terminate `TEMP-NAT`, stop servers if pausing, then configure EBS snapshot lifecycle policies.
 2. Verify in the UI that a displayed `90.0%` Running Grade Average shows `Strong`.
 3. Keep the current Dashboard performance slice closed unless larger tenants expose new lag.

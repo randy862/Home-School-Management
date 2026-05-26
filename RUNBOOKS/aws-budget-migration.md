@@ -13,6 +13,96 @@ The goal is not to build the final ideal cloud architecture on day one. The goal
 
 This is the launch-validation architecture. It is intended to prove whether the business can attract subscribers and revenue before moving to a more managed, higher-cost AWS design.
 
+## Current AWS Build State
+
+Last updated: 2026-05-26
+
+Region:
+
+- `us-east-2`
+
+Account:
+
+- AWS account ID appears in resource names as `016365604963`
+
+Network:
+
+- VPC: `navigrader-prod-vpc`
+- VPC CIDR: `10.40.0.0/16`
+- public subnet: `10.40.0.0/20`
+- private subnet: `10.40.128.0/20`
+- Internet Gateway: attached to `navigrader-prod-vpc`
+- S3 Gateway VPC Endpoint: active for private S3 backup traffic
+- NAT Gateway: not created
+
+Servers:
+
+| Server | State | Network | Notes |
+| --- | --- | --- | --- |
+| `MAINT001` | created and updated | public subnet | SSH jumpbox/admin host, public SSH restricted by security group. |
+| `WEB001` | created and updated | public subnet | Elastic IP associated, Apache installed, public HTTP verified. |
+| `APP001` | created and updated | private subnet | Private IP `10.40.131.149`, Node/npm installed, `navigrader` service user/directories created. |
+| `SQL001` | created and updated | private subnet | Private IP `10.40.138.78`, PostgreSQL 17 installed, `appdb` and `navigrader_app` created, APP001 database login verified. |
+| `TEMP-NAT` | temporary bootstrap server | public subnet | Used to install private server packages. Remove the private `0.0.0.0/0` route and terminate this instance when private bootstrap is complete. |
+
+Security posture:
+
+- `WEB001` accepts public `80/443`.
+- `MAINT001` accepts SSH from the administrator's current public IP.
+- `APP001` has no public IP.
+- `SQL001` has no public IP.
+- PostgreSQL access is private only.
+- `APP001` can connect to `SQL001:5432`.
+- `WEB001` will later proxy API traffic to `APP001:3000` and `APP001:3100`.
+
+Backup posture:
+
+- S3 backup bucket: `navigrader-prod-backups-016365604963-us-east-2-an`
+- `SQL001` IAM role: `navigrader-prod-sql001-backup-role`
+- S3 write/list under `postgres/` verified from `SQL001` using the IAM role, with no access keys stored on the server.
+- Logical `pg_dump` backup to S3 is configured and restore-tested once.
+- pgBackRest WAL/PITR backup to S3 is configured and first full backup completed.
+
+Immediate resume point:
+
+1. Remove temporary private subnet route `0.0.0.0/0 -> TEMP-NAT ENI`.
+2. Terminate `TEMP-NAT`.
+3. Configure EBS snapshot lifecycle policies.
+4. Continue app deployment and AWS validation.
+
+## AWS Audit And Journaling Reality
+
+AWS records many control-plane actions automatically through CloudTrail Event history. This includes actions such as launching EC2 instances, changing route tables, creating buckets, attaching IAM roles, and changing security groups. Event history is useful for recent review, but it is not a complete long-term audit archive by itself.
+
+Current audit coverage:
+
+- AWS CloudTrail Event history should show recent AWS management events.
+- AWS IAM role assumption is visible for `SQL001` S3 access.
+- S3 bucket-level management activity is visible as management events.
+- The repository `HANDOFF.md`, `STATUS.md`, and this runbook record the operational build decisions.
+
+Not yet configured:
+
+- Long-term CloudTrail trail delivery to S3.
+- AWS Config resource inventory/history.
+- CloudWatch Agent log shipping from EC2.
+- S3 data-event logging for individual backup object reads/writes.
+- Centralized OS command/session recording.
+
+Important limits:
+
+- AWS does not automatically journal every shell command run over SSH.
+- PostgreSQL config edits and package installs are visible on the instance through shell history, package logs, system logs, and this runbook, but they are not all CloudTrail events.
+- CloudTrail Event history is a recent activity tool; create a trail if long-term audit retention is required.
+
+Recommended before full production:
+
+1. Create an account-level CloudTrail trail for management events delivered to S3.
+2. Enable AWS Config for EC2, VPC, IAM, S3, and security group resources if budget allows.
+3. Install CloudWatch Agent on `WEB001`, `APP001`, and `SQL001` with short retention.
+4. Add explicit backup success/failure monitoring.
+5. Keep this runbook and `HANDOFF.md` current after each infrastructure session.
+
 ## Target Starting Shape
 
 ```text
@@ -31,6 +121,8 @@ AWS APP001 - Debian EC2, Node.js tenant API and control API
 AWS SQL001 - Debian EC2, PostgreSQL
 
 MAINT001 - Debian EC2 maintenance/jumpbox/Codex node
+
+TEMP-NAT - short-lived public EC2 NAT instance for update/download windows only
 ```
 
 ## Server Roles
@@ -97,6 +189,17 @@ Recommended starting role:
 
 This avoids needing a more expensive Windows jumpbox. Codex can also remain local on the laptop over secure connectivity if that is more comfortable.
 
+### TEMP-NAT
+
+Recommended starting role:
+
+- temporary Debian Linux EC2 instance in the public subnet
+- used only during patch, package install, and component download windows
+- provides outbound internet access for private servers without paying for an always-on NAT Gateway
+- stopped or terminated after the maintenance window
+
+Private servers such as `APP001` and `SQL001` should normally have no general outbound internet route. They can still use an S3 Gateway VPC Endpoint for backup traffic without a NAT Gateway.
+
 ## Suggested Low-Cost EC2 Sizing
 
 Starting point for proof of concept:
@@ -111,7 +214,9 @@ Starting point for proof of concept:
 Architecture preference:
 
 - public subnet: `WEB001`
-- private subnet: `APP001`, `SQL001`, `MAINT001`
+- public subnet: `MAINT001`
+- public subnet during maintenance only: `TEMP-NAT`
+- private subnet: `APP001`, `SQL001`
 - security groups should allow only required traffic
 - `SQL001` should never be internet-facing
 
@@ -133,6 +238,32 @@ Minimum security group intent:
 
 Avoid direct public SSH to every server if possible. Prefer one controlled administrative path through `MAINT001` or a VPN.
 
+## Private Server Egress Model
+
+Budget launch should avoid an always-on NAT Gateway.
+
+Normal operating state:
+
+- `WEB001` has public internet access for customer traffic, TLS renewal, and Apache updates
+- `MAINT001` has public SSH access restricted to the administrator's current public IP
+- `APP001` and `SQL001` are private-only
+- S3 backup traffic uses an S3 Gateway VPC Endpoint
+- no default `0.0.0.0/0` internet route exists from private subnets
+
+Maintenance/update state:
+
+1. Start or launch `TEMP-NAT` in the public subnet.
+2. Disable source/destination check on `TEMP-NAT`.
+3. Enable IPv4 forwarding and NAT masquerading on `TEMP-NAT`.
+4. Temporarily add a private subnet route:
+   - destination: `0.0.0.0/0`
+   - target: `TEMP-NAT` instance or network interface
+5. Run package updates and component downloads on `APP001` and `SQL001`.
+6. Remove the temporary private subnet default route.
+7. Stop or terminate `TEMP-NAT`.
+
+Use this path for Debian updates, Node.js installation, npm dependency downloads, PostgreSQL package updates, pgBackRest installation, AWS CLI installation, and other one-time bootstrap downloads.
+
 ## Migration Phases
 
 ### Phase 1: AWS Foundation
@@ -143,12 +274,17 @@ Create:
 - public and private subnets
 - internet gateway
 - route tables
+- S3 Gateway VPC Endpoint for backup traffic without NAT Gateway charges
 - security groups
 - EC2 instances:
   - `WEB001`
   - `APP001`
   - `SQL001`
   - `MAINT001`
+- temporary NAT instance pattern:
+  - launch/start `TEMP-NAT` only during update/download windows
+  - route private subnet outbound traffic through it only during maintenance
+  - stop/terminate it after use
 - EBS volumes sized for each server
 - Elastic IP or DNS target for `WEB001`
 
@@ -158,17 +294,21 @@ Initial goal:
 - `WEB001` can reach `APP001`
 - `APP001` can reach `SQL001`
 - `MAINT001` can administer all hosts
+- private servers can temporarily reach package repositories through `TEMP-NAT`
+- S3 backup paths work through the S3 Gateway VPC Endpoint
 
 ### Phase 2: Base Server Build
 
 On each Debian server:
 
+- start `TEMP-NAT` and add the temporary private subnet egress route when private servers need updates or downloads
 - apply operating system updates
 - create service users
 - configure SSH
 - configure host firewalls where used
 - set hostnames
 - install common tools
+- remove the temporary egress route and stop/terminate `TEMP-NAT` after updates and downloads finish
 
 On `WEB001`:
 
@@ -303,6 +443,93 @@ Cutover only when:
 - Stripe webhook endpoint has been updated/tested
 - email sending mode is confirmed
 
+### Phase 8: Commercial Production Hardening
+
+Before accepting real paid customers on AWS, complete these production gates:
+
+1. Secrets and environment files
+   - Store runtime secrets only on servers or in a managed secret store.
+   - Do not commit database passwords, session secrets, Stripe secrets, Postmark secrets, smoke credentials, or private keys.
+   - Rotate any credential that was exposed during setup or chat.
+
+2. Database and migrations
+   - Restore current production data into AWS `SQL001`.
+   - Apply all required migrations.
+   - Verify tenant schemas and control schema.
+   - Run read-only smoke checks first.
+   - Take a pre-cutover pgBackRest backup and logical dump.
+
+3. Application services
+   - Deploy tenant API and control API to `APP001`.
+   - Create systemd services for both APIs.
+   - Confirm services restart cleanly after reboot.
+   - Confirm logs are readable without exposing secrets.
+
+4. Web layer
+   - Deploy public SaaS pages, tenant app assets, legal pages, and Control Center assets to `WEB001`.
+   - Configure Apache virtual hosts.
+   - Configure reverse proxy to `APP001`.
+   - Add TLS certificates after DNS validation hostname is ready.
+
+5. Payments and email
+   - Configure Stripe live/test mode intentionally.
+   - Update Stripe webhook endpoint to the AWS hostname only after AWS validation passes.
+   - Configure Postmark or mail provider settings outside the repo.
+   - Run safe test events before live traffic.
+
+6. Backup and disaster recovery
+   - Confirm logical backup cron uploads to S3.
+   - Confirm pgBackRest full/differential backups run on schedule.
+   - Confirm WAL archiving remains healthy.
+   - Configure EBS snapshots for `SQL001`, `APP001`, and `WEB001`.
+   - Complete one pgBackRest restore drill to a separate recovery database/server.
+
+7. Monitoring
+   - Add health checks for public `/health`.
+   - Add disk usage checks for `SQL001`.
+   - Add backup failure alerts.
+   - Add SSL expiration reminder or monitoring.
+   - Add basic EC2 status alarms.
+
+8. Security
+   - Confirm no public PostgreSQL access.
+   - Confirm private subnet has no normal `0.0.0.0/0` route.
+   - Confirm `TEMP-NAT` is terminated when not in use.
+   - Confirm SSH is limited to the admin IP or a better VPN/bastion path.
+   - Confirm AWS root MFA and non-root admin access remain in place.
+
+9. Release validation
+   - Run hosted release gate against AWS validation hostname.
+   - Run tenant login smoke.
+   - Run Control Center smoke.
+   - Run dashboard load check.
+   - Run legal page check.
+   - Validate export/status pages.
+
+10. Cutover readiness
+    - Lower DNS TTL before cutover.
+    - Freeze writes or schedule a maintenance window.
+    - Take final database backup.
+    - Restore/apply final data if needed.
+    - Flip DNS.
+    - Run production smoke immediately after DNS resolves.
+    - Keep old lab rollback path available until AWS stability is proven.
+
+### Phase 9: Post-Go-Live Stabilization
+
+For the first 24-72 hours after production cutover:
+
+- avoid unrelated feature releases
+- watch application logs
+- watch PostgreSQL logs
+- watch disk usage
+- verify scheduled backups are running
+- verify WAL files are reaching S3
+- keep rollback information available
+- record incidents and fixes in `HANDOFF.md`/`STATUS.md`
+
+Do not decommission the previous environment until AWS has passed a full business cycle of validation and backups have been restore-tested.
+
 ## Backup Strategy For Budget Launch
 
 Because this plan runs PostgreSQL on EC2, backups must be explicit.
@@ -323,6 +550,25 @@ Better budget model:
 - EBS snapshots for the SQL volume
 - lifecycle retention policy
 - monthly restore drill to a temporary database/server
+
+Implemented starting model:
+
+- S3 bucket: `navigrader-prod-backups-016365604963-us-east-2-an`
+- SQL001 IAM role: `navigrader-prod-sql001-backup-role`
+- logical backup script: `/usr/local/sbin/navigrader-pg-dump-backup.sh`
+- logical backup S3 path: `postgres/logical/`
+- logical backup schedule: daily at `07:15 UTC`
+- logical restore test: completed once into a temporary database
+- WAL/PITR tool: pgBackRest 2.55.1
+- pgBackRest config: `/etc/pgbackrest.conf`
+- pgBackRest stanza: `main`
+- pgBackRest S3 path: `postgres/pgbackrest/`
+- PostgreSQL WAL archive command: `pgbackrest --stanza=main archive-push %p`
+- pgBackRest validation: `pgbackrest check` completed successfully
+- first full physical backup: `20260526-002743F`
+- pgBackRest schedule:
+  - weekly full backup Sunday at `06:30 UTC`
+  - differential backup Monday-Saturday at `06:30 UTC`
 
 Future managed model:
 
@@ -367,9 +613,21 @@ Ways to keep the first AWS build cheap:
 - delay RDS until revenue justifies it
 - use S3 lifecycle rules for backups
 - avoid NAT Gateway unless absolutely required
+- use a temporary NAT instance for private-server updates and downloads
 - avoid managed load balancer at first if Apache on `WEB001` is enough
 
-Avoiding NAT Gateway matters because NAT Gateway can cost more than the smallest servers in a budget proof-of-concept environment.
+Avoiding NAT Gateway matters because NAT Gateway can cost more than the smallest servers in a budget proof-of-concept environment. The temporary NAT instance should not be left running outside maintenance windows.
+
+When pausing work before AWS is live:
+
+- stop `APP001`
+- stop `SQL001`
+- stop `WEB001` unless public Apache testing must remain available
+- stop `MAINT001` last
+- terminate `TEMP-NAT`
+- do not release the `WEB001` Elastic IP unless losing that stable IP is acceptable
+
+Stopped EC2 instances do not accrue compute charges, but EBS volumes and allocated Elastic IP addresses still incur charges.
 
 ## Known Tradeoffs
 
@@ -380,6 +638,7 @@ Accepted tradeoffs:
 - PostgreSQL remains self-managed on EC2
 - failover is manual
 - database patching is manual
+- private-server internet egress is manual and temporary
 - backups require active discipline
 - no managed load balancer at the first stage
 - no S3-backed export storage at the first stage unless added separately
@@ -415,4 +674,3 @@ The AWS proof-of-concept is acceptable only when:
 - Stripe webhook endpoint is configured for the AWS hostname
 - no server requires public database access
 - rollback to lab or previous AWS deployment is understood
-
