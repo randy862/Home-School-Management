@@ -39,10 +39,13 @@ Dashboard polish is active for `mitchell.navigrader.com`.
 - Root cron now runs pgBackRest full backups Sundays at `06:30 UTC` and differential backups Monday-Saturday at `06:30 UTC`.
 - Expanded `RUNBOOKS/aws-budget-migration.md` with current AWS build state, AWS audit/logging reality, resume point, full commercial production go-live gates, post-go-live stabilization, and pause/shutdown cost guidance.
 - User reported pause/cost-control steps completed: temporary private subnet NAT route removed, `TEMP-NAT` terminated, and servers stopped while pausing AWS buildout.
+- Updated the Help Center `Account, Billing, and Data Export` article in `web/app.js` using `C:\Users\rmitchell\Downloads\navigrader_help_center_account.md`, replacing the short bullet article with detailed account menu, View Account, Dormant Mode, Data Export, cancellation, password, sign-out, and FAQ guidance.
+- WEB001 deployed `app.js?v=202605252122` with the expanded Account/Billing/Data Export Help Center article.
+- Rollback: `/var/www/home-school-management/rollback/web-help-account-202605252122.tgz`.
 
 ## Next Action
 
-Continue AWS buildout. Next action: start required servers for the next session, beginning with `MAINT001`, then configure EBS snapshot lifecycle policies.
+Continue AWS buildout when ready.
 
 ## Risks
 
@@ -63,3 +66,9 @@ Continue AWS buildout. Next action: start required servers for the next session,
 - `node --check web/app.js` and `git diff --check` passed after the rounded-threshold status fix.
 - Public `mitchell` and `smoketest` roots reference `app.js?v=202605251234`.
 - Served tenant app JS contains `roundedStatusPercent`.
+- `node --check web/app.js` and `git diff --check` passed for the Help Center account article update.
+- WEB001 Apache config test passed, Apache reload completed, and `apache2` remained active.
+- Public `mitchell` and `smoketest` roots reference `app.js?v=202605252122`.
+- Served tenant app JS contains `Account Menu Options`, `Dormant Mode is billed at`, `Request Data Export`, and `Keep Subscription Active`.
+- Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
+- Full hosted release gate passed from the user's PowerShell session against `https://mitchell.navigrader.com`.

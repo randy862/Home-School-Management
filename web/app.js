@@ -2291,16 +2291,147 @@ const HELP_ARTICLES = [
     title: "Account, Billing, and Data Export",
     summary: "Manage profile details, subscription state, dormant mode, cancellation, and data export.",
     tab: "dashboard",
-    sections: [
-      {
-        heading: "Account menu",
-        items: [
-          "View Account shows profile, plan, subscription status, billing activity, and export requests.",
-          "Account Options includes Dormant Mode, Data Export, and Cancel Subscription when available to your role and subscription state.",
-          "Data Export downloads a parent-readable record archive after checkout and export generation completes."
-        ]
-      }
-    ]
+    contentHtml: String.raw`<p>The <strong>Account</strong> menu helps you review account details, manage billing-related options, request records, change your password, review legal documents, and sign out securely.</p>
+<p>Available options depend on your role and subscription state. Tenant administrators can usually see more account and subscription actions than other users.</p>
+<hr>
+<section class="help-article-section help-article-rich-section">
+<h4>Account Menu Options</h4>
+<ul>
+<li><strong>View Account:</strong> Review profile, subscription, billing period, billable-student usage, billing activity, and export request information.</li>
+<li><strong>Account Options:</strong> Manage subscription lifecycle actions such as Dormant Mode, reactivation, Data Export, cancellation, or keeping a scheduled cancellation active.</li>
+<li><strong>Change Password:</strong> Update the password used to sign in to Navigrader.</li>
+<li><strong>Terms of Service:</strong> Open the current Terms of Service in a separate browser tab.</li>
+<li><strong>Privacy Policy:</strong> Open the current Privacy Policy in a separate browser tab.</li>
+<li><strong>Sign Out:</strong> End your session and return to the sign-in screen.</li>
+</ul>
+</section>
+<section class="help-article-section help-article-rich-section">
+<h4>View Account</h4>
+<p><strong>View Account</strong> shows the information tied to the signed-in user and the current hosted subscription.</p>
+<p>You may use this section to review:</p>
+<ul>
+<li>signed-in user name, username, role, email, phone, and profile photo</li>
+<li>site ID and internal site ID</li>
+<li>current plan and subscription status</li>
+<li>site lifecycle status, including active or dormant status</li>
+<li>base price, billing interval, billing period start, and billing period end</li>
+<li>included billable students, current billable students, and any over-plan usage shown for the current period</li>
+<li>recent billing events and export requests</li>
+<li>available Data Export downloads</li>
+</ul>
+<h5>Downloading a ready Data Export</h5>
+<ol>
+<li>Open the <strong>Account</strong> menu.</li>
+<li>Select <strong>View Account</strong>.</li>
+<li>Find <strong>Recent Billing Activity</strong>.</li>
+<li>Look under <strong>Export Requests</strong>.</li>
+<li>If an export is ready, select <strong>Download</strong>.</li>
+<li>Save the ZIP file in a secure location.</li>
+</ol>
+<p>Data Export downloads are available for a limited time. Navigrader shows the expiration date when an export request has an available artifact.</p>
+</section>
+<section class="help-article-section help-article-rich-section">
+<h4>Account Options</h4>
+<p><strong>Account Options</strong> is used for account-level subscription actions. The options shown depend on your permissions and current subscription state.</p>
+<p>Account Options may include:</p>
+<ul>
+<li><strong>Dormant Mode:</strong> Lower billing during inactive periods while keeping records, settings, and history for a future school year.</li>
+<li><strong>Reactivate Site:</strong> Return a dormant account to active use and resume regular billing and day-to-day features.</li>
+<li><strong>Data Export:</strong> Request a downloadable copy of homeschool records for your own files, backup, transfer, or long-term recordkeeping.</li>
+<li><strong>Cancel Subscription:</strong> Stop renewal at the end of the current billing period.</li>
+<li><strong>Keep Subscription Active:</strong> Cancel a scheduled cancellation when that option is available.</li>
+</ul>
+</section>
+<section class="help-article-section help-article-rich-section">
+<h4>Dormant Mode</h4>
+<p><strong>Dormant Mode</strong> is intended for temporary breaks, such as summer break or a pause between school years. It keeps your Navigrader account, records, settings, and setup saved while your homeschool is not in active daily use.</p>
+<p>During Dormant Mode, your saved setup and historical records are retained, including students, courses, classes, schedules, grades, attendance, instructional records, and account configuration.</p>
+<p>Dormant Mode is billed at <strong>25% of the normal production subscription rate</strong> under the current commercial plan settings.</p>
+<p>While an account is dormant, regular academic edits are blocked. Reactivate before entering new grades, changing schedules, editing students, modifying courses, or resuming normal school-year activity.</p>
+<h5>When Dormant Mode fits</h5>
+<ul>
+<li>your homeschool is on summer break</li>
+<li>you are between school years</li>
+<li>you want to keep records and setup without using Navigrader daily</li>
+<li>you plan to return to Navigrader</li>
+</ul>
+<h5>How to request Dormant Mode</h5>
+<ol>
+<li>Open the <strong>Account</strong> menu.</li>
+<li>Select <strong>Account Options</strong>.</li>
+<li>Select <strong>Make Account Dormant</strong>.</li>
+<li>Review the confirmation prompt.</li>
+<li>Confirm the request.</li>
+</ol>
+<p>When there is an active billing period, Navigrader records the request and the site enters dormant status at the appropriate billing boundary.</p>
+<h5>How to reactivate</h5>
+<ol>
+<li>Open the <strong>Account</strong> menu.</li>
+<li>Select <strong>Account Options</strong>.</li>
+<li>Select <strong>Reactivate Account</strong>.</li>
+<li>Review any billing change shown by Navigrader.</li>
+<li>Confirm reactivation.</li>
+</ol>
+<p>After reactivation, your saved students, records, courses, classes, schedules, grading settings, and configuration remain available so you can continue where you left off.</p>
+</section>
+<section class="help-article-section help-article-rich-section">
+<h4>Data Export</h4>
+<p><strong>Data Export</strong> lets you request a downloadable copy of your family's Navigrader records for offline storage, review, transfer, or long-term homeschool recordkeeping.</p>
+<p>When you request a Data Export, Navigrader prepares a ZIP file containing spreadsheet-friendly CSV files. These files can be opened with common spreadsheet tools such as Microsoft Excel, Google Sheets, Apple Numbers, or LibreOffice.</p>
+<h5>When to request a Data Export</h5>
+<ul>
+<li>you want an offline backup of homeschool records</li>
+<li>you are saving end-of-year records</li>
+<li>you want to review attendance, grades, or transcript information outside Navigrader</li>
+<li>you are preparing documentation for your personal files</li>
+<li>you want records before cancellation or a major account change</li>
+</ul>
+<h5>Requesting a Data Export</h5>
+<ol>
+<li>Open the <strong>Account</strong> menu.</li>
+<li>Select <strong>Account Options</strong>.</li>
+<li>Select <strong>Request Data Export</strong>.</li>
+<li>Complete the one-time checkout when prompted.</li>
+<li>Return to <strong>View Account</strong> to monitor the export request.</li>
+<li>Download the export from <strong>Recent Billing Activity</strong> when it is ready.</li>
+</ol>
+<p>The Data Export fee is shown during checkout before the request is submitted. Depending on the amount of data in the account, the export may not be ready immediately.</p>
+<h5>What may be included</h5>
+<ul>
+<li>student roster and student status</li>
+<li>school years and instructional requirements</li>
+<li>courses, classes, and enrolled students</li>
+<li>daily attendance records and attendance summaries</li>
+<li>assignment and test grade records</li>
+<li>course, quarter, and year averages</li>
+<li>transcript summary information</li>
+<li>grading scale details used for letter grades and GPA values</li>
+<li>a README file and manifest describing the export package</li>
+</ul>
+<p>Exports are based on records available when the export is generated. If you make changes after requesting an export, those later changes may require a new export request.</p>
+<p>Because export files can contain student records, grades, attendance, and other homeschool information, save the ZIP file in a secure location.</p>
+</section>
+<section class="help-article-section help-article-rich-section">
+<h4>Canceling a Subscription</h4>
+<p><strong>Cancel Subscription</strong> stops renewal at the end of the current billing period. If cancellation is scheduled, Navigrader shows the end date and may offer <strong>Keep Subscription Active</strong> when you are allowed to undo the scheduled cancellation.</p>
+<p>If you need a copy of your records, request and download a Data Export before access ends.</p>
+</section>
+<section class="help-article-section help-article-rich-section">
+<h4>Change Password and Sign Out</h4>
+<p>Use <strong>Change Password</strong> when you want to replace the password used to sign in, or whenever you believe the old password may have been shared or exposed.</p>
+<p>Use <strong>Sign Out</strong> when you are finished using Navigrader, especially on a shared, public, or borrowed device.</p>
+</section>
+<section class="help-article-section help-article-rich-section">
+<h4>Common Questions</h4>
+<h5>Is Dormant Mode the same as canceling?</h5>
+<p>No. Dormant Mode is for temporary breaks when you plan to use Navigrader again. Cancellation is for accounts that do not plan to continue after the current billing period.</p>
+<h5>Can I edit records while dormant?</h5>
+<p>No. Dormant Mode keeps your records and setup, but regular academic editing is blocked until the account is reactivated.</p>
+<h5>Where do I download my Data Export?</h5>
+<p>Open <strong>View Account</strong> and look under <strong>Recent Billing Activity</strong>, then <strong>Export Requests</strong>. A <strong>Download</strong> button appears when an export is ready and available.</p>
+<h5>Should I request a Data Export before canceling?</h5>
+<p>Yes, if you want an offline copy of your homeschool records before access ends.</p>
+</section>`
   },
   {
     id: "troubleshooting",

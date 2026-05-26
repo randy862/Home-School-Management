@@ -40,6 +40,8 @@ Dashboard correctness and performance polish.
 - Configured WAL/PITR with pgBackRest 2.55.1 on SQL001 using S3 path `postgres/pgbackrest/`; `pgbackrest check` succeeded, first full backup `20260526-002743F` completed, and root cron schedules weekly full plus daily differential physical backups.
 - Expanded the AWS migration runbook with current resource state, audit/logging coverage, exact resume point, commercial go-live gates, post-go-live stabilization, and pause/shutdown guidance.
 - User reported pause/cost-control steps completed: temporary private subnet NAT route removed, `TEMP-NAT` terminated, and servers stopped while pausing AWS buildout.
+- Updated the Help Center `Account, Billing, and Data Export` article in `web/app.js` with detailed Account, Billing, Dormant Mode, Data Export, cancellation, password, sign-out, and FAQ guidance.
+- Deployed the expanded Help Center account article to WEB001 as `app.js?v=202605252122`.
 
 ## Production State
 
@@ -48,14 +50,14 @@ Dashboard correctness and performance polish.
   - `saas-polish.css?v=202605182130`
   - `saas.js?v=202605182130`
 - Tenant app assets:
-  - `app.js?v=202605251234`
+  - `app.js?v=202605252122`
   - `styles.css?v=202605221245`
 - APP001 rollback:
   - `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
 - APP001 control-api rollback:
   - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
 - WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-dashboard-status-rounded-threshold-202605251234.tgz`
+  - `/var/www/home-school-management/rollback/web-help-account-202605252122.tgz`
 
 ## Validation
 
@@ -70,6 +72,14 @@ Dashboard correctness and performance polish.
 - Served tenant app JS contains `roundedStatusPercent`.
 - Served tenant app JS contains `hsm_perf_diagnostics`, `dashboard.render`, `instructionalHoursSnapshotCache`, `dashboardDailyBlocksCache`, `instructionActualsByKey`, `complianceMonthlySeriesCache`, `dashboard.buildComplianceMonthlySeries`, and `dashboard.renderInstructionHoursTrending`.
 - Full hosted release gate passed for `https://mitchell.navigrader.com` after the `app.js?v=202605242212` deployment.
+- Help Center account article validation passed:
+  - `node --check web/app.js`
+  - `git diff --check`
+  - WEB001 Apache config test and reload
+  - public `mitchell` and `smoketest` roots reference `app.js?v=202605252122`
+  - served tenant app JS contains `Account Menu Options`, `Dormant Mode is billed at`, `Request Data Export`, and `Keep Subscription Active`
+  - public `https://mitchell.navigrader.com/health` returned `{"ok":true}`
+- Full hosted release gate passed from the user's PowerShell session against `https://mitchell.navigrader.com`.
 
 ## Current Blockers
 
