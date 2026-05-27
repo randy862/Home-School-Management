@@ -40,8 +40,8 @@ Servers:
 | Server | State | Network | Notes |
 | --- | --- | --- | --- |
 | `MAINT001` | created and updated | public subnet | SSH jumpbox/admin host, public SSH restricted by security group. |
-| `WEB001` | created and updated | public subnet | Elastic IP associated, Apache installed, public HTTP verified. |
-| `APP001` | created and updated | private subnet | Private IP `10.40.131.149`, Node/npm installed, `navigrader` service user/directories created. |
+| `WEB001` | created and updated | public subnet | Elastic IP associated, Apache installed, static web/admin assets deployed, public HTTP verified. |
+| `APP001` | created and updated | private subnet | Private IP `10.40.131.149`, Node/npm installed, app source staged, `navigrader` service user/directories created. |
 | `SQL001` | created and updated | private subnet | Private IP `10.40.138.78`, PostgreSQL 17 installed, `appdb` and `navigrader_app` created, APP001 database login verified. |
 | `TEMP-NAT` | terminated after bootstrap | public subnet | Used to install private server packages; private subnet `0.0.0.0/0` route was removed after bootstrap. Recreate only for future private update/download windows. |
 
@@ -62,6 +62,21 @@ Backup posture:
 - S3 write/list under `postgres/` verified from `SQL001` using the IAM role, with no access keys stored on the server.
 - Logical `pg_dump` backup to S3 is configured and restore-tested once.
 - pgBackRest WAL/PITR backup to S3 is configured and first full backup completed.
+- Manual initial EBS snapshots are complete for `MAINT001`, `WEB001`, `APP001`, and `SQL001`.
+- Data Lifecycle Manager policy `SQL001` / `navigrader-sql001-ebs-snapshots` is enabled for volumes tagged `BackupPlan=navigrader-sql-daily`.
+- Data Lifecycle Manager policy `Core-Weekly` / `navigrader-core-weekly-ebs-snapshots` is enabled for volumes tagged `BackupPlan=navigrader-core-weekly`.
+
+Deployment posture:
+
+- `APP001` has tracked `server/`, `control-api/`, and systemd template files staged under `/home/debian/apps/home-school-management/`.
+- `APP001` has system users `hsm-api` and `hsm-control-api`, and `server/` plus `control-api/` production dependencies are installed.
+- `APP001` runtime env files are installed, PostgreSQL app password was rotated, tenant/control migrations completed, and `hsm-api.service` plus `hsm-control-api.service` are active.
+- `WEB001` has tracked `web/` and `admin/` static assets deployed under `/var/www/home-school-management/`.
+- `WEB001` Apache site `navigrader-aws-http.conf` proxies API paths to `APP001` at `10.40.131.149`.
+- AWS `WEB001` public HTTP was verified at `http://18.188.35.157/`, `/terms/`, `/control/`, `/health`, and `/control-api/health`.
+- The temporary private route was removed again after dependency installation; `APP001` outbound internet now times out as expected.
+- AWS validation tenant host `aws-validation.navigrader.com` maps to tenant `tenant-aws-validation`, environment `env-aws-validation-production`, and schema `tenant_aws_validation`.
+- Host-header validation through `WEB001` returns tenant setup status and runtime resolution for `aws-validation.navigrader.com`.
 
 Completed pause/cost-control actions:
 
@@ -71,9 +86,10 @@ Completed pause/cost-control actions:
 
 Immediate resume point:
 
-1. Start required servers for the next build session, beginning with `MAINT001`.
-2. Configure EBS snapshot lifecycle policies.
-3. Continue app deployment and AWS validation.
+1. Point a temporary DNS record or local hosts-file entry for `aws-validation.navigrader.com` to AWS `WEB001` at `18.188.35.157`.
+2. Decide whether to initialize the validation tenant with a temporary admin or wait for production data restore.
+3. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
+4. Continue app validation and DNS/TLS planning.
 
 ## AWS Audit And Journaling Reality
 
@@ -486,7 +502,7 @@ Before accepting real paid customers on AWS, complete these production gates:
    - Confirm logical backup cron uploads to S3.
    - Confirm pgBackRest full/differential backups run on schedule.
    - Confirm WAL archiving remains healthy.
-   - Configure EBS snapshots for `SQL001`, `APP001`, and `WEB001`.
+   - Confirm DLM-created EBS snapshots appear for `SQL001`, `APP001`, `WEB001`, and `MAINT001`.
    - Complete one pgBackRest restore drill to a separate recovery database/server.
 
 7. Monitoring
@@ -574,6 +590,9 @@ Implemented starting model:
 - pgBackRest schedule:
   - weekly full backup Sunday at `06:30 UTC`
   - differential backup Monday-Saturday at `06:30 UTC`
+- initial manual EBS snapshots: completed for `MAINT001`, `WEB001`, `APP001`, and `SQL001`
+- EBS snapshot policy `SQL001`: targets `BackupPlan=navigrader-sql-daily`, enabled
+- EBS snapshot policy `Core-Weekly`: targets `BackupPlan=navigrader-core-weekly`, enabled
 
 Future managed model:
 

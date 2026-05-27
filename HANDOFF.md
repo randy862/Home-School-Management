@@ -1,10 +1,10 @@
 # Session Handoff
 
-Date: 2026-05-25
+Date: 2026-05-26
 
 ## Context
 
-Dashboard polish is active for `mitchell.navigrader.com`.
+AWS migration buildout is paused at a clean validation-host checkpoint.
 
 ## Current State
 
@@ -38,14 +38,15 @@ Dashboard polish is active for `mitchell.navigrader.com`.
 - WAL/PITR is configured with pgBackRest 2.55.1 on SQL001. Config is `/etc/pgbackrest.conf`, stanza is `main`, repository path is `s3://navigrader-prod-backups-016365604963-us-east-2-an/postgres/pgbackrest/`, PostgreSQL archives WAL via `archive_command='pgbackrest --stanza=main archive-push %p'`, `pgbackrest check` succeeded, and first full backup `20260526-002743F` completed successfully.
 - Root cron now runs pgBackRest full backups Sundays at `06:30 UTC` and differential backups Monday-Saturday at `06:30 UTC`.
 - Expanded `RUNBOOKS/aws-budget-migration.md` with current AWS build state, AWS audit/logging reality, resume point, full commercial production go-live gates, post-go-live stabilization, and pause/shutdown cost guidance.
-- User reported pause/cost-control steps completed: temporary private subnet NAT route removed, `TEMP-NAT` terminated, and servers stopped while pausing AWS buildout.
+- User reported pause/cost-control steps completed: temporary private subnet NAT route removed, `TEMP-NAT` terminated, servers stopped, manual initial EBS snapshots completed for all four servers, and DLM policies `SQL001` plus `Core-Weekly` enabled.
 - Updated the Help Center `Account, Billing, and Data Export` article in `web/app.js` using `C:\Users\rmitchell\Downloads\navigrader_help_center_account.md`, replacing the short bullet article with detailed account menu, View Account, Dormant Mode, Data Export, cancellation, password, sign-out, and FAQ guidance.
 - WEB001 deployed `app.js?v=202605252122` with the expanded Account/Billing/Data Export Help Center article.
 - Rollback: `/var/www/home-school-management/rollback/web-help-account-202605252122.tgz`.
+- AWS app deploy prep started: APP001 source/deps/env/systemd are installed, tenant/control migrations completed, API services are active, WEB001 static/vhost is deployed, public `/`, `/terms/`, `/control/`, `/health`, and `/control-api/health` pass at `http://18.188.35.157`, TEMP-NAT was removed, and `aws-validation.navigrader.com` Host-header tenant resolution works.
 
 ## Next Action
 
-Continue AWS buildout when ready.
+Point DNS or a local hosts-file entry for `aws-validation.navigrader.com` to `18.188.35.157`, then decide whether to initialize the validation tenant or wait for production data restore.
 
 ## Risks
 

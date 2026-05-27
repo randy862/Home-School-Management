@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-25
+Date: 2026-05-26
 
 ## Active Workstream
 
@@ -8,7 +8,7 @@ Product/platform priorities on `saas-modern-redesign`.
 
 ## Current Focus
 
-Dashboard correctness and performance polish.
+AWS migration buildout and production readiness.
 
 ## Completed Recently
 
@@ -39,9 +39,10 @@ Dashboard correctness and performance polish.
 - Added SQL001 logical backup script `/usr/local/sbin/navigrader-pg-dump-backup.sh`, uploaded first `appdb` dump/checksum to S3, verified restore into a temporary database, and scheduled daily root cron at `07:15 UTC`.
 - Configured WAL/PITR with pgBackRest 2.55.1 on SQL001 using S3 path `postgres/pgbackrest/`; `pgbackrest check` succeeded, first full backup `20260526-002743F` completed, and root cron schedules weekly full plus daily differential physical backups.
 - Expanded the AWS migration runbook with current resource state, audit/logging coverage, exact resume point, commercial go-live gates, post-go-live stabilization, and pause/shutdown guidance.
-- User reported pause/cost-control steps completed: temporary private subnet NAT route removed, `TEMP-NAT` terminated, and servers stopped while pausing AWS buildout.
+- User reported pause/cost-control steps completed: temporary private subnet NAT route removed, `TEMP-NAT` terminated, servers stopped, manual initial EBS snapshots completed for all four AWS servers, and DLM policies `SQL001` plus `Core-Weekly` enabled.
 - Updated the Help Center `Account, Billing, and Data Export` article in `web/app.js` with detailed Account, Billing, Dormant Mode, Data Export, cancellation, password, sign-out, and FAQ guidance.
 - Deployed the expanded Help Center account article to WEB001 as `app.js?v=202605252122`.
+- AWS app deploy prep started: APP001 source/deps/env/systemd are installed, migrations completed, API services are active, WEB001 static/vhost is deployed, public `/health` plus `/control-api/health` pass at `http://18.188.35.157`, TEMP-NAT was removed, and `aws-validation.navigrader.com` Host-header tenant resolution works.
 
 ## Production State
 
@@ -93,6 +94,6 @@ Dashboard correctness and performance polish.
 
 ## Next Actions
 
-1. Start required servers for the next AWS build session, beginning with `MAINT001`, then configure EBS snapshot lifecycle policies.
+1. Point DNS or a local hosts-file entry for `aws-validation.navigrader.com` to `18.188.35.157`, then decide whether to initialize the validation tenant or wait for production data restore.
 2. Verify in the UI that a displayed `90.0%` Running Grade Average shows `Strong`.
 3. Keep the current Dashboard performance slice closed unless larger tenants expose new lag.
