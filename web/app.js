@@ -1749,6 +1749,7 @@ let calendarSelectedCourseIds = new Set();
 let schoolDaySelectedStudentIds = new Set();
 let schoolDaySelectedSubjectIds = new Set();
 let schoolDaySelectedCourseIds = new Set();
+let schoolDaySelectedScheduledItemKeys = new Set();
 let schoolDayStudentSummariesCollapsed = false;
 let schoolDayStudentSummariesManual = false;
 let schoolDayOverviewCollapsed = false;
@@ -6780,11 +6781,13 @@ function applyAcademicYearViewContext(schoolYearId) {
   const calendarDateInput = document.getElementById("calendar-date");
   const schoolDayDateInput = document.getElementById("school-day-date");
   const attendanceDateInput = document.getElementById("attendance-date");
-  const attendanceFilterDateInput = document.getElementById("attendance-filter-date");
+  const attendanceFilterStartDateInput = document.getElementById("attendance-filter-start-date");
+  const attendanceFilterEndDateInput = document.getElementById("attendance-filter-end-date");
   if (calendarDateInput) calendarDateInput.value = referenceDate;
   if (schoolDayDateInput) schoolDayDateInput.value = referenceDate;
   if (attendanceDateInput) attendanceDateInput.value = referenceDate;
-  if (attendanceFilterDateInput) attendanceFilterDateInput.value = "";
+  if (attendanceFilterStartDateInput) attendanceFilterStartDateInput.value = "";
+  if (attendanceFilterEndDateInput) attendanceFilterEndDateInput.value = "";
   if (!hostedModeEnabled) saveState();
   renderAll();
 }
@@ -13107,15 +13110,17 @@ function renderAttendance() {
   const viewerStudentId = currentStudentId();
   const useSearchFilters = currentAttendanceTab === "search";
   const studentFilter = viewerStudentId || (useSearchFilters ? document.getElementById("attendance-filter-student")?.value : "all") || "all";
-  const dateFilter = useSearchFilters ? document.getElementById("attendance-filter-date")?.value || "" : "";
+  const startDateFilter = useSearchFilters ? document.getElementById("attendance-filter-start-date")?.value || "" : "";
+  const endDateFilter = useSearchFilters ? document.getElementById("attendance-filter-end-date")?.value || "" : "";
   const quarterFilter = useSearchFilters ? document.getElementById("attendance-filter-quarter")?.value || "all" : "all";
   const statusFilter = useSearchFilters ? document.getElementById("attendance-filter-status")?.value || "all" : "all";
   const quarterRange = state.settings.quarters.find((q) => q.name === quarterFilter);
 
   const filtered = state.attendance.filter((a) => {
     if (studentFilter !== "all" && a.studentId !== studentFilter) return false;
-    if (dateFilter && a.date !== dateFilter) return false;
-    if (!dateFilter && !recordDateInActiveYear(a)) return false;
+    if (startDateFilter && a.date < startDateFilter) return false;
+    if (endDateFilter && a.date > endDateFilter) return false;
+    if (!startDateFilter && !endDateFilter && !recordDateInActiveYear(a)) return false;
     if (quarterFilter !== "all" && quarterRange && !inRange(a.date, quarterRange.startDate, quarterRange.endDate)) return false;
     if (statusFilter === "present" && !a.present) return false;
     if (statusFilter === "absent" && a.present) return false;
@@ -13200,7 +13205,7 @@ function schoolDayRosterStudents(referenceISO) {
   return visibleStudents();
 }
 
-function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
+function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = [], scheduledItemKeys = []) {
   const host = document.getElementById("school-day-student-summaries");
   const toggle = document.getElementById("school-day-student-summaries-toggle");
   if (!host) return;
@@ -13218,7 +13223,7 @@ function renderSchoolDayStudentSummaries(referenceISO, studentFilterIds = [], su
     .map((student) => {
       const instructionBlocks = (blocksByStudent.get(student.id) || [])
         .filter((block) => block.type === "instruction")
-        .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds));
+        .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds, scheduledItemKeys));
       if (!instructionBlocks.length) return "";
       const attendance = attendanceRecordForStudentDate(student.id, referenceISO);
       const activeInstructionBlocks = instructionBlocks.filter((block) => !effectiveInstructionExcused(student.id, block.courseId, referenceISO));
@@ -13330,13 +13335,12 @@ function schoolDayOverviewSummaryLabel(blocks) {
   return parts.join(", ") || "No items";
 }
 
-function schoolDayOverviewBlockMatchesDisplayFilters(block, subjectFilterIds = [], courseFilterIds = []) {
+function schoolDayOverviewBlockMatchesDisplayFilters(block, subjectFilterIds = [], courseFilterIds = [], scheduledItemKeys = []) {
   if (!block) return false;
-  if (block.type !== "instruction") return true;
-  return schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds);
+  return schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds, scheduledItemKeys);
 }
 
-function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = []) {
+function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjectFilterIds = [], courseFilterIds = [], scheduledItemKeys = []) {
   const host = document.getElementById("school-day-overview-grid");
   const toggle = document.getElementById("school-day-overview-toggle");
   if (!host) return;
@@ -13360,7 +13364,7 @@ function renderSchoolDayOverviewGrid(referenceISO, studentFilterIds = [], subjec
   const cards = roster.map((student) => {
     const studentBlocks = dailyScheduledBlocks(referenceISO, [student.id]);
     const visibleBlocks = (studentBlocks.get(student.id) || [])
-      .filter((block) => schoolDayOverviewBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
+      .filter((block) => schoolDayOverviewBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds, scheduledItemKeys))
       .sort((a, b) => a.start - b.start || schoolDayOverviewBlockLabel(a).localeCompare(schoolDayOverviewBlockLabel(b)));
     if (!visibleBlocks.length) return "";
     const rows = visibleBlocks.map((block) => {
@@ -13652,12 +13656,13 @@ function schoolDayGradeCandidateBlocks(date) {
   const studentFilterIds = getSchoolDaySelectedStudentIds();
   const subjectFilterIds = getSchoolDaySelectedSubjectIds();
   const courseFilterIds = getSchoolDaySelectedCourseIds();
+  const scheduledItemKeys = getSchoolDaySelectedScheduledItemKeys();
   const statusFilter = getSchoolDaySelectedStatus();
   const seenGradeRows = new Set();
   return Array.from(dailyScheduledBlocks(dateKey, studentFilterIds).values())
     .flat()
     .filter((block) => block.type === "instruction")
-    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
+    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds, scheduledItemKeys))
     .filter((block) => schoolDayBlockMatchesStatusFilter(block, dateKey, statusFilter))
     .filter((block) => !effectiveInstructionExcused(block.studentId, block.courseId, dateKey))
     .filter((block) => gradeRecordsForStudentCourseDate(block.studentId, block.courseId, dateKey).length === 0)
@@ -14068,8 +14073,35 @@ function getSchoolDaySelectedSubjectIds() {
   return Array.from(document.querySelectorAll(".school-day-subject-checkbox:checked")).map((el) => el.value);
 }
 
+function normalizeSchoolDayScheduledItemKey(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^(course|courseSection|scheduleBlock):/.test(raw)) return raw;
+  return getCourse(raw) ? `course:${raw}` : raw;
+}
+
+function schoolDayScheduledItemCourseId(key) {
+  const normalized = normalizeSchoolDayScheduledItemKey(key);
+  const [type, id] = normalized.split(":", 2);
+  if (type === "course") return getCourse(id) ? id : "";
+  if (type === "courseSection") return getCourseSection(id)?.courseId || "";
+  return "";
+}
+
+function getSchoolDaySelectedScheduledItemKeys() {
+  const checked = Array.from(document.querySelectorAll(".school-day-scheduled-item-checkbox:checked"))
+    .map((el) => normalizeSchoolDayScheduledItemKey(el.value))
+    .filter(Boolean);
+  if (checked.length || document.querySelectorAll(".school-day-scheduled-item-checkbox").length) return checked;
+  return Array.from(schoolDaySelectedScheduledItemKeys).map(normalizeSchoolDayScheduledItemKey).filter(Boolean);
+}
+
 function getSchoolDaySelectedCourseIds() {
-  return Array.from(document.querySelectorAll(".school-day-course-checkbox:checked")).map((el) => el.value);
+  return Array.from(new Set(
+    getSchoolDaySelectedScheduledItemKeys()
+      .map((key) => schoolDayScheduledItemCourseId(key))
+      .filter(Boolean)
+  ));
 }
 
 function getSchoolDaySelectedStatus() {
@@ -14129,12 +14161,13 @@ function currentSchoolDayBulkOpenInstructionBlocks() {
   const studentFilterIds = getSchoolDaySelectedStudentIds();
   const subjectFilterIds = getSchoolDaySelectedSubjectIds();
   const courseFilterIds = getSchoolDaySelectedCourseIds();
+  const scheduledItemKeys = getSchoolDaySelectedScheduledItemKeys();
   const statusFilter = getSchoolDaySelectedStatus();
   const seen = new Set();
   const blocks = Array.from(dailyScheduledBlocks(dateKey, studentFilterIds).values())
     .flat()
     .filter((block) => block.type === "instruction")
-    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
+    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds, scheduledItemKeys))
     .filter((block) => schoolDayBlockMatchesStatusFilter(block, dateKey, statusFilter))
     .filter((block) => rowMatchesSchoolDayQuickFilters(schoolDayInstructionBlockQueueState(block, dateKey)))
     .filter((block) => effectiveInstructionStatus(block.studentId, block.courseId, dateKey) === INSTRUCTION_STATUS_SCHEDULED)
@@ -14287,14 +14320,14 @@ function updateSchoolDaySubjectSummary() {
 function updateSchoolDayCourseSummary() {
   const summary = document.getElementById("school-day-course-summary");
   if (!summary) return;
-  const selectedCount = getSchoolDaySelectedCourseIds().length;
-  const totalCount = document.querySelectorAll(".school-day-course-checkbox").length;
+  const selectedCount = getSchoolDaySelectedScheduledItemKeys().length;
+  const totalCount = document.querySelectorAll(".school-day-scheduled-item-checkbox").length;
   summary.textContent = selectedCount && selectedCount === totalCount
-    ? "Courses (All)"
-    : `Courses (${selectedCount} selected)`;
+    ? "Scheduled Items (All)"
+    : `Scheduled Items (${selectedCount} selected)`;
 }
 
-function applySchoolDayFilterSelection({ studentIds = null, subjectIds = null, courseIds = null } = {}) {
+function applySchoolDayFilterSelection({ studentIds = null, subjectIds = null, courseIds = null, scheduledItemKeys = null } = {}) {
   if (studentIds) {
     schoolDaySelectedStudentIds = new Set(studentIds);
     setCalendarChecklistSelection("school-day-student-checkbox", studentIds);
@@ -14305,8 +14338,19 @@ function applySchoolDayFilterSelection({ studentIds = null, subjectIds = null, c
   }
   if (courseIds) {
     schoolDaySelectedCourseIds = new Set(courseIds);
-    setCalendarChecklistSelection("school-day-course-checkbox", courseIds);
+    schoolDaySelectedScheduledItemKeys = new Set(courseIds.map((id) => normalizeSchoolDayScheduledItemKey(id)).filter(Boolean));
+    setCalendarChecklistSelection("school-day-scheduled-item-checkbox", Array.from(schoolDaySelectedScheduledItemKeys));
   }
+  if (scheduledItemKeys) {
+    schoolDaySelectedScheduledItemKeys = new Set(scheduledItemKeys.map((key) => normalizeSchoolDayScheduledItemKey(key)).filter(Boolean));
+    schoolDaySelectedCourseIds = new Set(
+      Array.from(schoolDaySelectedScheduledItemKeys)
+        .map((key) => schoolDayScheduledItemCourseId(key))
+        .filter(Boolean)
+    );
+    setCalendarChecklistSelection("school-day-scheduled-item-checkbox", Array.from(schoolDaySelectedScheduledItemKeys));
+  }
+  syncCalendarAllCheckbox("school-day-scheduled-item-checkbox", "school-day-scheduled-item-all-checkbox");
   updateSchoolDayStudentSummary();
   updateSchoolDaySubjectSummary();
   updateSchoolDayCourseSummary();
@@ -14507,11 +14551,13 @@ function openStudentAttendanceSearch(studentId) {
   activateTab("attendance");
   renderAttendanceSectionVisibility();
   const studentFilter = document.getElementById("attendance-filter-student");
-  const dateFilter = document.getElementById("attendance-filter-date");
+  const startDateFilter = document.getElementById("attendance-filter-start-date");
+  const endDateFilter = document.getElementById("attendance-filter-end-date");
   const quarterFilter = document.getElementById("attendance-filter-quarter");
   const statusFilter = document.getElementById("attendance-filter-status");
   if (studentFilter) studentFilter.value = studentId;
-  if (dateFilter) dateFilter.value = "";
+  if (startDateFilter) startDateFilter.value = "";
+  if (endDateFilter) endDateFilter.value = "";
   if (quarterFilter) quarterFilter.value = "all";
   if (statusFilter) statusFilter.value = "all";
   renderAttendance();
@@ -14770,25 +14816,91 @@ function renderSchoolDaySubjectChecklist(subjects, preselectedSubjectIds = []) {
   updateSchoolDaySubjectSummary();
 }
 
-function renderSchoolDayCourseChecklist(courses, preselectedCourseIds = []) {
+function schoolDayScheduleBlockFilterOptions(studentIds = []) {
+  if (!studentIds.length) return state.scheduleBlocks.slice();
+  const assignedBlockIds = new Set(
+    state.studentScheduleBlocks
+      .filter((entry) => studentIds.includes(entry.studentId))
+      .map((entry) => entry.scheduleBlockId)
+      .filter(Boolean)
+  );
+  return state.scheduleBlocks.filter((block) => assignedBlockIds.has(block.id));
+}
+
+function renderSchoolDayScheduledItemOption(title, metaItems = [], extraHtml = "") {
+  const meta = (metaItems || []).map((item) => String(item || "").trim()).filter(Boolean);
+  return `<span class="school-day-scheduled-option"><strong>${escapeHtml(title)}</strong>${extraHtml || ""}${meta.length ? `<span>${meta.map(escapeHtml).join(" | ")}</span>` : ""}</span>`;
+}
+
+function renderSchoolDayCourseChecklist(courses, preselectedScheduledItemKeys = []) {
   const optionsWrap = document.getElementById("school-day-course-options");
   if (!optionsWrap) return;
-  const selected = new Set(preselectedCourseIds);
-  const allChecked = courses.length > 0 && courses.every((course) => selected.has(course.id));
-  const allRow = courses.length ? `<div class="checklist-row"><input id="school-day-course-all" type="checkbox" class="school-day-course-all-checkbox"${allChecked ? " checked" : ""}><label for="school-day-course-all">All</label></div>` : "";
-  const checkboxes = courses.map((course, idx) => {
-    const checked = selected.has(course.id) ? " checked" : "";
-    const inputId = `school-day-course-${idx}-${course.id}`;
-    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="school-day-course-checkbox" value="${course.id}"${checked}><label for="${inputId}">${course.name} (${getSubjectName(course.subjectId)})</label></div>`;
+  const selectedStudentIds = getSchoolDaySelectedStudentIds();
+  const courseIds = new Set(courses.map((course) => course.id));
+  const sectionOptions = sortedCourseSections()
+    .filter((section) => courseIds.has(section.courseId));
+  const courseOptions = courses;
+  const blockOptions = schoolDayScheduleBlockFilterOptions(selectedStudentIds);
+  const availableKeys = new Set([
+    ...sectionOptions.map((section) => `courseSection:${section.id}`),
+    ...courseOptions.map((course) => `course:${course.id}`),
+    ...blockOptions.map((block) => `scheduleBlock:${block.id}`)
+  ]);
+  const selected = new Set(
+    preselectedScheduledItemKeys
+      .map((key) => normalizeSchoolDayScheduledItemKey(key))
+      .filter((key) => availableKeys.has(key))
+  );
+  schoolDaySelectedScheduledItemKeys = selected;
+  schoolDaySelectedCourseIds = new Set(
+    Array.from(selected)
+      .map((key) => schoolDayScheduledItemCourseId(key))
+      .filter(Boolean)
+  );
+  const allChecked = availableKeys.size > 0 && Array.from(availableKeys).every((key) => selected.has(key));
+  const allRow = availableKeys.size
+    ? `<div class="checklist-row"><input id="school-day-scheduled-item-all" type="checkbox" class="school-day-scheduled-item-all-checkbox"${allChecked ? " checked" : ""}><label for="school-day-scheduled-item-all">All</label></div>`
+    : "";
+  const sectionCheckboxes = sectionOptions.map((section, idx) => {
+    const key = `courseSection:${section.id}`;
+    const checked = selected.has(key) ? " checked" : "";
+    const inputId = `school-day-section-${idx}-${section.id}`;
+    const course = getCourse(section.courseId);
+    const subjectId = course?.subjectId || "";
+    const requiredBadge = subjectId && isRequiredSubject(subjectId) ? " <span class=\"subject-required-badge\">Required</span>" : "";
+    const meta = [
+      subjectId ? getSubjectName(subjectId) : "",
+      ...courseSectionSchoolDayMeta(section).filter((item) => !/ enrolled$/.test(item))
+    ];
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="school-day-scheduled-item-checkbox" value="${key}"${checked}><label for="${inputId}">${renderSchoolDayScheduledItemOption(sectionDisplayName(section.id), meta, requiredBadge)}</label></div>`;
   }).join("");
-  optionsWrap.innerHTML = courses.length ? `${allRow}${checkboxes}` : "<span>No courses available.</span>";
-  syncCalendarAllCheckbox("school-day-course-checkbox", "school-day-course-all-checkbox");
+  const courseCheckboxes = courseOptions.map((course, idx) => {
+    const key = `course:${course.id}`;
+    const checked = selected.has(key) ? " checked" : "";
+    const inputId = `school-day-course-${idx}-${course.id}`;
+    const requiredBadge = isRequiredSubject(course.subjectId) ? " <span class=\"subject-required-badge\">Required</span>" : "";
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="school-day-scheduled-item-checkbox" value="${key}"${checked}><label for="${inputId}">${renderSchoolDayScheduledItemOption(course.name, [getSubjectName(course.subjectId), ...courseSchoolDayMeta(course)], requiredBadge)}</label></div>`;
+  }).join("");
+  const blockCheckboxes = blockOptions.map((block, idx) => {
+    const key = `scheduleBlock:${block.id}`;
+    const checked = selected.has(key) ? " checked" : "";
+    const inputId = `school-day-block-${idx}-${block.id}`;
+    const typeLabel = SCHEDULE_BLOCK_TYPE_LABELS[block.type] || "Schedule Block";
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="school-day-scheduled-item-checkbox" value="${key}"${checked}><label for="${inputId}">${renderSchoolDayScheduledItemOption(block.name, [typeLabel, ...scheduleBlockSchoolDayMeta(block)])}</label></div>`;
+  }).join("");
+  const sections = [];
+  if (sectionCheckboxes) sections.push(`<div class="checklist-group-label">Classes</div>${sectionCheckboxes}`);
+  if (courseCheckboxes) sections.push(`<div class="checklist-group-label">Courses</div>${courseCheckboxes}`);
+  if (blockCheckboxes) sections.push(`<div class="checklist-group-label">Schedule Blocks</div>${blockCheckboxes}`);
+  optionsWrap.innerHTML = sections.length ? `${allRow}${sections.join("")}` : "<span>No scheduled items available.</span>";
+  syncCalendarAllCheckbox("school-day-scheduled-item-checkbox", "school-day-scheduled-item-all-checkbox");
   updateSchoolDayCourseSummary();
 }
 
 function syncSchoolDayFilterSubjectCourseOptions() {
   const previousStudentIds = Array.from(schoolDaySelectedStudentIds);
   const previousSubjectIds = Array.from(schoolDaySelectedSubjectIds);
+  const previousScheduledItemKeys = Array.from(schoolDaySelectedScheduledItemKeys);
   const previousCourseIds = Array.from(schoolDaySelectedCourseIds);
   renderSchoolDayStudentChecklist(previousStudentIds);
   const selectedStudentIds = getSchoolDaySelectedStudentIds();
@@ -14816,7 +14928,10 @@ function syncSchoolDayFilterSubjectCourseOptions() {
     : coursePool;
   const allowedCourseIds = new Set(filteredCourses.map((course) => course.id));
   schoolDaySelectedCourseIds = new Set(previousCourseIds.filter((id) => allowedCourseIds.has(id)));
-  renderSchoolDayCourseChecklist(filteredCourses, Array.from(schoolDaySelectedCourseIds));
+  const requestedScheduledItemKeys = previousScheduledItemKeys.length
+    ? previousScheduledItemKeys
+    : Array.from(schoolDaySelectedCourseIds).map((id) => `course:${id}`);
+  renderSchoolDayCourseChecklist(filteredCourses, requestedScheduledItemKeys);
 }
 
 function renderSchoolDaySectionVisibility() {
@@ -14975,15 +15090,16 @@ function schoolDaySelectedFilterChip(prefix, ids, resolver) {
   return `${prefix}: ${ids.length} selected`;
 }
 
-function hasActiveSchoolDayQueueFilters({ statusFilter = "all", studentIds = [], subjectIds = [], courseIds = [] } = {}) {
+function hasActiveSchoolDayQueueFilters({ statusFilter = "all", studentIds = [], subjectIds = [], courseIds = [], scheduledItemKeys = [] } = {}) {
   return schoolDayActiveQuickFilterCount() > 0
     || (statusFilter && statusFilter !== "all")
     || studentIds.length > 0
     || subjectIds.length > 0
-    || courseIds.length > 0;
+    || courseIds.length > 0
+    || scheduledItemKeys.length > 0;
 }
 
-function renderSchoolDayFilterSummary({ date, statusFilter = "all", studentIds = [], subjectIds = [], courseIds = [] } = {}) {
+function renderSchoolDayFilterSummary({ date, statusFilter = "all", studentIds = [], subjectIds = [], courseIds = [], scheduledItemKeys = [] } = {}) {
   const summary = document.getElementById("school-day-filter-summary");
   if (!summary) return;
   const parts = [
@@ -14992,7 +15108,7 @@ function renderSchoolDayFilterSummary({ date, statusFilter = "all", studentIds =
     ...activeSchoolDayQuickFilterLabels(),
     schoolDaySelectedFilterChip("Student", studentIds, getStudentName).replace(/^Student: /, ""),
     schoolDaySelectedFilterChip("Subject", subjectIds, getSubjectName).replace(/^Subject: /, ""),
-    schoolDaySelectedFilterChip("Course", courseIds, getCourseName).replace(/^Course: /, "")
+    schoolDaySelectedFilterChip("Scheduled Item", scheduledItemKeys, schoolDayScheduledItemLabel).replace(/^Scheduled Item: /, "")
   ].filter(Boolean);
   summary.textContent = parts.length ? parts.join(" | ") : "All scheduled rows";
 }
@@ -15006,10 +15122,10 @@ function renderSchoolDayFilteredEmptyState() {
     </div>`;
 }
 
-function renderSchoolDayActiveQueue({ date, rowCount, statusFilter, studentIds = [], subjectIds = [], courseIds = [] } = {}) {
+function renderSchoolDayActiveQueue({ date, rowCount, statusFilter, studentIds = [], subjectIds = [], courseIds = [], scheduledItemKeys = [] } = {}) {
   const host = document.getElementById("school-day-active-queue");
   if (!host) return;
-  const hasActiveFilters = hasActiveSchoolDayQueueFilters({ statusFilter, studentIds, subjectIds, courseIds });
+  const hasActiveFilters = hasActiveSchoolDayQueueFilters({ statusFilter, studentIds, subjectIds, courseIds, scheduledItemKeys });
   const emptyFilteredQueue = rowCount === 0 && hasActiveFilters;
   const filterChips = [
     `Date: ${formatDisplayDate(date || todayISO())}`,
@@ -15017,7 +15133,7 @@ function renderSchoolDayActiveQueue({ date, rowCount, statusFilter, studentIds =
     ...activeSchoolDayQuickFilterLabels().map((label) => `Filter: ${label}`),
     schoolDaySelectedFilterChip("Student", studentIds, getStudentName),
     schoolDaySelectedFilterChip("Subject", subjectIds, getSubjectName),
-    schoolDaySelectedFilterChip("Course", courseIds, getCourseName)
+    schoolDaySelectedFilterChip("Scheduled Item", scheduledItemKeys, schoolDayScheduledItemLabel)
   ].filter(Boolean);
   if (!hasActiveFilters) filterChips.push("All scheduled rows");
   host.classList.remove("hidden");
@@ -20883,8 +20999,38 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
   return blocksByStudent;
 }
 
-function schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds = [], courseFilterIds = []) {
+function schoolDayBlockScheduledItemKey(block) {
+  if (!block) return "";
+  if (block.type === "instruction") {
+    return block.courseSectionId ? `courseSection:${block.courseSectionId}` : `course:${block.courseId}`;
+  }
+  return block.scheduleBlockId ? `scheduleBlock:${block.scheduleBlockId}` : "";
+}
+
+function schoolDayBlockMatchesScheduledItemFilter(block, scheduledItemKeys = []) {
+  if (!scheduledItemKeys.length) return true;
+  const selected = new Set(scheduledItemKeys.map((key) => normalizeSchoolDayScheduledItemKey(key)).filter(Boolean));
+  if (!selected.size || !block) return true;
+  const exactKey = schoolDayBlockScheduledItemKey(block);
+  if (block.type === "instruction") {
+    return selected.has(`course:${block.courseId}`)
+      || (!!exactKey && selected.has(exactKey));
+  }
+  return !!exactKey && selected.has(exactKey);
+}
+
+function schoolDayScheduledItemLabel(key) {
+  const normalized = normalizeSchoolDayScheduledItemKey(key);
+  const [type, id] = normalized.split(":", 2);
+  if (type === "course") return getCourseName(id);
+  if (type === "courseSection") return sectionDisplayName(id);
+  if (type === "scheduleBlock") return state.scheduleBlocks.find((block) => block.id === id)?.name || "Schedule Block";
+  return "";
+}
+
+function schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds = [], courseFilterIds = [], scheduledItemKeys = []) {
   if (!block) return false;
+  if (!schoolDayBlockMatchesScheduledItemFilter(block, scheduledItemKeys)) return false;
   if (block.type !== "instruction") {
     return !subjectFilterIds.length && !courseFilterIds.length;
   }
@@ -21204,11 +21350,12 @@ function buildDayCalendarRows(referenceISO, studentFilterIds = [], subjectFilter
   const mode = options.mode || "calendar";
   const useQuickFilters = !!options.useQuickFilters;
   const statusFilter = options.statusFilter || "all";
+  const scheduledItemKeys = Array.isArray(options.scheduledItemKeys) ? options.scheduledItemKeys : [];
 
   const blocksByStudent = dailyScheduledBlocks(dateKey, studentFilterIds);
   const rows = Array.from(blocksByStudent.values())
     .flat()
-    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
+    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds, scheduledItemKeys))
     .filter((block) => schoolDayBlockMatchesStatusFilter(block, dateKey, statusFilter))
     .sort((a, b) => {
       const timeComparison = compareSchoolDayBlockTime(a, b, dateKey);
@@ -21514,12 +21661,13 @@ function renderSchoolDay() {
   const studentFilterIds = getSchoolDaySelectedStudentIds();
   const subjectFilterIds = getSchoolDaySelectedSubjectIds();
   const courseFilterIds = getSchoolDaySelectedCourseIds();
+  const scheduledItemKeys = getSchoolDaySelectedScheduledItemKeys();
   const statusFilter = getSchoolDaySelectedStatus();
-  const { rows } = buildDayCalendarRows(ref, studentFilterIds, subjectFilterIds, courseFilterIds, { mode: "school-day", useQuickFilters: true, statusFilter });
+  const { rows } = buildDayCalendarRows(ref, studentFilterIds, subjectFilterIds, courseFilterIds, { mode: "school-day", useQuickFilters: true, statusFilter, scheduledItemKeys });
   const completionRows = Array.from(dailyScheduledBlocks(ref, studentFilterIds).values())
     .flat()
     .filter((block) => block.type === "instruction")
-    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds))
+    .filter((block) => schoolDayBlockMatchesDisplayFilters(block, subjectFilterIds, courseFilterIds, scheduledItemKeys))
     .filter((block) => schoolDayBlockMatchesStatusFilter(block, ref, statusFilter));
   const activeCompletionRows = completionRows.filter((block) => !effectiveInstructionExcused(block.studentId, block.courseId, ref));
   const completionCount = activeCompletionRows.filter((block) => effectiveInstructionCompleted(block.studentId, block.courseId, ref)).length;
@@ -21530,7 +21678,7 @@ function renderSchoolDay() {
       ? sum + effectiveInstructionMinutes(block.studentId, block.courseId, ref)
       : sum
   ), 0);
-  const hasActiveQueueFilters = hasActiveSchoolDayQueueFilters({ statusFilter, studentIds: studentFilterIds, subjectIds: subjectFilterIds, courseIds: courseFilterIds });
+  const hasActiveQueueFilters = hasActiveSchoolDayQueueFilters({ statusFilter, studentIds: studentFilterIds, subjectIds: subjectFilterIds, courseIds: courseFilterIds, scheduledItemKeys });
   const quickFilterEmptyMessage = hasActiveQueueFilters
     ? renderSchoolDayFilteredEmptyState()
     : "No scheduled instruction for this day.";
@@ -21540,7 +21688,8 @@ function renderSchoolDay() {
     statusFilter,
     studentIds: studentFilterIds,
     subjectIds: subjectFilterIds,
-    courseIds: courseFilterIds
+    courseIds: courseFilterIds,
+    scheduledItemKeys
   });
   renderSchoolDayActiveQueue({
     date: ref,
@@ -21548,7 +21697,8 @@ function renderSchoolDay() {
     statusFilter,
     studentIds: studentFilterIds,
     subjectIds: subjectFilterIds,
-    courseIds: courseFilterIds
+    courseIds: courseFilterIds,
+    scheduledItemKeys
   });
   updateSchoolDayBulkStatusButtons();
   const attendanceOpenCount = schoolDayRosterStudents(ref).filter((student) => !attendanceRecordForStudentDate(student.id, ref)).length;
@@ -21556,8 +21706,8 @@ function renderSchoolDay() {
     scheduleCount: rows.length,
     attendanceOpenCount
   });
-  renderSchoolDayStudentSummaries(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
-  renderSchoolDayOverviewGrid(ref, studentFilterIds, subjectFilterIds, courseFilterIds);
+  renderSchoolDayStudentSummaries(ref, studentFilterIds, subjectFilterIds, courseFilterIds, scheduledItemKeys);
+  renderSchoolDayOverviewGrid(ref, studentFilterIds, subjectFilterIds, courseFilterIds, scheduledItemKeys);
   const hoursSummary = document.getElementById("school-day-hours-summary");
   if (hoursSummary) {
     hoursSummary.textContent = completionRows.length
@@ -24959,7 +25109,7 @@ function bindEvents() {
       renderStudents();
     });
   });
-  ["attendance-filter-student", "attendance-filter-date", "attendance-filter-quarter", "attendance-filter-status"].forEach((id) => {
+  ["attendance-filter-student", "attendance-filter-start-date", "attendance-filter-end-date", "attendance-filter-quarter", "attendance-filter-status"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => {
       editingSearchAttendanceId = "";
@@ -24971,11 +25121,13 @@ function bindEvents() {
   if (attendanceClearFiltersBtn) {
     attendanceClearFiltersBtn.addEventListener("click", () => {
       const studentFilter = document.getElementById("attendance-filter-student");
-      const dateFilter = document.getElementById("attendance-filter-date");
+      const startDateFilter = document.getElementById("attendance-filter-start-date");
+      const endDateFilter = document.getElementById("attendance-filter-end-date");
       const quarterFilter = document.getElementById("attendance-filter-quarter");
       const statusFilter = document.getElementById("attendance-filter-status");
       if (studentFilter) studentFilter.value = "all";
-      if (dateFilter) dateFilter.value = "";
+      if (startDateFilter) startDateFilter.value = "";
+      if (endDateFilter) endDateFilter.value = "";
       if (quarterFilter) quarterFilter.value = "all";
       if (statusFilter) statusFilter.value = "all";
       editingSearchAttendanceId = "";
@@ -25670,9 +25822,10 @@ function bindEvents() {
       renderCalendar();
       return;
     }
-    if (t.classList.contains("school-day-course-checkbox")) {
+    if (t.classList.contains("school-day-scheduled-item-checkbox")) {
+      schoolDaySelectedScheduledItemKeys = new Set(getSchoolDaySelectedScheduledItemKeys());
       schoolDaySelectedCourseIds = new Set(getSchoolDaySelectedCourseIds());
-      syncCalendarAllCheckbox("school-day-course-checkbox", "school-day-course-all-checkbox");
+      syncCalendarAllCheckbox("school-day-scheduled-item-checkbox", "school-day-scheduled-item-all-checkbox");
       updateSchoolDayCourseSummary();
       clearSchoolDayDailyMessage();
       renderSchoolDay();
@@ -25729,12 +25882,12 @@ function bindEvents() {
       renderCalendar();
       return;
     }
-    if (t.classList.contains("school-day-course-all-checkbox")) {
+    if (t.classList.contains("school-day-scheduled-item-all-checkbox")) {
       const checked = t instanceof HTMLInputElement ? t.checked : false;
-      const courseIds = checked
-        ? Array.from(document.querySelectorAll(".school-day-course-checkbox")).map((el) => el.value)
+      const scheduledItemKeys = checked
+        ? Array.from(document.querySelectorAll(".school-day-scheduled-item-checkbox")).map((el) => el.value)
         : [];
-      applySchoolDayFilterSelection({ courseIds });
+      applySchoolDayFilterSelection({ scheduledItemKeys });
       updateSchoolDayCourseSummary();
       renderSchoolDay();
       return;
@@ -26133,9 +26286,12 @@ function bindEvents() {
       if (schoolDayOpenTab === "attendance") {
         const selectedStudents = getSchoolDaySelectedStudentIds();
         const attendanceDateInput = document.getElementById("attendance-date");
-        const attendanceFilterDateInput = document.getElementById("attendance-filter-date");
+        const attendanceFilterStartDateInput = document.getElementById("attendance-filter-start-date");
+        const attendanceFilterEndDateInput = document.getElementById("attendance-filter-end-date");
+        const selectedDate = document.getElementById("school-day-date")?.value || "";
         if (attendanceDateInput) attendanceDateInput.value = document.getElementById("school-day-date")?.value || todayISO();
-        if (attendanceFilterDateInput) attendanceFilterDateInput.value = document.getElementById("school-day-date")?.value || "";
+        if (attendanceFilterStartDateInput) attendanceFilterStartDateInput.value = selectedDate;
+        if (attendanceFilterEndDateInput) attendanceFilterEndDateInput.value = selectedDate;
         if (selectedStudents.length) renderAttendanceStudentChecklist([selectedStudents[0]]);
         renderAttendance();
       }

@@ -4958,7 +4958,7 @@ td {
 }
 
 #attendance-filter-form {
-  grid-template-columns: minmax(180px, 1.35fr) minmax(155px, 0.95fr) minmax(145px, 0.95fr) minmax(145px, 0.95fr) auto;
+  grid-template-columns: minmax(170px, 1.25fr) minmax(130px, 0.75fr) minmax(130px, 0.75fr) minmax(140px, 0.85fr) minmax(140px, 0.85fr) auto;
   align-items: end;
 }
 
@@ -6986,6 +6986,60 @@ tbody tr:hover {
 
 .account-summary-metrics .account-status-pill {
   white-space: nowrap;
+}
+
+#school-day-form #school-day-course-dropdown[open] .checklist-vertical {
+  width: min(540px, 78vw);
+  max-width: min(540px, 78vw);
+  max-height: 320px;
+  padding: 0.45rem;
+}
+
+#school-day-form #school-day-course-dropdown[open] .checklist-row {
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: start;
+  height: auto;
+  min-height: 0;
+  padding: 0.28rem 0;
+}
+
+#school-day-form #school-day-course-dropdown[open] .checklist-row label {
+  white-space: normal;
+}
+
+#school-day-form #school-day-course-dropdown[open] .checklist-group-label {
+  margin: 0.5rem 0 0.2rem;
+}
+
+#school-day-form #school-day-course-dropdown[open] .checklist-group-label:first-child,
+#school-day-form #school-day-course-dropdown[open] .checklist-row + .checklist-group-label {
+  margin-top: 0.65rem;
+}
+
+#app-shell .school-day-scheduled-option {
+  display: grid;
+  gap: 0.14rem;
+  min-width: 0;
+}
+
+#app-shell .school-day-scheduled-option strong {
+  color: #17243d;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.22;
+}
+
+#app-shell .school-day-scheduled-option span {
+  color: #5b6a80;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+#app-shell .school-day-scheduled-option .subject-required-badge {
+  display: inline-flex;
+  justify-self: start;
+  margin: 0.05rem 0;
 }
 
 .account-card {
@@ -15243,7 +15297,7 @@ tbody tr:hover {
 }
 
 #app-shell #attendance-filter-form {
-  grid-template-columns: minmax(190px, 1.3fr) minmax(160px, 0.8fr) minmax(150px, 0.75fr) minmax(150px, 0.75fr) auto;
+  grid-template-columns: minmax(180px, 1.25fr) minmax(130px, 0.72fr) minmax(130px, 0.72fr) minmax(145px, 0.82fr) minmax(145px, 0.82fr) auto;
   gap: 0.55rem;
   margin: 0;
   padding: 0.75rem;

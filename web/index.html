@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605271537">
+  <link rel="stylesheet" href="styles.css?v=202605271700">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1177,7 +1177,7 @@
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-reference-date"> <span>Show Reference Date filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-student-filter"> <span>Show Student filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-subject-filter"> <span>Show Subject filter</span></label>
-              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-course-filter"> <span>Show Course filter</span></label>
+              <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-course-filter"> <span>Show Scheduled Item filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-status-filter"> <span>Show Status filter</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-student-summaries"> <span>Show Student Summaries</span></label>
               <label class="checklist-row"><input type="checkbox" id="admin-config-school-day-show-side-by-side-overview"> <span>Show Side-By-Side Overview</span></label>
@@ -1393,9 +1393,9 @@
                 <div id="school-day-subject-options" class="checklist-vertical"></div>
               </details>
             </label>
-            <label id="school-day-course-filter-field" class="calendar-filter-field">Course
+            <label id="school-day-course-filter-field" class="calendar-filter-field">Scheduled Item
               <details id="school-day-course-dropdown" class="multi-select-dropdown">
-                <summary id="school-day-course-summary">Courses (0 selected)</summary>
+                <summary id="school-day-course-summary">Scheduled Items (0 selected)</summary>
                 <div id="school-day-course-options" class="checklist-vertical"></div>
               </details>
             </label>
@@ -2332,9 +2332,8 @@
                 <option value="all">All Students</option>
               </select>
             </label>
-            <label>Date
-              <input id="attendance-filter-date" type="date">
-            </label>
+            <label>Start Date<input id="attendance-filter-start-date" type="date"></label>
+            <label>End Date<input id="attendance-filter-end-date" type="date"></label>
             <label>Quarter
               <select id="attendance-filter-quarter">
                 <option value="all">All Quarters</option>
@@ -2659,6 +2658,6 @@
       <div id="help-center-modal-body" class="account-modal-body help-center-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605271529"></script>
+  <script src="app.js?v=202605271700"></script>
   </body>
   </html>
