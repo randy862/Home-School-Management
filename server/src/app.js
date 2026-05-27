@@ -1,5 +1,5 @@
 const express = require("express");
-const { app: appConfig, commercial: commercialConfig, internal: internalConfig, session: sessionConfig } = require("./config");
+const { app: appConfig, commercial: commercialConfig, internal: internalConfig, mail: mailConfig, public: publicConfig, session: sessionConfig } = require("./config");
 const { getPool } = require("./db");
 const { getPostgresPool } = require("./postgres-db");
 const { applyCors, createAuthContextMiddleware } = require("./middleware/auth-context");
@@ -9,10 +9,13 @@ const { createTenantRuntimeContextMiddleware } = require("./middleware/tenant-ru
 const { readLegacyBridgeState, writeLegacyBridgeState } = require("./legacy/local-state-bridge");
 const {
   countAdmins,
+  consumePasswordResetToken,
+  createPasswordResetToken,
   createSession,
   createUser,
   deleteUser,
   getUserById,
+  getUserByLoginIdentifier,
   getSessionByTokenHash,
   getUserByUsername,
   getSetupStatus,
@@ -63,6 +66,7 @@ const { createCommercialPolicyService } = require("./services/commercial-policy-
 const { createControlPlaneClient } = require("./services/control-plane-client");
 const { createRecordsService } = require("./services/records-service");
 const { createWorkspaceConfigService } = require("./services/workspace-config-service");
+const { createMailService } = require("./services/mail-service");
 
 const app = express();
 app.disable("etag");
@@ -77,10 +81,21 @@ const commercialPolicyService = isPostgresMode
     getPostgresPool
   })
   : null;
+const mailService = createMailService(mailConfig);
 const authRouteDeps = {
+  consumePasswordResetToken,
   createSession,
+  createPasswordResetToken,
+  getUserByLoginIdentifier,
   getUserByUsername,
   isPostgresMode,
+  mailService,
+  passwordResetConfig: {
+    environmentLabel: mailConfig.environmentLabel,
+    publicBaseUrl: publicConfig.appBaseUrl,
+    supportEmail: mailConfig.supportEmail,
+    tokenTtlMinutes: Number(process.env.PASSWORD_RESET_TTL_MINUTES || 60)
+  },
   revokeSessionByTokenHash,
   sessionConfig,
   updateLastLogin
@@ -182,6 +197,8 @@ app.set("trust proxy", 1);
 applySecurityHeaders(app);
 applyCors(app, appConfig);
 app.use("/api/auth/login", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 }));
+app.use("/api/auth/password-reset/request", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 5 }));
+app.use("/api/auth/password-reset/complete", createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10 }));
 app.use("/api/setup/initialize", createRateLimiter({ windowMs: 60 * 60 * 1000, max: 5 }));
 app.use(express.json({ limit: "5mb" }));
 app.use("/api", (req, res, next) => {

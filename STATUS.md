@@ -1,86 +1,55 @@
 # Current Status
 
-Date: 2026-05-26
+Date: 2026-05-27
 
 ## Active Workstream
 
-Product/platform priorities on `saas-modern-redesign`.
+Forgot-password deployment and home lab production validation.
 
 ## Current Focus
 
-AWS migration buildout and production readiness.
+Prepare the forgot-password/login-refresh work for commit and push.
 
 ## Completed Recently
 
-- Production-safe hosted smoke credentials exist outside the repo.
-- Account Upgrade, Dormant Mode, Data Export, subscriber cancellation, Legal acceptance, Dashboard performance diagnostics, and Help Center polish are deployed, committed, and pushed.
-- Class configuration supports bulk enrollment, roster conflict warnings, and backend fixed-class conflict validation.
-- School Day scheduling reflows flexible courses around fixed classes, uses visible gaps before fixed classes, respects ordered Lunch/Recess placement, and has subtle bulk open-item actions.
-- School Years create balanced recommended quarters; Holiday/Break changes rebalance quarters when saved dates still match recommendations.
-- Course/Class edit actions scroll the top editor into view; Student Current Schedule has row-specific edit/cancel behavior.
-- `Independent Learning` is a protected system instructor option across Course, Class, School Day row edits, reports, dashboard filters, and grade filters.
-- Quick Start Help now uses the detailed setup guide; the prior version is saved at `web/help/quick-start-previous-20260522.md`.
-- Help Center has an `Open in Window` action.
-- Dashboard Attendance Open gauge opens School Day on the Attendance tab.
-- Tenant app has opt-in performance diagnostics enabled by `?perf=1`, recording API, hydration, and Dashboard timings to `window.__navigraderPerfMetrics`.
-- Added `scripts/Measure-HostedPerformance.ps1` for hosted endpoint timing, payload size, and row-count baselines.
-- Dashboard instructional-hours rendering now uses cached instructional-hour snapshots, cached daily scheduled blocks, indexed instruction/flex lookups, and cached compliance monthly series.
-- Dashboard Running Grade Average and Attendance status cards now classify against the same one-decimal value shown to users.
-- Added `RUNBOOKS/application-architecture.md` documenting browser, `WEB001`, `APP001`, and `SQL001` responsibilities.
-- Added `RUNBOOKS/aws-budget-migration.md` documenting the initial low-cost AWS plan that mirrors the lab server layout with `WEB001`, `APP001`, `SQL001`, and `MAINT001`.
-- Updated the AWS budget plan to include a temporary NAT instance for private-server updates and component downloads without an always-on NAT Gateway.
-- Adjusted the AWS plan so `MAINT001` is a public-subnet jumpbox locked to the administrator IP, with `APP001` and `SQL001` private-only.
-- Began AWS foundation build: created `navigrader-prod-vpc`, public/private subnets, S3 Gateway Endpoint, no NAT Gateway, security groups, and launched/updated `MAINT001`.
-- Launched `WEB001`, associated an Elastic IP, verified SSH through `MAINT001`, installed Apache, and verified local Apache response.
-- Launched `TEMP-NAT`, enabled temporary private-subnet egress, corrected `APP001` into the private subnet at `10.40.131.149`, verified NAT egress, and bootstrapped APP001 with base tools, Node/npm, and the `navigrader` service account/directories.
-- Launched `SQL001` in the private subnet at `10.40.138.78`, installed PostgreSQL 17, created `appdb`/`navigrader_app`, configured private PostgreSQL listening and APP001 `pg_hba.conf` access, and verified APP001 reaches password authentication.
-- Verified APP001-to-SQL001 login using the real `navigrader_app` password.
-- Created S3 backup bucket `navigrader-prod-backups-016365604963-us-east-2-an`, attached `navigrader-prod-sql001-backup-role` to SQL001, and verified SQL001 can list/upload under `postgres/` without access keys.
-- Added SQL001 logical backup script `/usr/local/sbin/navigrader-pg-dump-backup.sh`, uploaded first `appdb` dump/checksum to S3, verified restore into a temporary database, and scheduled daily root cron at `07:15 UTC`.
-- Configured WAL/PITR with pgBackRest 2.55.1 on SQL001 using S3 path `postgres/pgbackrest/`; `pgbackrest check` succeeded, first full backup `20260526-002743F` completed, and root cron schedules weekly full plus daily differential physical backups.
-- Expanded the AWS migration runbook with current resource state, audit/logging coverage, exact resume point, commercial go-live gates, post-go-live stabilization, and pause/shutdown guidance.
-- User reported pause/cost-control steps completed: temporary private subnet NAT route removed, `TEMP-NAT` terminated, servers stopped, manual initial EBS snapshots completed for all four AWS servers, and DLM policies `SQL001` plus `Core-Weekly` enabled.
-- Updated the Help Center `Account, Billing, and Data Export` article in `web/app.js` with detailed Account, Billing, Dormant Mode, Data Export, cancellation, password, sign-out, and FAQ guidance.
-- Deployed the expanded Help Center account article to WEB001 as `app.js?v=202605252122`.
-- AWS app deploy prep started: APP001 source/deps/env/systemd are installed, migrations completed, API services are active, WEB001 static/vhost is deployed, public `/health` plus `/control-api/health` pass at `http://18.188.35.157`, TEMP-NAT was removed, and `aws-validation.navigrader.com` Host-header tenant resolution works.
+- Built local password-reset request/complete screens and compact refreshed login styling.
+- Added tenant password-reset API endpoints, reset-token persistence, Postmark mail service/templates, and migration `032_password_reset_tokens.sql`.
+- Local reset UI/API checks passed; local hosted login works from `http://localhost:5500/web/`.
+- Deployed forgot-password/login refresh to home lab WEB001 and APP001.
+- Restored APP001 protected env from rollback after a merge hiccup, then re-added mail/reset settings without exposing secrets.
+- Applied migration `032_password_reset_tokens.sql` to lab Postgres.
+- Restarted `hsm-api.service`; APP001 local health passed.
+- Public health and reset endpoint checks passed at `https://mitchell.navigrader.com/`.
+- Postmark shows a hosted password-reset email for `admin` sent to `support@navigrader.com`.
+- User completed the hosted email reset flow and signed in successfully at `https://mitchell.navigrader.com/`.
+- Administrator users already require an email address in both the deployed UI and backend API; student users may omit email.
+- APP001 and WEB001 deployed file hashes match the local working tree for the password-recovery files.
+- Added `JOURNAL/2026-05-27.md` for the home lab password recovery deployment.
 
 ## Production State
 
-- Public SaaS assets:
-  - `saas.css?v=202605182130`
-  - `saas-polish.css?v=202605182130`
-  - `saas.js?v=202605182130`
+- Home lab production URL: `https://mitchell.navigrader.com/`
 - Tenant app assets:
-  - `app.js?v=202605252122`
-  - `styles.css?v=202605221245`
-- APP001 rollback:
-  - `/home/debian/rollback/hsm/independent-learning-instructor-202605202030/app001/server.tgz`
-- APP001 control-api rollback:
-  - `/home/debian/rollback/hsm/control-api-export-cleanup-202605201610/app001/control-api.tgz`
-- WEB001 latest rollback:
-  - `/var/www/home-school-management/rollback/web-help-account-202605252122.tgz`
+  - `app.js?v=202605271529`
+  - `styles.css?v=202605271537`
+- Mail mode: `allowlist_only`
+- Mail allowlist: `randy862@gmail.com`, `support@navigrader.com`
+- APP001 rollback: `/home/debian/rollback/hsm/forgot-password-20260527161035/app001/`
+- WEB001 rollback: `/var/www/home-school-management/rollback/web-forgot-password-20260527161035.tgz`
 
 ## Validation
 
-- Local checks passed:
-  - `node --check web/app.js`
-  - PowerShell parser check for `scripts/Measure-HostedPerformance.ps1`
-  - `git diff --check`
-- APP001 tenant migrations applied through `031_independent_learning_instructor.sql`.
-- WEB001 root returned HTTP 200.
-- Public `https://mitchell.navigrader.com/health` returned `{"ok":true}`.
-- Public `mitchell` and `smoketest` tenant roots reference `app.js?v=202605251234` and `styles.css?v=202605221245`.
-- Served tenant app JS contains `roundedStatusPercent`.
-- Served tenant app JS contains `hsm_perf_diagnostics`, `dashboard.render`, `instructionalHoursSnapshotCache`, `dashboardDailyBlocksCache`, `instructionActualsByKey`, `complianceMonthlySeriesCache`, `dashboard.buildComplianceMonthlySeries`, and `dashboard.renderInstructionHoursTrending`.
-- Full hosted release gate passed for `https://mitchell.navigrader.com` after the `app.js?v=202605242212` deployment.
-- Help Center account article validation passed:
-  - `node --check web/app.js`
-  - `git diff --check`
-  - WEB001 Apache config test and reload
-  - public `mitchell` and `smoketest` roots reference `app.js?v=202605252122`
-  - served tenant app JS contains `Account Menu Options`, `Dormant Mode is billed at`, `Request Data Export`, and `Keep Subscription Active`
-  - public `https://mitchell.navigrader.com/health` returned `{"ok":true}`
-- Full hosted release gate passed from the user's PowerShell session against `https://mitchell.navigrader.com`.
+- APP001 deployed JS syntax checks passed with `node --check`.
+- Home lab migration `032_password_reset_tokens.sql` applied successfully.
+- APP001 `hsm-api.service` restarted and is active.
+- APP001 local `/health` returned `{"ok":true}`.
+- Public `/health` returned HTTP 200.
+- Public root references `styles.css?v=202605271537` and `app.js?v=202605271529`.
+- Served app script contains `password-reset/request`.
+- Public reset request for `admin` returned generic success.
+- Postmark outbound status for message `9887bd1a-3070-44a1-81dd-84fb224cc95d` is `Sent`.
+- Hosted deployed code contains `emailInput.required = !needsStudent` and the server-side admin email validation message.
+- APP001 and WEB001 deployed SHA-256 hashes matched local files before commit.
 
 ## Current Blockers
 
@@ -88,12 +57,12 @@ AWS migration buildout and production readiness.
 
 ## Current Risks
 
-- Continue using smoke/test tenant data for mutating QA where possible.
-- Do not store smoke credentials or Stripe/Postmark secrets in repo files.
-- Untracked local scratch assets remain outside committed work.
+- Forgot-password/login refresh is deployed to the hosted lab but not yet committed or pushed.
+- The lab `admin` password should be reset to the user's desired value after validating the email flow.
+- Do not store Postmark, database, Stripe, or smoke credentials in repo files.
+- Untracked local scratch assets and `tmp/` remain outside the intended commit.
 
 ## Next Actions
 
-1. Point DNS or a local hosts-file entry for `aws-validation.navigrader.com` to `18.188.35.157`, then decide whether to initialize the validation tenant or wait for production data restore.
-2. Verify in the UI that a displayed `90.0%` Running Grade Average shows `Strong`.
-3. Keep the current Dashboard performance slice closed unless larger tenants expose new lag.
+1. Stage/commit/push the password-recovery and login refresh work while excluding scratch assets.
+2. Continue AWS commercial production migration work after this home lab checkpoint is committed.

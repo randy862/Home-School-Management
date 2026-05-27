@@ -1,9 +1,14 @@
 const STORAGE_KEY = "hsm_state_v2";
+if (window.location.hostname === "127.0.0.1" && window.location.port === "5500") {
+  window.location.replace(`http://localhost:5500${window.location.pathname}${window.location.search}${window.location.hash}`);
+}
 const IS_LOCAL_DEV_HOST = ["localhost", "127.0.0.1"].includes(window.location.hostname) && (window.location.port === "5500" || window.location.port === "");
 const API_BASE_URL = window.HSM_API_BASE_URL || (IS_LOCAL_DEV_HOST ? "http://localhost:3000" : window.location.origin);
 const LEGACY_STATE_BRIDGE_ENDPOINT = `${API_BASE_URL}/api/state`;
 const API_AUTH_LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login`;
 const API_AUTH_LOGOUT_ENDPOINT = `${API_BASE_URL}/api/auth/logout`;
+const API_PASSWORD_RESET_REQUEST_ENDPOINT = `${API_BASE_URL}/api/auth/password-reset/request`;
+const API_PASSWORD_RESET_COMPLETE_ENDPOINT = `${API_BASE_URL}/api/auth/password-reset/complete`;
 const API_ME_ENDPOINT = `${API_BASE_URL}/api/me`;
 const API_ACCOUNT_ENDPOINT = `${API_BASE_URL}/api/account`;
 const API_ACCOUNT_PROFILE_PHOTO_ENDPOINT = `${API_BASE_URL}/api/account/profile-photo`;
@@ -1617,6 +1622,11 @@ let editingSharedClassActualKey = "";
 let editingFlexBlockKey = "";
 let editingSearchAttendanceId = "";
 let editingSearchGradeId = "";
+const SEARCH_RESULTS_PAGE_SIZE = 100;
+let attendanceSearchPage = 1;
+let gradesSearchPage = 1;
+let authRecoveryMode = "login";
+let passwordResetToken = "";
 let editingUserId = "";
 let userViewMode = "list";
 let studentViewMode = "list";
@@ -4012,6 +4022,26 @@ async function loginWithBackend(username, password) {
   await hydrateHostedDomainState();
 }
 
+async function requestPasswordReset(identifier) {
+  const response = await authFetch(API_PASSWORD_RESET_REQUEST_ENDPOINT, {
+    method: "POST",
+    credentials: "omit",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier })
+  });
+  return parseApiResponse(response, `Password reset request failed (${response.status})`);
+}
+
+async function completePasswordReset(token, newPassword) {
+  const response = await authFetch(API_PASSWORD_RESET_COMPLETE_ENDPOINT, {
+    method: "POST",
+    credentials: "omit",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, newPassword })
+  });
+  return parseApiResponse(response, `Password reset failed (${response.status})`);
+}
+
 async function fetchHostedSetupStatus() {
   const response = await authFetch(API_SETUP_STATUS_ENDPOINT);
   if (!response.ok) throw new Error(`Setup status failed (${response.status})`);
@@ -4047,6 +4077,19 @@ function applySetupTokenFromLocation() {
     setupTokenInput.value = setupToken;
   }
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+}
+
+function applyPasswordResetTokenFromLocation() {
+  const hash = String(window.location.hash || "").replace(/^#/, "").trim();
+  if (!hash) return false;
+  const params = new URLSearchParams(hash);
+  const resetToken = String(params.get("resetToken") || "").trim();
+  if (!resetToken) return false;
+  passwordResetToken = resetToken;
+  authRecoveryMode = "reset";
+  setHostedModeEnabled(true);
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  return true;
 }
 
 async function bootstrapHostedSession() {
@@ -4163,6 +4206,22 @@ function resetLoginMessage() {
 function setLoginMessage(kind, message) {
   loginMessageKind = kind;
   setStatusMessage("login-message", kind, message);
+}
+
+function resetPasswordResetRequestMessage() {
+  setStatusMessage("password-reset-request-message", "", "");
+}
+
+function setPasswordResetRequestMessage(kind, message) {
+  setStatusMessage("password-reset-request-message", kind, message);
+}
+
+function resetPasswordResetCompleteMessage() {
+  setStatusMessage("password-reset-complete-message", "", "");
+}
+
+function setPasswordResetCompleteMessage(kind, message) {
+  setStatusMessage("password-reset-complete-message", kind, message);
 }
 
 function resetSetupMessage() {
@@ -4816,6 +4875,7 @@ function openAlertAction(alert) {
   }
   if (action.view === "grades-search") {
     currentGradesTab = "search";
+    gradesSearchPage = 1;
     activateTab("grades");
     const studentFilter = document.getElementById("grades-filter-student");
     const courseFilter = document.getElementById("grades-filter-course");
@@ -4828,6 +4888,7 @@ function openAlertAction(alert) {
   }
   if (action.view === "attendance-search") {
     currentAttendanceTab = "search";
+    attendanceSearchPage = 1;
     activateTab("attendance");
     const studentFilter = document.getElementById("attendance-filter-student");
     if (studentFilter && action.studentId) studentFilter.value = action.studentId;
@@ -4856,6 +4917,8 @@ function renderSessionChrome() {
   const loginShell = document.getElementById("login-shell");
   const appShell = document.getElementById("app-shell");
   const loginCard = document.getElementById("login-card");
+  const passwordResetRequestCard = document.getElementById("password-reset-request-card");
+  const passwordResetCompleteCard = document.getElementById("password-reset-complete-card");
   const restoreCard = document.getElementById("restore-card");
   const setupCard = document.getElementById("setup-card");
   const loginForm = document.getElementById("login-form");
@@ -4869,12 +4932,18 @@ function renderSessionChrome() {
   const userBanner = document.getElementById("users-default-admin-banner");
   const user = currentUser();
   const signedIn = !!user;
-  const showHostedSetup = hostedModeEnabled && hostedSetupChecked && !hostedSetupInitialized && !signedIn;
-  const showHostedResume = hostedModeEnabled && !signedIn && hostedSessionResumeHint && !showHostedSetup;
+  const showPasswordResetRequest = !signedIn && authRecoveryMode === "request";
+  const showPasswordResetComplete = !signedIn && authRecoveryMode === "reset";
+  const showRecovery = showPasswordResetRequest || showPasswordResetComplete;
+  const showHostedSetup = hostedModeEnabled && hostedSetupChecked && !hostedSetupInitialized && !signedIn && !showRecovery;
+  const showHostedResume = hostedModeEnabled && !signedIn && hostedSessionResumeHint && !showHostedSetup && !showRecovery;
 
+  document.body.classList.toggle("auth-screen-active", !signedIn);
   if (loginShell) loginShell.classList.toggle("hidden", signedIn);
   if (appShell) appShell.classList.toggle("hidden", !signedIn);
-  if (loginCard) loginCard.classList.toggle("hidden", showHostedSetup || showHostedResume);
+  if (loginCard) loginCard.classList.toggle("hidden", showHostedSetup || showHostedResume || showRecovery);
+  if (passwordResetRequestCard) passwordResetRequestCard.classList.toggle("hidden", !showPasswordResetRequest);
+  if (passwordResetCompleteCard) passwordResetCompleteCard.classList.toggle("hidden", !showPasswordResetComplete);
   if (restoreCard) restoreCard.classList.toggle("hidden", !showHostedResume);
   if (setupCard) setupCard.classList.toggle("hidden", !showHostedSetup);
   if (showHostedSetup) applySetupTokenFromLocation();
@@ -6423,6 +6492,7 @@ function refreshLocalPreviewSeedState() {
 window.HSM_REFRESH_PREVIEW_SEED = refreshLocalPreviewSeedState;
 
 async function bootstrapApplicationState() {
+  const hasPasswordResetToken = applyPasswordResetTokenFromLocation();
   if (hostedModeEnabled) {
     legacyBridgeSyncReady = false;
     hostedBootstrapInFlight = true;
@@ -6430,6 +6500,15 @@ async function bootstrapApplicationState() {
     try {
       const initialized = await fetchHostedSetupStatus();
       if (!initialized) {
+        currentUserId = "";
+        hostedSessionResumeHint = false;
+        saveSession();
+        resetLoginMessage();
+        resetSetupMessage();
+        renderAll();
+        return;
+      }
+      if (hasPasswordResetToken) {
         currentUserId = "";
         hostedSessionResumeHint = false;
         saveSession();
@@ -6468,6 +6547,12 @@ async function bootstrapApplicationState() {
     console.warn("Legacy bridge bootstrap skipped:", error.message);
   } finally {
     legacyBridgeSyncReady = true;
+    if (hasPasswordResetToken) {
+      currentUserId = "";
+      hostedSessionResumeHint = false;
+      saveSession();
+      renderSessionChrome();
+    }
   }
 }
 
@@ -12989,6 +13074,35 @@ function renderPlans() {
   if (cancelBtn) cancelBtn.classList.toggle("hidden", !editingPlanId);
 }
 
+function paginateSearchResults(records, requestedPage, pageSize = SEARCH_RESULTS_PAGE_SIZE) {
+  const total = records.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(Math.max(1, Number(requestedPage) || 1), pageCount);
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, total);
+  return {
+    page,
+    pageCount,
+    total,
+    startIndex,
+    endIndex,
+    records: records.slice(startIndex, endIndex)
+  };
+}
+
+function renderSearchPaginationRow(target, pageInfo, colspan) {
+  if (!pageInfo || pageInfo.pageCount <= 1) return "";
+  const from = pageInfo.total ? pageInfo.startIndex + 1 : 0;
+  const to = pageInfo.endIndex;
+  return `<tr class="search-pagination-row"><td colspan="${colspan}">
+    <div class="search-pagination-controls">
+      <button type="button" data-search-page-target="${target}" data-search-page="${pageInfo.page - 1}"${pageInfo.page <= 1 ? " disabled" : ""}>Previous</button>
+      <span>Records ${from.toLocaleString()}-${to.toLocaleString()} of ${pageInfo.total.toLocaleString()} | Page ${pageInfo.page.toLocaleString()} of ${pageInfo.pageCount.toLocaleString()}</span>
+      <button type="button" data-search-page-target="${target}" data-search-page="${pageInfo.page + 1}"${pageInfo.page >= pageInfo.pageCount ? " disabled" : ""}>Next</button>
+    </div>
+  </td></tr>`;
+}
+
 function renderAttendance() {
   const viewerStudentId = currentStudentId();
   const useSearchFilters = currentAttendanceTab === "search";
@@ -13008,10 +13122,12 @@ function renderAttendance() {
     return true;
   });
 
-  const rows = [...filtered]
-    .sort((a,b)=>b.date.localeCompare(a.date))
-    .slice(0,100)
-    .flatMap((a) => {
+  const sortedAttendance = [...filtered]
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  const attendancePageInfo = useSearchFilters ? paginateSearchResults(sortedAttendance, attendanceSearchPage) : null;
+  if (attendancePageInfo) attendanceSearchPage = attendancePageInfo.page;
+  const visibleAttendance = attendancePageInfo ? attendancePageInfo.records : sortedAttendance.slice(0,100);
+  const rows = visibleAttendance.flatMap((a) => {
       const actions = isAdminUser()
         ? `<button type='button' data-edit-attendance='${a.id}'>Edit</button> <button type='button' data-remove-attendance='${a.id}'>Remove</button>`
         : "View only";
@@ -13031,6 +13147,8 @@ function renderAttendance() {
       </tr>`;
       return [recordRow, editRow];
     });
+  const paginationRow = renderSearchPaginationRow("attendance", attendancePageInfo, 4);
+  if (paginationRow && rows.length) rows.push(paginationRow);
   rowOrEmpty(document.getElementById("attendance-table"), rows, "No attendance recorded yet.", 4);
 }
 
@@ -13700,10 +13818,12 @@ function renderTests() {
     return true;
   });
 
-  const rows = [...filtered]
-    .sort((a,b)=>b.date.localeCompare(a.date))
-    .slice(0,150)
-    .flatMap((t) => {
+  const sortedTests = [...filtered]
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  const testPageInfo = useSearchFilters ? paginateSearchResults(sortedTests, gradesSearchPage) : null;
+  if (testPageInfo) gradesSearchPage = testPageInfo.page;
+  const visibleTests = testPageInfo ? testPageInfo.records : sortedTests.slice(0,150);
+  const rows = visibleTests.flatMap((t) => {
       const gradeType = gradeTypeName(t);
       const actions = isAdminUser()
         ? `<button type='button' data-edit-grade='${t.id}'>Edit</button> <button type='button' data-remove-grade='${t.id}'>Remove</button>`
@@ -13725,6 +13845,8 @@ function renderTests() {
   if (rows.length) {
     rows.push(`<tr><td colspan="5"><strong>Average Grade</strong></td><td><strong>${avgGrade.toFixed(1)}%</strong></td><td></td></tr>`);
   }
+  const paginationRow = renderSearchPaginationRow("grades", testPageInfo, 7);
+  if (paginationRow && rows.length) rows.push(paginationRow);
   rowOrEmpty(document.getElementById("test-table"), rows, "No grades logged yet.", 7);
 }
 
@@ -14381,6 +14503,7 @@ function openSchoolDaySearchDestination({ studentId = "", subjectId = "", course
 
 function openStudentAttendanceSearch(studentId) {
   currentAttendanceTab = "search";
+  attendanceSearchPage = 1;
   activateTab("attendance");
   renderAttendanceSectionVisibility();
   const studentFilter = document.getElementById("attendance-filter-student");
@@ -14397,6 +14520,7 @@ function openStudentAttendanceSearch(studentId) {
 function openStudentGradeSearch(studentId) {
   gradesDashboardReturnContext = null;
   currentGradesTab = "search";
+  gradesSearchPage = 1;
   activateTab("grades");
   renderGradesSectionVisibility();
   const filterValues = {
@@ -14433,6 +14557,7 @@ function openSingleGradeRiskSearch() {
     ]
   };
   currentGradesTab = "search";
+  gradesSearchPage = 1;
   activateTab("grades");
   renderGradesSectionVisibility();
   const filterValues = {
@@ -14472,6 +14597,7 @@ function openAverageGradeRiskSearch({ studentId = "", courseId = "", subjectId =
     ].filter(Boolean)
   };
   currentGradesTab = "search";
+  gradesSearchPage = 1;
   activateTab("grades");
   renderGradesSectionVisibility();
   const filterValues = {
@@ -22642,6 +22768,76 @@ function bindEvents() {
     renderAll();
   });
 
+  document.getElementById("forgot-password-btn")?.addEventListener("click", () => {
+    setHostedModeEnabled(true);
+    authRecoveryMode = "request";
+    passwordResetToken = "";
+    resetLoginMessage();
+    resetPasswordResetRequestMessage();
+    renderSessionChrome();
+  });
+
+  document.getElementById("password-reset-request-cancel-btn")?.addEventListener("click", () => {
+    authRecoveryMode = "login";
+    passwordResetToken = "";
+    resetPasswordResetRequestMessage();
+    renderSessionChrome();
+  });
+
+  document.getElementById("password-reset-complete-cancel-btn")?.addEventListener("click", () => {
+    authRecoveryMode = "login";
+    passwordResetToken = "";
+    resetPasswordResetCompleteMessage();
+    renderSessionChrome();
+  });
+
+  document.getElementById("password-reset-request-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const identifier = document.getElementById("password-reset-identifier")?.value.trim() || "";
+    if (!identifier) {
+      setPasswordResetRequestMessage("error", "Enter your username or email address.");
+      return;
+    }
+    try {
+      await requestPasswordReset(identifier);
+      form.reset();
+      setPasswordResetRequestMessage("success", "If an account matches that information, a password reset link will be sent.");
+    } catch (error) {
+      setPasswordResetRequestMessage("error", error.message || "Unable to request a password reset.");
+    }
+  });
+
+  document.getElementById("password-reset-complete-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const newPassword = document.getElementById("password-reset-new-password")?.value || "";
+    const confirmPassword = document.getElementById("password-reset-confirm-password")?.value || "";
+    if (!passwordResetToken) {
+      setPasswordResetCompleteMessage("error", "This password reset link is missing or expired. Request a new link.");
+      return;
+    }
+    if (newPassword.length < 10) {
+      setPasswordResetCompleteMessage("error", "New password must be at least 10 characters long.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordResetCompleteMessage("error", "Passwords do not match.");
+      return;
+    }
+    try {
+      await completePasswordReset(passwordResetToken, newPassword);
+      form.reset();
+      setHostedModeEnabled(true);
+      authRecoveryMode = "login";
+      passwordResetToken = "";
+      setLoginMessage("success", "Password reset complete. Sign in with your new password.");
+      renderSessionChrome();
+    } catch (error) {
+      setPasswordResetCompleteMessage("error", error.message || "Unable to reset password.");
+    }
+  });
+
   const setupForm = document.getElementById("setup-form");
   if (setupForm) setupForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -24767,6 +24963,7 @@ function bindEvents() {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", () => {
       editingSearchAttendanceId = "";
+      attendanceSearchPage = 1;
       renderAttendance();
     });
   });
@@ -24782,6 +24979,7 @@ function bindEvents() {
       if (quarterFilter) quarterFilter.value = "all";
       if (statusFilter) statusFilter.value = "all";
       editingSearchAttendanceId = "";
+      attendanceSearchPage = 1;
       renderAttendance();
     });
   }
@@ -24803,6 +25001,7 @@ function bindEvents() {
     gradesFilterForm.addEventListener("submit", (e) => {
       e.preventDefault();
       editingSearchGradeId = "";
+      gradesSearchPage = 1;
       syncGradesFilterSubjectCourseOptions();
       renderTests();
     });
@@ -24812,6 +25011,7 @@ function bindEvents() {
       const el = document.getElementById(id);
       if (el) el.addEventListener("change", () => {
         editingSearchGradeId = "";
+        gradesSearchPage = 1;
         if (id === "grades-filter-student" || id === "grades-filter-subject" || id === "grades-filter-instructor") {
           syncGradesFilterSubjectCourseOptions();
         }
@@ -24842,6 +25042,7 @@ function bindEvents() {
           : "all";
       });
       editingSearchGradeId = "";
+      gradesSearchPage = 1;
       syncGradesFilterSubjectCourseOptions();
       renderTests();
     });
@@ -25757,6 +25958,7 @@ function bindEvents() {
     if (attendanceTab) {
       currentAttendanceTab = attendanceTab === "search" ? "search" : "enter";
       editingSearchAttendanceId = "";
+      attendanceSearchPage = 1;
       renderAttendanceSectionVisibility();
       renderAttendance();
       return;
@@ -25765,9 +25967,27 @@ function bindEvents() {
     if (gradesTab) {
       currentGradesTab = gradesTab === "search" ? "search" : "enter";
       editingSearchGradeId = "";
+      gradesSearchPage = 1;
       renderGradesSectionVisibility();
       renderTests();
       return;
+    }
+    const searchPageTarget = t.closest("[data-search-page-target]");
+    if (searchPageTarget instanceof HTMLElement) {
+      const target = searchPageTarget.getAttribute("data-search-page-target") || "";
+      const page = Math.max(1, Number(searchPageTarget.getAttribute("data-search-page")) || 1);
+      if (target === "attendance") {
+        attendanceSearchPage = page;
+        editingSearchAttendanceId = "";
+        renderAttendance();
+        return;
+      }
+      if (target === "grades") {
+        gradesSearchPage = page;
+        editingSearchGradeId = "";
+        renderTests();
+        return;
+      }
     }
     const studentDetailTab = t.getAttribute("data-student-detail-tab");
     if (studentDetailTab) {
@@ -25975,6 +26195,7 @@ function bindEvents() {
         if (el) el.value = "";
       });
       editingSearchGradeId = "";
+      gradesSearchPage = 1;
       syncGradesFilterSubjectCourseOptions();
       renderGradesSectionVisibility();
       renderTests();

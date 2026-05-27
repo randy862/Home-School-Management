@@ -225,6 +225,181 @@ body {
   justify-self: center;
 }
 
+body.auth-screen-active {
+  min-height: 100vh;
+  background: #f5f8fe;
+}
+
+body.auth-screen-active .auth-shell {
+  width: min(980px, calc(100vw - 2rem));
+  min-height: calc(100vh - 2rem);
+  margin: 1rem auto;
+  align-content: start;
+  gap: 1.65rem;
+}
+
+body.auth-screen-active .auth-top {
+  min-height: 92px;
+  padding: 0.8rem 1.35rem;
+  border: 1px solid #e2e9f5;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(31, 47, 69, 0.08);
+}
+
+body.auth-screen-active .auth-top .title-logo {
+  width: min(410px, 100%);
+  max-height: 74px;
+  object-fit: contain;
+}
+
+body.auth-screen-active .auth-panel {
+  width: min(100%, 380px);
+  max-width: 380px;
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.auth-screen-active .auth-card {
+  gap: 0.72rem;
+  width: 100%;
+  padding: 1.35rem 1.35rem 1.25rem;
+  border: 1px solid #e0e8f5;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 18px 38px rgba(31, 47, 69, 0.1);
+}
+
+body.auth-screen-active .auth-card h2 {
+  margin: 0;
+  color: #17243d;
+  font-size: 1.38rem;
+  line-height: 1.15;
+}
+
+body.auth-screen-active .auth-card .muted {
+  width: min(100%, 260px);
+  margin: 0.35rem auto 0;
+  color: #687895;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+body.auth-screen-active .auth-card-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: #edf2ff;
+}
+
+body.auth-screen-active .auth-card-icon img {
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
+}
+
+body.auth-screen-active .auth-form {
+  width: min(100%, 285px);
+  gap: 0.62rem;
+}
+
+body.auth-screen-active .auth-form label {
+  display: grid;
+  gap: 0.28rem;
+  color: #17243d;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+body.auth-screen-active .auth-input-shell {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+body.auth-screen-active .auth-input-shell img {
+  display: none;
+}
+
+body.auth-screen-active .auth-input-shell input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0.42rem 0.55rem;
+  border: 1px solid #bed1ff;
+  border-radius: 8px;
+  outline: 0;
+  background: #ffffff;
+  color: #17243d;
+  font-size: 0.88rem;
+  font-weight: 400;
+  box-shadow: none;
+}
+
+body.auth-screen-active .auth-input-shell input:focus {
+  border-color: #8eabff;
+  box-shadow: 0 0 0 2px rgba(49, 89, 255, 0.12);
+}
+
+body.auth-screen-active .auth-input-shell input::placeholder {
+  color: #7b89a3;
+}
+
+body.auth-screen-active .auth-form-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  min-height: 22px;
+}
+
+body.auth-screen-active .link-button {
+  border: 0;
+  background: transparent;
+  color: #244ee6;
+  padding: 0;
+  box-shadow: none;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+body.auth-screen-active .auth-primary-button,
+body.auth-screen-active .auth-secondary-button {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+body.auth-screen-active .auth-primary-button {
+  border-color: #244ee6;
+  background: linear-gradient(135deg, #3159ff, #1f3ec6);
+  color: #ffffff;
+  box-shadow: 0 14px 24px rgba(31, 79, 224, 0.22);
+}
+
+body.auth-screen-active .auth-secondary-button {
+  border: 1px solid #d8e2f2;
+  background: #f8fbff;
+  color: #39506d;
+  box-shadow: none;
+}
+
+body.auth-screen-active .status-text {
+  width: min(100%, 285px);
+  text-align: left;
+}
+
 .status-text {
   margin: 0;
   border-radius: 8px;
@@ -14990,6 +15165,35 @@ tbody tr:hover {
   box-shadow: none;
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+#app-shell .search-pagination-row td {
+  background: #f7f9fc;
+}
+
+#app-shell .search-pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  color: #5b6a80;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+#app-shell .search-pagination-controls button {
+  min-height: 32px;
+  padding: 0.36rem 0.7rem;
+  border-radius: 10px;
+  box-shadow: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+#app-shell .search-pagination-controls button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 #app-shell .attendance-section-filters {

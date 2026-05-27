@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605221245">
+  <link rel="stylesheet" href="styles.css?v=202605271537">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -15,19 +15,54 @@
 
     <section class="panel auth-panel">
       <div id="login-card" class="auth-card">
+        <div class="auth-card-icon" aria-hidden="true"><img src="assets/icons/secure-shield.svg" alt=""></div>
         <div>
-          <h2>Login</h2>
+          <h2>Welcome Back!</h2>
           <p class="muted">Sign in with your system user account to continue.</p>
         </div>
         <form id="login-form" class="grid-form auth-form">
-          <label>Username<input id="login-username" type="text" autocomplete="username" required></label>
-          <label>Password<input id="login-password" type="password" autocomplete="current-password" required></label>
-          <button type="submit">Sign In</button>
+          <label><span>Username</span><span class="auth-input-shell"><img src="assets/icons/user-round.svg" alt="" aria-hidden="true"><input id="login-username" type="text" autocomplete="username" placeholder="Enter your username" required></span></label>
+          <label><span>Password</span><span class="auth-input-shell"><img src="assets/icons/secure-shield.svg" alt="" aria-hidden="true"><input id="login-password" type="password" autocomplete="current-password" placeholder="Enter your password" required></span></label>
+          <div class="auth-form-secondary">
+            <span></span>
+            <button id="forgot-password-btn" class="link-button" type="button">Forgot password?</button>
+          </div>
+          <button class="auth-primary-button" type="submit">Sign In</button>
         </form>
         <p id="login-message" class="status-text hidden"></p>
       </div>
 
+      <div id="password-reset-request-card" class="auth-card hidden">
+        <div class="auth-card-icon" aria-hidden="true"><img src="assets/icons/mail.svg" alt=""></div>
+        <div>
+          <h2>Reset Password</h2>
+          <p class="muted">Enter your username or email address and we will send a reset link if the account can receive email.</p>
+        </div>
+        <form id="password-reset-request-form" class="grid-form auth-form">
+          <label><span>Username or Email</span><span class="auth-input-shell"><img src="assets/icons/user-round.svg" alt="" aria-hidden="true"><input id="password-reset-identifier" type="text" autocomplete="username" placeholder="Enter username or email" required></span></label>
+          <button class="auth-primary-button" type="submit">Send Reset Link</button>
+          <button id="password-reset-request-cancel-btn" class="auth-secondary-button" type="button">Back to Sign In</button>
+        </form>
+        <p id="password-reset-request-message" class="status-text hidden"></p>
+      </div>
+
+      <div id="password-reset-complete-card" class="auth-card hidden">
+        <div class="auth-card-icon" aria-hidden="true"><img src="assets/icons/secure-shield.svg" alt=""></div>
+        <div>
+          <h2>Create New Password</h2>
+          <p class="muted">Choose a new password for your Navigrader account.</p>
+        </div>
+        <form id="password-reset-complete-form" class="grid-form auth-form">
+          <label><span>New Password</span><span class="auth-input-shell"><img src="assets/icons/secure-shield.svg" alt="" aria-hidden="true"><input id="password-reset-new-password" type="password" autocomplete="new-password" placeholder="At least 10 characters" required></span></label>
+          <label><span>Confirm Password</span><span class="auth-input-shell"><img src="assets/icons/secure-shield.svg" alt="" aria-hidden="true"><input id="password-reset-confirm-password" type="password" autocomplete="new-password" placeholder="Re-enter new password" required></span></label>
+          <button class="auth-primary-button" type="submit">Reset Password</button>
+          <button id="password-reset-complete-cancel-btn" class="auth-secondary-button" type="button">Back to Sign In</button>
+        </form>
+        <p id="password-reset-complete-message" class="status-text hidden"></p>
+      </div>
+
       <div id="restore-card" class="auth-card hidden">
+        <div class="auth-card-icon" aria-hidden="true"><img src="assets/icons/cloud.svg" alt=""></div>
         <div>
           <h2>Restoring Session</h2>
           <p class="muted">Reconnecting to your hosted workspace and loading your tenant data.</p>
@@ -36,6 +71,7 @@
       </div>
 
       <div id="setup-card" class="auth-card hidden">
+        <div class="auth-card-icon" aria-hidden="true"><img src="assets/icons/secure-shield.svg" alt=""></div>
         <div>
           <h2>Initialize Hosted Admin</h2>
           <p class="muted">Use a one-time setup token to establish the first administrator account for this hosted deployment.</p>
@@ -2623,6 +2659,6 @@
       <div id="help-center-modal-body" class="account-modal-body help-center-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202605252122"></script>
+  <script src="app.js?v=202605271529"></script>
   </body>
   </html>

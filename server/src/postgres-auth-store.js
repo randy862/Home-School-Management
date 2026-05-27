@@ -45,6 +45,35 @@ async function getUserByUsername(username) {
   return mapUserRow(result.rows[0]);
 }
 
+async function getUserByLoginIdentifier(identifier) {
+  const pool = getPostgresPool();
+  const normalized = String(identifier || "").trim();
+  if (!normalized) return null;
+  const result = await pool.query(`
+    SELECT
+      id,
+      username,
+      role,
+      first_name,
+      last_name,
+      email,
+      phone,
+      profile_photo_data_url,
+      student_id,
+      must_change_password,
+      password_hash,
+      password_salt,
+      password_algorithm,
+      password_iterations
+    FROM users
+    WHERE lower(username) = lower($1)
+       OR lower(email) = lower($1)
+    ORDER BY CASE WHEN lower(username) = lower($1) THEN 0 ELSE 1 END, lower(username)
+    LIMIT 1
+  `, [normalized]);
+  return mapUserRow(result.rows[0]);
+}
+
 async function getUserById(id) {
   const pool = getPostgresPool();
   const result = await pool.query(`
@@ -314,6 +343,123 @@ async function updateLastLogin(userId) {
   `, [userId]);
 }
 
+async function createPasswordResetToken(userId, tokenHash, expiresAt, metadata = {}) {
+  const pool = getPostgresPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`
+      UPDATE password_reset_tokens
+      SET used_at = NOW()
+      WHERE user_id = $1
+        AND used_at IS NULL
+        AND expires_at > NOW()
+    `, [userId]);
+    await client.query(`
+      INSERT INTO password_reset_tokens (
+        id,
+        user_id,
+        token_hash,
+        expires_at,
+        requested_ip,
+        requested_user_agent
+      )
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+    `, [
+      userId,
+      tokenHash,
+      expiresAt,
+      metadata.requestedIp || null,
+      metadata.requestedUserAgent || null
+    ]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function consumePasswordResetToken(tokenHash, credentials) {
+  const pool = getPostgresPool();
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const tokenResult = await client.query(`
+      SELECT
+        t.id AS token_id,
+        t.user_id
+      FROM password_reset_tokens t
+      JOIN users u ON u.id = t.user_id
+      WHERE t.token_hash = $1
+        AND t.used_at IS NULL
+        AND t.expires_at > NOW()
+      LIMIT 1
+      FOR UPDATE OF t
+    `, [tokenHash]);
+    const token = tokenResult.rows[0];
+    if (!token) {
+      const error = new Error("Password reset link is invalid or expired.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const updateResult = await client.query(`
+      UPDATE users
+      SET
+        password_hash = $2,
+        password_salt = $3,
+        password_algorithm = $4,
+        password_iterations = $5,
+        must_change_password = FALSE,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING
+        id,
+        username,
+        role,
+        first_name AS "firstName",
+        last_name AS "lastName",
+        email,
+        phone,
+        profile_photo_data_url AS "profilePhotoDataUrl",
+        student_id AS "studentId",
+        must_change_password AS "mustChangePassword",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt",
+        last_login_at AS "lastLoginAt"
+    `, [
+      token.user_id,
+      credentials.passwordHash,
+      credentials.passwordSalt,
+      credentials.passwordAlgorithm,
+      credentials.passwordIterations
+    ]);
+
+    await client.query(`
+      UPDATE password_reset_tokens
+      SET used_at = NOW()
+      WHERE id = $1
+    `, [token.token_id]);
+
+    await client.query(`
+      UPDATE user_sessions
+      SET revoked_at = NOW()
+      WHERE user_id = $1
+        AND revoked_at IS NULL
+    `, [token.user_id]);
+
+    await client.query("COMMIT");
+    return updateResult.rows[0] || null;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function getSetupStatus() {
   const pool = getPostgresPool();
   const [runtimeResult, adminCountResult] = await Promise.all([
@@ -490,6 +636,8 @@ async function initializeSetup(user, setupTokenHash, sessionTokenHash, sessionEx
 
 module.exports = {
   countAdmins,
+  consumePasswordResetToken,
+  createPasswordResetToken,
   createUser,
   createSession,
   createSetupToken,
@@ -497,6 +645,7 @@ module.exports = {
   getSessionByTokenHash,
   getSetupStatus,
   getUserById,
+  getUserByLoginIdentifier,
   getUserByUsername,
   initializeSetup,
   listUsers,
