@@ -4,11 +4,18 @@ Date: 2026-05-27
 
 ## Context
 
-Home lab production tenant UI polish for Attendance Search and School Day filters.
+Home lab production checkpoint to carry forward into the AWS commercial production migration.
 
 ## Current State
 
 - Password recovery and login refresh were committed/pushed in `7031068 Add tenant password reset flow`.
+- Attendance Search and School Day filter polish were committed/pushed in `18a482f Polish attendance and school day filters`.
+- Home lab APP001/WEB001 are deployed and validated through `18a482f`.
+- AWS migration pickup must include both `7031068` and `18a482f`.
+- AWS APP001 needs the password reset backend/API/mail changes from `7031068`.
+- AWS SQL001 needs migration `032_password_reset_tokens.sql` after the database restore/tenant DB is ready.
+- AWS WEB001 needs web assets through `18a482f`, including the compact login/reset UI and filter polish.
+- AWS runtime env must set `PUBLIC_APP_BASE_URL` to the AWS domain and configure the tenant mail/Postmark values.
 - Attendance Search now uses `Start Date` and `End Date` filters instead of a single Date filter.
 - School Day Filters now use one grouped `Scheduled Item` filter for Classes, Courses, and Schedule Blocks.
 - School Day Scheduled Item dropdown uses compact two-line option rows with wider menu styling to avoid overlap.
@@ -21,7 +28,7 @@ Home lab production tenant UI polish for Attendance Search and School Day filter
 
 ## Next Action
 
-Stage, commit, and push the Attendance Search and School Day filter polish.
+Resume AWS migration by deploying/pulling `saas-modern-redesign` through `18a482f`, then run migration `032_password_reset_tokens.sql` and smoke the reset/login/filter flows.
 
 ## Risks
 
