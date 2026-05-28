@@ -4,7 +4,7 @@ Date: 2026-05-27
 
 ## Context
 
-Home lab production checkpoint to carry forward into the AWS commercial production migration.
+AWS commercial production migration checkpoint after deploying the current home lab code baseline.
 
 ## Current State
 
@@ -14,9 +14,10 @@ Home lab production checkpoint to carry forward into the AWS commercial producti
 - Past Due Schedule Items detail gauge was committed in `4f75edc Add past due schedule items gauge`.
 - Tenant-aware password reset links were committed in `a1e0810 Use tenant URL for password reset links`.
 - Home lab APP001 is deployed and validated through `a1e0810`; WEB001 is deployed and validated through `4f75edc`.
-- AWS migration pickup must include `7031068`, `18a482f`, `93a6ab8`, `4f75edc`, and `a1e0810`.
+- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
+- AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
+- AWS rollback bundle: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS APP001 needs the password reset backend/API/mail changes from `7031068` and tenant-aware reset link fix from `a1e0810`.
-- AWS SQL001 needs migration `032_password_reset_tokens.sql` after the database restore/tenant DB is ready.
 - AWS WEB001 needs web assets through `4f75edc`, including the compact login/reset UI, filter polish, Open Items Today gauge fix, and Past Due Schedule Items gauge.
 - AWS runtime env must set `PUBLIC_APP_BASE_URL` to the AWS domain and configure the tenant mail/Postmark values.
 - Attendance Search now uses `Start Date` and `End Date` filters instead of a single Date filter.
@@ -31,7 +32,7 @@ Home lab production checkpoint to carry forward into the AWS commercial producti
 
 ## Next Action
 
-Resume AWS migration by deploying/pulling `saas-modern-redesign` through `a1e0810` or later, then run migration `032_password_reset_tokens.sql` and smoke the reset/login/filter flows.
+Resume AWS validation by configuring/verifying AWS mail/runtime values, then initialize or restore tenant data and smoke reset/login/filter flows on `aws-validation.navigrader.com`.
 
 ## Risks
 
@@ -46,6 +47,9 @@ Resume AWS migration by deploying/pulling `saas-modern-redesign` through `a1e081
 - Open Items Today rollback: `/var/www/home-school-management/rollback/web-open-items-gauge-202605271851.tgz`
 - Past Due Schedule Items gauge rollback: `/var/www/home-school-management/rollback/web-past-due-schedule-gauge-202605271906.tgz`
 - Tenant-aware password reset link rollback: `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
+- AWS APP001 rollback: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/app001/server.tgz`
+- AWS WEB001 rollback: `/var/www/home-school-management/rollback/aws-cb7b057-202605272003/web001/web.tgz`
+- AWS SQL001 pre-migration schema backup: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/sql001/appdb-schema-before-032.sql`
 
 ## Validation
 
@@ -55,3 +59,5 @@ Resume AWS migration by deploying/pulling `saas-modern-redesign` through `a1e081
 - Served app script contains `attendance-filter-start-date`, `attendance-filter-end-date`, `school-day-scheduled-item-checkbox`, and `school-day-scheduled-option`.
 - Served app script contains `Past Due Schedule Items` and still excludes Past Due from the overview Open Items Today total and summary copy.
 - Deployed APP001 password reset URL assertion produces `https://pj-cool.navigrader.com/#resetToken=...` even when global config points at Mitchell.
+- AWS `http://18.188.35.157/health`, `/api/setup/status`, and `/control-api/health` returned HTTP 200 with Host `aws-validation.navigrader.com`.
+- AWS served app script contains `Past Due Schedule Items`, Attendance date filters, and School Day Scheduled Item markers.

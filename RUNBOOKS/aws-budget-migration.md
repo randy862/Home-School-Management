@@ -15,7 +15,7 @@ This is the launch-validation architecture. It is intended to prove whether the 
 
 ## Current AWS Build State
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 Region:
 
@@ -77,19 +77,23 @@ Deployment posture:
 - The temporary private route was removed again after dependency installation; `APP001` outbound internet now times out as expected.
 - AWS validation tenant host `aws-validation.navigrader.com` maps to tenant `tenant-aws-validation`, environment `env-aws-validation-production`, and schema `tenant_aws_validation`.
 - Host-header validation through `WEB001` returns tenant setup status and runtime resolution for `aws-validation.navigrader.com`.
+- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
+- AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
+- AWS rollback bundle root for this deploy: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 
 Completed pause/cost-control actions:
 
 - temporary private subnet route `0.0.0.0/0 -> TEMP-NAT ENI` removed
 - `TEMP-NAT` terminated
-- servers stopped for cost control while pausing AWS buildout
+- servers were stopped for cost control while pausing AWS buildout, then restarted for validation on 2026-05-27
 
 Immediate resume point:
 
-1. Point a temporary DNS record or local hosts-file entry for `aws-validation.navigrader.com` to AWS `WEB001` at `18.188.35.157`.
+1. Configure/verify AWS `PUBLIC_APP_BASE_URL`, tenant app base URLs, and Postmark/mail runtime values.
 2. Decide whether to initialize the validation tenant with a temporary admin or wait for production data restore.
 3. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
-4. Continue app validation and DNS/TLS planning.
+4. Smoke reset email tenant URL, login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
+5. Continue DNS/TLS planning.
 
 ## AWS Audit And Journaling Reality
 

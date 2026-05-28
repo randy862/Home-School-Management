@@ -8,7 +8,7 @@ AWS commercial production migration.
 
 ## Current Focus
 
-Carry the validated home lab password-reset and UI polish work into AWS.
+Validate AWS after deploying the current home lab password-reset and UI polish baseline.
 
 ## Completed Recently
 
@@ -17,6 +17,8 @@ Carry the validated home lab password-reset and UI polish work into AWS.
 - Open Items Today count/text fix was committed in `93a6ab8 Align open items count with visible buckets` and deployed to home lab WEB001.
 - Past Due Schedule Items detail gauge was committed in `4f75edc Add past due schedule items gauge` and deployed to home lab WEB001.
 - Tenant-aware password reset links were committed in `a1e0810 Use tenant URL for password reset links` and deployed to home lab APP001.
+- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
+- AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - Attendance Search now has `Start Date` and `End Date` filters, matching Grade Search behavior.
 - School Day Filters now use a grouped `Scheduled Item` filter that includes Classes, Courses, and Schedule Blocks.
 - Cleaned up the School Day Scheduled Item dropdown with compact two-line option rows and wider menu styling.
@@ -38,10 +40,9 @@ Carry the validated home lab password-reset and UI polish work into AWS.
 
 ## AWS Pickup
 
-- Deploy/pull branch `saas-modern-redesign` through `a1e0810` or later.
-- AWS APP001 needs password-reset backend/API/mail changes from `7031068` and tenant-aware reset link fix from `a1e0810`.
-- AWS SQL001 needs migration `032_password_reset_tokens.sql` after the database restore/tenant DB is ready.
-- AWS WEB001 needs web assets through `4f75edc`.
+- AWS APP001/WEB001 are deployed through `cb7b057`.
+- AWS SQL001 has migration `032_password_reset_tokens.sql` applied to existing schemas.
+- AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - Set `PUBLIC_APP_BASE_URL` to the AWS domain and configure tenant mail/Postmark runtime values.
 
 ## Validation
@@ -54,6 +55,8 @@ Carry the validated home lab password-reset and UI polish work into AWS.
 - Served app script contains `Past Due Schedule Items` and still excludes Past Due from the overview Open Items Today total and summary copy.
 - Deployed APP001 password reset URL assertion produces `https://pj-cool.navigrader.com/#resetToken=...` even when global config points at Mitchell.
 - WEB001 deployed SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
+- AWS public HTTP health, setup status, and control health returned HTTP 200 with Host `aws-validation.navigrader.com`.
+- AWS deployed tenant reset URL assertion produced `https://aws-validation.navigrader.com/#resetToken=...`.
 
 ## Current Blockers
 
@@ -66,6 +69,6 @@ Carry the validated home lab password-reset and UI polish work into AWS.
 
 ## Next Actions
 
-1. Resume AWS migration by updating AWS app code to `a1e0810` or later.
-2. Run migration `032_password_reset_tokens.sql` and configure AWS env/mail values.
-3. Smoke AWS health, reset email tenant URL, login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
+1. Configure/verify AWS `PUBLIC_APP_BASE_URL`, tenant app base URLs, and Postmark/mail runtime values.
+2. Initialize the AWS validation tenant or restore target tenant data.
+3. Smoke AWS reset email tenant URL, login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
