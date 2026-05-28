@@ -13,11 +13,11 @@ AWS commercial production migration checkpoint after deploying the current home 
 - Open Items Today count/text and Past Due Schedule Items gauges are committed in `93a6ab8` and `4f75edc`.
 - Home lab WEB001 restored the Schedule Items Open detail gauge in `0b66c4f`.
 - Grade Search now uses one grouped `Course/Class/Block` dropdown for Classes, Courses, and Schedule Blocks.
-- Home lab WEB001 is deployed with `styles.css?v=202605281030` and `app.js?v=202605281030`.
+- Home lab WEB001 is deployed with `styles.css?v=202605281045` and `app.js?v=202605281030`.
 - Public `https://mitchell.navigrader.com/health` returned HTTP 200 after deployment.
 - WEB001 deployed SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
 - AWS APP001/WEB001 were last updated from branch `saas-modern-redesign` at `cb7b057`.
-- AWS WEB001 still needs later web changes, including `0b66c4f` and the Grade Search `Course/Class/Block` filter commit from this session.
+- AWS WEB001 still needs later web changes, including `0b66c4f`, the Grade Search `Course/Class/Block` filter, and the dropdown clipping CSS hotfix.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS `awsadmin` password reset email delivery and reset-complete flow were validated successfully.
 - GoDaddy DNS points `aws-validation.navigrader.com` to AWS `18.188.35.157`.
@@ -37,6 +37,7 @@ Restart the needed AWS hosts if stopped, deploy AWS WEB001 from the latest branc
 ## Rollback
 
 - Grade Search `Course/Class/Block` rollback: `/home/debian/rollback/hsm/web-grade-search-scheduled-item-filter-202605281030/web001/web.tgz`
+- Grade Search dropdown clipping rollback: `/home/debian/rollback/hsm/web-grade-search-dropdown-clip-202605281045/web001/web.tgz`
 - Schedule Items Open gauge hotfix rollback: `/home/debian/rollback/hsm/web-open-items-schedule-card-202605280915/web001/web.tgz`
 - Tenant-aware password reset link rollback: `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
 - AWS APP001 rollback: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/app001/server.tgz`
@@ -49,8 +50,9 @@ Restart the needed AWS hosts if stopped, deploy AWS WEB001 from the latest branc
 
 - `node --check web/app.js` passed.
 - `git diff --check` passed with only LF/CRLF warnings.
-- Public root references `styles.css?v=202605281030` and `app.js?v=202605281030`.
+- Public root references `styles.css?v=202605281045` and `app.js?v=202605281030`.
 - Served app script contains Grade Search `Course/Class/Block`, Attendance date filters, School Day Scheduled Item markers, `Schedule Items Open`, and `Past Due Schedule Items`.
 - Served CSS contains Grade Search scheduled item dropdown styling.
+- Served CSS allows the Grade Search filter panel to overflow visibly so the dropdown is not clipped.
 - Public `https://mitchell.navigrader.com/health` returned HTTP 200.
 - AWS validation reset email was received and reset-complete succeeded before cost-control cleanup.

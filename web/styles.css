@@ -3260,7 +3260,7 @@ td {
 }
 
 .grades-filter-panel {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .grades-filter-panel > summary {
@@ -15497,7 +15497,7 @@ tbody tr:hover {
 
 #app-shell .grades-section-filters {
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 #app-shell .grades-filter-panel > summary {
