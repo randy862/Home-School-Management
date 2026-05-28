@@ -15542,7 +15542,7 @@ tbody tr:hover {
 }
 
 #app-shell #grades-filter-form {
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: end;
   gap: 0.55rem;
   margin: 0;
@@ -15550,10 +15550,15 @@ tbody tr:hover {
 }
 
 #app-shell #grades-filter-form label {
+  min-width: 0;
   color: #5b6a80;
   font-size: 0.88rem;
   font-weight: 600;
   letter-spacing: 0;
+}
+
+#app-shell #grades-filter-form .grades-filter-scheduled-item-field {
+  grid-column: 1;
 }
 
 #app-shell #grades-filter-form select {
