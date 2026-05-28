@@ -18801,6 +18801,14 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
         icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>`
       },
       {
+        key: "past-due",
+        label: "Past Due Schedule Items",
+        value: snapshot.pastDueCount,
+        quickFilter: "past-due",
+        note: `${snapshot.pastDueCount} scheduled item${snapshot.pastDueCount === 1 ? "" : "s"} past due for ${formatDisplayDate(snapshot.date)}.`,
+        icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M8 3 6 5"/><path d="m18 5-2-2"/></svg>`
+      },
+      {
         key: "grades",
         label: "Grades Open",
         value: snapshot.needsGradeCount,
