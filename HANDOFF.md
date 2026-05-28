@@ -19,23 +19,21 @@ AWS commercial production migration checkpoint after deploying the current home 
 - AWS rollback bundle: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS APP001 runtime/mail env was configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
 - AWS validation tenant was initialized with admin `awsadmin` and allowlisted email `randy862@gmail.com`.
-- Public DNS for `aws-validation.navigrader.com` still resolves to the home lab, not AWS; add a hosts override or change DNS before clicking reset links.
-- AWS APP001 needs the password reset backend/API/mail changes from `7031068` and tenant-aware reset link fix from `a1e0810`.
-- AWS WEB001 needs web assets through `4f75edc`, including the compact login/reset UI, filter polish, Open Items Today gauge fix, and Past Due Schedule Items gauge.
-- AWS runtime env must set `PUBLIC_APP_BASE_URL` to the AWS domain and configure the tenant mail/Postmark values.
+- Public DNS `aws-validation.navigrader.com` now has an A record to AWS `18.188.35.157`; a temporary Windows hosts override was also added for immediate local validation.
+- Temporary AWS NAT Gateway `navigrader-temp-private-egress` is active and private route table `rtb-01e7fa93185f5ddf` has `0.0.0.0/0` routed to it.
+- AWS APP001 CORS now allows `http://aws-validation.navigrader.com`; rollback env backup: `/home/admin/rollback/hsm/aws-validation-cors-202605280150/app001/hsm-api.env.before`.
+- AWS `awsadmin` password reset email delivery and reset-complete flow were validated successfully.
 - Attendance Search now uses `Start Date` and `End Date` filters instead of a single Date filter.
 - School Day Filters now use one grouped `Scheduled Item` filter for Classes, Courses, and Schedule Blocks.
 - School Day Scheduled Item dropdown uses compact two-line option rows with wider menu styling to avoid overlap.
-- Home lab WEB001 is deployed with:
-  - `app.js?v=202605271906`
-  - `styles.css?v=202605271700`
+- Home lab WEB001 is deployed with `app.js?v=202605271906` and `styles.css?v=202605271700`.
 - Public `https://mitchell.navigrader.com/health` returned HTTP 200.
 - WEB001 deployed SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
 - Journal entry updated at `JOURNAL/2026-05-27.md`.
 
 ## Next Action
 
-Resume AWS validation by pointing `aws-validation.navigrader.com` to AWS `18.188.35.157`, then request a reset for `awsadmin` and smoke reset/login/filter flows.
+Tear down temporary AWS NAT Gateway egress after any final smoke checks: remove the private `0.0.0.0/0` NAT route, delete `navigrader-temp-private-egress`, release its Elastic IP, and remove the local Windows hosts override once DNS resolves normally. If EC2 instances were stopped for cost control, restart the needed AWS hosts before smoke testing.
 
 ## Risks
 
@@ -68,3 +66,5 @@ Resume AWS validation by pointing `aws-validation.navigrader.com` to AWS `18.188
 - AWS served app script contains `Past Due Schedule Items`, Attendance date filters, and School Day Scheduled Item markers.
 - AWS tenant API/control API env summaries show Postmark tokens set, `allowlist_only`, and `PUBLIC_APP_BASE_URL=http://aws-validation.navigrader.com`.
 - AWS setup status now returns `{"initialized":true}` for Host `aws-validation.navigrader.com`.
+- AWS APP001 reached Postmark after temporary NAT Gateway routing.
+- AWS validation reset email was received and the password reset completed successfully.

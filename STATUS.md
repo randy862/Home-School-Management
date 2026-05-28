@@ -8,7 +8,7 @@ AWS commercial production migration.
 
 ## Current Focus
 
-Validate AWS after deploying the current home lab password-reset and UI polish baseline.
+Finish AWS validation cleanup after successful password-reset smoke.
 
 ## Completed Recently
 
@@ -21,6 +21,10 @@ Validate AWS after deploying the current home lab password-reset and UI polish b
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS APP001 runtime/mail env was configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
 - AWS validation tenant was initialized with admin `awsadmin` and email `randy862@gmail.com`.
+- GoDaddy DNS now points `aws-validation.navigrader.com` to AWS `18.188.35.157`.
+- Temporary NAT Gateway egress was added so APP001 could reach Postmark.
+- AWS APP001 CORS now allows `http://aws-validation.navigrader.com`.
+- AWS validation reset email was received and the reset-complete flow succeeded.
 - Attendance Search now has `Start Date` and `End Date` filters, matching Grade Search behavior.
 - School Day Filters now use a grouped `Scheduled Item` filter that includes Classes, Courses, and Schedule Blocks.
 - Cleaned up the School Day Scheduled Item dropdown with compact two-line option rows and wider menu styling.
@@ -47,7 +51,8 @@ Validate AWS after deploying the current home lab password-reset and UI polish b
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
 - AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`.
-- Public DNS for `aws-validation.navigrader.com` still points to the home lab; use DNS or hosts override before clicking reset links.
+- AWS validation CORS env rollback: `/home/admin/rollback/hsm/aws-validation-cors-202605280150/app001/hsm-api.env.before`.
+- Temporary NAT Gateway `navigrader-temp-private-egress` is active for validation and should be deleted after final checks.
 
 ## Validation
 
@@ -63,6 +68,8 @@ Validate AWS after deploying the current home lab password-reset and UI polish b
 - AWS deployed tenant reset URL assertion produced `https://aws-validation.navigrader.com/#resetToken=...`.
 - AWS tenant API/control API env summaries show Postmark tokens set, `allowlist_only`, and `PUBLIC_APP_BASE_URL=http://aws-validation.navigrader.com`.
 - AWS setup status now returns initialized true for Host `aws-validation.navigrader.com`.
+- APP001 reached Postmark through the temporary NAT Gateway.
+- AWS validation password reset email was received and reset-complete succeeded.
 
 ## Current Blockers
 
@@ -75,6 +82,8 @@ Validate AWS after deploying the current home lab password-reset and UI polish b
 
 ## Next Actions
 
-1. Point `aws-validation.navigrader.com` to AWS `18.188.35.157` by DNS or temporary hosts override.
-2. Request a forgot-password email for `awsadmin` and confirm the reset link opens AWS.
-3. Smoke AWS login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
+1. Remove private route table `0.0.0.0/0 -> navigrader-temp-private-egress`.
+2. Delete NAT Gateway `navigrader-temp-private-egress` and release its Elastic IP.
+3. Remove the temporary Windows hosts override once local DNS resolves `aws-validation.navigrader.com` normally.
+4. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
+5. Smoke AWS login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
