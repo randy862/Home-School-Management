@@ -12,6 +12,7 @@ AWS commercial production migration checkpoint after deploying the current home 
 - Attendance Search and School Day filter polish were committed/pushed in `18a482f Polish attendance and school day filters`.
 - Open Items Today count/text fix was committed in `93a6ab8 Align open items count with visible buckets`.
 - Past Due Schedule Items detail gauge was committed in `4f75edc Add past due schedule items gauge`.
+- Home lab WEB001 hotfix restored the `Schedule Items Open` detail gauge beside the Past Due gauge.
 - Tenant-aware password reset links were committed in `a1e0810 Use tenant URL for password reset links`.
 - Home lab APP001 is deployed and validated through `a1e0810`; WEB001 is deployed and validated through `4f75edc`.
 - AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
@@ -27,7 +28,7 @@ AWS commercial production migration checkpoint after deploying the current home 
 - Attendance Search now uses `Start Date` and `End Date` filters instead of a single Date filter.
 - School Day Filters now use one grouped `Scheduled Item` filter for Classes, Courses, and Schedule Blocks.
 - School Day Scheduled Item dropdown uses compact two-line option rows with wider menu styling to avoid overlap.
-- Home lab WEB001 is deployed with `app.js?v=202605271906` and `styles.css?v=202605271700`.
+- Home lab WEB001 is deployed with `app.js?v=202605280915` and `styles.css?v=202605271700`.
 - Public `https://mitchell.navigrader.com/health` returned HTTP 200.
 - WEB001 deployed SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
 - Journal entry updated at `JOURNAL/2026-05-27.md`.
@@ -48,6 +49,7 @@ If EC2 instances were stopped for cost control, restart the needed AWS hosts and
 - School Day dropdown cleanup rollback: `/var/www/home-school-management/rollback/web-school-day-scheduled-item-cleanup-202605271700.tgz`
 - Open Items Today rollback: `/var/www/home-school-management/rollback/web-open-items-gauge-202605271851.tgz`
 - Past Due Schedule Items gauge rollback: `/var/www/home-school-management/rollback/web-past-due-schedule-gauge-202605271906.tgz`
+- Schedule Items Open gauge hotfix rollback: `/home/debian/rollback/hsm/web-open-items-schedule-card-202605280915/web001/web.tgz`
 - Tenant-aware password reset link rollback: `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
 - AWS APP001 rollback: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/app001/server.tgz`
 - AWS WEB001 rollback: `/var/www/home-school-management/rollback/aws-cb7b057-202605272003/web001/web.tgz`
@@ -61,7 +63,7 @@ If EC2 instances were stopped for cost control, restart the needed AWS hosts and
 - `git diff --check`
 - Public root references `styles.css?v=202605271700` and `app.js?v=202605271906`.
 - Served app script contains `attendance-filter-start-date`, `attendance-filter-end-date`, `school-day-scheduled-item-checkbox`, and `school-day-scheduled-option`.
-- Served app script contains `Past Due Schedule Items` and still excludes Past Due from the overview Open Items Today total and summary copy.
+- Served app script contains `Schedule Items Open` and `Past Due Schedule Items`, and still excludes Past Due from the overview Open Items Today total and summary copy.
 - Deployed APP001 password reset URL assertion produces `https://pj-cool.navigrader.com/#resetToken=...` even when global config points at Mitchell.
 - AWS `http://18.188.35.157/health`, `/api/setup/status`, and `/control-api/health` returned HTTP 200 with Host `aws-validation.navigrader.com`.
 - AWS served app script contains `Past Due Schedule Items`, Attendance date filters, and School Day Scheduled Item markers.

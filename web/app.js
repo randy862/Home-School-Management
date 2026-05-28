@@ -18801,6 +18801,14 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
         icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>`
       },
       {
+        key: "classes",
+        label: "Schedule Items Open",
+        value: snapshot.needsCompletionCount,
+        quickFilter: "needs-completion",
+        note: `${snapshot.needsCompletionCount} scheduled item${snapshot.needsCompletionCount === 1 ? "" : "s"} still open for ${formatDisplayDate(snapshot.date)}.`,
+        icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M8 7h8"/><path d="M8 11h5"/><path d="M16 14l3 3"/><path d="m19 14-3 3"/></svg>`
+      },
+      {
         key: "past-due",
         label: "Past Due Schedule Items",
         value: snapshot.pastDueCount,

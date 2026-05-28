@@ -16,6 +16,7 @@ Resume AWS go-live readiness after successful validation and cost-control cleanu
 - Attendance Search and School Day filter polish were committed/pushed in `18a482f Polish attendance and school day filters`.
 - Open Items Today count/text fix was committed in `93a6ab8 Align open items count with visible buckets` and deployed to home lab WEB001.
 - Past Due Schedule Items detail gauge was committed in `4f75edc Add past due schedule items gauge` and deployed to home lab WEB001.
+- Restored the missing home lab `Schedule Items Open` detail gauge and deployed `app.js?v=202605280915`.
 - Tenant-aware password reset links were committed in `a1e0810 Use tenant URL for password reset links` and deployed to home lab APP001.
 - AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
@@ -37,13 +38,14 @@ Resume AWS go-live readiness after successful validation and cost-control cleanu
 
 - Home lab production URL: `https://mitchell.navigrader.com/`
 - Tenant app assets:
-  - `app.js?v=202605271906`
+  - `app.js?v=202605280915`
   - `styles.css?v=202605271700`
 - WEB001 Attendance Search rollback: `/var/www/home-school-management/rollback/web-attendance-date-range-202605271635.tgz`
 - WEB001 School Day Scheduled Item rollback: `/var/www/home-school-management/rollback/web-school-day-scheduled-item-filter-202605271655.tgz`
 - WEB001 School Day dropdown cleanup rollback: `/var/www/home-school-management/rollback/web-school-day-scheduled-item-cleanup-202605271700.tgz`
 - WEB001 Open Items Today rollback: `/var/www/home-school-management/rollback/web-open-items-gauge-202605271851.tgz`
 - WEB001 Past Due Schedule Items gauge rollback: `/var/www/home-school-management/rollback/web-past-due-schedule-gauge-202605271906.tgz`
+- WEB001 Schedule Items Open gauge hotfix rollback: `/home/debian/rollback/hsm/web-open-items-schedule-card-202605280915/web001/web.tgz`
 - APP001 tenant-aware password reset link rollback: `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
 
 ## AWS Pickup
@@ -61,9 +63,9 @@ Resume AWS go-live readiness after successful validation and cost-control cleanu
 - `node --check web/app.js` passed.
 - `git diff --check` passed.
 - Public `https://mitchell.navigrader.com/health` returned HTTP 200.
-- Public root references `styles.css?v=202605271700` and `app.js?v=202605271906`.
+- Public root references `styles.css?v=202605271700` and `app.js?v=202605280915`.
 - Served app script contains `attendance-filter-start-date`, `attendance-filter-end-date`, `school-day-scheduled-item-checkbox`, and `school-day-scheduled-option`.
-- Served app script contains `Past Due Schedule Items` and still excludes Past Due from the overview Open Items Today total and summary copy.
+- Served app script contains `Schedule Items Open` and `Past Due Schedule Items`, and still excludes Past Due from the overview Open Items Today total and summary copy.
 - Deployed APP001 password reset URL assertion produces `https://pj-cool.navigrader.com/#resetToken=...` even when global config points at Mitchell.
 - WEB001 deployed SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
 - AWS public HTTP health, setup status, and control health returned HTTP 200 with Host `aws-validation.navigrader.com`.
