@@ -199,9 +199,23 @@ function passwordResetTtlMinutes(config = {}) {
 function buildPasswordResetUrl(req, token, config = {}) {
   const configuredBaseUrl = String(config.publicBaseUrl || "").trim();
   const tenantRuntimeBaseUrl = String(req.tenantRuntime?.appBaseUrl || "").trim();
-  const requestBaseUrl = `${req.protocol}://${req.get("host")}`;
-  const baseUrl = (configuredBaseUrl || tenantRuntimeBaseUrl || requestBaseUrl).replace(/\/+$/, "");
+  const requestBaseUrl = buildRequestBaseUrl(req);
+  const baseUrl = (tenantRuntimeBaseUrl || requestBaseUrl || configuredBaseUrl).replace(/\/+$/, "");
   return `${baseUrl}/#resetToken=${encodeURIComponent(token)}`;
+}
+
+function buildRequestBaseUrl(req) {
+  const host = firstHeaderValue(req.headers?.["x-forwarded-host"] || req.get?.("host") || req.headers?.host);
+  if (!host) return "";
+  const protocol = firstHeaderValue(req.headers?.["x-forwarded-proto"] || req.protocol || "https").toLowerCase() === "http"
+    ? "http"
+    : "https";
+  return `${protocol}://${host}`;
+}
+
+function firstHeaderValue(value) {
+  const source = Array.isArray(value) ? value[0] : value;
+  return String(source || "").split(",")[0].trim();
 }
 
 function isProduction() {
@@ -220,5 +234,6 @@ function sendRouteError(res, error) {
 }
 
 module.exports = {
+  buildPasswordResetUrl,
   registerAuthRoutes
 };
