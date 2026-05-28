@@ -4,71 +4,53 @@ Date: 2026-05-28
 
 ## Context
 
-AWS commercial production migration checkpoint after deploying the current home lab code baseline.
+AWS commercial production migration checkpoint after deploying the current home lab web baseline.
 
 ## Current State
 
-- Password recovery and login refresh were committed/pushed in `7031068 Add tenant password reset flow`.
-- Attendance Search and School Day filter polish were committed/pushed in `18a482f Polish attendance and school day filters`.
-- Open Items Today count/text fix was committed in `93a6ab8 Align open items count with visible buckets`.
-- Past Due Schedule Items detail gauge was committed in `4f75edc Add past due schedule items gauge`.
-- Home lab WEB001 hotfix restored the `Schedule Items Open` detail gauge beside the Past Due gauge.
-- Tenant-aware password reset links were committed in `a1e0810 Use tenant URL for password reset links`.
-- Home lab APP001 is deployed and validated through `a1e0810`; WEB001 is deployed and validated through `4f75edc`.
-- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`; AWS WEB001 still needs the later `0b66c4f` web hotfix before go-live validation.
-- AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
-- AWS rollback bundle: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
-- AWS APP001 runtime/mail env was configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
-- AWS validation tenant was initialized with admin `awsadmin` and allowlisted email `randy862@gmail.com`.
-- Public DNS `aws-validation.navigrader.com` now has an A record to AWS `18.188.35.157`; a temporary Windows hosts override was also added for immediate local validation.
-- Temporary AWS NAT Gateway cleanup is complete: private `0.0.0.0/0` NAT route removed, `navigrader-temp-private-egress` deleted, and temporary Elastic IP released.
-- Temporary Windows hosts override for `aws-validation.navigrader.com` was removed after normal DNS resolved AWS `18.188.35.157`.
-- AWS APP001 CORS now allows `http://aws-validation.navigrader.com`; rollback env backup: `/home/admin/rollback/hsm/aws-validation-cors-202605280150/app001/hsm-api.env.before`.
-- AWS `awsadmin` password reset email delivery and reset-complete flow were validated successfully.
-- Attendance Search now uses `Start Date` and `End Date` filters instead of a single Date filter.
-- School Day Filters now use one grouped `Scheduled Item` filter for Classes, Courses, and Schedule Blocks.
-- School Day Scheduled Item dropdown uses compact two-line option rows with wider menu styling to avoid overlap.
-- Home lab WEB001 is deployed with `app.js?v=202605280915` and `styles.css?v=202605271700`.
-- Public `https://mitchell.navigrader.com/health` returned HTTP 200.
+- Password recovery/login refresh is committed in `7031068`; tenant-aware reset URLs are committed in `a1e0810` and deployed to home lab APP001.
+- Attendance Search date range and School Day grouped Scheduled Item filter are committed in `18a482f`.
+- Open Items Today count/text and Past Due Schedule Items gauges are committed in `93a6ab8` and `4f75edc`.
+- Home lab WEB001 restored the Schedule Items Open detail gauge in `0b66c4f`.
+- Grade Search now uses one grouped `Course/Class/Block` dropdown for Classes, Courses, and Schedule Blocks.
+- Home lab WEB001 is deployed with `styles.css?v=202605281030` and `app.js?v=202605281030`.
+- Public `https://mitchell.navigrader.com/health` returned HTTP 200 after deployment.
 - WEB001 deployed SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
-- Journal entry updated at `JOURNAL/2026-05-27.md`.
+- AWS APP001/WEB001 were last updated from branch `saas-modern-redesign` at `cb7b057`.
+- AWS WEB001 still needs later web changes, including `0b66c4f` and the Grade Search `Course/Class/Block` filter commit from this session.
+- AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
+- AWS `awsadmin` password reset email delivery and reset-complete flow were validated successfully.
+- GoDaddy DNS points `aws-validation.navigrader.com` to AWS `18.188.35.157`.
+- Temporary AWS NAT Gateway cleanup is complete: private NAT route removed, gateway deleted, temporary Elastic IP released.
+- AWS APP001 CORS allows `http://aws-validation.navigrader.com`; env rollback is `/home/admin/rollback/hsm/aws-validation-cors-202605280150/app001/hsm-api.env.before`.
+- Journal entry updated at `JOURNAL/2026-05-28.md`.
 
 ## Next Action
 
-If EC2 instances were stopped for cost control, restart the needed AWS hosts, deploy WEB001 web assets through `0b66c4f`, and smoke AWS login, filters, dashboard gauges, and control/API health. Continue DNS/TLS planning.
+Restart the needed AWS hosts if stopped, deploy AWS WEB001 from the latest branch, then smoke AWS login, password reset, Attendance Search, School Day Scheduled Item filtering, Grade Search `Course/Class/Block` filtering, dashboard gauges, and health endpoints.
 
 ## Risks
 
 - Keep Postmark, database, Stripe, smoke credentials, and runtime env files out of the repo.
-- Untracked scratch screenshots/icons and `tmp/` remain local and should stay out of this commit.
+- Untracked scratch screenshots/icons and `tmp/` remain local and should stay out of commits.
 
 ## Rollback
 
-- Attendance Search rollback: `/var/www/home-school-management/rollback/web-attendance-date-range-202605271635.tgz`
-- School Day Scheduled Item rollback: `/var/www/home-school-management/rollback/web-school-day-scheduled-item-filter-202605271655.tgz`
-- School Day dropdown cleanup rollback: `/var/www/home-school-management/rollback/web-school-day-scheduled-item-cleanup-202605271700.tgz`
-- Open Items Today rollback: `/var/www/home-school-management/rollback/web-open-items-gauge-202605271851.tgz`
-- Past Due Schedule Items gauge rollback: `/var/www/home-school-management/rollback/web-past-due-schedule-gauge-202605271906.tgz`
+- Grade Search `Course/Class/Block` rollback: `/home/debian/rollback/hsm/web-grade-search-scheduled-item-filter-202605281030/web001/web.tgz`
 - Schedule Items Open gauge hotfix rollback: `/home/debian/rollback/hsm/web-open-items-schedule-card-202605280915/web001/web.tgz`
 - Tenant-aware password reset link rollback: `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
 - AWS APP001 rollback: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/app001/server.tgz`
 - AWS WEB001 rollback: `/var/www/home-school-management/rollback/aws-cb7b057-202605272003/web001/web.tgz`
 - AWS SQL001 pre-migration schema backup: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/sql001/appdb-schema-before-032.sql`
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`
-- AWS validation tenant init data backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`
+- AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`
 
 ## Validation
 
-- `node --check web/app.js`
-- `git diff --check`
-- Public root references `styles.css?v=202605271700` and `app.js?v=202605271906`.
-- Served app script contains `attendance-filter-start-date`, `attendance-filter-end-date`, `school-day-scheduled-item-checkbox`, and `school-day-scheduled-option`.
-- Served app script contains `Schedule Items Open` and `Past Due Schedule Items`, and still excludes Past Due from the overview Open Items Today total and summary copy.
-- Deployed APP001 password reset URL assertion produces `https://pj-cool.navigrader.com/#resetToken=...` even when global config points at Mitchell.
-- AWS `http://18.188.35.157/health`, `/api/setup/status`, and `/control-api/health` returned HTTP 200 with Host `aws-validation.navigrader.com`.
-- AWS served app script contains `Past Due Schedule Items`, Attendance date filters, and School Day Scheduled Item markers.
-- AWS tenant API/control API env summaries show Postmark tokens set, `allowlist_only`, and `PUBLIC_APP_BASE_URL=http://aws-validation.navigrader.com`.
-- AWS setup status now returns `{"initialized":true}` for Host `aws-validation.navigrader.com`.
-- AWS APP001 reached Postmark after temporary NAT Gateway routing.
-- AWS validation reset email was received and the password reset completed successfully.
-- Normal Windows DNS now resolves `aws-validation.navigrader.com` to `18.188.35.157` without a hosts override.
+- `node --check web/app.js` passed.
+- `git diff --check` passed with only LF/CRLF warnings.
+- Public root references `styles.css?v=202605281030` and `app.js?v=202605281030`.
+- Served app script contains Grade Search `Course/Class/Block`, Attendance date filters, School Day Scheduled Item markers, `Schedule Items Open`, and `Past Due Schedule Items`.
+- Served CSS contains Grade Search scheduled item dropdown styling.
+- Public `https://mitchell.navigrader.com/health` returned HTTP 200.
+- AWS validation reset email was received and reset-complete succeeded before cost-control cleanup.

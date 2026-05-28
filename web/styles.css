@@ -15565,6 +15565,85 @@ tbody tr:hover {
   font-weight: 400;
 }
 
+#app-shell #grades-filter-form .multi-select-dropdown {
+  position: relative;
+  overflow: visible;
+  width: 100%;
+  min-height: 34px;
+  border-color: #cbd8ea;
+  border-radius: 12px;
+}
+
+#app-shell #grades-filter-form .multi-select-dropdown summary {
+  width: 100%;
+  min-height: 34px;
+  overflow: hidden;
+  border-radius: 12px;
+  color: #17243d;
+  font-weight: 400;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#app-shell #grades-filter-form .multi-select-dropdown[open] {
+  z-index: 30;
+}
+
+#app-shell #grades-filter-form #grades-filter-scheduled-item-dropdown[open] .checklist-vertical {
+  display: block;
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  width: min(540px, 78vw);
+  max-width: min(540px, 78vw);
+  max-height: 320px;
+  gap: 0;
+  margin-top: 0;
+  padding: 0.45rem;
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid var(--edge-strong);
+  border-radius: 14px;
+  box-shadow: 0 16px 32px rgba(26, 44, 69, 0.16);
+  z-index: 40;
+}
+
+#app-shell #grades-filter-form #grades-filter-scheduled-item-dropdown[open] .checklist-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  align-items: start;
+  gap: 0.4rem;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0.28rem 0;
+}
+
+#app-shell #grades-filter-form #grades-filter-scheduled-item-dropdown[open] .checklist-row input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+#app-shell #grades-filter-form #grades-filter-scheduled-item-dropdown[open] .checklist-row label {
+  display: block;
+  margin: 0;
+  padding: 0;
+  font-size: 0.86rem;
+  font-weight: 400;
+  line-height: 1.22;
+  white-space: normal;
+}
+
+#app-shell #grades-filter-form #grades-filter-scheduled-item-dropdown[open] .checklist-group-label {
+  margin: 0.5rem 0 0.2rem;
+}
+
+#app-shell #grades-filter-form #grades-filter-scheduled-item-dropdown[open] .checklist-group-label:first-child,
+#app-shell #grades-filter-form #grades-filter-scheduled-item-dropdown[open] .checklist-row + .checklist-group-label {
+  margin-top: 0.65rem;
+}
+
 #app-shell #grades-filter-form input {
   min-height: 34px;
   border-color: #cbd8ea;

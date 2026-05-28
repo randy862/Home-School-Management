@@ -79,7 +79,7 @@ Deployment posture:
 - A temporary NAT Gateway route was added for validation mail delivery, then removed after validation: private route table `rtb-01e7fa93185f5ddf` should no longer route `0.0.0.0/0` to NAT.
 - AWS validation tenant host `aws-validation.navigrader.com` maps to tenant `tenant-aws-validation`, environment `env-aws-validation-production`, and schema `tenant_aws_validation`.
 - Host-header validation through `WEB001` returns tenant setup status and runtime resolution for `aws-validation.navigrader.com`.
-- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`; AWS WEB001 still needs the later `0b66c4f` web asset hotfix before go-live validation.
+- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`; AWS WEB001 still needs later web assets, including the `Schedule Items Open` gauge and Grade Search `Course/Class/Block` filter, before go-live validation.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS rollback bundle root for this deploy: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS tenant API/control API runtime mail values are configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
@@ -97,8 +97,8 @@ Completed pause/cost-control actions:
 Immediate resume point:
 
 1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-2. Deploy AWS WEB001 web assets through `0b66c4f` so the `Schedule Items Open` detail gauge is present.
-3. Smoke login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
+2. Deploy AWS WEB001 web assets from the latest `saas-modern-redesign` branch so the `Schedule Items Open` gauge and Grade Search `Course/Class/Block` filter are present.
+3. Smoke login, Attendance Search, School Day Scheduled Item filtering, Grade Search `Course/Class/Block` filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
 4. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
 5. Continue DNS/TLS planning.
 

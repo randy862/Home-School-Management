@@ -1750,6 +1750,7 @@ let schoolDaySelectedStudentIds = new Set();
 let schoolDaySelectedSubjectIds = new Set();
 let schoolDaySelectedCourseIds = new Set();
 let schoolDaySelectedScheduledItemKeys = new Set();
+let gradesFilterSelectedScheduledItemKeys = new Set();
 let schoolDayStudentSummariesCollapsed = false;
 let schoolDayStudentSummariesManual = false;
 let schoolDayOverviewCollapsed = false;
@@ -4879,9 +4880,9 @@ function openAlertAction(alert) {
     gradesSearchPage = 1;
     activateTab("grades");
     const studentFilter = document.getElementById("grades-filter-student");
-    const courseFilter = document.getElementById("grades-filter-course");
     if (studentFilter && action.studentId) studentFilter.value = action.studentId;
-    if (courseFilter && action.courseId) courseFilter.value = action.courseId;
+    syncGradesFilterSubjectCourseOptions();
+    setGradesFilterScheduledItemSelection(action.courseId ? [`course:${action.courseId}`] : []);
     renderGradesSectionVisibility();
     renderTests();
     renderSessionChrome();
@@ -13786,7 +13787,8 @@ function renderTests() {
   const schoolYearFilter = useSearchFilters ? document.getElementById("grades-filter-school-year")?.value || "all" : "all";
   const subjectFilter = useSearchFilters ? document.getElementById("grades-filter-subject")?.value || "all" : "all";
   const instructorFilter = useSearchFilters ? document.getElementById("grades-filter-instructor")?.value || "all" : "all";
-  const courseFilter = useSearchFilters ? document.getElementById("grades-filter-course")?.value || "all" : "all";
+  const scheduledItemKeys = useSearchFilters ? getGradesFilterSelectedScheduledItemKeys() : [];
+  const scheduledItemCourseIds = new Set(scheduledItemKeys.map((key) => schoolDayScheduledItemCourseId(key)).filter(Boolean));
   const gradeTypeFilter = useSearchFilters ? document.getElementById("grades-filter-grade-type")?.value || "all" : "all";
   const startDateFilter = useSearchFilters ? document.getElementById("grades-filter-start-date")?.value || "" : "";
   const endDateFilter = useSearchFilters ? document.getElementById("grades-filter-end-date")?.value || "" : "";
@@ -13811,7 +13813,7 @@ function renderTests() {
     if (studentFilter !== "all" && t.studentId !== studentFilter) return false;
     if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
     if (!testMatchesInstructorFilter(t, instructorFilter)) return false;
-    if (courseFilter !== "all" && t.courseId !== courseFilter) return false;
+    if (scheduledItemKeys.length && !scheduledItemCourseIds.has(t.courseId)) return false;
     const thisGradeType = gradeTypeName(t);
     if (gradeTypeFilter !== "all" && thisGradeType !== gradeTypeFilter) return false;
     if (quarterFilter !== "all" && quarterRange && !inRange(t.date, quarterRange.startDate, quarterRange.endDate)) return false;
@@ -14577,7 +14579,6 @@ function openStudentGradeSearch(studentId) {
     "grades-filter-end-date": "",
     "grades-filter-subject": "all",
     "grades-filter-instructor": "all",
-    "grades-filter-course": "all",
     "grades-filter-grade-type": "all",
     "grades-filter-grade-operator": "all",
     "grades-filter-grade-value": ""
@@ -14587,6 +14588,7 @@ function openStudentGradeSearch(studentId) {
     if (input) input.value = value;
   });
   syncGradesFilterSubjectCourseOptions();
+  setGradesFilterScheduledItemSelection([]);
   renderTests();
 }
 
@@ -14614,7 +14616,6 @@ function openSingleGradeRiskSearch() {
     "grades-filter-end-date": weekRange.endDate,
     "grades-filter-subject": "all",
     "grades-filter-instructor": "all",
-    "grades-filter-course": "all",
     "grades-filter-grade-type": "all",
     "grades-filter-grade-operator": "lt",
     "grades-filter-grade-value": String(threshold)
@@ -14625,6 +14626,7 @@ function openSingleGradeRiskSearch() {
   });
   editingSearchGradeId = "";
   syncGradesFilterSubjectCourseOptions();
+  setGradesFilterScheduledItemSelection([]);
   renderTests();
   renderSessionChrome();
 }
@@ -14654,7 +14656,6 @@ function openAverageGradeRiskSearch({ studentId = "", courseId = "", subjectId =
     "grades-filter-end-date": "",
     "grades-filter-subject": "all",
     "grades-filter-instructor": "all",
-    "grades-filter-course": "all",
     "grades-filter-grade-type": "all",
     "grades-filter-grade-operator": "all",
     "grades-filter-grade-value": ""
@@ -14669,10 +14670,7 @@ function openAverageGradeRiskSearch({ studentId = "", courseId = "", subjectId =
     subjectSelect.value = subjectId;
     syncGradesFilterSubjectCourseOptions();
   }
-  const courseSelect = document.getElementById("grades-filter-course");
-  if (courseSelect && courseId && Array.from(courseSelect.options).some((option) => option.value === courseId)) {
-    courseSelect.value = courseId;
-  }
+  setGradesFilterScheduledItemSelection(courseId ? [`course:${courseId}`] : []);
   editingSearchGradeId = "";
   renderTests();
   renderSessionChrome();
@@ -15219,15 +15217,109 @@ function schoolDayGradeKey(studentId, courseId, date) {
   return `${studentId}::${courseId}::${date}`;
 }
 
+function getGradesFilterSelectedScheduledItemKeys() {
+  const checked = Array.from(document.querySelectorAll(".grades-filter-scheduled-item-checkbox:checked"))
+    .map((el) => normalizeSchoolDayScheduledItemKey(el.value))
+    .filter(Boolean);
+  if (checked.length || document.querySelectorAll(".grades-filter-scheduled-item-checkbox").length) return checked;
+  return Array.from(gradesFilterSelectedScheduledItemKeys).map(normalizeSchoolDayScheduledItemKey).filter(Boolean);
+}
+
+function updateGradesFilterScheduledItemSummary() {
+  const summary = document.getElementById("grades-filter-scheduled-item-summary");
+  if (!summary) return;
+  const selectedCount = getGradesFilterSelectedScheduledItemKeys().length;
+  const totalCount = document.querySelectorAll(".grades-filter-scheduled-item-checkbox").length;
+  summary.textContent = selectedCount === 0 || selectedCount === totalCount
+    ? "Course/Class/Block (All)"
+    : `Course/Class/Block (${selectedCount} selected)`;
+}
+
+function setGradesFilterScheduledItemSelection(keys = []) {
+  gradesFilterSelectedScheduledItemKeys = new Set(
+    keys.map((key) => normalizeSchoolDayScheduledItemKey(key)).filter(Boolean)
+  );
+  setCalendarChecklistSelection("grades-filter-scheduled-item-checkbox", Array.from(gradesFilterSelectedScheduledItemKeys));
+  syncCalendarAllCheckbox("grades-filter-scheduled-item-checkbox", "grades-filter-scheduled-item-all-checkbox");
+  updateGradesFilterScheduledItemSummary();
+}
+
+function renderGradesScheduledItemChecklist(courses, preselectedScheduledItemKeys = []) {
+  const optionsWrap = document.getElementById("grades-filter-scheduled-item-options");
+  if (!optionsWrap) return;
+  const studentFilter = document.getElementById("grades-filter-student")?.value || "all";
+  const courseIds = new Set(courses.map((course) => course.id));
+  const enrolledSectionIds = studentFilter === "all"
+    ? null
+    : new Set(
+      state.sectionEnrollments
+        .filter((entry) => entry.studentId === studentFilter)
+        .map((entry) => entry.courseSectionId)
+        .filter(Boolean)
+    );
+  const sectionOptions = sortedCourseSections()
+    .filter((section) => courseIds.has(section.courseId))
+    .filter((section) => !enrolledSectionIds || enrolledSectionIds.has(section.id));
+  const blockOptions = schoolDayScheduleBlockFilterOptions(studentFilter === "all" ? [] : [studentFilter]);
+  const availableKeys = new Set([
+    ...sectionOptions.map((section) => `courseSection:${section.id}`),
+    ...courses.map((course) => `course:${course.id}`),
+    ...blockOptions.map((block) => `scheduleBlock:${block.id}`)
+  ]);
+  const selected = new Set(
+    preselectedScheduledItemKeys
+      .map((key) => normalizeSchoolDayScheduledItemKey(key))
+      .filter((key) => availableKeys.has(key))
+  );
+  gradesFilterSelectedScheduledItemKeys = selected;
+  const allChecked = availableKeys.size > 0 && Array.from(availableKeys).every((key) => selected.has(key));
+  const allRow = availableKeys.size
+    ? `<div class="checklist-row"><input id="grades-filter-scheduled-item-all" type="checkbox" class="grades-filter-scheduled-item-all-checkbox"${allChecked ? " checked" : ""}><label for="grades-filter-scheduled-item-all">All</label></div>`
+    : "";
+  const sectionCheckboxes = sectionOptions.map((section, idx) => {
+    const key = `courseSection:${section.id}`;
+    const checked = selected.has(key) ? " checked" : "";
+    const inputId = `grades-filter-section-${idx}-${section.id}`;
+    const course = getCourse(section.courseId);
+    const subjectId = course?.subjectId || "";
+    const requiredBadge = subjectId && isRequiredSubject(subjectId) ? " <span class=\"subject-required-badge\">Required</span>" : "";
+    const meta = [
+      subjectId ? getSubjectName(subjectId) : "",
+      ...courseSectionSchoolDayMeta(section).filter((item) => !/ enrolled$/.test(item))
+    ];
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="grades-filter-scheduled-item-checkbox" value="${key}"${checked}><label for="${inputId}">${renderSchoolDayScheduledItemOption(sectionDisplayName(section.id), meta, requiredBadge)}</label></div>`;
+  }).join("");
+  const courseCheckboxes = courses.map((course, idx) => {
+    const key = `course:${course.id}`;
+    const checked = selected.has(key) ? " checked" : "";
+    const inputId = `grades-filter-course-${idx}-${course.id}`;
+    const requiredBadge = isRequiredSubject(course.subjectId) ? " <span class=\"subject-required-badge\">Required</span>" : "";
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="grades-filter-scheduled-item-checkbox" value="${key}"${checked}><label for="${inputId}">${renderSchoolDayScheduledItemOption(course.name, [getSubjectName(course.subjectId), ...courseSchoolDayMeta(course)], requiredBadge)}</label></div>`;
+  }).join("");
+  const blockCheckboxes = blockOptions.map((block, idx) => {
+    const key = `scheduleBlock:${block.id}`;
+    const checked = selected.has(key) ? " checked" : "";
+    const inputId = `grades-filter-block-${idx}-${block.id}`;
+    const typeLabel = SCHEDULE_BLOCK_TYPE_LABELS[block.type] || "Schedule Block";
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="grades-filter-scheduled-item-checkbox" value="${key}"${checked}><label for="${inputId}">${renderSchoolDayScheduledItemOption(block.name, [typeLabel, ...scheduleBlockSchoolDayMeta(block)])}</label></div>`;
+  }).join("");
+  const sections = [];
+  if (sectionCheckboxes) sections.push(`<div class="checklist-group-label">Classes</div>${sectionCheckboxes}`);
+  if (courseCheckboxes) sections.push(`<div class="checklist-group-label">Courses</div>${courseCheckboxes}`);
+  if (blockCheckboxes) sections.push(`<div class="checklist-group-label">Schedule Blocks</div>${blockCheckboxes}`);
+  optionsWrap.innerHTML = sections.length ? `${allRow}${sections.join("")}` : "<span>No scheduled items available.</span>";
+  syncCalendarAllCheckbox("grades-filter-scheduled-item-checkbox", "grades-filter-scheduled-item-all-checkbox");
+  updateGradesFilterScheduledItemSummary();
+}
+
 function syncGradesFilterSubjectCourseOptions() {
   const studentFilter = document.getElementById("grades-filter-student")?.value || "all";
   const instructorFilter = document.getElementById("grades-filter-instructor")?.value || "all";
   const subjectSelect = document.getElementById("grades-filter-subject");
-  const courseSelect = document.getElementById("grades-filter-course");
-  if (!subjectSelect || !courseSelect) return;
+  if (!subjectSelect) return;
 
   const previousSubject = subjectSelect.value || "all";
-  const previousCourse = courseSelect.value || "all";
+  const previousScheduledItemKeys = getGradesFilterSelectedScheduledItemKeys();
   let coursePool = state.courses;
 
   if (studentFilter !== "all") {
@@ -15256,16 +15348,7 @@ function syncGradesFilterSubjectCourseOptions() {
     ? coursePool
     : coursePool.filter((c) => c.subjectId === activeSubject);
 
-  courseSelect.innerHTML = "<option value='all'>All Courses</option>";
-  filteredCourses.forEach((c) => {
-    const option = document.createElement("option");
-    option.value = c.id;
-    option.textContent = `${c.name} (${getSubjectName(c.subjectId)})`;
-    courseSelect.appendChild(option);
-  });
-  if (Array.from(courseSelect.options).some((o) => o.value === previousCourse)) {
-    courseSelect.value = previousCourse;
-  }
+  renderGradesScheduledItemChecklist(filteredCourses, previousScheduledItemKeys);
 }
 
 function getEligibleCoursesForStudentSubject(studentId, subjectId, includeCourseId) {
@@ -25166,7 +25249,7 @@ function bindEvents() {
       renderTests();
     });
   }
-  ["grades-filter-student", "grades-filter-quarter", "grades-filter-school-year", "grades-filter-start-date", "grades-filter-end-date", "grades-filter-subject", "grades-filter-instructor", "grades-filter-course", "grades-filter-grade-type", "grades-filter-grade-operator", "grades-filter-grade-value"]
+  ["grades-filter-student", "grades-filter-quarter", "grades-filter-school-year", "grades-filter-start-date", "grades-filter-end-date", "grades-filter-subject", "grades-filter-instructor", "grades-filter-grade-type", "grades-filter-grade-operator", "grades-filter-grade-value"]
     .forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener("change", () => {
@@ -25189,7 +25272,6 @@ function bindEvents() {
         "grades-filter-end-date",
         "grades-filter-subject",
         "grades-filter-instructor",
-        "grades-filter-course",
         "grades-filter-grade-type",
         "grades-filter-grade-operator",
         "grades-filter-grade-value"
@@ -25204,6 +25286,7 @@ function bindEvents() {
       editingSearchGradeId = "";
       gradesSearchPage = 1;
       syncGradesFilterSubjectCourseOptions();
+      setGradesFilterScheduledItemSelection([]);
       renderTests();
     });
   }
@@ -25900,6 +25983,24 @@ function bindEvents() {
       renderSchoolDay();
       return;
     }
+    if (t.classList.contains("grades-filter-scheduled-item-checkbox")) {
+      setGradesFilterScheduledItemSelection(getGradesFilterSelectedScheduledItemKeys());
+      editingSearchGradeId = "";
+      gradesSearchPage = 1;
+      renderTests();
+      return;
+    }
+    if (t.classList.contains("grades-filter-scheduled-item-all-checkbox")) {
+      const checked = t instanceof HTMLInputElement ? t.checked : false;
+      const scheduledItemKeys = checked
+        ? Array.from(document.querySelectorAll(".grades-filter-scheduled-item-checkbox")).map((el) => el.value)
+        : [];
+      setGradesFilterScheduledItemSelection(scheduledItemKeys);
+      editingSearchGradeId = "";
+      gradesSearchPage = 1;
+      renderTests();
+      return;
+    }
     if (t.classList.contains("grade-row-subject") || t.classList.contains("grade-row-student")) {
       const row = t.closest("tr");
       if (row) updateGradeRowCourses(row);
@@ -26309,7 +26410,10 @@ function bindEvents() {
         if (gradesStudentFilter && selectedStudents.length === 1) {
           gradesStudentFilter.value = selectedStudents[0];
           syncGradesFilterSubjectCourseOptions();
+        } else {
+          syncGradesFilterSubjectCourseOptions();
         }
+        setGradesFilterScheduledItemSelection([]);
         renderTests();
       }
       activateTab(schoolDayOpenTab);
@@ -26347,7 +26451,6 @@ function bindEvents() {
         "grades-filter-school-year",
         "grades-filter-subject",
         "grades-filter-instructor",
-        "grades-filter-course",
         "grades-filter-grade-type",
         "grades-filter-grade-operator"
       ].forEach((id) => {
@@ -26361,6 +26464,7 @@ function bindEvents() {
       editingSearchGradeId = "";
       gradesSearchPage = 1;
       syncGradesFilterSubjectCourseOptions();
+      setGradesFilterScheduledItemSelection([]);
       renderGradesSectionVisibility();
       renderTests();
       return;
