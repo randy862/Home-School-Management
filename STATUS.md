@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-27
+Date: 2026-05-28
 
 ## Active Workstream
 
@@ -8,7 +8,7 @@ AWS commercial production migration.
 
 ## Current Focus
 
-Finish AWS validation cleanup after successful password-reset smoke.
+Resume AWS go-live readiness after successful validation and cost-control cleanup.
 
 ## Completed Recently
 
@@ -23,6 +23,8 @@ Finish AWS validation cleanup after successful password-reset smoke.
 - AWS validation tenant was initialized with admin `awsadmin` and email `randy862@gmail.com`.
 - GoDaddy DNS now points `aws-validation.navigrader.com` to AWS `18.188.35.157`.
 - Temporary NAT Gateway egress was added so APP001 could reach Postmark.
+- Temporary NAT Gateway egress was removed after validation: NAT route removed, gateway deleted, and temporary Elastic IP released.
+- Temporary Windows hosts override was removed after normal DNS resolved `aws-validation.navigrader.com` to AWS.
 - AWS APP001 CORS now allows `http://aws-validation.navigrader.com`.
 - AWS validation reset email was received and the reset-complete flow succeeded.
 - Attendance Search now has `Start Date` and `End Date` filters, matching Grade Search behavior.
@@ -52,7 +54,7 @@ Finish AWS validation cleanup after successful password-reset smoke.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
 - AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`.
 - AWS validation CORS env rollback: `/home/admin/rollback/hsm/aws-validation-cors-202605280150/app001/hsm-api.env.before`.
-- Temporary NAT Gateway `navigrader-temp-private-egress` is active for validation and should be deleted after final checks.
+- Temporary NAT Gateway cleanup is complete; private subnet should no longer have a default internet route.
 
 ## Validation
 
@@ -70,6 +72,7 @@ Finish AWS validation cleanup after successful password-reset smoke.
 - AWS setup status now returns initialized true for Host `aws-validation.navigrader.com`.
 - APP001 reached Postmark through the temporary NAT Gateway.
 - AWS validation password reset email was received and reset-complete succeeded.
+- Normal Windows DNS resolves `aws-validation.navigrader.com` to `18.188.35.157` after hosts override removal.
 
 ## Current Blockers
 
@@ -82,8 +85,6 @@ Finish AWS validation cleanup after successful password-reset smoke.
 
 ## Next Actions
 
-1. Remove private route table `0.0.0.0/0 -> navigrader-temp-private-egress`.
-2. Delete NAT Gateway `navigrader-temp-private-egress` and release its Elastic IP.
-3. Remove the temporary Windows hosts override once local DNS resolves `aws-validation.navigrader.com` normally.
-4. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-5. Smoke AWS login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
+1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
+2. Smoke AWS login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
+3. Continue AWS DNS/TLS planning for go-live readiness.

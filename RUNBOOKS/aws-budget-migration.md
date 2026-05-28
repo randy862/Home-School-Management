@@ -33,7 +33,7 @@ Network:
 - private subnet: `10.40.128.0/20`
 - Internet Gateway: attached to `navigrader-prod-vpc`
 - S3 Gateway VPC Endpoint: active for private S3 backup traffic
-- NAT Gateway: temporary validation gateway `navigrader-temp-private-egress` is active; delete after reset/login smoke validation to stop ongoing cost
+- NAT Gateway: no active NAT Gateway; temporary validation gateway `navigrader-temp-private-egress` was deleted after reset/login smoke validation
 
 Servers:
 
@@ -44,7 +44,7 @@ Servers:
 | `APP001` | created and updated | private subnet | Private IP `10.40.131.149`, Node/npm installed, app source staged, `navigrader` service user/directories created. |
 | `SQL001` | created and updated | private subnet | Private IP `10.40.138.78`, PostgreSQL 17 installed, `appdb` and `navigrader_app` created, APP001 database login verified. |
 | `TEMP-NAT` | terminated after bootstrap | public subnet | Used to install private server packages; private subnet `0.0.0.0/0` route was removed after bootstrap. Recreate only for future private update/download windows. |
-| `navigrader-temp-private-egress` | temporary active NAT Gateway | public subnet | Created for AWS validation mail delivery from private APP001; delete after validation and release its Elastic IP. |
+| `navigrader-temp-private-egress` | deleted after validation | public subnet | Created for AWS validation mail delivery from private APP001; deleted after validation and temporary Elastic IP was released. |
 
 Security posture:
 
@@ -76,7 +76,7 @@ Deployment posture:
 - `WEB001` Apache site `navigrader-aws-http.conf` proxies API paths to `APP001` at `10.40.131.149`.
 - AWS `WEB001` public HTTP was verified at `http://18.188.35.157/`, `/terms/`, `/control/`, `/health`, and `/control-api/health`.
 - The temporary bootstrap private route was removed after dependency installation.
-- A temporary NAT Gateway route was added for validation mail delivery: private route table `rtb-01e7fa93185f5ddf` routes `0.0.0.0/0` to `navigrader-temp-private-egress`.
+- A temporary NAT Gateway route was added for validation mail delivery, then removed after validation: private route table `rtb-01e7fa93185f5ddf` should no longer route `0.0.0.0/0` to NAT.
 - AWS validation tenant host `aws-validation.navigrader.com` maps to tenant `tenant-aws-validation`, environment `env-aws-validation-production`, and schema `tenant_aws_validation`.
 - Host-header validation through `WEB001` returns tenant setup status and runtime resolution for `aws-validation.navigrader.com`.
 - AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
@@ -84,7 +84,7 @@ Deployment posture:
 - AWS rollback bundle root for this deploy: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS tenant API/control API runtime mail values are configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
 - AWS validation tenant is initialized with admin `awsadmin`.
-- DNS for `aws-validation.navigrader.com` now points to AWS `18.188.35.157`; a temporary local Windows hosts override was also used while resolver caches expired.
+- DNS for `aws-validation.navigrader.com` now points to AWS `18.188.35.157`; the temporary local Windows hosts override was removed after normal DNS resolved correctly.
 - AWS APP001 CORS was updated to allow `http://aws-validation.navigrader.com`; rollback env backup: `/home/admin/rollback/hsm/aws-validation-cors-202605280150/app001/hsm-api.env.before`.
 - AWS validation password reset email delivery and reset-complete were validated successfully for `awsadmin`.
 
@@ -96,13 +96,10 @@ Completed pause/cost-control actions:
 
 Immediate resume point:
 
-1. Remove private route table `0.0.0.0/0 -> navigrader-temp-private-egress`.
-2. Delete NAT Gateway `navigrader-temp-private-egress` and release its Elastic IP.
-3. Remove the temporary local Windows hosts override once resolver caches return the AWS A record normally.
-4. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-5. Smoke login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
-6. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
-7. Continue DNS/TLS planning.
+1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
+2. Smoke login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
+3. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
+4. Continue DNS/TLS planning.
 
 ## AWS Audit And Journaling Reality
 
