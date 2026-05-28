@@ -80,6 +80,9 @@ Deployment posture:
 - AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS rollback bundle root for this deploy: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
+- AWS tenant API/control API runtime mail values are configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
+- AWS validation tenant is initialized with admin `awsadmin`.
+- DNS for `aws-validation.navigrader.com` still points to the home lab; update DNS or use a temporary hosts override before testing email links.
 
 Completed pause/cost-control actions:
 
@@ -89,8 +92,8 @@ Completed pause/cost-control actions:
 
 Immediate resume point:
 
-1. Configure/verify AWS `PUBLIC_APP_BASE_URL`, tenant app base URLs, and Postmark/mail runtime values.
-2. Decide whether to initialize the validation tenant with a temporary admin or wait for production data restore.
+1. Point `aws-validation.navigrader.com` to AWS `WEB001` at `18.188.35.157` by DNS or temporary hosts override.
+2. Request a forgot-password email for AWS validation admin `awsadmin` and confirm the reset link opens AWS.
 3. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
 4. Smoke reset email tenant URL, login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
 5. Continue DNS/TLS planning.

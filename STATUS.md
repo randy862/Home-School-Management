@@ -19,6 +19,8 @@ Validate AWS after deploying the current home lab password-reset and UI polish b
 - Tenant-aware password reset links were committed in `a1e0810 Use tenant URL for password reset links` and deployed to home lab APP001.
 - AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
+- AWS APP001 runtime/mail env was configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
+- AWS validation tenant was initialized with admin `awsadmin` and email `randy862@gmail.com`.
 - Attendance Search now has `Start Date` and `End Date` filters, matching Grade Search behavior.
 - School Day Filters now use a grouped `Scheduled Item` filter that includes Classes, Courses, and Schedule Blocks.
 - Cleaned up the School Day Scheduled Item dropdown with compact two-line option rows and wider menu styling.
@@ -43,7 +45,9 @@ Validate AWS after deploying the current home lab password-reset and UI polish b
 - AWS APP001/WEB001 are deployed through `cb7b057`.
 - AWS SQL001 has migration `032_password_reset_tokens.sql` applied to existing schemas.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
-- Set `PUBLIC_APP_BASE_URL` to the AWS domain and configure tenant mail/Postmark runtime values.
+- AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
+- AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`.
+- Public DNS for `aws-validation.navigrader.com` still points to the home lab; use DNS or hosts override before clicking reset links.
 
 ## Validation
 
@@ -57,6 +61,8 @@ Validate AWS after deploying the current home lab password-reset and UI polish b
 - WEB001 deployed SHA-256 hashes matched local `web/index.html`, `web/app.js`, and `web/styles.css`.
 - AWS public HTTP health, setup status, and control health returned HTTP 200 with Host `aws-validation.navigrader.com`.
 - AWS deployed tenant reset URL assertion produced `https://aws-validation.navigrader.com/#resetToken=...`.
+- AWS tenant API/control API env summaries show Postmark tokens set, `allowlist_only`, and `PUBLIC_APP_BASE_URL=http://aws-validation.navigrader.com`.
+- AWS setup status now returns initialized true for Host `aws-validation.navigrader.com`.
 
 ## Current Blockers
 
@@ -69,6 +75,6 @@ Validate AWS after deploying the current home lab password-reset and UI polish b
 
 ## Next Actions
 
-1. Configure/verify AWS `PUBLIC_APP_BASE_URL`, tenant app base URLs, and Postmark/mail runtime values.
-2. Initialize the AWS validation tenant or restore target tenant data.
-3. Smoke AWS reset email tenant URL, login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
+1. Point `aws-validation.navigrader.com` to AWS `18.188.35.157` by DNS or temporary hosts override.
+2. Request a forgot-password email for `awsadmin` and confirm the reset link opens AWS.
+3. Smoke AWS login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.

@@ -17,6 +17,9 @@ AWS commercial production migration checkpoint after deploying the current home 
 - AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS rollback bundle: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
+- AWS APP001 runtime/mail env was configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
+- AWS validation tenant was initialized with admin `awsadmin` and allowlisted email `randy862@gmail.com`.
+- Public DNS for `aws-validation.navigrader.com` still resolves to the home lab, not AWS; add a hosts override or change DNS before clicking reset links.
 - AWS APP001 needs the password reset backend/API/mail changes from `7031068` and tenant-aware reset link fix from `a1e0810`.
 - AWS WEB001 needs web assets through `4f75edc`, including the compact login/reset UI, filter polish, Open Items Today gauge fix, and Past Due Schedule Items gauge.
 - AWS runtime env must set `PUBLIC_APP_BASE_URL` to the AWS domain and configure the tenant mail/Postmark values.
@@ -32,7 +35,7 @@ AWS commercial production migration checkpoint after deploying the current home 
 
 ## Next Action
 
-Resume AWS validation by configuring/verifying AWS mail/runtime values, then initialize or restore tenant data and smoke reset/login/filter flows on `aws-validation.navigrader.com`.
+Resume AWS validation by pointing `aws-validation.navigrader.com` to AWS `18.188.35.157`, then request a reset for `awsadmin` and smoke reset/login/filter flows.
 
 ## Risks
 
@@ -50,6 +53,8 @@ Resume AWS validation by configuring/verifying AWS mail/runtime values, then ini
 - AWS APP001 rollback: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/app001/server.tgz`
 - AWS WEB001 rollback: `/var/www/home-school-management/rollback/aws-cb7b057-202605272003/web001/web.tgz`
 - AWS SQL001 pre-migration schema backup: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/sql001/appdb-schema-before-032.sql`
+- AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`
+- AWS validation tenant init data backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`
 
 ## Validation
 
@@ -61,3 +66,5 @@ Resume AWS validation by configuring/verifying AWS mail/runtime values, then ini
 - Deployed APP001 password reset URL assertion produces `https://pj-cool.navigrader.com/#resetToken=...` even when global config points at Mitchell.
 - AWS `http://18.188.35.157/health`, `/api/setup/status`, and `/control-api/health` returned HTTP 200 with Host `aws-validation.navigrader.com`.
 - AWS served app script contains `Past Due Schedule Items`, Attendance date filters, and School Day Scheduled Item markers.
+- AWS tenant API/control API env summaries show Postmark tokens set, `allowlist_only`, and `PUBLIC_APP_BASE_URL=http://aws-validation.navigrader.com`.
+- AWS setup status now returns `{"initialized":true}` for Host `aws-validation.navigrader.com`.
