@@ -19,6 +19,7 @@ Resume AWS go-live readiness after successful validation and cost-control cleanu
 - Restored the missing home lab `Schedule Items Open` detail gauge and deployed `app.js?v=202605280915`.
 - Tenant-aware password reset links were committed in `a1e0810 Use tenant URL for password reset links` and deployed to home lab APP001.
 - AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
+- AWS WEB001 needs the later `0b66c4f` web hotfix before go-live validation.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS APP001 runtime/mail env was configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
 - AWS validation tenant was initialized with admin `awsadmin` and email `randy862@gmail.com`.
@@ -51,6 +52,7 @@ Resume AWS go-live readiness after successful validation and cost-control cleanu
 ## AWS Pickup
 
 - AWS APP001/WEB001 are deployed through `cb7b057`.
+- AWS WEB001 should be updated through `0b66c4f` to include the restored `Schedule Items Open` detail gauge.
 - AWS SQL001 has migration `032_password_reset_tokens.sql` applied to existing schemas.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
@@ -88,5 +90,6 @@ Resume AWS go-live readiness after successful validation and cost-control cleanu
 ## Next Actions
 
 1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-2. Smoke AWS login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
-3. Continue AWS DNS/TLS planning for go-live readiness.
+2. Deploy AWS WEB001 web assets through `0b66c4f`.
+3. Smoke AWS login, Attendance Search, School Day Scheduled Item filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
+4. Continue AWS DNS/TLS planning for go-live readiness.

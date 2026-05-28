@@ -15,7 +15,7 @@ AWS commercial production migration checkpoint after deploying the current home 
 - Home lab WEB001 hotfix restored the `Schedule Items Open` detail gauge beside the Past Due gauge.
 - Tenant-aware password reset links were committed in `a1e0810 Use tenant URL for password reset links`.
 - Home lab APP001 is deployed and validated through `a1e0810`; WEB001 is deployed and validated through `4f75edc`.
-- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`.
+- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`; AWS WEB001 still needs the later `0b66c4f` web hotfix before go-live validation.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS rollback bundle: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS APP001 runtime/mail env was configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
@@ -35,7 +35,7 @@ AWS commercial production migration checkpoint after deploying the current home 
 
 ## Next Action
 
-If EC2 instances were stopped for cost control, restart the needed AWS hosts and smoke AWS login, filters, dashboard gauges, and control/API health. Continue DNS/TLS planning for go-live readiness.
+If EC2 instances were stopped for cost control, restart the needed AWS hosts, deploy WEB001 web assets through `0b66c4f`, and smoke AWS login, filters, dashboard gauges, and control/API health. Continue DNS/TLS planning.
 
 ## Risks
 
