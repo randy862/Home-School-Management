@@ -18324,7 +18324,7 @@ function buildDashboardExecutionSnapshot(referenceISO, dashboardStudents, filter
     completionPercent: totals.completableCount > 0 ? (totals.completedCount / totals.completableCount) * 100 : 0,
     gradedPercent: totals.completableCount > 0 ? (totals.gradedCount / totals.completableCount) * 100 : 0,
     loggedHoursPercent: totals.scheduledMinutes > 0 ? (totals.completedMinutes / totals.scheduledMinutes) * 100 : 0,
-    attentionTotal: totals.needsAttendanceCount + totals.needsGradeCount + totals.needsCompletionCount + totals.pastDueCount + totals.overrideCount,
+    attentionTotal: totals.needsAttendanceCount + totals.needsGradeCount + totals.needsCompletionCount + totals.overrideCount,
     ...totals
   };
   if (snapshotStartedAt) {
@@ -18762,7 +18762,7 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
   if (completionOverviewFill) completionOverviewFill.style.width = `${snapshot.completionPercent.toFixed(1)}%`;
   if (attentionValue) attentionValue.textContent = String(snapshot.attentionTotal);
   if (attentionNote) attentionNote.textContent = snapshot.attentionTotal
-    ? `${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.pastDueCount} past due, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
+    ? `${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
     : `No open items for ${formatDisplayDate(snapshot.date)}.`;
   if (attendanceOpenCount) attendanceOpenCount.textContent = String(snapshot.needsAttendanceCount);
   if (classesOpenCount) classesOpenCount.textContent = String(snapshot.needsCompletionCount);
@@ -18786,7 +18786,7 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
   rowOrEmpty(document.getElementById("dashboard-completion-today-table"), completionRows, `No scheduled classes for ${formatDisplayDate(snapshot.date)}.`, 6);
   if (detailAttentionValue) detailAttentionValue.textContent = String(snapshot.attentionTotal);
   if (detailAttentionNote) detailAttentionNote.textContent = snapshot.attentionTotal
-    ? `Open on ${formatDisplayDate(snapshot.date)}: ${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.pastDueCount} past due, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
+    ? `Open on ${formatDisplayDate(snapshot.date)}: ${snapshot.needsAttendanceCount} attendance open, ${snapshot.needsCompletionCount} classes open, ${snapshot.needsGradeCount} grades open, ${snapshot.overrideCount} overrides active.`
     : `No open items for ${formatDisplayDate(snapshot.date)}.`;
   const chipsHost = document.getElementById("dashboard-needs-attention-chips");
   if (chipsHost) {
@@ -18799,14 +18799,6 @@ function renderDashboardExecutionSummary(snapshot, completionDetailSnapshot = sn
         quickFilter: "needs-attendance",
         note: `${snapshot.needsAttendanceCount} attendance record${snapshot.needsAttendanceCount === 1 ? "" : "s"} still open for ${formatDisplayDate(snapshot.date)}.`,
         icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 11 2 2 4-4"/></svg>`
-      },
-      {
-        key: "past-due",
-        label: "Past Due",
-        value: snapshot.pastDueCount,
-        quickFilter: "past-due",
-        note: `${snapshot.pastDueCount} session${snapshot.pastDueCount === 1 ? "" : "s"} remain${snapshot.pastDueCount === 1 ? "s" : ""} uncompleted past scheduled instruction time.`,
-        icon: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M8 3 6 5"/><path d="m18 5-2-2"/></svg>`
       },
       {
         key: "grades",
