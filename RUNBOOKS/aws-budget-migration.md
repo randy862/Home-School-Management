@@ -104,6 +104,7 @@ Deployment posture:
 - TLS rollback root: `/home/admin/rollback/hsm/aws-validation-tls-202605291405/web001/`.
 - HTTPS runtime rollback root: `/home/admin/rollback/hsm/aws-validation-https-runtime-202605291410/`.
 - HTTPS control CORS rollback: `/home/admin/rollback/hsm/aws-validation-https-cors-202605291415/app001/hsm-control-api.env.before-https-cors`.
+- AWS HTTPS login succeeded, but password reset email delivery currently fails with Postmark `request_timeout` because private APP001 has no outbound egress after temporary NAT cleanup.
 - AWS rollback bundle root for this deploy: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS tenant API/control API runtime mail values are configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
 - AWS validation tenant is initialized with admin `awsadmin`.
@@ -120,10 +121,11 @@ Completed pause/cost-control actions:
 Immediate resume point:
 
 1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-2. Smoke login and password reset at `https://aws-validation.navigrader.com`.
-3. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
-4. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
-5. Continue production DNS planning.
+2. Restore temporary/private outbound egress for APP001 or choose the production egress design.
+3. Retry password reset at `https://aws-validation.navigrader.com`.
+4. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
+5. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
+6. Continue production DNS planning.
 
 ## AWS Audit And Journaling Reality
 

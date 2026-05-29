@@ -47,6 +47,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS validation control metadata is synced to `setup_state='initialized'`.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com`; HTTP redirects to HTTPS.
 - AWS runtime public base URLs and validation tenant `app_base_url` now use `https://aws-validation.navigrader.com`.
+- AWS HTTPS login succeeded, but password reset email delivery currently fails because private APP001 has no outbound egress to Postmark after temporary NAT cleanup.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
@@ -76,6 +77,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS tenant CORS and control CORS return `Access-Control-Allow-Origin: http://aws-validation.navigrader.com`.
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` returns 301 to HTTPS.
 - AWS tenant CORS and control CORS return `Access-Control-Allow-Origin: https://aws-validation.navigrader.com`.
+- AWS APP001 logs show password reset mail failures with `request_timeout`; `curl https://api.postmarkapp.com/` from APP001 times out on TCP/443.
 - AWS deployed tenant reset URL assertion produced `https://aws-validation.navigrader.com/#resetToken=...`.
 - AWS validation password reset email was received and reset-complete succeeded.
 
@@ -91,6 +93,6 @@ Keep home lab production current while preparing AWS go-live validation.
 
 ## Next Actions
 
-1. Smoke AWS login and password reset at `https://aws-validation.navigrader.com`.
-2. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
-3. Decide AWS staging/production data restore and cutover sequence.
+1. Restore temporary/private outbound egress for APP001 or choose the production egress design.
+2. Retry password reset at `https://aws-validation.navigrader.com`.
+3. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.

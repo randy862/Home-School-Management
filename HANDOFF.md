@@ -28,13 +28,14 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - AWS validation control metadata was synced to `setup_state='initialized'`.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com`; HTTP redirects to HTTPS.
 - AWS runtime public base URLs and validation tenant `app_base_url` now use `https://aws-validation.navigrader.com`.
+- AWS HTTPS login succeeded, but password reset email delivery currently fails because private APP001 has no outbound egress to Postmark after temporary NAT cleanup.
 - AWS validation reset email delivery and reset-complete flow succeeded.
 - Temporary AWS NAT Gateway cleanup is complete.
 - Local SSH aliases were created in `C:/Users/rmitchell/.ssh/config`: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 
 ## Next Action
 
-Smoke AWS login and password reset at `https://aws-validation.navigrader.com`, then decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
+Restore temporary/private outbound egress for APP001 or choose the production egress design, then retry password reset at `https://aws-validation.navigrader.com`.
 
 ## Risks
 
@@ -74,3 +75,4 @@ Smoke AWS login and password reset at `https://aws-validation.navigrader.com`, t
 - AWS tenant CORS and control CORS return `Access-Control-Allow-Origin: http://aws-validation.navigrader.com`.
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` returns 301 to HTTPS.
 - AWS tenant CORS and control CORS return `Access-Control-Allow-Origin: https://aws-validation.navigrader.com`.
+- AWS APP001 logs show password reset mail failures with `request_timeout`; `curl https://api.postmarkapp.com/` from APP001 times out on TCP/443.
