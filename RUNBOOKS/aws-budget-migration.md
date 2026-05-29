@@ -15,7 +15,7 @@ This is the launch-validation architecture. It is intended to prove whether the 
 
 ## Current AWS Build State
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
 Region:
 
@@ -40,7 +40,7 @@ Servers:
 | Server | State | Network | Notes |
 | --- | --- | --- | --- |
 | `MAINT001` | created and updated | public subnet | SSH jumpbox/admin host, public SSH restricted by security group. |
-| `WEB001` | created and updated | public subnet | Elastic IP associated, Apache installed, static web/admin assets deployed, public HTTP verified. |
+| `WEB001` | created and updated | public subnet | Private IP `10.40.1.196`, Elastic IP associated, Apache installed, static web/admin assets deployed, public HTTP verified. |
 | `APP001` | created and updated | private subnet | Private IP `10.40.131.149`, Node/npm installed, app source staged, `navigrader` service user/directories created. |
 | `SQL001` | created and updated | private subnet | Private IP `10.40.138.78`, PostgreSQL 17 installed, `appdb` and `navigrader_app` created, APP001 database login verified. |
 | `TEMP-NAT` | terminated after bootstrap | public subnet | Used to install private server packages; private subnet `0.0.0.0/0` route was removed after bootstrap. Recreate only for future private update/download windows. |
@@ -79,7 +79,8 @@ Deployment posture:
 - A temporary NAT Gateway route was added for validation mail delivery, then removed after validation: private route table `rtb-01e7fa93185f5ddf` should no longer route `0.0.0.0/0` to NAT.
 - AWS validation tenant host `aws-validation.navigrader.com` maps to tenant `tenant-aws-validation`, environment `env-aws-validation-production`, and schema `tenant_aws_validation`.
 - Host-header validation through `WEB001` returns tenant setup status and runtime resolution for `aws-validation.navigrader.com`.
-- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `cb7b057`; AWS still needs later branch changes, including dashboard gauges, Grade Search filter/layout fixes, Course minutes/day UI, and attendance-driven excusals, before go-live validation.
+- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `1272ab3`; AWS now includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals.
+- AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS rollback bundle root for this deploy: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS tenant API/control API runtime mail values are configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
@@ -97,10 +98,9 @@ Completed pause/cost-control actions:
 Immediate resume point:
 
 1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-2. Deploy AWS APP001/WEB001 from the latest `saas-modern-redesign` branch so password reset, dashboard gauges, filters, Grade Search layout, Course minutes/day UI, and attendance-driven excusals are present.
-3. Smoke login, Course minutes/day editing, absent-to-excused attendance, School Day Scheduled Item filtering, Grade Search `Course/Class/Block` filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
-4. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
-5. Continue DNS/TLS planning.
+2. Smoke login, password reset, Course minutes/day editing, absent-to-excused attendance, School Day Scheduled Item filtering, Grade Search `Course/Class/Block` filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
+3. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
+4. Continue DNS/TLS planning.
 
 ## AWS Audit And Journaling Reality
 

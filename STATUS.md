@@ -39,11 +39,12 @@ Keep home lab production current while preparing AWS go-live validation.
 
 ## AWS Pickup
 
-- AWS APP001/WEB001 are deployed through `cb7b057`.
-- AWS APP001/WEB001 should be updated from the latest `saas-modern-redesign` branch before go-live validation.
-- AWS pickup must include password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals.
+- AWS APP001/WEB001 are deployed through `1272ab3`.
+- AWS pickup now moves to smoke validation before go-live readiness.
+- AWS deploy includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals.
 - AWS SQL001 has migration `032_password_reset_tokens.sql` applied to existing schemas.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
+- AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
 - AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`.
 - Temporary NAT Gateway cleanup is complete; private subnet should no longer have a default internet route.
@@ -60,6 +61,8 @@ Keep home lab production current while preparing AWS go-live validation.
 - Served app script contains `Minutes/Day`, minutes conversion helpers, and the class inherited minutes/day marker.
 - WEB001/APP001 deployed SHA-256 hashes matched local changed files.
 - AWS public HTTP health, setup status, and control health previously returned HTTP 200 with Host `aws-validation.navigrader.com`.
+- AWS deployed hashes matched local `web/index.html`, `web/app.js`, `web/styles.css`, and `server/src/services/curriculum-service.js`.
+- AWS public `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200 after the latest deploy.
 - AWS deployed tenant reset URL assertion produced `https://aws-validation.navigrader.com/#resetToken=...`.
 - AWS validation password reset email was received and reset-complete succeeded.
 
@@ -74,7 +77,6 @@ Keep home lab production current while preparing AWS go-live validation.
 
 ## Next Actions
 
-1. Restart the needed AWS hosts if stopped.
-2. Deploy AWS APP001/WEB001 from the latest `saas-modern-redesign` branch.
-3. Smoke AWS login, password reset, Course minutes/day editing, absent-to-excused attendance, School Day filtering, Grade Search filtering, dashboard gauges, and health endpoints.
-4. Continue AWS DNS/TLS planning for go-live readiness.
+1. Smoke AWS login, password reset, Course minutes/day editing, absent-to-excused attendance, School Day filtering, Grade Search filtering, dashboard gauges, and health endpoints.
+2. Continue AWS DNS/TLS planning for go-live readiness.
+3. Decide AWS staging/production data restore and cutover sequence.

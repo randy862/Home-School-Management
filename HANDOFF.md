@@ -19,15 +19,15 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - Home lab APP001 has the neutral curriculum validation message deployed.
 - Public `https://mitchell.navigrader.com/health` and APP001 local health returned HTTP 200 after deployment.
 - WEB001/APP001 deployed SHA-256 hashes matched local changed files.
-- AWS APP001/WEB001 were last updated from branch `saas-modern-redesign` at `cb7b057`.
-- AWS still needs later branch changes before go-live validation, including dashboard gauges, Grade Search filtering/layout, Course minutes/day UI, and attendance-driven excusals.
+- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `1272ab3`.
+- AWS now includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS validation reset email delivery and reset-complete flow succeeded.
 - Temporary AWS NAT Gateway cleanup is complete.
 
 ## Next Action
 
-Restart the needed AWS hosts if stopped, deploy AWS APP001/WEB001 from the latest branch, then smoke AWS login, password reset, Course minutes/day editing, absent-to-excused attendance, School Day filtering, Grade Search filtering, dashboard gauges, and health endpoints.
+Smoke AWS login, password reset, Course minutes/day editing, absent-to-excused attendance, School Day filtering, Grade Search filtering, dashboard gauges, and health endpoints.
 
 ## Risks
 
@@ -41,6 +41,7 @@ Restart the needed AWS hosts if stopped, deploy AWS APP001/WEB001 from the lates
 - Grade Search row layout rollback: `/home/debian/rollback/hsm/web-grade-search-filter-row-layout-202605281100/web001/web.tgz`
 - Tenant-aware password reset link rollback: `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`
+- AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`
 - AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`
 
@@ -55,3 +56,5 @@ Restart the needed AWS hosts if stopped, deploy AWS APP001/WEB001 from the lates
 - Public `https://mitchell.navigrader.com/health` returned HTTP 200.
 - APP001 local `http://127.0.0.1:3000/health` returned HTTP 200.
 - Deployed hashes matched local `web/index.html`, `web/app.js`, and `server/src/services/curriculum-service.js`.
+- AWS deployed hashes matched local `web/index.html`, `web/app.js`, `web/styles.css`, and `server/src/services/curriculum-service.js`.
+- AWS public `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200.
