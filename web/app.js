@@ -1966,7 +1966,7 @@ const HELP_ARTICLES = [
 <li>Complete the remaining Course fields:</li>
 </ol>
 <ul>
-<li><strong>Hours/Day:</strong> Enter the amount of daily instructional time for the Course, using .25 hour increments.</li>
+<li><strong>Minutes/Day:</strong> Enter the amount of daily instructional time for the Course, using minute increments.</li>
 <li><strong>Quarters:</strong> Select the quarters in which the Course will be assigned.</li>
 <li><strong>Weekdays:</strong> Select the days of the week when the Course will be assigned.</li>
 </ul>
@@ -2159,7 +2159,7 @@ const HELP_ARTICLES = [
         heading: "When to use a course",
         items: [
           "Use a Course for subjects or work that can move during the day, such as Math, Literature, or independent study.",
-          "Set daily minutes with Hours Per Day. This duration is what School Day uses when building the schedule.",
+          "Set daily minutes per day. This duration is what School Day uses when building the schedule.",
           "Assign quarters and weekdays so the course appears only when it should."
         ]
       },
@@ -11928,8 +11928,18 @@ function quarterSummary(quarterNames, fallbackLabel = "All quarters") {
   return names.length ? names.join(", ") : fallbackLabel;
 }
 
-function dailyMinutesSummary(hoursPerDay) {
+function courseHoursToDailyMinutes(hoursPerDay) {
   const minutes = Math.round(Number(hoursPerDay || 0) * 60);
+  return Number.isFinite(minutes) ? minutes : 0;
+}
+
+function courseDailyMinutesToHours(minutesPerDay) {
+  const minutes = Number(minutesPerDay || 0);
+  return Number.isFinite(minutes) ? minutes / 60 : 0;
+}
+
+function dailyMinutesSummary(hoursPerDay) {
+  const minutes = courseHoursToDailyMinutes(hoursPerDay);
   return minutes > 0 ? `${minutes} min/day` : "No daily minutes";
 }
 
@@ -11962,8 +11972,10 @@ function courseSchoolDayMeta(course) {
 function courseSectionSchoolDayMeta(section) {
   if (!section) return [];
   const instructorId = assignedInstructorIdForCourseSection(section.id);
+  const course = getCourse(section.courseId);
   return [
     instructorId ? `Instructor: ${getInstructorName(instructorId)}` : "Instructor: Unassigned",
+    dailyMinutesSummary(course?.hoursPerDay),
     `Fixed ${formatClockTime(section.startTime || "08:00")}`,
     weekdaySummary(section.weekdays),
     quarterSummary(section.quarterNames, "Course quarters"),
@@ -22302,7 +22314,7 @@ function beginCourseEdit(courseId) {
   document.getElementById("course-name").value = course.name;
   document.getElementById("course-subject").value = course.subjectId;
   document.getElementById("course-instructor").value = course.instructorId || "";
-  document.getElementById("course-hours").value = String(Number(course.hoursPerDay));
+  document.getElementById("course-hours").value = String(courseHoursToDailyMinutes(course.hoursPerDay));
   renderCourseQuarterChecklist(course.quarterNames || []);
   setCourseWeekdaySelection(course.weekdays || [1, 2, 3, 4, 5]);
   fillCourseMaterialFields(course.materials || course.material);
@@ -23667,11 +23679,12 @@ function bindEvents() {
     const name = document.getElementById("course-name").value.trim();
     const subjectId = document.getElementById("course-subject").value;
     const instructorId = document.getElementById("course-instructor").value.trim();
-    const hoursPerDay = Number(document.getElementById("course-hours").value);
+    const minutesPerDay = Number(document.getElementById("course-hours").value);
+    const hoursPerDay = courseDailyMinutesToHours(minutesPerDay);
     const quarterNames = getSelectedCourseQuarterNames();
     const weekdays = Array.from(document.querySelectorAll("input[name='course-weekday']:checked")).map((checkbox) => Number(checkbox.value));
     const materials = readCourseMaterialFields();
-    if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) { alert("Provide course name, subject, and hours/day."); return; }
+    if (!name || !subjectId || !Number.isFinite(minutesPerDay) || minutesPerDay < 15) { alert("Provide course name, subject, and at least 15 minutes/day."); return; }
     if (!weekdays.length) { alert("Select at least one weekday for the course."); return; }
     if (materials.some((material) => material.type === "other" && !material.other)) { alert("Provide details when Material Type is Other."); return; }
     const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource: false, resourceGroup: "", resourceCapacity: null, quarterNames, weekdays, materials };

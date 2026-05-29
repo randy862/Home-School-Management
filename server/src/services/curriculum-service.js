@@ -170,7 +170,7 @@ function normalizeCoursePayload(input) {
   const weekdays = normalizeWeekdays(input?.weekdays, [1, 2, 3, 4, 5]);
   const materials = normalizeCourseMaterials(input?.materials || input?.material);
   if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) {
-    const error = new Error("Provide course name, subject, and hours/day.");
+    const error = new Error("Provide course name, subject, and daily instructional time.");
     error.statusCode = 400;
     throw error;
   }
