@@ -97,6 +97,13 @@ Deployment posture:
 - AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `1272ab3`; AWS now includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals.
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
+- AWS migration verification confirmed tenant/runtime migrations through `032` and control-plane migrations through `012`.
+- AWS validation control metadata was synced to initialized after runtime setup verification; rollback: `/home/admin/rollback/hsm/aws-validation-data-metadata-202605291345/sql001/tenant_environments.before.sql`.
+- AWS control API CORS was updated to include `http://aws-validation.navigrader.com`; rollback: `/home/admin/rollback/hsm/aws-runtime-config-202605291335/app001/hsm-control-api.env.before-cors`.
+- HTTPS/TLS is enabled for `aws-validation.navigrader.com`; HTTP redirects to HTTPS.
+- TLS rollback root: `/home/admin/rollback/hsm/aws-validation-tls-202605291405/web001/`.
+- HTTPS runtime rollback root: `/home/admin/rollback/hsm/aws-validation-https-runtime-202605291410/`.
+- HTTPS control CORS rollback: `/home/admin/rollback/hsm/aws-validation-https-cors-202605291415/app001/hsm-control-api.env.before-https-cors`.
 - AWS rollback bundle root for this deploy: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS tenant API/control API runtime mail values are configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
 - AWS validation tenant is initialized with admin `awsadmin`.
@@ -113,9 +120,10 @@ Completed pause/cost-control actions:
 Immediate resume point:
 
 1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-2. Smoke login, password reset, Course minutes/day editing, absent-to-excused attendance, School Day Scheduled Item filtering, Grade Search `Course/Class/Block` filtering, Open Items Today gauge, and Past Due Schedule Items gauge.
-3. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
-4. Continue DNS/TLS planning.
+2. Smoke login and password reset at `https://aws-validation.navigrader.com`.
+3. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
+4. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
+5. Continue production DNS planning.
 
 ## AWS Audit And Journaling Reality
 

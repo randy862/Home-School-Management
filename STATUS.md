@@ -42,11 +42,20 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS APP001/WEB001 are deployed through `1272ab3`.
 - AWS pickup now moves to smoke validation before go-live readiness.
 - AWS deploy includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals.
-- AWS SQL001 has migration `032_password_reset_tokens.sql` applied to existing schemas.
+- AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012` verified.
+- AWS validation tenant has one initialized admin user with email, but no curriculum/student/demo data yet.
+- AWS validation control metadata is synced to `setup_state='initialized'`.
+- HTTPS/TLS is enabled for `aws-validation.navigrader.com`; HTTP redirects to HTTPS.
+- AWS runtime public base URLs and validation tenant `app_base_url` now use `https://aws-validation.navigrader.com`.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
+- AWS control CORS rollback: `/home/admin/rollback/hsm/aws-runtime-config-202605291335/app001/hsm-control-api.env.before-cors`.
+- AWS TLS rollback root: `/home/admin/rollback/hsm/aws-validation-tls-202605291405/web001/`.
+- AWS HTTPS runtime rollback root: `/home/admin/rollback/hsm/aws-validation-https-runtime-202605291410/`.
+- AWS HTTPS control CORS rollback: `/home/admin/rollback/hsm/aws-validation-https-cors-202605291415/app001/hsm-control-api.env.before-https-cors`.
 - AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`.
+- AWS validation metadata rollback: `/home/admin/rollback/hsm/aws-validation-data-metadata-202605291345/sql001/tenant_environments.before.sql`.
 - Local SSH aliases are configured on this workstation: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 - Temporary NAT Gateway cleanup is complete; private subnet should no longer have a default internet route.
 
@@ -64,6 +73,9 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS public HTTP health, setup status, and control health previously returned HTTP 200 with Host `aws-validation.navigrader.com`.
 - AWS deployed hashes matched local `web/index.html`, `web/app.js`, `web/styles.css`, and `server/src/services/curriculum-service.js`.
 - AWS public `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200 after the latest deploy.
+- AWS tenant CORS and control CORS return `Access-Control-Allow-Origin: http://aws-validation.navigrader.com`.
+- AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` returns 301 to HTTPS.
+- AWS tenant CORS and control CORS return `Access-Control-Allow-Origin: https://aws-validation.navigrader.com`.
 - AWS deployed tenant reset URL assertion produced `https://aws-validation.navigrader.com/#resetToken=...`.
 - AWS validation password reset email was received and reset-complete succeeded.
 
@@ -79,6 +91,6 @@ Keep home lab production current while preparing AWS go-live validation.
 
 ## Next Actions
 
-1. Smoke AWS login, password reset, Course minutes/day editing, absent-to-excused attendance, School Day filtering, Grade Search filtering, dashboard gauges, and health endpoints.
-2. Continue AWS DNS/TLS planning for go-live readiness.
+1. Smoke AWS login and password reset at `https://aws-validation.navigrader.com`.
+2. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
 3. Decide AWS staging/production data restore and cutover sequence.

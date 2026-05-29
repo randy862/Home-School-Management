@@ -22,13 +22,19 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `1272ab3`.
 - AWS now includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
+- AWS migration check confirmed tenant/runtime migrations through `032` and control-plane migrations through `012`.
+- AWS control API CORS now allows `http://aws-validation.navigrader.com`.
+- AWS validation tenant has one initialized admin user with email, but no curriculum/student/demo data yet.
+- AWS validation control metadata was synced to `setup_state='initialized'`.
+- HTTPS/TLS is enabled for `aws-validation.navigrader.com`; HTTP redirects to HTTPS.
+- AWS runtime public base URLs and validation tenant `app_base_url` now use `https://aws-validation.navigrader.com`.
 - AWS validation reset email delivery and reset-complete flow succeeded.
 - Temporary AWS NAT Gateway cleanup is complete.
 - Local SSH aliases were created in `C:/Users/rmitchell/.ssh/config`: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 
 ## Next Action
 
-Smoke AWS login, password reset, Course minutes/day editing, absent-to-excused attendance, School Day filtering, Grade Search filtering, dashboard gauges, and health endpoints.
+Smoke AWS login and password reset at `https://aws-validation.navigrader.com`, then decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
 
 ## Risks
 
@@ -45,7 +51,12 @@ Smoke AWS login, password reset, Course minutes/day editing, absent-to-excused a
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`
+- AWS control CORS rollback: `/home/admin/rollback/hsm/aws-runtime-config-202605291335/app001/hsm-control-api.env.before-cors`
+- AWS TLS rollback root: `/home/admin/rollback/hsm/aws-validation-tls-202605291405/web001/`
+- AWS HTTPS runtime rollback root: `/home/admin/rollback/hsm/aws-validation-https-runtime-202605291410/`
+- AWS HTTPS control CORS rollback: `/home/admin/rollback/hsm/aws-validation-https-cors-202605291415/app001/hsm-control-api.env.before-https-cors`
 - AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`
+- AWS validation metadata rollback: `/home/admin/rollback/hsm/aws-validation-data-metadata-202605291345/sql001/tenant_environments.before.sql`
 
 ## Validation
 
@@ -60,3 +71,6 @@ Smoke AWS login, password reset, Course minutes/day editing, absent-to-excused a
 - Deployed hashes matched local `web/index.html`, `web/app.js`, and `server/src/services/curriculum-service.js`.
 - AWS deployed hashes matched local `web/index.html`, `web/app.js`, `web/styles.css`, and `server/src/services/curriculum-service.js`.
 - AWS public `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200.
+- AWS tenant CORS and control CORS return `Access-Control-Allow-Origin: http://aws-validation.navigrader.com`.
+- AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` returns 301 to HTTPS.
+- AWS tenant CORS and control CORS return `Access-Control-Allow-Origin: https://aws-validation.navigrader.com`.
