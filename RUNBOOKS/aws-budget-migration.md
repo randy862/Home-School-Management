@@ -107,6 +107,7 @@ Deployment posture:
 - AWS HTTPS login succeeded.
 - Temporary NAT via MAINT001 is active for APP001 private egress; APP001 reaches Postmark over HTTPS and egresses as `3.138.124.78`.
 - Temporary NAT Linux rollback root on MAINT001: `/home/admin/rollback/hsm/temp-nat-maint001-202605291455`.
+- AWS HTTPS password recovery succeeded after temporary NAT was enabled.
 - AWS rollback bundle root for this deploy: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS tenant API/control API runtime mail values are configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
 - AWS validation tenant is initialized with admin `awsadmin`.
@@ -123,9 +124,9 @@ Completed pause/cost-control actions:
 Immediate resume point:
 
 1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-2. Retry password reset at `https://aws-validation.navigrader.com`.
-3. Remove temporary NAT route/SG rules and MAINT001 NAT config after validation.
-4. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
+2. Remove temporary NAT route/SG rules and MAINT001 NAT config after validation.
+3. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
+4. Continue AWS production egress decision for go-live, likely NAT Gateway.
 5. After the next scheduled DLM window, verify automated snapshots appear for both enabled lifecycle policies.
 6. Continue production DNS planning.
 

@@ -49,6 +49,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS runtime public base URLs and validation tenant `app_base_url` now use `https://aws-validation.navigrader.com`.
 - AWS HTTPS login succeeded.
 - Temporary NAT via MAINT001 is active for APP001 private egress; APP001 reaches Postmark over HTTPS and egresses as `3.138.124.78`.
+- AWS HTTPS password recovery succeeded after temporary NAT was enabled.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
@@ -81,6 +82,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS APP001 logs show password reset mail failures with `request_timeout`; `curl https://api.postmarkapp.com/` from APP001 times out on TCP/443.
 - AWS deployed tenant reset URL assertion produced `https://aws-validation.navigrader.com/#resetToken=...`.
 - AWS validation password reset email was received and reset-complete succeeded.
+- AWS HTTPS password recovery reset-complete succeeded after temporary NAT was enabled.
 
 ## Current Blockers
 
@@ -95,6 +97,6 @@ Keep home lab production current while preparing AWS go-live validation.
 
 ## Next Actions
 
-1. Retry password reset at `https://aws-validation.navigrader.com`.
-2. Remove temporary NAT route/SG rules and MAINT001 NAT config after validation.
-3. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
+1. Remove temporary NAT route/SG rules and MAINT001 NAT config after validation.
+2. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
+3. Continue AWS production egress decision for go-live, likely NAT Gateway.

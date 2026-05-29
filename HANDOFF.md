@@ -30,13 +30,14 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - AWS runtime public base URLs and validation tenant `app_base_url` now use `https://aws-validation.navigrader.com`.
 - AWS HTTPS login succeeded.
 - Temporary NAT via MAINT001 is active for APP001 private egress; APP001 reaches Postmark over HTTPS and egresses as `3.138.124.78`.
+- AWS HTTPS password recovery succeeded after temporary NAT was enabled.
 - AWS validation reset email delivery and reset-complete flow succeeded.
 - Temporary AWS NAT Gateway cleanup is complete.
 - Local SSH aliases were created in `C:/Users/rmitchell/.ssh/config`: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 
 ## Next Action
 
-Retry password reset at `https://aws-validation.navigrader.com`, then remove temporary NAT route/SG rules and MAINT001 NAT config when validation is complete.
+Remove temporary NAT route/SG rules and MAINT001 NAT config, then decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
 
 ## Risks
 
@@ -80,3 +81,4 @@ Retry password reset at `https://aws-validation.navigrader.com`, then remove tem
 - AWS APP001 logs show password reset mail failures with `request_timeout`; `curl https://api.postmarkapp.com/` from APP001 times out on TCP/443.
 - Temporary NAT rollback root on MAINT001: `/home/admin/rollback/hsm/temp-nat-maint001-202605291455`.
 - After temporary NAT setup, APP001 `curl -I https://api.postmarkapp.com/` returned HTTP 302 and `checkip.amazonaws.com` returned `3.138.124.78`.
+- AWS HTTPS password recovery reset-complete succeeded after temporary NAT was enabled.
