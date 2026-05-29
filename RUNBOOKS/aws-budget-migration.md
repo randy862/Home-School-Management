@@ -109,8 +109,11 @@ Deployment posture:
 - Temporary NAT Linux rollback root on MAINT001: `/home/admin/rollback/hsm/temp-nat-maint001-202605291455`.
 - AWS HTTPS password recovery succeeded after temporary NAT was enabled.
 - Mitchell AWS validation tenant restored to `tenant_mitchell_aws_validation` and mapped to `mitchell-aws-validation.navigrader.com`.
-- Public DNS for `mitchell-aws-validation.navigrader.com` still resolves to the home lab wildcard; add an explicit A record to AWS `18.188.35.157`, then issue TLS.
+- GoDaddy A record `mitchell-aws-validation -> 18.188.35.157` is added; Google DNS and AWS resolve it to AWS, while this workstation may cache the old wildcard CNAME until TTL expiry.
+- TLS is issued for `aws-validation.navigrader.com` plus `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve the requested host.
 - Mitchell validation restore rollback/artifacts: `/home/admin/rollback/hsm/aws-mitchell-validation-restore-202605291545/`.
+- Mitchell validation TLS rollback root: `/home/admin/rollback/hsm/mitchell-aws-validation-tls-202605291953/`.
+- Mitchell validation HTTP redirect rollback root: `/home/admin/rollback/hsm/mitchell-aws-validation-http-redirect-202605291957/`.
 - AWS rollback bundle root for this deploy: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS tenant API/control API runtime mail values are configured for `http://aws-validation.navigrader.com` with Postmark `allowlist_only`.
 - AWS validation tenant is initialized with admin `awsadmin`.
@@ -127,11 +130,9 @@ Completed pause/cost-control actions:
 Immediate resume point:
 
 1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-2. Add GoDaddy A record `mitchell-aws-validation -> 18.188.35.157`.
-3. Issue TLS for `mitchell-aws-validation.navigrader.com`.
-4. Smoke restored Mitchell workflows in AWS.
-5. Continue AWS production egress decision for go-live, likely NAT Gateway.
-6. Continue production DNS planning.
+2. Smoke restored Mitchell workflows at `https://mitchell-aws-validation.navigrader.com` after local DNS cache expires.
+3. Continue AWS production egress decision for go-live, likely NAT Gateway.
+4. Continue production DNS planning.
 
 ## AWS Audit And Journaling Reality
 

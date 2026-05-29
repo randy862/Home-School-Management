@@ -32,13 +32,13 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - Temporary NAT via MAINT001 was used for APP001 private egress, then cleaned up after password recovery validation.
 - AWS HTTPS password recovery succeeded after temporary NAT was enabled.
 - Mitchell AWS validation tenant restored to `tenant_mitchell_aws_validation` and mapped to `mitchell-aws-validation.navigrader.com`.
-- Public DNS for `mitchell-aws-validation.navigrader.com` still resolves to the home lab wildcard; add an explicit A record to AWS `18.188.35.157`, then issue TLS.
-- Temporary AWS NAT Gateway cleanup is complete.
+- GoDaddy A record `mitchell-aws-validation -> 18.188.35.157` is added; public DNS from Google/AWS resolves to AWS, while this workstation may cache the old wildcard CNAME until TTL expiry.
+- TLS is issued for `aws-validation.navigrader.com` plus `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve the requested host.
 - Local SSH aliases were created in `C:/Users/rmitchell/.ssh/config`: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 
 ## Next Action
 
-Add GoDaddy A record `mitchell-aws-validation -> 18.188.35.157`, issue TLS for that host, then smoke restored Mitchell workflows.
+Smoke restored Mitchell workflows at `https://mitchell-aws-validation.navigrader.com` after local DNS cache expires.
 
 ## Risks
 
@@ -61,8 +61,8 @@ Add GoDaddy A record `mitchell-aws-validation -> 18.188.35.157`, issue TLS for t
 - AWS HTTPS control CORS rollback: `/home/admin/rollback/hsm/aws-validation-https-cors-202605291415/app001/hsm-control-api.env.before-https-cors`
 - AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`
 - AWS validation metadata rollback: `/home/admin/rollback/hsm/aws-validation-data-metadata-202605291345/sql001/tenant_environments.before.sql`
-- AWS Mitchell validation restore rollback/artifacts: `/home/admin/rollback/hsm/aws-mitchell-validation-restore-202605291545/`
-- AWS Mitchell validation CORS rollback: `/home/admin/rollback/hsm/aws-mitchell-validation-cors-202605291545/app001/`
+- AWS Mitchell validation restore/CORS rollback roots: `/home/admin/rollback/hsm/aws-mitchell-validation-restore-202605291545/` and `/home/admin/rollback/hsm/aws-mitchell-validation-cors-202605291545/app001/`
+- AWS Mitchell validation TLS/redirect rollback roots: `/home/admin/rollback/hsm/mitchell-aws-validation-tls-202605291953/` and `/home/admin/rollback/hsm/mitchell-aws-validation-http-redirect-202605291957/`
 
 ## Validation
 
@@ -85,4 +85,4 @@ Add GoDaddy A record `mitchell-aws-validation -> 18.188.35.157`, issue TLS for t
 - After temporary NAT setup, APP001 `curl -I https://api.postmarkapp.com/` returned HTTP 302 and `checkip.amazonaws.com` returned `3.138.124.78`.
 - AWS HTTPS password recovery reset-complete succeeded after temporary NAT was enabled.
 - Temporary NAT cleanup completed; MAINT001 `net.ipv4.ip_forward=0`, NAT rules are removed, and APP001 Postmark egress times out again as expected.
-- Forced AWS host resolution for `mitchell-aws-validation.navigrader.com` returned setup initialized and correct CORS.
+- Forced AWS host resolution for `mitchell-aws-validation.navigrader.com` returned setup initialized, correct CORS, valid HTTPS, and HTTP-to-HTTPS redirect.

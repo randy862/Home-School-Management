@@ -51,7 +51,8 @@ Keep home lab production current while preparing AWS go-live validation.
 - Temporary NAT via MAINT001 was used for APP001 private egress, then cleaned up after password recovery validation.
 - AWS HTTPS password recovery succeeded after temporary NAT was enabled.
 - Mitchell AWS validation tenant restored to `tenant_mitchell_aws_validation` and mapped to `mitchell-aws-validation.navigrader.com`.
-- Public DNS for `mitchell-aws-validation.navigrader.com` still resolves to the home lab wildcard; add an explicit A record to AWS `18.188.35.157`, then issue TLS.
+- GoDaddy A record `mitchell-aws-validation -> 18.188.35.157` is added; Google DNS and AWS resolve it to AWS, but this workstation may cache the old wildcard CNAME until TTL expiry.
+- TLS is issued for `aws-validation.navigrader.com` plus `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve the requested host.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
@@ -61,8 +62,8 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS HTTPS control CORS rollback: `/home/admin/rollback/hsm/aws-validation-https-cors-202605291415/app001/hsm-control-api.env.before-https-cors`.
 - AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`.
 - AWS validation metadata rollback: `/home/admin/rollback/hsm/aws-validation-data-metadata-202605291345/sql001/tenant_environments.before.sql`.
-- AWS Mitchell validation restore rollback/artifacts: `/home/admin/rollback/hsm/aws-mitchell-validation-restore-202605291545/`.
-- AWS Mitchell validation CORS rollback: `/home/admin/rollback/hsm/aws-mitchell-validation-cors-202605291545/app001/`.
+- AWS Mitchell validation restore/CORS rollback roots: `/home/admin/rollback/hsm/aws-mitchell-validation-restore-202605291545/` and `/home/admin/rollback/hsm/aws-mitchell-validation-cors-202605291545/app001/`.
+- AWS Mitchell validation TLS/redirect rollback roots: `/home/admin/rollback/hsm/mitchell-aws-validation-tls-202605291953/` and `/home/admin/rollback/hsm/mitchell-aws-validation-http-redirect-202605291957/`.
 - Local SSH aliases are configured on this workstation: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 - Temporary NAT Gateway cleanup is complete; private subnet should no longer have a default internet route.
 
@@ -88,7 +89,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS validation password reset email was received and reset-complete succeeded.
 - AWS HTTPS password recovery reset-complete succeeded after temporary NAT was enabled.
 - Temporary NAT cleanup completed; MAINT001 `net.ipv4.ip_forward=0`, NAT rules are removed, and APP001 Postmark egress times out again as expected.
-- Forced AWS host resolution for `mitchell-aws-validation.navigrader.com` returned setup initialized and correct CORS.
+- Forced AWS host resolution for `mitchell-aws-validation.navigrader.com` returned setup initialized, correct CORS, valid HTTPS, and HTTP-to-HTTPS redirect.
 
 ## Current Blockers
 
@@ -102,6 +103,6 @@ Keep home lab production current while preparing AWS go-live validation.
 
 ## Next Actions
 
-1. Add GoDaddy A record `mitchell-aws-validation -> 18.188.35.157`.
-2. Issue TLS for `mitchell-aws-validation.navigrader.com`.
-3. Smoke restored Mitchell workflows in AWS.
+1. Smoke restored Mitchell workflows at `https://mitchell-aws-validation.navigrader.com` after local DNS cache expires.
+2. Continue AWS production egress decision for go-live.
+3. Continue production DNS planning.
