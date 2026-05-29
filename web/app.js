@@ -21102,8 +21102,9 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     adjustedBlocks.forEach((block, index) => {
       const gapMinutes = Math.max(0, block.start - previousEnd);
       const isLeadingBreakGap = block.type !== "instruction" && index === 0 && previousEnd === schoolDayStartMinutes;
+      const isExcusedInstruction = block.type === "instruction" && effectiveInstructionExcused(block.studentId, block.courseId, dateKey);
       const flexBlockThresholdMinutes = minutesBetweenClasses + 5;
-      if (gapMinutes >= flexBlockThresholdMinutes && !isLeadingBreakGap) {
+      if (!isExcusedInstruction && gapMinutes >= flexBlockThresholdMinutes && !isLeadingBreakGap) {
         const flexRecord = findFlexBlockRecord(studentId, dateKey, previousEnd, block.start);
         adjustedWithFlexBlocks.push({
           student: studentName,
@@ -21121,7 +21122,10 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
         });
       }
       adjustedWithFlexBlocks.push(block);
-      previousEnd = Math.max(previousEnd, block.end);
+      const flexCursorEnd = isExcusedInstruction
+        ? (Number.isFinite(block.plannedEnd) ? block.plannedEnd : block.end)
+        : block.end;
+      previousEnd = Math.max(previousEnd, flexCursorEnd);
     });
 
     if (!hasOrderedBlocks) {

@@ -20,8 +20,8 @@ Keep home lab production current while preparing AWS go-live validation.
 - Grade Search has a grouped `Course/Class/Block` dropdown, anchored first on the second filter row.
 - Curriculum Courses now show `Minutes / Day`; saves convert minutes to the existing internal `hoursPerDay`.
 - Class metadata now shows the inherited course minutes/day duration.
-- Marking a student absent now automatically excuses that student's scheduled/open classes for that date.
-- Home lab WEB001 is deployed with `styles.css?v=202605281100` and `app.js?v=202605291030`.
+- Marking a student absent now automatically excuses that student's scheduled/open classes for that date without generating duplicate Flex Blocks.
+- Home lab WEB001 is deployed with `styles.css?v=202605281100` and `app.js?v=202605291610`.
 - Home lab APP001 has the updated curriculum validation wording deployed.
 - AWS validation password reset email was received and reset-complete succeeded.
 - Temporary AWS NAT Gateway egress was removed after validation.
@@ -31,17 +31,17 @@ Keep home lab production current while preparing AWS go-live validation.
 
 - Home lab production URL: `https://mitchell.navigrader.com/`
 - Tenant app assets:
-  - `app.js?v=202605291030`
+  - `app.js?v=202605291610`
   - `styles.css?v=202605281100`
 - Course minutes/day rollback root: `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
-- Attendance absent auto-excuse rollback: `/home/debian/rollback/hsm/attendance-absent-auto-excuse-202605291030/web001/web.tgz`
+- Attendance absent/excused Flex Block rollback: `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`
 - APP001 tenant-aware password reset link rollback: `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
 
 ## AWS Pickup
 
 - AWS APP001/WEB001 are deployed through `1272ab3`.
 - AWS restored Mitchell browser smoke succeeded; pickup now moves to production egress and DNS go-live planning.
-- AWS deploy includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals.
+- AWS deploy includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks.
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012` verified.
 - AWS validation tenant has one initialized admin user with email, but no curriculum/student/demo data yet.
 - AWS validation control metadata is synced to `setup_state='initialized'`.
@@ -54,7 +54,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - GoDaddy A record `mitchell-aws-validation -> 18.188.35.157` is added and public DNS resolves to AWS.
 - TLS is issued for `aws-validation.navigrader.com` plus `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve the requested host.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
-- AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
+- AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`; latest WEB001 fix rollback: `/home/admin/rollback/hsm/school-day-excused-flex-202605291610/web001/`.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
 - AWS control CORS rollback: `/home/admin/rollback/hsm/aws-runtime-config-202605291335/app001/hsm-control-api.env.before-cors`.
 - AWS TLS rollback root: `/home/admin/rollback/hsm/aws-validation-tls-202605291405/web001/`.
@@ -74,7 +74,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - `git diff --check` passed with only LF/CRLF warnings.
 - Public `https://mitchell.navigrader.com/health` returned HTTP 200.
 - APP001 local `http://127.0.0.1:3000/health` returned HTTP 200.
-- Public root references `styles.css?v=202605281100` and `app.js?v=202605291030`.
+- Public root references `styles.css?v=202605281100` and `app.js?v=202605291610`.
 - Served app script contains attendance-driven auto-excusal helpers.
 - Served app script contains `Minutes/Day`, minutes conversion helpers, and the class inherited minutes/day marker.
 - WEB001/APP001 deployed SHA-256 hashes matched local changed files.

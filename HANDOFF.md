@@ -14,13 +14,13 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - Grade Search uses one grouped `Course/Class/Block` dropdown, anchored as the first field on the second filter row.
 - Curriculum Courses now use `Minutes / Day` in the UI; saved values still use the existing internal `hoursPerDay` field.
 - Class metadata now displays the inherited course minutes/day value.
-- Marking a student absent now automatically excuses that student's scheduled/open classes for that date.
-- Home lab WEB001 is deployed with `styles.css?v=202605281100` and `app.js?v=202605291030`.
+- Marking a student absent now automatically excuses that student's scheduled/open classes for that date without generating duplicate Flex Blocks.
+- Home lab WEB001 is deployed with `styles.css?v=202605281100` and `app.js?v=202605291610`.
 - Home lab APP001 has the neutral curriculum validation message deployed.
 - Public `https://mitchell.navigrader.com/health` and APP001 local health returned HTTP 200 after deployment.
 - WEB001/APP001 deployed SHA-256 hashes matched local changed files.
 - AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `1272ab3`.
-- AWS now includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals.
+- AWS now includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS migration check confirmed tenant/runtime migrations through `032` and control-plane migrations through `012`.
 - AWS control API CORS now allows `http://aws-validation.navigrader.com`.
@@ -49,11 +49,11 @@ Decide AWS production egress for mail/password reset, then continue production D
 ## Rollback
 
 - Course minutes/day rollback: `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
-- Attendance absent auto-excuse rollback: `/home/debian/rollback/hsm/attendance-absent-auto-excuse-202605291030/web001/web.tgz`
+- Attendance absent/excused Flex Block rollback: `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`
 - Grade Search row layout rollback: `/home/debian/rollback/hsm/web-grade-search-filter-row-layout-202605281100/web001/web.tgz`
 - Tenant-aware password reset link rollback: `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`
-- AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`
+- AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`; latest WEB001 fix rollback: `/home/admin/rollback/hsm/school-day-excused-flex-202605291610/web001/`
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`
 - AWS control CORS rollback: `/home/admin/rollback/hsm/aws-runtime-config-202605291335/app001/hsm-control-api.env.before-cors`
 - AWS TLS rollback root: `/home/admin/rollback/hsm/aws-validation-tls-202605291405/web001/`
@@ -69,7 +69,7 @@ Decide AWS production egress for mail/password reset, then continue production D
 - `node --check web/app.js` passed.
 - `node --check server/src/services/curriculum-service.js` passed.
 - `git diff --check` passed with only LF/CRLF warnings.
-- Public root references `styles.css?v=202605281100` and `app.js?v=202605291030`.
+- Public root references `styles.css?v=202605281100` and `app.js?v=202605291610`.
 - Served app script contains attendance-driven auto-excusal helpers.
 - Served app script contains `Minutes/Day`, minutes conversion helpers, and Class inherited minutes/day metadata.
 - Public `https://mitchell.navigrader.com/health` returned HTTP 200.
