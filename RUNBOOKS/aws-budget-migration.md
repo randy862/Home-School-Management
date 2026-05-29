@@ -56,6 +56,21 @@ Security posture:
 - `APP001` can connect to `SQL001:5432`.
 - `WEB001` will later proxy API traffic to `APP001:3000` and `APP001:3100`.
 
+Connectivity quick reference:
+
+- Local SSH config: `C:/Users/rmitchell/.ssh/config`
+- SSH key: `C:/Users/rmitchell/.ssh/navigrader-prod-admin.pem`
+- `aws-maint`: `admin@3.138.124.78`
+- `aws-app`: `admin@10.40.131.149` through `aws-maint`
+- `aws-web`: `admin@10.40.1.196` through `aws-maint`
+- `aws-sql`: `admin@10.40.138.78` through `aws-maint`
+- Test examples:
+  - `ssh aws-maint "hostname; hostname -I"`
+  - `ssh aws-app "hostname; hostname -I"`
+  - `ssh aws-web "hostname; hostname -I"`
+
+If `MAINT001` is stopped and started without an Elastic IP, its public IPv4 address can change. Update the `HostName` for `aws-maint` in the local SSH config, or assign a stable Elastic IP/DNS name for the maintenance host.
+
 Backup posture:
 
 - S3 backup bucket: `navigrader-prod-backups-016365604963-us-east-2-an`

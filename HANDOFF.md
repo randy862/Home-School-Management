@@ -24,6 +24,7 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS validation reset email delivery and reset-complete flow succeeded.
 - Temporary AWS NAT Gateway cleanup is complete.
+- Local SSH aliases were created in `C:/Users/rmitchell/.ssh/config`: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 
 ## Next Action
 
@@ -32,6 +33,7 @@ Smoke AWS login, password reset, Course minutes/day editing, absent-to-excused a
 ## Risks
 
 - Keep Postmark, database, Stripe, smoke credentials, and runtime env files out of the repo.
+- `aws-maint` uses public IP `3.138.124.78`; update the local SSH config if `MAINT001` is stopped/started without a stable Elastic IP.
 - Untracked scratch screenshots/icons and `tmp/` remain local and should stay out of commits.
 
 ## Rollback

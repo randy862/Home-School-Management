@@ -47,6 +47,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
 - AWS validation tenant init backup: `/home/admin/rollback/hsm/aws-validation-init-202605272015/app001/aws-validation-before-init-data.sql`.
+- Local SSH aliases are configured on this workstation: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 - Temporary NAT Gateway cleanup is complete; private subnet should no longer have a default internet route.
 
 ## Validation
@@ -73,6 +74,7 @@ Keep home lab production current while preparing AWS go-live validation.
 ## Current Risks
 
 - Do not store Postmark, database, Stripe, smoke credentials, or runtime env files in the repo.
+- `aws-maint` currently points to public IP `3.138.124.78`; update `C:/Users/rmitchell/.ssh/config` if `MAINT001` receives a new public IP.
 - Untracked local scratch assets and `tmp/` remain outside intended commits.
 
 ## Next Actions
