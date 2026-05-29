@@ -48,7 +48,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com`; HTTP redirects to HTTPS.
 - AWS runtime public base URLs and validation tenant `app_base_url` now use `https://aws-validation.navigrader.com`.
 - AWS HTTPS login succeeded.
-- Temporary NAT via MAINT001 is active for APP001 private egress; APP001 reaches Postmark over HTTPS and egresses as `3.138.124.78`.
+- Temporary NAT via MAINT001 was used for APP001 private egress, then cleaned up after password recovery validation.
 - AWS HTTPS password recovery succeeded after temporary NAT was enabled.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
@@ -83,6 +83,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS deployed tenant reset URL assertion produced `https://aws-validation.navigrader.com/#resetToken=...`.
 - AWS validation password reset email was received and reset-complete succeeded.
 - AWS HTTPS password recovery reset-complete succeeded after temporary NAT was enabled.
+- Temporary NAT cleanup completed; MAINT001 `net.ipv4.ip_forward=0`, NAT rules are removed, and APP001 Postmark egress times out again as expected.
 
 ## Current Blockers
 
@@ -92,11 +93,10 @@ Keep home lab production current while preparing AWS go-live validation.
 
 - Do not store Postmark, database, Stripe, smoke credentials, or runtime env files in the repo.
 - `aws-maint` currently points to public IP `3.138.124.78`; update `C:/Users/rmitchell/.ssh/config` if `MAINT001` receives a new public IP.
-- Temporary NAT is active through MAINT001 and must be removed after validation to return to cost/security baseline.
 - Untracked local scratch assets and `tmp/` remain outside intended commits.
 
 ## Next Actions
 
-1. Remove temporary NAT route/SG rules and MAINT001 NAT config after validation.
-2. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
-3. Continue AWS production egress decision for go-live, likely NAT Gateway.
+1. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
+2. Continue AWS production egress decision for go-live, likely NAT Gateway.
+3. Continue AWS production DNS/cutover planning.

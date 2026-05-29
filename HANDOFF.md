@@ -29,7 +29,7 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com`; HTTP redirects to HTTPS.
 - AWS runtime public base URLs and validation tenant `app_base_url` now use `https://aws-validation.navigrader.com`.
 - AWS HTTPS login succeeded.
-- Temporary NAT via MAINT001 is active for APP001 private egress; APP001 reaches Postmark over HTTPS and egresses as `3.138.124.78`.
+- Temporary NAT via MAINT001 was used for APP001 private egress, then cleaned up after password recovery validation.
 - AWS HTTPS password recovery succeeded after temporary NAT was enabled.
 - AWS validation reset email delivery and reset-complete flow succeeded.
 - Temporary AWS NAT Gateway cleanup is complete.
@@ -37,13 +37,12 @@ Home lab production UI refinement and AWS commercial production migration carry-
 
 ## Next Action
 
-Remove temporary NAT route/SG rules and MAINT001 NAT config, then decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
+Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.
 
 ## Risks
 
 - Keep Postmark, database, Stripe, smoke credentials, and runtime env files out of the repo.
 - `aws-maint` uses public IP `3.138.124.78`; update the local SSH config if `MAINT001` is stopped/started without a stable Elastic IP.
-- Temporary NAT is active through MAINT001 and must be removed after validation to return to cost/security baseline.
 - Untracked scratch screenshots/icons and `tmp/` remain local and should stay out of commits.
 
 ## Rollback
@@ -82,3 +81,4 @@ Remove temporary NAT route/SG rules and MAINT001 NAT config, then decide whether
 - Temporary NAT rollback root on MAINT001: `/home/admin/rollback/hsm/temp-nat-maint001-202605291455`.
 - After temporary NAT setup, APP001 `curl -I https://api.postmarkapp.com/` returned HTTP 302 and `checkip.amazonaws.com` returned `3.138.124.78`.
 - AWS HTTPS password recovery reset-complete succeeded after temporary NAT was enabled.
+- Temporary NAT cleanup completed; MAINT001 `net.ipv4.ip_forward=0`, NAT rules are removed, and APP001 Postmark egress times out again as expected.
