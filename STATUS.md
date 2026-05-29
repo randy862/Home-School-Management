@@ -40,7 +40,7 @@ Keep home lab production current while preparing AWS go-live validation.
 ## AWS Pickup
 
 - AWS APP001/WEB001 are deployed through `1272ab3`.
-- AWS pickup now moves to smoke validation before go-live readiness.
+- AWS restored Mitchell browser smoke succeeded; pickup now moves to production egress and DNS go-live planning.
 - AWS deploy includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals.
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012` verified.
 - AWS validation tenant has one initialized admin user with email, but no curriculum/student/demo data yet.
@@ -51,7 +51,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - Temporary NAT via MAINT001 was used for APP001 private egress, then cleaned up after password recovery validation.
 - AWS HTTPS password recovery succeeded after temporary NAT was enabled.
 - Mitchell AWS validation tenant restored to `tenant_mitchell_aws_validation` and mapped to `mitchell-aws-validation.navigrader.com`.
-- GoDaddy A record `mitchell-aws-validation -> 18.188.35.157` is added; Google DNS and AWS resolve it to AWS, but this workstation may cache the old wildcard CNAME until TTL expiry.
+- GoDaddy A record `mitchell-aws-validation -> 18.188.35.157` is added and public DNS resolves to AWS.
 - TLS is issued for `aws-validation.navigrader.com` plus `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve the requested host.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
@@ -90,7 +90,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS HTTPS password recovery reset-complete succeeded after temporary NAT was enabled.
 - Temporary NAT cleanup completed; MAINT001 `net.ipv4.ip_forward=0`, NAT rules are removed, and APP001 Postmark egress times out again as expected.
 - Forced AWS host resolution for `mitchell-aws-validation.navigrader.com` returned setup initialized, correct CORS, valid HTTPS, HTTP-to-HTTPS redirect, correct asset versions, expected restored row counts, and no recent API/control warnings.
-- Authoritative GoDaddy DNS returns `18.188.35.157`; Cloudflare/Quad9 also resolve to AWS, while some recursive DNS caches may still return the old wildcard CNAME.
+- Browser smoke at `https://mitchell-aws-validation.navigrader.com` succeeded after DNS/cache cleared.
 
 ## Current Blockers
 
@@ -104,6 +104,6 @@ Keep home lab production current while preparing AWS go-live validation.
 
 ## Next Actions
 
-1. Browser-smoke restored Mitchell workflows after local DNS stops resolving the old wildcard CNAME.
-2. Continue AWS production egress decision for go-live.
-3. Continue production DNS planning.
+1. Decide AWS production egress for mail/password reset.
+2. Continue production DNS go-live planning.
+3. Plan go-live rehearsal and rollback procedure.

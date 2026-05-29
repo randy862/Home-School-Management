@@ -109,8 +109,9 @@ Deployment posture:
 - Temporary NAT Linux rollback root on MAINT001: `/home/admin/rollback/hsm/temp-nat-maint001-202605291455`.
 - AWS HTTPS password recovery succeeded after temporary NAT was enabled.
 - Mitchell AWS validation tenant restored to `tenant_mitchell_aws_validation` and mapped to `mitchell-aws-validation.navigrader.com`.
-- GoDaddy A record `mitchell-aws-validation -> 18.188.35.157` is added; Google DNS and AWS resolve it to AWS, while this workstation may cache the old wildcard CNAME until TTL expiry.
+- GoDaddy A record `mitchell-aws-validation -> 18.188.35.157` is added and public DNS resolves to AWS.
 - TLS is issued for `aws-validation.navigrader.com` plus `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve the requested host.
+- Browser smoke at `https://mitchell-aws-validation.navigrader.com` succeeded against restored Mitchell data.
 - Mitchell validation restore rollback/artifacts: `/home/admin/rollback/hsm/aws-mitchell-validation-restore-202605291545/`.
 - Mitchell validation TLS rollback root: `/home/admin/rollback/hsm/mitchell-aws-validation-tls-202605291953/`.
 - Mitchell validation HTTP redirect rollback root: `/home/admin/rollback/hsm/mitchell-aws-validation-http-redirect-202605291957/`.
@@ -130,9 +131,9 @@ Completed pause/cost-control actions:
 Immediate resume point:
 
 1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-2. Smoke restored Mitchell workflows at `https://mitchell-aws-validation.navigrader.com` after local DNS cache expires.
-3. Continue AWS production egress decision for go-live, likely NAT Gateway.
-4. Continue production DNS planning.
+2. Continue AWS production egress decision for go-live, likely NAT Gateway.
+3. Continue production DNS planning.
+4. Plan go-live rehearsal and rollback procedure.
 
 ## AWS Audit And Journaling Reality
 
