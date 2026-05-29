@@ -89,7 +89,8 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS validation password reset email was received and reset-complete succeeded.
 - AWS HTTPS password recovery reset-complete succeeded after temporary NAT was enabled.
 - Temporary NAT cleanup completed; MAINT001 `net.ipv4.ip_forward=0`, NAT rules are removed, and APP001 Postmark egress times out again as expected.
-- Forced AWS host resolution for `mitchell-aws-validation.navigrader.com` returned setup initialized, correct CORS, valid HTTPS, and HTTP-to-HTTPS redirect.
+- Forced AWS host resolution for `mitchell-aws-validation.navigrader.com` returned setup initialized, correct CORS, valid HTTPS, HTTP-to-HTTPS redirect, correct asset versions, expected restored row counts, and no recent API/control warnings.
+- Authoritative GoDaddy DNS returns `18.188.35.157`; Cloudflare/Quad9 also resolve to AWS, while some recursive DNS caches may still return the old wildcard CNAME.
 
 ## Current Blockers
 
@@ -103,6 +104,6 @@ Keep home lab production current while preparing AWS go-live validation.
 
 ## Next Actions
 
-1. Smoke restored Mitchell workflows at `https://mitchell-aws-validation.navigrader.com` after local DNS cache expires.
+1. Browser-smoke restored Mitchell workflows after local DNS stops resolving the old wildcard CNAME.
 2. Continue AWS production egress decision for go-live.
 3. Continue production DNS planning.

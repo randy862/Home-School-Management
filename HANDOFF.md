@@ -38,7 +38,7 @@ Home lab production UI refinement and AWS commercial production migration carry-
 
 ## Next Action
 
-Smoke restored Mitchell workflows at `https://mitchell-aws-validation.navigrader.com` after local DNS cache expires.
+Browser-smoke restored Mitchell workflows after local DNS stops resolving the old wildcard CNAME.
 
 ## Risks
 
@@ -85,4 +85,4 @@ Smoke restored Mitchell workflows at `https://mitchell-aws-validation.navigrader
 - After temporary NAT setup, APP001 `curl -I https://api.postmarkapp.com/` returned HTTP 302 and `checkip.amazonaws.com` returned `3.138.124.78`.
 - AWS HTTPS password recovery reset-complete succeeded after temporary NAT was enabled.
 - Temporary NAT cleanup completed; MAINT001 `net.ipv4.ip_forward=0`, NAT rules are removed, and APP001 Postmark egress times out again as expected.
-- Forced AWS host resolution for `mitchell-aws-validation.navigrader.com` returned setup initialized, correct CORS, valid HTTPS, and HTTP-to-HTTPS redirect.
+- Forced AWS host resolution for `mitchell-aws-validation.navigrader.com` returned setup initialized, correct CORS, valid HTTPS, HTTP-to-HTTPS redirect, correct asset versions, expected restored row counts, and no recent API/control warnings.
