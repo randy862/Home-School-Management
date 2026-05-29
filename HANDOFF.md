@@ -14,7 +14,7 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - Grade Search uses one grouped `Course/Class/Block` dropdown, anchored as the first field on the second filter row.
 - Curriculum Courses now use `Minutes / Day` in the UI; saved values still use the existing internal `hoursPerDay` field.
 - Class metadata now displays the inherited course minutes/day value.
-- Marking a student absent now automatically excuses that student's scheduled/open classes for that date without generating duplicate Flex Blocks.
+- Marking a student absent now automatically excuses that student's scheduled/open classes for that date without generating duplicate Flex Blocks; user confirmed the fix in home lab and AWS.
 - Home lab WEB001 is deployed with `styles.css?v=202605281100` and `app.js?v=202605291610`.
 - Home lab APP001 has the neutral curriculum validation message deployed.
 - Public `https://mitchell.navigrader.com/health` and APP001 local health returned HTTP 200 after deployment.

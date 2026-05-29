@@ -20,7 +20,7 @@ Keep home lab production current while preparing AWS go-live validation.
 - Grade Search has a grouped `Course/Class/Block` dropdown, anchored first on the second filter row.
 - Curriculum Courses now show `Minutes / Day`; saves convert minutes to the existing internal `hoursPerDay`.
 - Class metadata now shows the inherited course minutes/day duration.
-- Marking a student absent now automatically excuses that student's scheduled/open classes for that date without generating duplicate Flex Blocks.
+- Marking a student absent now automatically excuses that student's scheduled/open classes for that date without generating duplicate Flex Blocks; user confirmed the fix in home lab and AWS.
 - Home lab WEB001 is deployed with `styles.css?v=202605281100` and `app.js?v=202605291610`.
 - Home lab APP001 has the updated curriculum validation wording deployed.
 - AWS validation password reset email was received and reset-complete succeeded.

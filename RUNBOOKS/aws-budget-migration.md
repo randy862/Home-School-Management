@@ -94,7 +94,7 @@ Deployment posture:
 - A temporary NAT Gateway route was added for validation mail delivery, then removed after validation: private route table `rtb-01e7fa93185f5ddf` should no longer route `0.0.0.0/0` to NAT.
 - AWS validation tenant host `aws-validation.navigrader.com` maps to tenant `tenant-aws-validation`, environment `env-aws-validation-production`, and schema `tenant_aws_validation`.
 - Host-header validation through `WEB001` returns tenant setup status and runtime resolution for `aws-validation.navigrader.com`.
-- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `1272ab3`; AWS now includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks.
+- AWS APP001/WEB001 were updated from branch `saas-modern-redesign` at `1272ab3`; AWS now includes password reset, dashboard gauges, filter changes, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks. User confirmed the Flex Block correction in home lab and AWS.
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
 - Latest AWS WEB001 absent/excused Flex Block rollback root: `/home/admin/rollback/hsm/school-day-excused-flex-202605291610/web001/`.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
