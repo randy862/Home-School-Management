@@ -14,19 +14,20 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - Grade Search uses one grouped `Course/Class/Block` dropdown, anchored as the first field on the second filter row.
 - Curriculum Courses now use `Minutes / Day` in the UI; saved values still use the existing internal `hoursPerDay` field.
 - Class metadata now displays the inherited course minutes/day value.
-- Home lab WEB001 is deployed with `styles.css?v=202605281100` and `app.js?v=202605291000`.
+- Marking a student absent now automatically excuses that student's scheduled/open classes for that date.
+- Home lab WEB001 is deployed with `styles.css?v=202605281100` and `app.js?v=202605291030`.
 - Home lab APP001 has the neutral curriculum validation message deployed.
 - Public `https://mitchell.navigrader.com/health` and APP001 local health returned HTTP 200 after deployment.
 - WEB001/APP001 deployed SHA-256 hashes matched local changed files.
 - AWS APP001/WEB001 were last updated from branch `saas-modern-redesign` at `cb7b057`.
-- AWS still needs later branch changes before go-live validation, including dashboard gauges, Grade Search filtering/layout, and Course minutes/day UI.
+- AWS still needs later branch changes before go-live validation, including dashboard gauges, Grade Search filtering/layout, Course minutes/day UI, and attendance-driven excusals.
 - AWS SQL001 migration `032_password_reset_tokens.sql` was applied to `public` and `tenant_aws_validation`.
 - AWS validation reset email delivery and reset-complete flow succeeded.
 - Temporary AWS NAT Gateway cleanup is complete.
 
 ## Next Action
 
-Restart the needed AWS hosts if stopped, deploy AWS APP001/WEB001 from the latest branch, then smoke AWS login, password reset, Course minutes/day editing, Attendance Search, School Day filtering, Grade Search filtering, dashboard gauges, and health endpoints.
+Restart the needed AWS hosts if stopped, deploy AWS APP001/WEB001 from the latest branch, then smoke AWS login, password reset, Course minutes/day editing, absent-to-excused attendance, School Day filtering, Grade Search filtering, dashboard gauges, and health endpoints.
 
 ## Risks
 
@@ -36,6 +37,7 @@ Restart the needed AWS hosts if stopped, deploy AWS APP001/WEB001 from the lates
 ## Rollback
 
 - Course minutes/day rollback: `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
+- Attendance absent auto-excuse rollback: `/home/debian/rollback/hsm/attendance-absent-auto-excuse-202605291030/web001/web.tgz`
 - Grade Search row layout rollback: `/home/debian/rollback/hsm/web-grade-search-filter-row-layout-202605281100/web001/web.tgz`
 - Tenant-aware password reset link rollback: `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`
@@ -47,7 +49,8 @@ Restart the needed AWS hosts if stopped, deploy AWS APP001/WEB001 from the lates
 - `node --check web/app.js` passed.
 - `node --check server/src/services/curriculum-service.js` passed.
 - `git diff --check` passed with only LF/CRLF warnings.
-- Public root references `styles.css?v=202605281100` and `app.js?v=202605291000`.
+- Public root references `styles.css?v=202605281100` and `app.js?v=202605291030`.
+- Served app script contains attendance-driven auto-excusal helpers.
 - Served app script contains `Minutes/Day`, minutes conversion helpers, and Class inherited minutes/day metadata.
 - Public `https://mitchell.navigrader.com/health` returned HTTP 200.
 - APP001 local `http://127.0.0.1:3000/health` returned HTTP 200.

@@ -13471,7 +13471,7 @@ async function saveAttendanceUpserts(records) {
         if (created) upsertHostedAttendanceState(created);
       }
     }));
-    return;
+    return autoExcuseScheduledInstructionsForAbsentAttendance(records);
   }
 
   records.forEach((record) => {
@@ -13491,6 +13491,64 @@ async function saveAttendanceUpserts(records) {
     }
   });
   saveState();
+  return autoExcuseScheduledInstructionsForAbsentAttendance(records);
+}
+
+function scheduledOpenInstructionBlocksForAttendanceExcusal(studentId, date) {
+  const blocks = dailyScheduledBlocks(date, [studentId]).get(studentId) || [];
+  const seen = new Set();
+  return blocks
+    .filter((block) => block.type === "instruction")
+    .filter((block) => effectiveInstructionStatus(block.studentId, block.courseId, date) === INSTRUCTION_STATUS_SCHEDULED)
+    .filter((block) => {
+      const key = `${block.studentId}::${block.courseId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+async function autoExcuseScheduledInstructionsForAbsentAttendance(records = []) {
+  const absentRecords = [];
+  const seen = new Set();
+  records.forEach((record) => {
+    if (record.present !== false || !record.studentId || !record.date) return;
+    const key = `${record.studentId}::${record.date}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    absentRecords.push(record);
+  });
+
+  let excusedCount = 0;
+  const excusedStudentIds = new Set();
+  for (const record of absentRecords) {
+    const blocks = scheduledOpenInstructionBlocksForAttendanceExcusal(record.studentId, record.date);
+    for (const block of blocks) {
+      const existing = findInstructionActualRecord(block.studentId, block.courseId, record.date);
+      await saveInstructionActualMinutes({
+        studentId: block.studentId,
+        courseId: block.courseId,
+        instructorId: effectiveInstructionInstructorId(block.studentId, block.courseId, record.date),
+        date: record.date,
+        actualMinutes: persistedInstructionActualMinutes(block.studentId, block.courseId, record.date),
+        startMinutes: existing?.startMinutes ?? null,
+        orderIndex: existing?.orderIndex ?? null,
+        status: INSTRUCTION_STATUS_EXCUSED
+      });
+      excusedCount += 1;
+      excusedStudentIds.add(record.studentId);
+    }
+  }
+  return {
+    excusedCount,
+    studentCount: excusedStudentIds.size
+  };
+}
+
+function attendanceExcusalSummaryText(summary) {
+  const count = Number(summary?.excusedCount || 0);
+  if (!count) return "";
+  return ` Excused ${count} scheduled ${count === 1 ? "class" : "classes"}.`;
 }
 
 function setSchoolDayAttendanceMessage(kind, message) {
@@ -25031,8 +25089,8 @@ function bindEvents() {
       });
       (async () => {
         try {
-          await saveAttendanceUpserts(records);
-          setSchoolDayAttendanceMessage("success", `Saved attendance for ${records.length} student${records.length === 1 ? "" : "s"} on ${formatDisplayDate(date)}.`);
+          const excusalSummary = await saveAttendanceUpserts(records);
+          setSchoolDayAttendanceMessage("success", `Saved attendance for ${records.length} student${records.length === 1 ? "" : "s"} on ${formatDisplayDate(date)}.${attendanceExcusalSummaryText(excusalSummary)}`);
           rerenderAfterAttendanceChange();
         } catch (error) {
           setSchoolDayAttendanceMessage("error", error.message || "Unable to save School Day attendance.");
@@ -25112,6 +25170,9 @@ function bindEvents() {
     if (hostedModeEnabled) {
       (async () => {
         try {
+          const attendanceRecordsForExcusal = editingAttendanceId
+            ? [{ studentId: studentIds[0], date, present: status === "present" }]
+            : studentIds.map((studentId) => ({ studentId, date, present: status === "present" }));
           if (editingAttendanceId) {
             const studentId = studentIds[0];
             const saved = await updateHostedAttendance(editingAttendanceId, {
@@ -25147,6 +25208,7 @@ function bindEvents() {
               if (created) upsertHostedAttendanceState(created);
             }));
           }
+          await autoExcuseScheduledInstructionsForAbsentAttendance(attendanceRecordsForExcusal);
           resetAttendanceEditMode();
           rerenderAfterAttendanceChange();
         } catch (error) {
@@ -25193,8 +25255,19 @@ function bindEvents() {
         else createLegacyLocalAttendance({ studentId, date, present: status === "present" });
       });
     }
-    resetAttendanceEditMode();
-    saveState(); renderAll();
+    const attendanceRecordsForExcusal = editingAttendanceId
+      ? [{ studentId: studentIds[0], date, present: status === "present" }]
+      : studentIds.map((studentId) => ({ studentId, date, present: status === "present" }));
+    (async () => {
+      try {
+        await autoExcuseScheduledInstructionsForAbsentAttendance(attendanceRecordsForExcusal);
+        resetAttendanceEditMode();
+        saveState();
+        renderAll();
+      } catch (error) {
+        alert(error.message || "Unable to save attendance.");
+      }
+    })();
   });
   document.getElementById("attendance-cancel-edit-btn").addEventListener("click", () => {
     resetAttendanceEditMode();
@@ -26527,8 +26600,8 @@ function bindEvents() {
       const present = String(statusInput?.value || "present") === "present";
       (async () => {
         try {
-          await saveAttendanceUpserts([{ studentId: schoolDayAttendanceSaveStudentId, date, present }]);
-          setSchoolDayAttendanceMessage("success", `Saved ${getStudentName(schoolDayAttendanceSaveStudentId)} as ${present ? "Present" : "Absent"} for ${formatDisplayDate(date)}.`);
+          const excusalSummary = await saveAttendanceUpserts([{ studentId: schoolDayAttendanceSaveStudentId, date, present }]);
+          setSchoolDayAttendanceMessage("success", `Saved ${getStudentName(schoolDayAttendanceSaveStudentId)} as ${present ? "Present" : "Absent"} for ${formatDisplayDate(date)}.${attendanceExcusalSummaryText(excusalSummary)}`);
           rerenderAfterAttendanceChange();
         } catch (error) {
           setSchoolDayAttendanceMessage("error", error.message || "Unable to save School Day attendance.");
@@ -26979,6 +27052,7 @@ function bindEvents() {
             updateLegacyLocalAttendance(state.attendance.find((entry) => entry.id === saveSearchAttendanceId), { studentId, date, present: status === "present" });
             saveState();
           }
+          await autoExcuseScheduledInstructionsForAbsentAttendance([{ studentId, date, present: status === "present" }]);
           editingSearchAttendanceId = "";
           rerenderAfterAttendanceChange();
         } catch (error) {
