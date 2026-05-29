@@ -47,7 +47,8 @@ Keep home lab production current while preparing AWS go-live validation.
 - AWS validation control metadata is synced to `setup_state='initialized'`.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com`; HTTP redirects to HTTPS.
 - AWS runtime public base URLs and validation tenant `app_base_url` now use `https://aws-validation.navigrader.com`.
-- AWS HTTPS login succeeded, but password reset email delivery currently fails because private APP001 has no outbound egress to Postmark after temporary NAT cleanup.
+- AWS HTTPS login succeeded.
+- Temporary NAT via MAINT001 is active for APP001 private egress; APP001 reaches Postmark over HTTPS and egresses as `3.138.124.78`.
 - AWS rollback bundle root: `/home/admin/rollback/hsm/aws-cb7b057-202605272003/`.
 - AWS latest branch deploy rollback root: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`.
 - AWS runtime env rollback: `/home/admin/rollback/hsm/aws-runtime-mail-202605272015/app001/`.
@@ -89,10 +90,11 @@ Keep home lab production current while preparing AWS go-live validation.
 
 - Do not store Postmark, database, Stripe, smoke credentials, or runtime env files in the repo.
 - `aws-maint` currently points to public IP `3.138.124.78`; update `C:/Users/rmitchell/.ssh/config` if `MAINT001` receives a new public IP.
+- Temporary NAT is active through MAINT001 and must be removed after validation to return to cost/security baseline.
 - Untracked local scratch assets and `tmp/` remain outside intended commits.
 
 ## Next Actions
 
-1. Restore temporary/private outbound egress for APP001 or choose the production egress design.
-2. Retry password reset at `https://aws-validation.navigrader.com`.
+1. Retry password reset at `https://aws-validation.navigrader.com`.
+2. Remove temporary NAT route/SG rules and MAINT001 NAT config after validation.
 3. Decide whether to create sample data or restore data before deeper Course/Attendance/Grade/dashboard smoke tests.

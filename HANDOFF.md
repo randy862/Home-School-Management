@@ -28,19 +28,21 @@ Home lab production UI refinement and AWS commercial production migration carry-
 - AWS validation control metadata was synced to `setup_state='initialized'`.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com`; HTTP redirects to HTTPS.
 - AWS runtime public base URLs and validation tenant `app_base_url` now use `https://aws-validation.navigrader.com`.
-- AWS HTTPS login succeeded, but password reset email delivery currently fails because private APP001 has no outbound egress to Postmark after temporary NAT cleanup.
+- AWS HTTPS login succeeded.
+- Temporary NAT via MAINT001 is active for APP001 private egress; APP001 reaches Postmark over HTTPS and egresses as `3.138.124.78`.
 - AWS validation reset email delivery and reset-complete flow succeeded.
 - Temporary AWS NAT Gateway cleanup is complete.
 - Local SSH aliases were created in `C:/Users/rmitchell/.ssh/config`: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 
 ## Next Action
 
-Restore temporary/private outbound egress for APP001 or choose the production egress design, then retry password reset at `https://aws-validation.navigrader.com`.
+Retry password reset at `https://aws-validation.navigrader.com`, then remove temporary NAT route/SG rules and MAINT001 NAT config when validation is complete.
 
 ## Risks
 
 - Keep Postmark, database, Stripe, smoke credentials, and runtime env files out of the repo.
 - `aws-maint` uses public IP `3.138.124.78`; update the local SSH config if `MAINT001` is stopped/started without a stable Elastic IP.
+- Temporary NAT is active through MAINT001 and must be removed after validation to return to cost/security baseline.
 - Untracked scratch screenshots/icons and `tmp/` remain local and should stay out of commits.
 
 ## Rollback
@@ -76,3 +78,5 @@ Restore temporary/private outbound egress for APP001 or choose the production eg
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` returns 301 to HTTPS.
 - AWS tenant CORS and control CORS return `Access-Control-Allow-Origin: https://aws-validation.navigrader.com`.
 - AWS APP001 logs show password reset mail failures with `request_timeout`; `curl https://api.postmarkapp.com/` from APP001 times out on TCP/443.
+- Temporary NAT rollback root on MAINT001: `/home/admin/rollback/hsm/temp-nat-maint001-202605291455`.
+- After temporary NAT setup, APP001 `curl -I https://api.postmarkapp.com/` returned HTTP 302 and `checkip.amazonaws.com` returned `3.138.124.78`.
