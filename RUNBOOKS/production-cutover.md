@@ -38,11 +38,13 @@ This cutover plan assumes:
   - `aws-validation.navigrader.com`
   - `mitchell-aws-validation.navigrader.com`
   - `aws1.navigrader.com`
-- TLS currently covers all three validation hostnames.
+- TLS currently covers the three validation hostnames plus `mitchell.navigrader.com`.
 - Restored Mitchell validation tenant login/smoke succeeded at `mitchell-aws-validation.navigrader.com`.
+- AWS also recognizes `mitchell.navigrader.com` as a secondary domain alias for the restored Mitchell tenant, and forced HTTPS to AWS returns setup-status initialized.
 - Stripe test checkout succeeded end-to-end through `aws-validation.navigrader.com`, including setup email, first admin setup, and login for `aws1.navigrader.com`.
 - Temporary MAINT001 NAT and temporary managed NAT Gateway validation paths are cleaned up; APP001 private egress to Stripe/Postmark should time out until go-live egress is intentionally enabled.
 - Keep the `aws1` tenant and Stripe test records for now as rehearsal evidence.
+- Certbot renewal for the expanded AWS cert currently records a manual DNS challenge; after live DNS points to AWS, convert renewal back to Apache/HTTP validation.
 
 ### Secrets / Configuration Confirmation
 - Tenant app session/auth secret confirmed: `TBD`
@@ -178,6 +180,15 @@ Before live DNS cutover:
 6. Validate password reset email links use the same tenant hostname that initiated the reset.
 7. Validate Stripe checkout/setup email on the AWS hostname before enabling real paid traffic.
 8. Keep the previous lab/home target available until AWS has passed the release gate and smoke checks.
+
+Mitchell first-tenant cutover specifics:
+
+1. Pre-cutover DNS state is explicit GoDaddy CNAME `mitchell -> navigrader.ddns.net` with TTL 600.
+2. During the cutover window, enable managed NAT Gateway egress and validate APP001 can reach Stripe/Postmark.
+3. Update the restored Mitchell AWS tenant so `mitchell.navigrader.com` is primary and `tenant_environments.app_base_url` is `https://mitchell.navigrader.com`.
+4. Replace the GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.
+5. Validate login and password reset email links on `https://mitchell.navigrader.com`.
+6. After public DNS points to AWS, convert the cert renewal method from manual DNS challenge to Apache/HTTP validation.
 
 DNS rollback:
 

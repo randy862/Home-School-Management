@@ -128,7 +128,10 @@ Deployment posture:
 - AWS public checkout completed end-to-end in browser, including Stripe test payment, setup email delivery, first admin setup, and login for tenant `aws1`.
 - Tenant `aws1` is active with schema `tenant_aws1`, ready environment metadata, initialized setup state, ready provisioning request, active subscription, and setup email sent.
 - GoDaddy A record `aws1 -> 18.188.35.157` is added; laptop and APP001 DNS resolve it without hosts overrides.
-- TLS covers `aws-validation.navigrader.com`, `mitchell-aws-validation.navigrader.com`, and `aws1.navigrader.com`.
+- GoDaddy explicit CNAME `mitchell -> navigrader.ddns.net` is staged with TTL 600 before first-tenant cutover.
+- AWS recognizes `mitchell.navigrader.com` as a secondary domain alias for the restored Mitchell AWS tenant; forced setup-status to AWS returns initialized.
+- TLS covers `aws-validation.navigrader.com`, `mitchell-aws-validation.navigrader.com`, `aws1.navigrader.com`, and `mitchell.navigrader.com`.
+- The expanded certificate was issued with a manual DNS challenge while public DNS still pointed to home lab; after live DNS points to AWS, convert renewal back to Apache/HTTP validation.
 - The `aws1` Stripe/tenant records are intentionally kept for now as rehearsal evidence, not deleted.
 
 Completed pause/cost-control actions:
@@ -141,7 +144,7 @@ Immediate resume point:
 
 1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
 2. Create the managed NAT Gateway at go-live, then validate APP001 egress to Stripe/Postmark before customer traffic depends on it.
-3. Continue production DNS planning.
+3. For first Mitchell cutover, update Mitchell AWS app base URL/primary domain to `https://mitchell.navigrader.com`, then replace GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.
 4. Run the go-live rehearsal and rollback procedure from `RUNBOOKS/production-cutover.md`.
 
 ## AWS Audit And Journaling Reality

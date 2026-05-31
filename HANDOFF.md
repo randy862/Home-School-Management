@@ -31,10 +31,11 @@ Home lab production polish and AWS commercial production migration carry-forward
 - AWS tenant `aws1` is active with schema `tenant_aws1`, ready/initialized control metadata, active subscription, and setup email sent.
 - GoDaddy A record `aws1 -> 18.188.35.157` and TLS for `aws1.navigrader.com` are working without laptop or APP001 hosts overrides.
 - AWS go-live egress decision and DNS cutover rehearsal/rollback steps are documented in the AWS/cutover runbooks; keep `aws1` and related Stripe test records as rehearsal evidence.
+- GoDaddy explicit `mitchell` CNAME has TTL 600; AWS maps `mitchell.navigrader.com` to the restored Mitchell tenant and TLS validates forced AWS HTTPS.
 
 ## Next Action
 
-Continue production DNS planning and schedule the go-live rehearsal. At go-live, create the managed NAT Gateway for APP001 mail/Stripe egress, validate Postmark/Stripe, then run the production cutover checklist.
+Schedule the go-live rehearsal. At go-live, create the managed NAT Gateway for APP001 mail/Stripe egress, update Mitchell AWS app base URL/primary domain to `https://mitchell.navigrader.com`, then replace the GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.
 
 ## Risks
 
@@ -42,6 +43,7 @@ Continue production DNS planning and schedule the go-live rehearsal. At go-live,
 - `aws-maint` uses public IP `3.138.124.78`; update local SSH config if `MAINT001` restarts without a stable Elastic IP.
 - Do not leave temporary egress/NAT in place unintentionally before go-live; current temporary NAT cleanup is complete. Production go-live should use the managed NAT Gateway plan, not MAINT001 NAT.
 - Control deployment is intentionally disabled for rehearsal; provisioning prepares schema/runtime metadata and setup token flow without pushing a per-tenant runtime over the shared APP001 service.
+- Certbot renewal for the expanded AWS cert currently records a manual DNS challenge; after DNS cutover, convert renewal back to Apache/HTTP validation.
 - Untracked scratch screenshots/icons and `tmp/` remain local and should stay out of commits.
 
 ## Rollback Pointers
@@ -55,16 +57,13 @@ Continue production DNS planning and schedule the go-live rehearsal. At go-live,
 - AWS commercial plan rollback: `/home/admin/rollback/hsm/aws-stripe-readiness-20260530012105/sql001/`
 - AWS worker rehearsal rollback: `/home/admin/rollback/hsm/aws-stripe-worker-rehearsal-20260530015453/app001/`
 - Current temporary NAT rollback: `/home/admin/rollback/hsm/temp-nat-maint001-20260530012439/`
-- AWS1 TLS rollback: `/home/admin/rollback/hsm/aws1-validation-tls-20260530020648/web001/`
-- AWS1 APP001 hosts override rollback: `/home/admin/rollback/hsm/aws1-app-hosts-override-20260530021432/app001/`
-- AWS1 final APP001 hosts cleanup rollback: `/home/admin/rollback/hsm/aws1-app-hosts-final-cleanup-20260531010706/app001/`
-- AWS1 tenant status rollback: `/home/admin/rollback/hsm/aws1-tenant-active-20260530021544/sql001/`
+- AWS1 rollback roots: TLS `/home/admin/rollback/hsm/aws1-validation-tls-20260530020648/web001/`, hosts `/home/admin/rollback/hsm/aws1-app-hosts-override-20260530021432/app001/`, hosts cleanup `/home/admin/rollback/hsm/aws1-app-hosts-final-cleanup-20260531010706/app001/`, tenant `/home/admin/rollback/hsm/aws1-tenant-active-20260530021544/sql001/`
+- Mitchell live domain alias rollback: `/home/admin/rollback/hsm/aws-live-mitchell-domain-20260530202356/sql001/control-domain-before.sql`
+- Mitchell live TLS rollback: `/home/admin/rollback/hsm/mitchell-live-tls-20260530202600/web001/`
 
 ## Validation
 
-- `node --check web/app.js` passed.
-- `node --check server/src/services/curriculum-service.js` passed.
-- `git diff --check` passed with only LF/CRLF warnings.
+- `node --check web/app.js`, `node --check server/src/services/curriculum-service.js`, and `git diff --check` passed.
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` redirects to HTTPS.
 - AWS password recovery reset-complete succeeded when temporary NAT was enabled.
 - Temporary NAT cleanup completed; APP001 Stripe/Postmark/checkip egress times out again, while MAINT001 still has direct internet.
@@ -72,3 +71,4 @@ Continue production DNS planning and schedule the go-live rehearsal. At go-live,
 - Test checkout POST returned HTTP 201 with a Stripe test checkout session; DB rows show account `checkout_started`, checkout session `created`, and subscription `incomplete`.
 - Full Stripe browser checkout produced setup email; user completed setup and logged into `aws1.navigrader.com`.
 - AWS `aws1` setup status returns `initialized:true`; control-plane setup sync marked environment initialized and provisioning ready.
+- Forced AWS HTTPS for `mitchell.navigrader.com` returned setup-status initialized and validated against the expanded certificate.

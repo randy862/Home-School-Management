@@ -59,6 +59,9 @@ Prepare AWS for commercial go-live validation, including Stripe checkout, provis
 - AWS go-live egress plan is documented: create a managed NAT Gateway for APP001 Stripe/Postmark egress at go-live, not MAINT001 NAT.
 - Production DNS cutover rehearsal and rollback steps are documented in `RUNBOOKS/production-cutover.md`.
 - Keep `aws1` and related Stripe test records for now as rehearsal evidence.
+- GoDaddy explicit `mitchell` CNAME is staged to `navigrader.ddns.net` with TTL 600.
+- AWS now recognizes `mitchell.navigrader.com` as an alias for the restored Mitchell AWS tenant, while public DNS still points to home lab.
+- AWS TLS certificate now includes `mitchell.navigrader.com`; forced AWS HTTPS validates and returns setup-status initialized.
 
 ## Current Blockers
 
@@ -70,10 +73,11 @@ Prepare AWS for commercial go-live validation, including Stripe checkout, provis
 - `aws-maint` currently points to public IP `3.138.124.78`; update `C:/Users/rmitchell/.ssh/config` if `MAINT001` receives a new public IP.
 - Temporary NAT and hosts-override cleanup is complete; keep it that way until the planned go-live egress step.
 - Control deployment remains disabled intentionally during rehearsal.
+- Expanded AWS cert currently uses a manual DNS challenge renewal config; convert to Apache/HTTP renewal after live DNS points to AWS.
 - Untracked local scratch assets and `tmp/` remain outside intended commits.
 
 ## Next Actions
 
-1. Continue production DNS planning and select the first live tenant cutover target.
-2. Schedule the go-live rehearsal and rollback decision window.
-3. At go-live, create the managed NAT Gateway, validate APP001 Stripe/Postmark egress, then run the production cutover checklist.
+1. Schedule the go-live rehearsal and rollback decision window.
+2. At go-live, create the managed NAT Gateway and validate APP001 Stripe/Postmark egress.
+3. Update Mitchell AWS app base URL/primary domain to `https://mitchell.navigrader.com`, then replace the GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.
