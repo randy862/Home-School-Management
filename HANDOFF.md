@@ -28,19 +28,19 @@ Home lab production polish and AWS commercial production migration carry-forward
 - AWS `CONTROL_WORKER_ENABLED=true`, `CONTROL_SETUP_SYNC_ENABLED=true`, and `CONTROL_DEPLOYMENT_ENABLED=false` for the rehearsal.
 - AWS public checkout now creates Stripe test checkout sessions; latest probe returned HTTP 201 and created checkout/customer/subscription rows.
 - Browser checkout reached tenant setup email for `https://aws1.navigrader.com/#setupToken=...`; first admin setup and login succeeded.
-- AWS control metadata has tenant `aws1`, schema `tenant_aws1`, tenant status `active`, environment `ready`, setup state `initialized`, and provisioning request `ready`.
-- GoDaddy A record `aws1 -> 18.188.35.157` was added; laptop DNS resolves correctly. APP001 still needs a temporary `/etc/hosts` override because its upstream resolver returns the old wildcard if removed.
-- AWS TLS certificate was expanded to include `aws1.navigrader.com`; AWS HTTPS setup status now returns `{"initialized":true}`.
+- AWS tenant `aws1` is active with schema `tenant_aws1`, ready/initialized control metadata, active subscription, and setup email sent.
+- GoDaddy A record `aws1 -> 18.188.35.157` and TLS for `aws1.navigrader.com` are working without laptop or APP001 hosts overrides.
+- AWS go-live egress decision and DNS cutover rehearsal/rollback steps are documented in the AWS/cutover runbooks; keep `aws1` and related Stripe test records as rehearsal evidence.
 
 ## Next Action
 
-Finish cleanup later by removing APP001's temporary `aws1.navigrader.com` hosts override after AWS-side DNS caches catch up, then decide whether to keep or remove disposable Stripe probe/test tenant records.
+Continue production DNS planning and schedule the go-live rehearsal. At go-live, create the managed NAT Gateway for APP001 mail/Stripe egress, validate Postmark/Stripe, then run the production cutover checklist.
 
 ## Risks
 
 - Keep Postmark, database, Stripe, smoke credentials, and runtime env files out of the repo.
 - `aws-maint` uses public IP `3.138.124.78`; update local SSH config if `MAINT001` restarts without a stable Elastic IP.
-- Do not leave temporary egress/NAT in place unintentionally before go-live.
+- Do not leave temporary egress/NAT in place unintentionally before go-live; current temporary NAT cleanup is complete. Production go-live should use the managed NAT Gateway plan, not MAINT001 NAT.
 - Control deployment is intentionally disabled for rehearsal; provisioning prepares schema/runtime metadata and setup token flow without pushing a per-tenant runtime over the shared APP001 service.
 - Untracked scratch screenshots/icons and `tmp/` remain local and should stay out of commits.
 
@@ -57,6 +57,7 @@ Finish cleanup later by removing APP001's temporary `aws1.navigrader.com` hosts 
 - Current temporary NAT rollback: `/home/admin/rollback/hsm/temp-nat-maint001-20260530012439/`
 - AWS1 TLS rollback: `/home/admin/rollback/hsm/aws1-validation-tls-20260530020648/web001/`
 - AWS1 APP001 hosts override rollback: `/home/admin/rollback/hsm/aws1-app-hosts-override-20260530021432/app001/`
+- AWS1 final APP001 hosts cleanup rollback: `/home/admin/rollback/hsm/aws1-app-hosts-final-cleanup-20260531010706/app001/`
 - AWS1 tenant status rollback: `/home/admin/rollback/hsm/aws1-tenant-active-20260530021544/sql001/`
 
 ## Validation
@@ -67,7 +68,7 @@ Finish cleanup later by removing APP001's temporary `aws1.navigrader.com` hosts 
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` redirects to HTTPS.
 - AWS password recovery reset-complete succeeded when temporary NAT was enabled.
 - Temporary NAT cleanup completed; APP001 Stripe/Postmark/checkip egress times out again, while MAINT001 still has direct internet.
-- Public plans endpoint returns the three expected plans.
+- APP001 hosts override removed; APP001 DNS resolves `aws1.navigrader.com` to `18.188.35.157`.
 - Test checkout POST returned HTTP 201 with a Stripe test checkout session; DB rows show account `checkout_started`, checkout session `created`, and subscription `incomplete`.
 - Full Stripe browser checkout produced setup email; user completed setup and logged into `aws1.navigrader.com`.
 - AWS `aws1` setup status returns `initialized:true`; control-plane setup sync marked environment initialized and provisioning ready.

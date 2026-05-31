@@ -32,6 +32,18 @@ This cutover plan assumes:
 - Apache site/proxy configuration target: `TBD`
 - Production tenant runtime identity/environment name: `TBD`
 
+### Current AWS Validation Baseline
+- AWS public target currently validated through `WEB001` Elastic IP `18.188.35.157`.
+- Validation hostnames currently in use:
+  - `aws-validation.navigrader.com`
+  - `mitchell-aws-validation.navigrader.com`
+  - `aws1.navigrader.com`
+- TLS currently covers all three validation hostnames.
+- Restored Mitchell validation tenant login/smoke succeeded at `mitchell-aws-validation.navigrader.com`.
+- Stripe test checkout succeeded end-to-end through `aws-validation.navigrader.com`, including setup email, first admin setup, and login for `aws1.navigrader.com`.
+- Temporary MAINT001 NAT and temporary managed NAT Gateway validation paths are cleaned up; APP001 private egress to Stripe/Postmark should time out until go-live egress is intentionally enabled.
+- Keep the `aws1` tenant and Stripe test records for now as rehearsal evidence.
+
 ### Secrets / Configuration Confirmation
 - Tenant app session/auth secret confirmed: `TBD`
 - Control-plane session secret confirmed: `TBD`
@@ -78,6 +90,7 @@ This cutover plan assumes:
 - tenant/control systemd units load secrets from `/etc/home-school-management/*.env` or an approved secret manager, not inline unit-file secrets
 - tenant/control systemd units use dedicated non-login service users and baseline hardening directives
 - backup/restore expectations for PostgreSQL are known before cutover
+- production private egress plan is confirmed: managed NAT Gateway for APP001 outbound mail/Stripe traffic, not MAINT001 NAT
 
 ### Operational Readiness
 - `scripts\Invoke-HostedReleaseGate.ps1` passes against the target environment
@@ -117,6 +130,12 @@ One person can fill more than one role in a small rollout, but each role must st
 ### T-0 Before Deploy
 - confirm stakeholder approval to begin
 - confirm current backup/restore posture for the target database
+- create and validate production private egress if Stripe/Postmark traffic will be live:
+  - create managed NAT Gateway `navigrader-prod-private-egress`
+  - place it in public subnet `subnet-08d32e4b05a9125b2`
+  - add private route table `rtb-01e7fa93185f5ddf` route `0.0.0.0/0 -> NAT Gateway`
+  - verify APP001 can reach Stripe, Postmark, and an external IP check endpoint
+  - confirm MAINT001 is not configured as NAT
 - capture:
   - current commit SHA
   - previous known-good commit SHA
@@ -146,6 +165,26 @@ Proceed only if:
 - operators can log in and complete expected core workflows
 
 If any of those fail and cannot be corrected quickly, roll back.
+
+## DNS Cutover Rehearsal
+
+Before live DNS cutover:
+
+1. Record the current GoDaddy values for every hostname being changed, including type, name, value, and TTL.
+2. Lower TTL ahead of the window where possible.
+3. Confirm AWS TLS certificate covers the hostname before changing production traffic.
+4. Point the selected hostname to the AWS target, currently `18.188.35.157` unless a later load balancer/EIP replaces it.
+5. From a public browser, verify HTTPS loads, `/health` returns healthy, and login works.
+6. Validate password reset email links use the same tenant hostname that initiated the reset.
+7. Validate Stripe checkout/setup email on the AWS hostname before enabling real paid traffic.
+8. Keep the previous lab/home target available until AWS has passed the release gate and smoke checks.
+
+DNS rollback:
+
+1. Restore the recorded GoDaddy value for the affected hostname.
+2. Wait for DNS resolution to return to the previous target, accounting for TTL and local resolver cache.
+3. Verify HTTPS and login on the restored target.
+4. Do not delete AWS tenant/control data during DNS rollback unless a separate data rollback decision is made.
 
 ## Rollback Rules
 

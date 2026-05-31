@@ -55,7 +55,10 @@ Prepare AWS for commercial go-live validation, including Stripe checkout, provis
 - Full browser checkout reached setup email for `aws1.navigrader.com`; first admin setup and login succeeded.
 - AWS tenant `aws1` is active with schema `tenant_aws1`, environment ready, setup initialized, provisioning ready, active subscription, and setup email sent.
 - AWS TLS covers `aws1.navigrader.com`; AWS setup status returns `initialized:true`.
-- Laptop DNS resolves `aws1.navigrader.com` to `18.188.35.157`; APP001 still needs a temporary `/etc/hosts` override because its upstream resolver returns the old wildcard when removed.
+- Laptop and APP001 DNS resolve `aws1.navigrader.com` to `18.188.35.157` without hosts overrides.
+- AWS go-live egress plan is documented: create a managed NAT Gateway for APP001 Stripe/Postmark egress at go-live, not MAINT001 NAT.
+- Production DNS cutover rehearsal and rollback steps are documented in `RUNBOOKS/production-cutover.md`.
+- Keep `aws1` and related Stripe test records for now as rehearsal evidence.
 
 ## Current Blockers
 
@@ -65,12 +68,12 @@ Prepare AWS for commercial go-live validation, including Stripe checkout, provis
 
 - Keep Postmark, database, Stripe, smoke credentials, and runtime env files out of the repo.
 - `aws-maint` currently points to public IP `3.138.124.78`; update `C:/Users/rmitchell/.ssh/config` if `MAINT001` receives a new public IP.
-- Do not leave the APP001 temporary hosts override in place unintentionally after DNS catches up.
+- Temporary NAT and hosts-override cleanup is complete; keep it that way until the planned go-live egress step.
 - Control deployment remains disabled intentionally during rehearsal.
 - Untracked local scratch assets and `tmp/` remain outside intended commits.
 
 ## Next Actions
 
-1. Recheck APP001 DNS for `aws1.navigrader.com`; remove the temporary `/etc/hosts` override once it resolves to `18.188.35.157` without help.
-2. Decide whether to keep or remove disposable Stripe probe/test tenant records.
-3. Document final go-live egress choice and DNS cutover rehearsal steps.
+1. Continue production DNS planning and select the first live tenant cutover target.
+2. Schedule the go-live rehearsal and rollback decision window.
+3. At go-live, create the managed NAT Gateway, validate APP001 Stripe/Postmark egress, then run the production cutover checklist.

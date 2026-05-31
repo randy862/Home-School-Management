@@ -15,7 +15,7 @@ This is the launch-validation architecture. It is intended to prove whether the 
 
 ## Current AWS Build State
 
-Last updated: 2026-05-29
+Last updated: 2026-05-31
 
 Region:
 
@@ -33,7 +33,8 @@ Network:
 - private subnet: `10.40.128.0/20`
 - Internet Gateway: attached to `navigrader-prod-vpc`
 - S3 Gateway VPC Endpoint: active for private S3 backup traffic
-- NAT Gateway: no active NAT Gateway; temporary validation gateway `navigrader-temp-private-egress` was deleted after reset/login smoke validation
+- NAT Gateway: no active managed NAT Gateway at pause; production go-live decision is to create a managed NAT Gateway for private APP001 outbound mail/Stripe egress, not to keep MAINT001 acting as NAT
+- Temporary egress: temporary NAT Gateway and MAINT001 NAT validation paths were both cleaned up after smoke/rehearsal work; private APP001 egress to Stripe/Postmark currently times out as expected
 
 Servers:
 
@@ -122,6 +123,13 @@ Deployment posture:
 - DNS for `aws-validation.navigrader.com` now points to AWS `18.188.35.157`; the temporary local Windows hosts override was removed after normal DNS resolved correctly.
 - AWS APP001 CORS was updated to allow `http://aws-validation.navigrader.com`; rollback env backup: `/home/admin/rollback/hsm/aws-validation-cors-202605280150/app001/hsm-api.env.before`.
 - AWS validation password reset email delivery and reset-complete were validated successfully for `awsadmin`.
+- AWS Stripe test products/prices are mapped in `commercial_plans` for Starter, Growth, and Co-op Pro.
+- AWS Stripe test webhook endpoint is configured at `https://aws-validation.navigrader.com/control-api/api/public/billing/webhook`.
+- AWS public checkout completed end-to-end in browser, including Stripe test payment, setup email delivery, first admin setup, and login for tenant `aws1`.
+- Tenant `aws1` is active with schema `tenant_aws1`, ready environment metadata, initialized setup state, ready provisioning request, active subscription, and setup email sent.
+- GoDaddy A record `aws1 -> 18.188.35.157` is added; laptop and APP001 DNS resolve it without hosts overrides.
+- TLS covers `aws-validation.navigrader.com`, `mitchell-aws-validation.navigrader.com`, and `aws1.navigrader.com`.
+- The `aws1` Stripe/tenant records are intentionally kept for now as rehearsal evidence, not deleted.
 
 Completed pause/cost-control actions:
 
@@ -132,9 +140,9 @@ Completed pause/cost-control actions:
 Immediate resume point:
 
 1. If EC2 instances were stopped for cost control, restart the needed AWS hosts.
-2. Continue AWS production egress decision for go-live, likely NAT Gateway.
+2. Create the managed NAT Gateway at go-live, then validate APP001 egress to Stripe/Postmark before customer traffic depends on it.
 3. Continue production DNS planning.
-4. Plan go-live rehearsal and rollback procedure.
+4. Run the go-live rehearsal and rollback procedure from `RUNBOOKS/production-cutover.md`.
 
 ## AWS Audit And Journaling Reality
 
@@ -306,15 +314,27 @@ Avoid direct public SSH to every server if possible. Prefer one controlled admin
 
 ## Private Server Egress Model
 
-Budget launch should avoid an always-on NAT Gateway.
+Budget validation should avoid an always-on NAT Gateway. Production go-live is different: once real customer password reset, setup email, and Stripe flows depend on APP001 outbound HTTPS, use a managed NAT Gateway instead of MAINT001 NAT.
+
+Planned go-live managed NAT:
+
+- name: `navigrader-prod-private-egress`
+- mode: public, zonal
+- subnet: `navigrader-prod-subnet-public1-us-east-2a` / `subnet-08d32e4b05a9125b2`
+- private route table: `navigrader-prod-rtb-private1-us-east-2a` / `rtb-01e7fa93185f5ddf`
+- route to add: `0.0.0.0/0 -> NAT Gateway`
+- required validation: APP001 can reach Stripe, Postmark, and an external IP check endpoint
+
+Do not leave MAINT001 acting as production NAT. The MAINT001 NAT pattern is acceptable only for temporary maintenance/rehearsal windows.
 
 Normal operating state:
 
 - `WEB001` has public internet access for customer traffic, TLS renewal, and Apache updates
 - `MAINT001` has public SSH access restricted to the administrator's current public IP
-- `APP001` and `SQL001` are private-only
+- before go-live, `APP001` and `SQL001` are private-only with no general outbound route
+- at go-live, `APP001` uses the managed NAT Gateway for required outbound HTTPS to mail and payment providers
 - S3 backup traffic uses an S3 Gateway VPC Endpoint
-- no default `0.0.0.0/0` internet route exists from private subnets
+- `SQL001` should continue to avoid general outbound internet unless a specific maintenance window requires it
 
 Maintenance/update state:
 
@@ -681,11 +701,11 @@ Ways to keep the first AWS build cheap:
 - use short CloudWatch log retention
 - delay RDS until revenue justifies it
 - use S3 lifecycle rules for backups
-- avoid NAT Gateway unless absolutely required
+- avoid NAT Gateway before go-live unless it is required for validation
 - use a temporary NAT instance for private-server updates and downloads
 - avoid managed load balancer at first if Apache on `WEB001` is enough
 
-Avoiding NAT Gateway matters because NAT Gateway can cost more than the smallest servers in a budget proof-of-concept environment. The temporary NAT instance should not be left running outside maintenance windows.
+Avoiding NAT Gateway before go-live matters because NAT Gateway can cost more than the smallest servers in a budget proof-of-concept environment. At real subscriber go-live, reliable outbound mail/payment egress is worth the managed NAT Gateway cost. The temporary NAT instance should not be left running outside maintenance windows.
 
 When pausing work before AWS is live:
 
@@ -741,5 +761,6 @@ The AWS proof-of-concept is acceptable only when:
 - PostgreSQL data is restored and verified
 - backups are configured and at least one restore path is documented
 - Stripe webhook endpoint is configured for the AWS hostname
+- APP001 production egress for Stripe/Postmark is intentionally enabled through the managed NAT Gateway
 - no server requires public database access
 - rollback to lab or previous AWS deployment is understood
