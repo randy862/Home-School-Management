@@ -8,7 +8,7 @@ Home lab production polish and AWS commercial production migration.
 
 ## Current Focus
 
-Prepare AWS for commercial go-live validation, including Stripe checkout, provisioning, setup email, DNS, egress, and rehearsal/rollback.
+AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and is paused while non-technical cutover prep is completed.
 
 ## Completed Recently
 
@@ -65,7 +65,8 @@ Prepare AWS for commercial go-live validation, including Stripe checkout, provis
 
 ## Current Blockers
 
-- None for the completed Stripe checkout-to-first-login rehearsal.
+- No technical blocker for the completed Stripe checkout-to-first-login rehearsal.
+- Full cutover is intentionally paused for non-technical preparation before scheduling the go-live window.
 
 ## Current Risks
 
@@ -78,6 +79,6 @@ Prepare AWS for commercial go-live validation, including Stripe checkout, provis
 
 ## Next Actions
 
-1. Schedule the go-live rehearsal and rollback decision window.
-2. At go-live, create the managed NAT Gateway and validate APP001 Stripe/Postmark egress.
+1. Complete non-technical prep and choose the go-live rehearsal/rollback decision window.
+2. During the window, do final Mitchell data sync, create managed NAT Gateway, and validate APP001 Stripe/Postmark egress.
 3. Update Mitchell AWS app base URL/primary domain to `https://mitchell.navigrader.com`, then replace the GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.

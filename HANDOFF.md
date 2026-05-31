@@ -35,7 +35,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 
 ## Next Action
 
-Schedule the go-live rehearsal. At go-live, create the managed NAT Gateway for APP001 mail/Stripe egress, update Mitchell AWS app base URL/primary domain to `https://mitchell.navigrader.com`, then replace the GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.
+Paused for non-technical cutover prep. Next technical action is to schedule the go-live rehearsal; during the window, do final Mitchell data sync, create managed NAT Gateway, validate APP001 Stripe/Postmark egress, update Mitchell AWS app base URL/primary domain, then replace the GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.
 
 ## Risks
 
