@@ -38,7 +38,7 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com` and `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve host.
 - AWS validation password reset email/reset succeeded when temporary NAT was enabled.
-- Mitchell AWS validation tenant is restored to `tenant_mitchell_aws_validation`, mapped to `mitchell-aws-validation.navigrader.com`, and browser smoke succeeded.
+- Mitchell AWS validation tenant is restored to `tenant_mitchell_aws_validation`, mapped to `mitchell-aws-validation.navigrader.com`, and refreshed from home lab `tenant_mitchell_family`; table counts matched.
 - Temporary MAINT001 NAT cleanup is complete; APP001 egress to Stripe/Postmark times out again, while MAINT001 still has direct internet.
 - Local SSH aliases are configured: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 
@@ -66,7 +66,7 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 ## Current Blockers
 
 - No technical blocker for the completed Stripe checkout-to-first-login rehearsal.
-- Full cutover is intentionally paused for non-technical preparation before scheduling the go-live window.
+- Final Mitchell data sync is complete; next blocker is enabling temporary go-live egress for mail/Stripe validation.
 
 ## Current Risks
 
@@ -79,6 +79,6 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 
 ## Next Actions
 
-1. Complete non-technical prep and choose the go-live rehearsal/rollback decision window.
-2. During the window, do final Mitchell data sync, create managed NAT Gateway, and validate APP001 Stripe/Postmark egress.
+1. Create managed NAT Gateway and add the private route for APP001 egress.
+2. Validate APP001 Stripe/Postmark egress.
 3. Update Mitchell AWS app base URL/primary domain to `https://mitchell.navigrader.com`, then replace the GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.

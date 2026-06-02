@@ -15,7 +15,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 - AWS APP001/WEB001 were deployed from `saas-modern-redesign`; latest direct WEB001 fix serves `app.js?v=202605291610`.
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`.
 - AWS HTTPS/TLS is enabled for `aws-validation.navigrader.com` and `mitchell-aws-validation.navigrader.com`; HTTP redirects to HTTPS.
-- Restored Mitchell validation tenant is mapped to `mitchell-aws-validation.navigrader.com` and browser smoke succeeded.
+- Restored Mitchell validation tenant is mapped to `mitchell-aws-validation.navigrader.com`; final data sync from home lab `tenant_mitchell_family` to AWS `tenant_mitchell_aws_validation` completed and row counts matched.
 - Temporary MAINT001 NAT route/security-group/source-destination cleanup was completed; Linux IP forwarding and MASQUERADE are off, and APP001 egress to Stripe/Postmark times out again.
 - Local SSH aliases exist: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
 
@@ -35,7 +35,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 
 ## Next Action
 
-Paused for non-technical cutover prep. Next technical action is to schedule the go-live rehearsal; during the window, do final Mitchell data sync, create managed NAT Gateway, validate APP001 Stripe/Postmark egress, update Mitchell AWS app base URL/primary domain, then replace the GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.
+Next technical action is to create the managed NAT Gateway, validate APP001 Stripe/Postmark egress, update Mitchell AWS app base URL/primary domain, then replace the GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.
 
 ## Risks
 
@@ -60,6 +60,7 @@ Paused for non-technical cutover prep. Next technical action is to schedule the 
 - AWS1 rollback roots: TLS `/home/admin/rollback/hsm/aws1-validation-tls-20260530020648/web001/`, hosts `/home/admin/rollback/hsm/aws1-app-hosts-override-20260530021432/app001/`, hosts cleanup `/home/admin/rollback/hsm/aws1-app-hosts-final-cleanup-20260531010706/app001/`, tenant `/home/admin/rollback/hsm/aws1-tenant-active-20260530021544/sql001/`
 - Mitchell live domain alias rollback: `/home/admin/rollback/hsm/aws-live-mitchell-domain-20260530202356/sql001/control-domain-before.sql`
 - Mitchell live TLS rollback: `/home/admin/rollback/hsm/mitchell-live-tls-20260530202600/web001/`
+- Final Mitchell data sync rollback: `/home/admin/rollback/hsm/aws-final-mitchell-data-sync-20260601120000/sql001/`
 
 ## Validation
 
@@ -67,7 +68,6 @@ Paused for non-technical cutover prep. Next technical action is to schedule the 
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` redirects to HTTPS.
 - AWS password recovery reset-complete succeeded when temporary NAT was enabled.
 - Temporary NAT cleanup completed; APP001 Stripe/Postmark/checkip egress times out again, while MAINT001 still has direct internet.
-- APP001 hosts override removed; APP001 DNS resolves `aws1.navigrader.com` to `18.188.35.157`.
 - Test checkout POST returned HTTP 201 with a Stripe test checkout session; DB rows show account `checkout_started`, checkout session `created`, and subscription `incomplete`.
 - Full Stripe browser checkout produced setup email; user completed setup and logged into `aws1.navigrader.com`.
 - AWS `aws1` setup status returns `initialized:true`; control-plane setup sync marked environment initialized and provisioning ready.
