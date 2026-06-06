@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-05-29
+Date: 2026-06-05
 
 ## Active Workstream
 
@@ -21,20 +21,22 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 - Curriculum Courses show `Minutes / Day`; saves convert minutes to existing internal `hoursPerDay`.
 - Class metadata shows inherited course minutes/day duration.
 - Marking a student absent automatically excuses scheduled/open classes without generating duplicate Flex Blocks; user confirmed home lab and AWS.
+- School Day gap placement now honors the scheduling cursor when a later item has a start override, preventing stray earlier Flex Blocks.
 
 ## Production State
 
 - Home lab production URL: `https://mitchell.navigrader.com/`
-- Tenant app assets: `app.js?v=202605291610`, `styles.css?v=202605281100`
+- Tenant app assets: `app.js?v=202606052116`, `styles.css?v=202605281100`
 - Key rollback roots:
   - `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
   - `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`
+  - `/home/debian/rollback/hsm/school-day-gap-cursor-20260605211741/web001/`
   - `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
 
 ## AWS State
 
-- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; latest WEB001 fix serves `app.js?v=202605291610`.
-- AWS includes password reset, dashboard gauges, filters, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks.
+- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs home lab `app.js?v=202606052116`.
+- AWS includes password reset, dashboard gauges, filters, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks; it still needs the latest School Day gap cursor web fix.
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com` and `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve host.
 - AWS validation password reset email/reset succeeded when temporary NAT was enabled.
@@ -59,9 +61,9 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 - AWS go-live egress plan is documented: create a managed NAT Gateway for APP001 Stripe/Postmark egress at go-live, not MAINT001 NAT.
 - Production DNS cutover rehearsal and rollback steps are documented in `RUNBOOKS/production-cutover.md`.
 - Keep `aws1` and related Stripe test records for now as rehearsal evidence.
-- GoDaddy explicit `mitchell` CNAME is staged to `navigrader.ddns.net` with TTL 600.
-- AWS now recognizes `mitchell.navigrader.com` as an alias for the restored Mitchell AWS tenant, while public DNS still points to home lab.
-- AWS TLS certificate now includes `mitchell.navigrader.com`; forced AWS HTTPS validates and returns setup-status initialized.
+- GoDaddy explicit `mitchell` CNAME points to `navigrader.ddns.net` with TTL 600 and should remain home lab.
+- AWS SaaS DNS should use wildcard/new-tenant routing rather than an explicit `mitchell` cutover.
+- AWS TLS certificate includes `mitchell.navigrader.com`; forced AWS HTTPS validates, but renewal/cert scope should be revisited because Mitchell stays home lab.
 
 ## Current Blockers
 
@@ -81,4 +83,4 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 
 1. Create managed NAT Gateway and add the private route for APP001 egress.
 2. Validate APP001 Stripe/Postmark egress.
-3. Update Mitchell AWS app base URL/primary domain to `https://mitchell.navigrader.com`, then replace the GoDaddy `mitchell` CNAME with an A record to `18.188.35.157`.
+3. Sync latest web assets to AWS, then continue go-live egress and wildcard/new-tenant DNS planning while keeping `mitchell.navigrader.com` on the home lab.

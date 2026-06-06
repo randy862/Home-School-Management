@@ -21067,9 +21067,13 @@ function dailyScheduledBlocks(dateKey, studentFilterIds = [], subjectFilterIds =
     const pendingPositionedBlocks = [...positionedBlocks];
     while (pendingPositionedBlocks.length) {
       const block = pendingPositionedBlocks[0];
-      const visibleGapStart = adjustedBlocks.length
+      const latestAdjustedEnd = adjustedBlocks.length
         ? adjustedBlocks.reduce((latestEnd, entry) => Math.max(latestEnd, Number(entry.end) || 0), schoolDayStartMinutes)
         : schoolDayStartMinutes;
+      const visibleGapStart = Math.max(
+        latestAdjustedEnd,
+        actualCursor == null ? schoolDayStartMinutes : actualCursor
+      );
       const fixedAnchorIndex = nextFixedAnchorIndex(pendingPositionedBlocks, visibleGapStart);
       const fixedAnchor = fixedAnchorIndex >= 0 ? pendingPositionedBlocks[fixedAnchorIndex] : null;
       const anchorStart = fixedAnchor ? blockAnchorStart(fixedAnchor) : null;
