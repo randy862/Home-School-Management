@@ -19060,13 +19060,17 @@ function renderRequiredHoursProgressChart(host, view, context, selectedStudentId
       label: monthStart.toLocaleDateString(undefined, { month: "short" }),
       actual: isFuture ? null : actualCumulative,
       expected,
-      projected: monthIdx < referenceMonthIndex ? null : null
+      projected: monthIdx < referenceMonthIndex ? actualCumulative : null
     };
   });
 
   const remainingSteps = Math.max(1, rows.length - 1 - referenceMonthIndex);
   rows.forEach((row, idx) => {
     if (idx < referenceMonthIndex) return;
+    if (idx === referenceMonthIndex && idx === rows.length - 1) {
+      row.projected = Number(view.projectedTotal || 0);
+      return;
+    }
     const t = idx === referenceMonthIndex ? 0 : (idx - referenceMonthIndex) / remainingSteps;
     row.projected = Number(view.actualToDate || 0) + ((Number(view.projectedTotal || 0) - Number(view.actualToDate || 0)) * t);
   });

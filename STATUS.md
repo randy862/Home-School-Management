@@ -22,21 +22,23 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 - Class metadata shows inherited course minutes/day duration.
 - Marking a student absent automatically excuses scheduled/open classes without generating duplicate Flex Blocks; user confirmed home lab and AWS.
 - School Day gap placement now honors the scheduling cursor when a later item has a start override, preventing stray earlier Flex Blocks.
+- Compliance Instructional Hours chart draws the green projected year-end line through the final school-year month.
 
 ## Production State
 
 - Home lab production URL: `https://mitchell.navigrader.com/`
-- Tenant app assets: `app.js?v=202606052116`, `styles.css?v=202605281100`
+- Tenant app assets: `app.js?v=202606052140`, `styles.css?v=202605281100`
 - Key rollback roots:
   - `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
   - `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`
   - `/home/debian/rollback/hsm/school-day-gap-cursor-20260605211741/web001/`
+  - `/home/debian/rollback/hsm/compliance-hours-projection-20260605214124/web001/`
   - `/home/debian/rollback/hsm/password-reset-tenant-url-202605272030/app001/server/src/routes/auth-routes.js`
 
 ## AWS State
 
-- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs home lab `app.js?v=202606052116`.
-- AWS includes password reset, dashboard gauges, filters, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks; it still needs the latest School Day gap cursor web fix.
+- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs home lab `app.js?v=202606052140`.
+- AWS includes password reset, dashboard gauges, filters, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks; it still needs the latest School Day gap cursor and Compliance hours projection web fixes.
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com` and `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve host.
 - AWS validation password reset email/reset succeeded when temporary NAT was enabled.

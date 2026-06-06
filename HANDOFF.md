@@ -9,10 +9,10 @@ Home lab production polish and AWS commercial production migration carry-forward
 ## Current State
 
 - Home lab production is current at `https://mitchell.navigrader.com/`.
-- Home lab WEB001 serves `styles.css?v=202605281100` and `app.js?v=202606052116`.
-- Password recovery/login refresh, tenant-aware reset URLs, dashboard gauges, Grade Search filter/layout, Course minutes/day UI, attendance-driven automatic excusals, and School Day gap cursor fix are implemented.
+- Home lab WEB001 serves `styles.css?v=202605281100` and `app.js?v=202606052140`.
+- Password recovery/login refresh, tenant-aware reset URLs, dashboard gauges, Grade Search filter/layout, Course minutes/day UI, attendance-driven automatic excusals, School Day gap cursor fix, and Compliance hours projection line fix are implemented.
 - Marking a student absent automatically excuses that student's scheduled/open classes for the date without generating duplicate Flex Blocks; user confirmed the fix in home lab and AWS.
-- AWS APP001/WEB001 were deployed from `saas-modern-redesign`; AWS still needs the latest home lab web asset `app.js?v=202606052116` during the next sync.
+- AWS APP001/WEB001 were deployed from `saas-modern-redesign`; AWS still needs the latest home lab web asset `app.js?v=202606052140` during the next sync.
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`.
 - AWS HTTPS/TLS is enabled for `aws-validation.navigrader.com` and `mitchell-aws-validation.navigrader.com`; HTTP redirects to HTTPS.
 - Restored Mitchell validation tenant is mapped to `mitchell-aws-validation.navigrader.com`; final data sync from home lab `tenant_mitchell_family` to AWS `tenant_mitchell_aws_validation` completed and row counts matched.
@@ -49,7 +49,7 @@ Next technical action is to sync latest web assets to AWS when hosts are running
 ## Rollback Pointers
 
 - Home lab course minutes/day: `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
-- Home lab School Day web fixes: `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`, `/home/debian/rollback/hsm/school-day-gap-cursor-20260605211741/web001/`
+- Home lab web fixes: `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`, `/home/debian/rollback/hsm/school-day-gap-cursor-20260605211741/web001/`, `/home/debian/rollback/hsm/compliance-hours-projection-20260605214124/web001/`
 - AWS latest branch deploy: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`
 - AWS latest WEB001 fix: `/home/admin/rollback/hsm/school-day-excused-flex-202605291610/web001/`
 - AWS runtime/mail/TLS/Mitchell validation rollback roots are recorded in `STATUS.md`.
@@ -64,7 +64,7 @@ Next technical action is to sync latest web assets to AWS when hosts are running
 
 ## Validation
 
-- Latest web fix: `node --check web/app.js`, `git diff --check`, Apache configtest, and public `https://mitchell.navigrader.com/health` HTTP 200 passed.
+- Latest web fixes: `node --check web/app.js`, `git diff --check`, Apache configtest, public `https://mitchell.navigrader.com/health` HTTP 200, and hosted smoke pass by user all passed.
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` redirects to HTTPS.
 - AWS password recovery reset-complete succeeded when temporary NAT was enabled.
 - Temporary NAT cleanup completed; APP001 Stripe/Postmark/checkip egress times out again, while MAINT001 still has direct internet.
