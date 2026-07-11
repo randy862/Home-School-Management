@@ -4944,6 +4944,26 @@ td {
   white-space: nowrap;
 }
 
+.course-grade-filter-heading {
+  display: inline-grid;
+  grid-template-columns: auto minmax(4.2rem, max-content);
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.course-grade-filter-heading select {
+  width: auto;
+  min-width: 4.2rem;
+  min-height: 28px;
+  padding: 0.16rem 1.45rem 0.16rem 0.42rem;
+  border: 1px solid #cbd8ea;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #34455d;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
 .grade-levels-pill {
   display: inline-flex;
   align-items: center;

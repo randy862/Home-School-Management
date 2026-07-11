@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202607111040">
+  <link rel="stylesheet" href="styles.css?v=202607111330">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1851,7 +1851,7 @@
             <div id="course-readiness-filter-panel" class="readiness-filter-panel hidden"></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th class="course-grade-levels-heading">Grade</th><th>Daily Time</th><th>Enrolled</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th class="course-grade-levels-heading"><span class="course-grade-filter-heading"><span>Grade</span><select id="course-grade-filter" aria-label="Filter configured courses by grade"><option value="all">All</option><option value="K">K</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select></span></th><th>Daily Time</th><th>Enrolled</th><th>Actions</th></tr></thead>
                 <tbody id="course-table"></tbody>
               </table>
             </div>
@@ -2707,6 +2707,6 @@
       <div id="help-center-modal-body" class="account-modal-body help-center-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202607111300"></script>
+  <script src="app.js?v=202607111330"></script>
 </body>
 </html>

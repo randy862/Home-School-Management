@@ -8,7 +8,7 @@ Home lab production polish and AWS commercial production migration.
 
 ## Current Focus
 
-School-year scoped enrollment/year rollover is deployed and smoke-validated in home lab.
+Configured Courses Grade filtering is deployed to home lab after school-year scoped enrollment smoke validation.
 
 ## Completed Recently
 
@@ -30,15 +30,17 @@ School-year scoped enrollment/year rollover is deployed and smoke-validated in h
 - Tenant migration `034_school_year_scoped_enrollments.sql` is applied on home lab; Mitchell has zero blank `school_year_id` rows in enrollment tables.
 - Authenticated hosted smoke passed against `https://mitchell.navigrader.com` after deployment.
 - User confirmed the compact grade-level dropdown and Course table Grade column look correct in Mitchell.
+- Configured Courses now has a compact Grade column filter (`All`, `K`-`12`); `All grades` courses remain visible under each grade filter.
 
 ## Production State
 
 - Home lab production URL: `https://mitchell.navigrader.com/`
-- Tenant app assets currently deployed: `app.js?v=202607111300`, `styles.css?v=202607111040`.
+- Tenant app assets currently deployed: `app.js?v=202607111330`, `styles.css?v=202607111330`.
 - Grade-level deployment rollback root: `/home/debian/rollback/hsm/grade-levels-20260711100422/`
 - Grade-level UI polish rollback root: `/home/debian/rollback/hsm/grade-levels-ui-polish-20260711102603/`
 - Report Grade Level columns rollback root: `/home/debian/rollback/hsm/report-grade-columns-202607111115/`
 - School-year scoped enrollment rollback root: `/home/debian/rollback/hsm/school-year-scoped-enrollments-202607111300/`
+- Course Grade filter rollback archive: `/home/debian/rollback/hsm/course-grade-filter-202607111330/web001/web.tgz`
 - Key rollback roots:
   - `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
   - `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`
@@ -48,7 +50,7 @@ School-year scoped enrollment/year rollover is deployed and smoke-validated in h
 
 ## AWS State
 
-- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs validated home lab assets including `app.js?v=202607111300`, `styles.css?v=202607111040`, report Grade Level columns, school-year scoped enrollment/year rollover, and migrations `033`/`034`.
+- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs validated home lab assets including `app.js?v=202607111330`, `styles.css?v=202607111330`, report Grade Level columns, Configured Courses Grade filter, school-year scoped enrollment/year rollover, and migrations `033`/`034`.
 - AWS includes password reset, dashboard gauges, filters, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks; it still needs the latest School Day gap cursor and Compliance hours projection web fixes.
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`; tenant migrations `033` and `034` are pending after home lab validation.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com` and `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve host.

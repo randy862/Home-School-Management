@@ -1838,6 +1838,7 @@ let courseSectionFormOpen = false;
 let editingCourseSectionId = "";
 let currentManagementCoursesTab = "course-form";
 let courseReadinessFilter = "";
+let courseGradeFilter = "all";
 let classReadinessFilter = "";
 let scheduleBlockReadinessFilter = "";
 let editingHolidayId = "";
@@ -12009,9 +12010,11 @@ function renderCourses() {
   renderCourseQuarterChecklist(getSelectedCourseQuarterNames());
   renderCourseGradeLevelChecklist(getSelectedCourseGradeLevels());
   renderCourseMaterialsDraft();
+  renderCourseGradeFilterControl();
   if (!tableBody) return;
   const rows = state.courses
     .filter((c) => courseReadinessFilter !== "no-flex-enrollment" || courseNeedsEnrollmentReview(c))
+    .filter((c) => courseMatchesGradeFilter(c, courseGradeFilter))
     .map((c) => {
       const subjectCell = `${escapeHtml(getSubjectName(c.subjectId))} ${isRequiredSubject(c.subjectId) ? requiredSubjectBadge(c.subjectId) : ""}`;
       const enrolledCount = courseStudentIdsForReadiness(c.id).size;
@@ -12022,11 +12025,44 @@ function renderCourses() {
       const courseMeta = courseSchoolDayMeta(c).filter((item) => item !== gradeText);
       return `<tr class="${needsReview ? "readiness-review-row" : ""}"><td>${renderScheduleSourceCell(c.name, courseMeta)}</td><td>${subjectCell}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td class="course-grade-levels-cell"><span class="grade-levels-pill" title="${escapeHtml(gradeText)}">${escapeHtml(gradeShortText)}</span></td><td>${escapeHtml(dailyMinutesSummary(c.hoursPerDay))}</td><td>${enrolledCell}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`;
     });
-  rowOrEmpty(tableBody, rows, courseReadinessFilter === "no-flex-enrollment" ? "No flexible courses need enrollment review." : "No courses added yet.", 7);
+  rowOrEmpty(tableBody, rows, courseTableEmptyMessage(), 7);
   renderCourseReadinessFilterPanel(rows.length);
   renderCourseSections();
   renderManagementCoursesSectionVisibility();
   renderSchoolDayReadinessPanels();
+}
+
+function normalizeCourseGradeFilterValue(value) {
+  const normalized = normalizeGradeLevel(value);
+  return normalized || "all";
+}
+
+function courseMatchesGradeFilter(course, gradeFilter = courseGradeFilter) {
+  const normalized = normalizeCourseGradeFilterValue(gradeFilter);
+  if (normalized === "all") return true;
+  return gradeLevelsMatchStudent(course?.gradeLevels, normalized);
+}
+
+function renderCourseGradeFilterControl() {
+  const select = document.getElementById("course-grade-filter");
+  if (!(select instanceof HTMLSelectElement)) return;
+  const current = normalizeCourseGradeFilterValue(courseGradeFilter);
+  if (!select.options.length) {
+    select.innerHTML = [
+      `<option value="all">All</option>`,
+      ...GRADE_LEVEL_OPTIONS.map((grade) => `<option value="${escapeHtml(grade)}">${escapeHtml(gradeLevelDisplay(grade))}</option>`)
+    ].join("");
+  }
+  select.value = Array.from(select.options).some((option) => option.value === current) ? current : "all";
+}
+
+function courseTableEmptyMessage() {
+  if (courseReadinessFilter === "no-flex-enrollment" && courseGradeFilter !== "all") {
+    return "No flexible courses needing enrollment review match the selected grade.";
+  }
+  if (courseReadinessFilter === "no-flex-enrollment") return "No flexible courses need enrollment review.";
+  if (courseGradeFilter !== "all") return `No courses match Grade ${gradeLevelDisplay(courseGradeFilter)}.`;
+  return "No courses added yet.";
 }
 
 function scrollManagementEditorIntoView(formId, focusSelector) {
@@ -26383,6 +26419,11 @@ function bindEvents() {
     }
     if (t.classList.contains("course-quarter-checkbox")) {
       renderCourseQuarterChecklist(getSelectedCourseQuarterNames());
+      return;
+    }
+    if (t.id === "course-grade-filter" && t instanceof HTMLSelectElement) {
+      courseGradeFilter = normalizeCourseGradeFilterValue(t.value);
+      renderCourses();
       return;
     }
     if (handleGradeLevelChecklistChange(t, "course-grade-level-checkbox", "course-grade-level-all-checkbox", "course-grade-levels-summary")) {
