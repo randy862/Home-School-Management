@@ -17,6 +17,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 - School-year deletion now removes course, class, and schedule-block assignments scoped to the deleted year and warns admins in the confirmation text.
 - Mitchell tenant orphaned schedule rows from deleted school-year reset were repaired: backup schema `backup_mitchell_school_year_orphan_cleanup_202607112045`, report `/home/debian/rollback/hsm/mitchell-school-year-orphan-cleanup-202607112045/cleanup-report.json`; moved 20 courses, 3 classes, and 4 blocks to `2025-2026`, deleted 12 course and 2 block orphan residues, orphan count is zero.
 - School-year scoped enrollments are deployed to home lab: course/class/schedule-block assignments carry `school_year_id` and student grade snapshot via tenant migration `034_school_year_scoped_enrollments.sql`; Schedule/Student/report views filter by selected Academic Year; School Years has a `Start Next School Year` helper that advances active student grades without copying enrollments.
+- User retested Start Next School Year successfully from the repaired Mitchell baseline: grades incremented, `2026-2027` became active, new year started with no enrollments, new enrollments stayed in the new year, and switching Academic Year restored the expected dashboards, School Day, and schedules for both years.
 - Marking a student absent automatically excuses that student's scheduled/open classes for the date without generating duplicate Flex Blocks; user confirmed the fix in home lab and AWS.
 - AWS APP001/WEB001 were deployed from `saas-modern-redesign`; AWS still needs the latest validated home lab assets and migrations `033`/`034`.
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`; tenant/runtime migrations `033` and `034` are pending.
@@ -38,7 +39,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 
 ## Next Action
 
-Next technical action is to retest Start Next School Year from the repaired Mitchell `2025-2026` baseline, then sync the validated grade-level/reporting/course-grade-filter/student-schedule-grade-context/school-year-delete-cleanup plus school-year scoped enrollment release to AWS, including tenant migrations `033` and `034`.
+Next technical action is to sync the validated grade-level/reporting/course-grade-filter/student-schedule-grade-context/school-year-delete-cleanup plus school-year scoped enrollment release to AWS, including tenant migrations `033` and `034`.
 
 ## Risks
 
@@ -74,6 +75,7 @@ Next technical action is to retest Start Next School Year from the repaired Mitc
 - Home lab Student Schedule grade-context deploy checks passed: local `node --check web/app.js`, `git diff --check`, WEB001 deploy/reload, public Mitchell `/health`, public HTML references `app.js?v=202607111410`; hosted smoke script needs credentials to run.
 - Home lab school-year delete cleanup deploy checks passed: local `node --check` for changed web/backend files, APP001 restart/local health, WEB001 deploy/reload, public Mitchell `/health`, and public HTML references `app.js?v=202607111455`.
 - Mitchell orphan cleanup validation passed: APP001/local health and public `/health`; active schedules now show Danny 10 items, Pam 10 items, Phillip 7 Grade 6 items, and orphan schedule row counts are all zero.
+- User functional rollover validation passed after cleanup: Start Next School Year, grade increments, active Academic Year switch, empty new-year enrollments, new-year course assignment, and bidirectional Academic Year switching all behaved as expected.
 - Post-deploy authenticated hosted smoke passed against `https://mitchell.navigrader.com`: login plus `/api/me`, subjects, courses, enrollments, school-year, quarters, holidays, daily-breaks, plans, grade-types, grading-criteria, attendance, and tests.
 - User confirmed the compact grade-level dropdown and Course table Grade column look correct in the Mitchell tenant.
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` redirects to HTTPS.

@@ -8,7 +8,7 @@ Home lab production polish and AWS commercial production migration.
 
 ## Current Focus
 
-Mitchell school-year reset baseline is repaired after orphan schedule cleanup.
+Mitchell school-year rollover is repaired, user-validated, and queued for AWS sync.
 
 ## Completed Recently
 
@@ -34,6 +34,7 @@ Mitchell school-year reset baseline is repaired after orphan schedule cleanup.
 - Student Schedule detail/enrollment uses current/future student profile grade for the header and scheduled-item picker, while past-year views still honor assignment grade snapshots.
 - School-year deletion removes course, class, and schedule-block assignments scoped to the deleted year and warns admins before doing so.
 - Mitchell orphaned schedule rows were repaired after deleting extra school years: moved 20 courses, 3 classes, and 4 blocks to `2025-2026`; deleted 12 course and 2 block orphan residues; orphan counts are zero.
+- User retested Start Next School Year successfully: grades incremented, `2026-2027` became active, new year started empty, new enrollments stayed in `2026-2027`, and switching between `2025-2026` and `2026-2027` showed the correct Dashboard, School Day, and schedule context.
 
 ## Production State
 
@@ -88,7 +89,7 @@ Mitchell school-year reset baseline is repaired after orphan schedule cleanup.
 
 ## Current Blockers
 
-- No technical blocker for retesting Start Next School Year from the repaired Mitchell baseline.
+- No technical blocker for syncing the validated home lab release to AWS.
 - No technical blocker for syncing the validated grade-level/reporting and school-year scoped enrollment release to AWS.
 
 ## Current Risks
@@ -102,5 +103,5 @@ Mitchell school-year reset baseline is repaired after orphan schedule cleanup.
 
 ## Next Actions
 
-1. Retest Start Next School Year from the repaired Mitchell `2025-2026` baseline.
-2. Sync validated code/assets/migrations `033` and `034` to AWS.
+1. Sync validated code/assets/migrations `033` and `034` to AWS.
+2. Continue go-live egress and wildcard/new-tenant DNS planning while keeping `mitchell.navigrader.com` on the home lab.
