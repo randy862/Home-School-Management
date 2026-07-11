@@ -6836,10 +6836,17 @@ function studentGradeForSchoolYear(studentId, schoolYearId = activeSchoolYearId(
   return snapshot || currentStudentGrade(studentId);
 }
 
+function studentGradeForScheduleContext(studentId, schoolYearId = activeSchoolYearId()) {
+  const schoolYear = getSchoolYear(schoolYearId);
+  const isPastYear = schoolYear?.endDate && schoolYear.endDate < todayISO();
+  if (isPastYear) return studentGradeForSchoolYear(studentId, schoolYearId);
+  return currentStudentGrade(studentId) || studentGradeForSchoolYear(studentId, schoolYearId);
+}
+
 function annualAssignmentFields(studentId, schoolYearId = activeSchoolYearId()) {
   return {
     schoolYearId,
-    studentGrade: studentGradeForSchoolYear(studentId, schoolYearId) || currentStudentGrade(studentId)
+    studentGrade: studentGradeForScheduleContext(studentId, schoolYearId) || currentStudentGrade(studentId)
   };
 }
 
@@ -7354,14 +7361,17 @@ async function persistStudentScheduledEntries(studentId, nextEntries) {
     const existing = existingById.get(entry.id);
     const existingOrder = parseScheduleOrderValue(existing?.scheduleOrder);
     const nextOrder = parseScheduleOrderValue(entry.scheduleOrder);
-    if (existing && existingOrder === nextOrder) continue;
+    const assignmentGrade = studentGradeForScheduleContext(entry.studentId, entry.schoolYearId || schoolYearId);
+    const existingGrade = normalizeStudentGrade(existing?.studentGrade);
+    const nextGrade = normalizeStudentGrade(assignmentGrade || entry.studentGrade);
+    if (existing && existingOrder === nextOrder && existingGrade === nextGrade) continue;
 
     if (entry.itemType === "scheduleBlock") {
       await updateHostedStudentScheduleBlock(entry.id, {
         studentId: entry.studentId,
         scheduleBlockId: entry.scheduleBlockId,
         schoolYearId: entry.schoolYearId || schoolYearId,
-        studentGrade: entry.studentGrade || studentGradeForSchoolYear(entry.studentId, schoolYearId),
+        studentGrade: nextGrade,
         scheduleOrder: nextOrder
       });
     } else if (entry.itemType === "courseSection") {
@@ -7369,7 +7379,7 @@ async function persistStudentScheduledEntries(studentId, nextEntries) {
         studentId: entry.studentId,
         courseSectionId: entry.courseSectionId,
         schoolYearId: entry.schoolYearId || schoolYearId,
-        studentGrade: entry.studentGrade || studentGradeForSchoolYear(entry.studentId, schoolYearId),
+        studentGrade: nextGrade,
         scheduleOrder: nextOrder
       });
     } else {
@@ -7377,7 +7387,7 @@ async function persistStudentScheduledEntries(studentId, nextEntries) {
         studentId: entry.studentId,
         courseId: entry.courseId,
         schoolYearId: entry.schoolYearId || schoolYearId,
-        studentGrade: entry.studentGrade || studentGradeForSchoolYear(entry.studentId, schoolYearId),
+        studentGrade: nextGrade,
         scheduleOrder: nextOrder
       });
     }
@@ -10981,7 +10991,7 @@ function getPlanEligibleCourses(studentId) {
 
 function getStudentEnrollmentEligibleCourses(studentId) {
   if (!studentId) return [];
-  const studentGrade = studentGradeForSchoolYear(studentId);
+  const studentGrade = studentGradeForScheduleContext(studentId);
   const schoolYearId = activeSchoolYearId();
   const sourceEnrollments = studentEnrollmentDraftStudentId === studentId
     ? studentEnrollmentDraft
@@ -11030,7 +11040,7 @@ function renderStudentEnrollmentCourseChecklist(preselectedCourseIds = [], stude
       .filter((entry) => entry.studentId === studentId && entry.itemType === "courseSection")
       .map((entry) => entry.courseSectionId)
   );
-  const studentGrade = studentGradeForSchoolYear(studentId);
+  const studentGrade = studentGradeForScheduleContext(studentId);
   const eligibleCourses = getStudentEnrollmentEligibleCourses(studentId)
     .filter((course) => !getCourseSectionsForCourse(course.id).length);
   const eligibleSections = sortedCourseSections()
@@ -12323,7 +12333,7 @@ function renderCourseSectionStudentChecklist(selectedStudentIds = []) {
       : null;
     const existingFlexibleEnrollment = courseId ? courseEnrollmentForStudentCourse(student.id, courseId) : null;
     const conflictSection = courseSectionConflictForStudent(student.id, draftSection);
-    const studentGrade = studentGradeForSchoolYear(student.id);
+    const studentGrade = studentGradeForScheduleContext(student.id);
     const meta = [
       studentGrade ? `Grade ${studentGrade}` : "",
       existingCourseEnrollment ? `Currently in ${sectionDisplayName(existingCourseEnrollment.courseSectionId)}` : "",
@@ -13040,7 +13050,7 @@ function cancelGradeTypeEdit() {
 
 function renderStudentDetailOverview({ student, archived, selectedQuarter, studentEnrollments, missingRequiredSubjects, gradeSummary, attendanceSummary }) {
   const studentName = `${student.firstName || ""} ${student.lastName || ""}`.trim();
-  const schoolYearGrade = studentGradeForSchoolYear(student.id);
+  const schoolYearGrade = studentGradeForScheduleContext(student.id);
   const gradeLabel = schoolYearGrade ? `Grade ${schoolYearGrade}` : "Grade not set";
   const ageLabel = student.birthdate ? `Age ${calculateAge(student.birthdate)}` : "Age not set";
   const quarterLabel = selectedQuarter === "all" ? "All quarters" : selectedQuarter;
@@ -24840,7 +24850,7 @@ function bindEvents() {
         ...entry,
         studentId,
         schoolYearId: entry.schoolYearId || assignmentFields.schoolYearId,
-        studentGrade: entry.studentGrade || assignmentFields.studentGrade,
+        studentGrade: assignmentFields.studentGrade || entry.studentGrade,
         scheduleOrder: parseScheduleOrderValue(entry.scheduleOrder)
       }));
       const draftEnrollments = draftEntries.filter((entry) => entry.itemType === "course");
@@ -24879,7 +24889,9 @@ function bindEvents() {
                 const existing = existingById.get(draft.id);
                 if (!existing) return createHostedEnrollment(draft);
                 const existingOrder = parseScheduleOrderValue(existing.scheduleOrder);
-                if (existing.courseId !== draft.courseId || existingOrder !== draft.scheduleOrder) {
+                const existingGrade = normalizeStudentGrade(existing.studentGrade);
+                const draftGrade = normalizeStudentGrade(draft.studentGrade);
+                if (existing.courseId !== draft.courseId || existingOrder !== draft.scheduleOrder || existingGrade !== draftGrade) {
                   return updateHostedEnrollment(draft.id, {
                     studentId: draft.studentId,
                     courseId: draft.courseId,
@@ -24894,7 +24906,9 @@ function bindEvents() {
                 const existing = existingSectionsById.get(draft.id);
                 if (!existing) return createHostedSectionEnrollment(draft);
                 const existingOrder = parseScheduleOrderValue(existing.scheduleOrder);
-                if (existing.courseSectionId !== draft.courseSectionId || existingOrder !== draft.scheduleOrder) {
+                const existingGrade = normalizeStudentGrade(existing.studentGrade);
+                const draftGrade = normalizeStudentGrade(draft.studentGrade);
+                if (existing.courseSectionId !== draft.courseSectionId || existingOrder !== draft.scheduleOrder || existingGrade !== draftGrade) {
                   return updateHostedSectionEnrollment(draft.id, {
                     studentId: draft.studentId,
                     courseSectionId: draft.courseSectionId,
@@ -24909,7 +24923,9 @@ function bindEvents() {
                 const existing = existingBlocksById.get(draft.id);
                 if (!existing) return createHostedStudentScheduleBlock(draft);
                 const existingOrder = parseScheduleOrderValue(existing.scheduleOrder);
-                if (existing.scheduleBlockId !== draft.scheduleBlockId || existingOrder !== draft.scheduleOrder) {
+                const existingGrade = normalizeStudentGrade(existing.studentGrade);
+                const draftGrade = normalizeStudentGrade(draft.studentGrade);
+                if (existing.scheduleBlockId !== draft.scheduleBlockId || existingOrder !== draft.scheduleOrder || existingGrade !== draftGrade) {
                   return updateHostedStudentScheduleBlock(draft.id, {
                     studentId: draft.studentId,
                     scheduleBlockId: draft.scheduleBlockId,
