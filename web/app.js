@@ -85,6 +85,9 @@ const DEFAULT_MINUTES_BETWEEN_CLASSES = 5;
 const FLEX_BLOCK_MIN_GAP_MINUTES = 10;
 const FLEX_BLOCK_PURPOSE_OPTIONS = ["Study", "Homework", "Project Work", "Corrections / Grade Recovery", "Test Prep"];
 const EXCLUDED_GRADE_TYPE_FILTER_OPTIONS = new Set(["homework"]);
+const GRADE_LEVEL_ALL = "all";
+const GRADE_LEVEL_OPTIONS = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+const GRADE_LEVEL_ORDER = new Map(GRADE_LEVEL_OPTIONS.map((grade, index) => [grade, index]));
 
 function performanceNow() {
   return window.performance?.now ? window.performance.now() : Date.now();
@@ -404,6 +407,28 @@ function createLegacyBootstrapAdmin() {
   };
 }
 
+function normalizeStudentsShape(inputState) {
+  const s = inputState;
+  if (!Array.isArray(s.students)) {
+    s.students = [];
+    return;
+  }
+  s.students = s.students
+    .filter((student) => student && String(student.firstName || "").trim() && String(student.lastName || "").trim())
+    .map((student) => ({
+      ...student,
+      id: student.id || uid(),
+      firstName: String(student.firstName || "").trim(),
+      lastName: String(student.lastName || "").trim(),
+      birthdate: normalizeApiDate(student.birthdate),
+      grade: normalizeStudentGrade(student.grade),
+      ageRecorded: student.ageRecorded === "" || student.ageRecorded == null ? null : Number(student.ageRecorded),
+      createdAt: student.createdAt || normalizeApiDate(student.birthdate) || todayISO(),
+      archivedAt: student.archivedAt || ""
+    }))
+    .filter((student) => /^\d{4}-\d{2}-\d{2}$/.test(student.birthdate));
+}
+
 function normalizeUsersShape(inputState) {
   const s = inputState;
   const studentIds = new Set((s.students || []).map((student) => student.id));
@@ -545,6 +570,82 @@ function activeYearReferenceContext(dateKey = defaultReferenceDateForActiveYear(
   };
 }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+function normalizeGradeLevel(value, { allowAll = false } = {}) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const normalized = raw.toLowerCase().replace(/^grade\s+/, "").trim();
+  if (allowAll && normalized === GRADE_LEVEL_ALL) return GRADE_LEVEL_ALL;
+  if (["k", "kindergarten"].includes(normalized)) return "K";
+  const numeric = Number(normalized);
+  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 12) return String(numeric);
+  return "";
+}
+
+function normalizeStudentGrade(value) {
+  return normalizeGradeLevel(value);
+}
+
+function normalizeGradeLevels(input, fallback = [GRADE_LEVEL_ALL]) {
+  const rawItems = Array.isArray(input)
+    ? input
+    : String(input ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  const normalized = rawItems
+    .map((item) => normalizeGradeLevel(item, { allowAll: true }))
+    .filter(Boolean);
+  if (!normalized.length) return [...fallback];
+  if (normalized.includes(GRADE_LEVEL_ALL)) return [GRADE_LEVEL_ALL];
+  const seen = new Set();
+  return normalized
+    .filter((grade) => {
+      if (seen.has(grade)) return false;
+      seen.add(grade);
+      return true;
+    })
+    .sort((a, b) => (GRADE_LEVEL_ORDER.get(a) ?? 999) - (GRADE_LEVEL_ORDER.get(b) ?? 999));
+}
+
+function gradeLevelDisplay(grade) {
+  const normalized = normalizeGradeLevel(grade);
+  return normalized || "";
+}
+
+function gradeLevelsDisplay(levels) {
+  const normalized = normalizeGradeLevels(levels);
+  return normalized.includes(GRADE_LEVEL_ALL) ? "All grades" : normalized.map(gradeLevelDisplay).join(", ");
+}
+
+function gradeLevelsShortDisplay(levels) {
+  const normalized = normalizeGradeLevels(levels);
+  if (normalized.includes(GRADE_LEVEL_ALL)) return "All";
+  const indexes = normalized
+    .map((grade) => GRADE_LEVEL_ORDER.get(grade))
+    .filter((index) => Number.isInteger(index))
+    .sort((a, b) => a - b);
+  const ranges = [];
+  for (let index = 0; index < indexes.length; index += 1) {
+    const start = indexes[index];
+    let end = start;
+    while (index + 1 < indexes.length && indexes[index + 1] === end + 1) {
+      index += 1;
+      end = indexes[index];
+    }
+    const startLabel = GRADE_LEVEL_OPTIONS[start];
+    const endLabel = GRADE_LEVEL_OPTIONS[end];
+    ranges.push(start === end ? startLabel : `${startLabel}-${endLabel}`);
+  }
+  return ranges.join(", ") || "All";
+}
+
+function gradeLevelsMatchStudent(gradeLevels, studentGrade) {
+  const grade = normalizeStudentGrade(studentGrade);
+  if (!grade) return true;
+  const normalized = normalizeGradeLevels(gradeLevels);
+  return normalized.includes(GRADE_LEVEL_ALL) || normalized.includes(grade);
+}
 
 function niceTickStep(maxValue, targetTickCount = 6) {
   const safeMax = Math.max(Number(maxValue) || 0, 1);
@@ -776,6 +877,7 @@ function normalizeCoursesShape(inputState) {
     exclusiveResource: !!course.exclusiveResource,
     resourceGroup: String(course.resourceGroup || "").trim(),
     resourceCapacity: normalizeCourseResourceCapacity(course.resourceCapacity, !!course.exclusiveResource),
+    gradeLevels: normalizeGradeLevels(course.gradeLevels),
     quarterNames: normalizeQuarterNames(course.quarterNames),
     weekdays: normalizeWeekdays(course.weekdays, [1, 2, 3, 4, 5]),
     materials: normalizeCourseMaterials(course.materials || course.material)
@@ -809,6 +911,7 @@ function normalizeCourseSectionsShape(inputState) {
         resourceGroup: String(section.resourceGroup || "").trim(),
         concurrentCapacity: Number.isInteger(concurrentCapacity) && concurrentCapacity > 0 ? concurrentCapacity : null,
         startTime: /^\d{2}:\d{2}$/.test(String(section.startTime || "")) ? String(section.startTime) : "08:00",
+        gradeLevels: normalizeGradeLevels(section.gradeLevels),
         quarterNames: normalizeQuarterNames(section.quarterNames),
         weekdays: weekdays.length ? weekdays : [1, 2, 3, 4, 5],
         scheduleOrder: Number.isInteger(scheduleOrder) && scheduleOrder > 0 ? scheduleOrder : null
@@ -1166,6 +1269,7 @@ function mergeLegacyBridgeCoursesWithLocalState(remoteState, localState) {
       exclusiveResource: !!localCourse.exclusiveResource,
       resourceGroup: String(localCourse.resourceGroup || "").trim(),
       resourceCapacity: normalizeCourseResourceCapacity(localCourse.resourceCapacity, !!localCourse.exclusiveResource),
+      gradeLevels: normalizeGradeLevels(localCourse.gradeLevels),
       quarterNames: normalizeQuarterNames(localCourse.quarterNames),
       weekdays: normalizeWeekdays(localCourse.weekdays, [1, 2, 3, 4, 5]),
       materials: normalizeCourseMaterials(localCourse.materials || localCourse.material)
@@ -1181,6 +1285,7 @@ function mergeLegacyBridgeCoursesWithLocalState(remoteState, localState) {
       exclusiveResource: !!course.exclusiveResource,
       resourceGroup: String(course.resourceGroup || "").trim(),
       resourceCapacity: normalizeCourseResourceCapacity(course.resourceCapacity, !!course.exclusiveResource),
+      gradeLevels: normalizeGradeLevels(course.gradeLevels),
       quarterNames: normalizeQuarterNames(course.quarterNames),
       weekdays: normalizeWeekdays(course.weekdays, [1, 2, 3, 4, 5]),
       materials: normalizeCourseMaterials(course.materials || course.material)
@@ -1409,6 +1514,7 @@ function normalizeSettingsShape(inputState) {
     .sort((a, b) => toDate(a.startDate) - toDate(b.startDate))
     .map((q) => ({ id: q.id, schoolYearId: q.schoolYearId, name: q.name, startDate: q.startDate, endDate: q.endDate }));
 
+  normalizeStudentsShape(s);
   const validStudentIds = new Set((s.students || []).map((student) => student.id));
   const validSchoolYearIds = new Set((s.settings.schoolYears || []).map((year) => year.id));
   if (!Array.isArray(s.settings.dailyBreaks)) {
@@ -2968,7 +3074,10 @@ async function refreshHostedStudents() {
   if (!response.ok) throw new Error(`Students fetch failed (${response.status})`);
   const students = await response.json();
   if (Array.isArray(students)) {
-    state.students = students;
+    state.students = students.map((student) => ({
+      ...student,
+      grade: normalizeStudentGrade(student.grade)
+    }));
   }
 }
 
@@ -3014,6 +3123,7 @@ async function refreshHostedCourses() {
       exclusiveResource: !!course.exclusiveResource,
       resourceGroup: String(course.resourceGroup || "").trim(),
       resourceCapacity: normalizeCourseResourceCapacity(course.resourceCapacity, !!course.exclusiveResource),
+      gradeLevels: normalizeGradeLevels(course.gradeLevels),
       quarterNames: normalizeQuarterNames(course.quarterNames),
       weekdays: normalizeWeekdays(course.weekdays, [1, 2, 3, 4, 5]),
       materials: normalizeCourseMaterials(course.materials || course.material)
@@ -3032,6 +3142,7 @@ async function refreshHostedCourseSections() {
       resourceGroup: String(section.resourceGroup || "").trim(),
       concurrentCapacity: section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
       startTime: /^\d{2}:\d{2}$/.test(String(section.startTime || "")) ? String(section.startTime) : "08:00",
+      gradeLevels: normalizeGradeLevels(section.gradeLevels),
       quarterNames: normalizeQuarterNames(section.quarterNames),
       weekdays: Array.isArray(section.weekdays) ? section.weekdays.map((day) => Number(day)).filter(Number.isInteger) : [1, 2, 3, 4, 5],
       scheduleOrder: section.scheduleOrder == null ? null : Number(section.scheduleOrder)
@@ -8696,6 +8807,11 @@ function reportStudentMatchesGrade(studentId, gradeLevel = "all") {
   return String(student?.grade || "").trim() === gradeLevel;
 }
 
+function reportStudentGradeLevel(studentId) {
+  const student = state.students.find((entry) => entry.id === studentId);
+  return gradeLevelDisplay(student?.grade) || "-";
+}
+
 function reportCourseMatchesSubject(courseId, subjectId = "all") {
   if (!subjectId || subjectId === "all") return true;
   return getCourse(courseId)?.subjectId === subjectId;
@@ -8813,6 +8929,7 @@ function reportSummaryRows(studentIds, range, options = {}) {
     const instructionalHoursSummary = instructionalHoursByStudent.get(studentId) || { earned: 0, projected: 0 };
     return {
       studentName: student ? `${student.firstName} ${student.lastName}` : "Unknown Student",
+      gradeLevel: reportStudentGradeLevel(studentId),
       gradeCount: filteredTests.length,
       averageScore,
       letterGrade: filteredTests.length ? scoreToLetterGrade(averageScore) : "",
@@ -8847,6 +8964,7 @@ function reportStudentCourseSummaryRows(studentIds, range, options = {}) {
       rows.push({
         studentId,
         student: getStudentName(studentId),
+        gradeLevel: reportStudentGradeLevel(studentId),
         course: courseId === "__unknown_course__" ? "Unknown Course" : getCourseName(courseId),
         averageScore,
         letterGrade: courseTests.length ? scoreToLetterGrade(averageScore) : "",
@@ -8937,6 +9055,7 @@ function reportGradeRows(studentIds, range, options = {}) {
       || gradeTypeName(a).localeCompare(gradeTypeName(b)))
     .map((test) => ({
       student: getStudentName(test.studentId),
+      gradeLevel: reportStudentGradeLevel(test.studentId),
       subject: getSubjectName(test.subjectId),
       course: getCourseName(test.courseId),
       date: test.date,
@@ -9668,11 +9787,11 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
   const instructionalHourRows = reportInstructionalHourRows(studentIds, range, reportFilters);
   const requiredSubjectRows = reportRequiredSubjectRows(studentIds, { subjectId });
   const summaryTableRows = summaryRows.length
-    ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td><td>${row.attended}</td><td>${row.absent}</td><td>${row.instructionalDaysCompleted}</td><td>${row.instructionalHoursCompleted.toFixed(2)}</td></tr>`).join("")
-    : "<tr><td colspan='8'>No student summary data found for the selected filters.</td></tr>";
+    ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${escapeHtml(row.gradeLevel)}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td><td>${row.attended}</td><td>${row.absent}</td><td>${row.instructionalDaysCompleted}</td><td>${row.instructionalHoursCompleted.toFixed(2)}</td></tr>`).join("")
+    : "<tr><td colspan='9'>No student summary data found for the selected filters.</td></tr>";
   const gradeTableRows = gradeRows.length
-    ? gradeRows.map((row) => `<tr><td>${escapeHtml(row.student)}</td><td>${escapeHtml(row.subject)}</td><td>${escapeHtml(row.course)}</td><td>${row.date}</td><td>${escapeHtml(row.gradeType)}</td><td>${escapeHtml(row.grade)}</td></tr>`).join("")
-    : "<tr><td colspan='6'>No grade records found for the selected filters.</td></tr>";
+    ? gradeRows.map((row) => `<tr><td>${escapeHtml(row.student)}</td><td>${escapeHtml(row.gradeLevel)}</td><td>${escapeHtml(row.subject)}</td><td>${escapeHtml(row.course)}</td><td>${row.date}</td><td>${escapeHtml(row.gradeType)}</td><td>${escapeHtml(row.grade)}</td></tr>`).join("")
+    : "<tr><td colspan='7'>No grade records found for the selected filters.</td></tr>";
   const studentCourseSummarySections = studentCourseSummaryRows.length
     ? (() => {
       const groupedRows = new Map();
@@ -9682,7 +9801,7 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
       });
       return Array.from(groupedRows.entries()).map(([student, rows]) => {
         const tableRows = rows
-          .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${row.count ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.count ? row.gpa.toFixed(2) : "-"}</td></tr>`)
+          .map((row) => `<tr><td>${escapeHtml(row.course)}</td><td>${escapeHtml(row.gradeLevel)}</td><td>${row.count ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.count ? row.gpa.toFixed(2) : "-"}</td></tr>`)
           .join("");
         return `
           <section class="report-subsection">
@@ -9690,12 +9809,13 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
             <div class="report-table-scroll">
               <table class="report-table report-table-course-summary">
                 <colgroup>
-                  <col style="width:39%">
-                  <col style="width:26%">
-                  <col style="width:23%">
+                  <col style="width:34%">
+                  <col style="width:12%">
+                  <col style="width:22%">
+                  <col style="width:20%">
                   <col style="width:12%">
                 </colgroup>
-                <thead><tr><th>Course</th><th>Average Score</th><th>Letter Grade</th><th>GPA</th></tr></thead>
+                <thead><tr><th>Course</th><th>Grade Level</th><th>Average Score</th><th>Letter Grade</th><th>GPA</th></tr></thead>
                 <tbody>${tableRows}</tbody>
               </table>
             </div>
@@ -9843,8 +9963,19 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
         ${includeStudentSummary ? `<section class="report-subsection">
           <h2 class="report-subsection-title">Student Summary</h2>
           <div class="report-table-scroll">
-            <table>
-              <thead><tr><th>Student</th><th>Average Score</th><th>Letter Grade</th><th>GPA</th><th>Days Attended</th><th>Days Absent</th><th>Instructional Days Completed</th><th>Instructional Hours Completed</th></tr></thead>
+            <table class="report-table report-table-student-summary">
+              <colgroup>
+                <col style="width:16%">
+                <col style="width:8%">
+                <col style="width:11%">
+                <col style="width:10%">
+                <col style="width:7%">
+                <col style="width:11%">
+                <col style="width:10%">
+                <col style="width:14%">
+                <col style="width:13%">
+              </colgroup>
+              <thead><tr><th>Student</th><th>Grade Level</th><th>Average Score</th><th>Letter Grade</th><th>GPA</th><th>Days Attended</th><th>Days Absent</th><th>Instructional Days Completed</th><th>Instructional Hours Completed</th></tr></thead>
               <tbody>${summaryTableRows}</tbody>
             </table>
           </div>
@@ -9908,8 +10039,17 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
       subtitle: "Individual grade records",
       icon: "chart",
       metaItems: reportMetaItems,
-      body: `<div class="report-table-scroll"><table>
-        <thead><tr><th>Student</th><th>Subject</th><th>Course</th><th>Date</th><th>Grade Type</th><th>Grade</th></tr></thead>
+      body: `<div class="report-table-scroll"><table class="report-table report-table-detailed-grades">
+        <colgroup>
+          <col style="width:16%">
+          <col style="width:9%">
+          <col style="width:16%">
+          <col style="width:24%">
+          <col style="width:12%">
+          <col style="width:14%">
+          <col style="width:9%">
+        </colgroup>
+        <thead><tr><th>Student</th><th>Grade Level</th><th>Subject</th><th>Course</th><th>Date</th><th>Grade Type</th><th>Grade</th></tr></thead>
         <tbody>${gradeTableRows}</tbody>
       </table></div>`,
       includeGradeWeighting: true
@@ -10673,6 +10813,8 @@ function getPlanEligibleCourses(studentId) {
 
 function getStudentEnrollmentEligibleCourses(studentId) {
   if (!studentId) return [];
+  const student = state.students.find((entry) => entry.id === studentId);
+  const studentGrade = student?.grade || "";
   const sourceEnrollments = studentEnrollmentDraftStudentId === studentId
     ? studentEnrollmentDraft
     : state.enrollments;
@@ -10687,7 +10829,9 @@ function getStudentEnrollmentEligibleCourses(studentId) {
       const section = getCourseSection(entry.courseSectionId);
       if (section?.courseId) enrolledCourseIds.add(section.courseId);
     });
-  return state.courses.filter((course) => !enrolledCourseIds.has(course.id));
+  return state.courses.filter((course) =>
+    !enrolledCourseIds.has(course.id)
+    && gradeLevelsMatchStudent(course.gradeLevels, studentGrade));
 }
 
 function getStudentEnrollmentEligibleScheduleBlocks(studentId) {
@@ -10717,11 +10861,18 @@ function renderStudentEnrollmentCourseChecklist(preselectedCourseIds = [], stude
       .filter((entry) => entry.studentId === studentId && entry.itemType === "courseSection")
       .map((entry) => entry.courseSectionId)
   );
+  const student = state.students.find((entry) => entry.id === studentId);
+  const studentGrade = student?.grade || "";
   const eligibleCourses = getStudentEnrollmentEligibleCourses(studentId)
     .filter((course) => !getCourseSectionsForCourse(course.id).length);
   const eligibleSections = sortedCourseSections()
     .filter((section) => !studentId || !draftSectionIds.has(section.id))
-    .filter((section) => !studentId || !draftCourseIds.has(section.courseId));
+    .filter((section) => !studentId || !draftCourseIds.has(section.courseId))
+    .filter((section) => {
+      const course = getCourse(section.courseId);
+      return gradeLevelsMatchStudent(section.gradeLevels, studentGrade)
+        && gradeLevelsMatchStudent(course?.gradeLevels, studentGrade);
+    });
   const eligibleBlocks = getStudentEnrollmentEligibleScheduleBlocks(studentId);
   const eligibleItemKeys = new Set([
     ...eligibleSections.map((section) => `courseSection:${section.id}`),
@@ -11688,6 +11839,7 @@ function renderCourses() {
   if (submitBtn) submitBtn.textContent = editingCourseId ? "Update Course" : "Add Course";
   if (cancelBtn) cancelBtn.classList.toggle("hidden", !courseFormOpen);
   renderCourseQuarterChecklist(getSelectedCourseQuarterNames());
+  renderCourseGradeLevelChecklist(getSelectedCourseGradeLevels());
   renderCourseMaterialsDraft();
   if (!tableBody) return;
   const rows = state.courses
@@ -11697,9 +11849,12 @@ function renderCourses() {
       const enrolledCount = courseStudentIdsForReadiness(c.id).size;
       const needsReview = courseNeedsEnrollmentReview(c);
       const enrolledCell = `<span class="enrollment-count-pill${needsReview ? " empty" : ""}">${enrolledCount}</span>${needsReview ? `<span class="enrollment-count-note">No students enrolled</span>` : ""}`;
-      return `<tr class="${needsReview ? "readiness-review-row" : ""}"><td>${renderScheduleSourceCell(c.name, courseSchoolDayMeta(c))}</td><td>${subjectCell}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td>${escapeHtml(dailyMinutesSummary(c.hoursPerDay))}</td><td>${enrolledCell}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`;
+      const gradeText = gradeLevelsDisplay(c.gradeLevels);
+      const gradeShortText = gradeLevelsShortDisplay(c.gradeLevels);
+      const courseMeta = courseSchoolDayMeta(c).filter((item) => item !== gradeText);
+      return `<tr class="${needsReview ? "readiness-review-row" : ""}"><td>${renderScheduleSourceCell(c.name, courseMeta)}</td><td>${subjectCell}</td><td>${escapeHtml(c.instructorId ? getInstructorName(c.instructorId) : "Unassigned")}</td><td class="course-grade-levels-cell"><span class="grade-levels-pill" title="${escapeHtml(gradeText)}">${escapeHtml(gradeShortText)}</span></td><td>${escapeHtml(dailyMinutesSummary(c.hoursPerDay))}</td><td>${enrolledCell}</td><td class="course-table-actions"><div class="table-action-row"><button data-edit-course='${c.id}' type='button'>Edit</button><button data-remove-course='${c.id}' type='button'>Remove</button></div></td></tr>`;
     });
-  rowOrEmpty(tableBody, rows, courseReadinessFilter === "no-flex-enrollment" ? "No flexible courses need enrollment review." : "No courses added yet.", 6);
+  rowOrEmpty(tableBody, rows, courseReadinessFilter === "no-flex-enrollment" ? "No flexible courses need enrollment review." : "No courses added yet.", 7);
   renderCourseReadinessFilterPanel(rows.length);
   renderCourseSections();
   renderManagementCoursesSectionVisibility();
@@ -11762,6 +11917,89 @@ function renderCourseSectionQuarterChecklist(selectedNames = []) {
   });
 }
 
+function renderGradeLevelChecklist({ optionsWrapId, summaryId, checkboxClass, allCheckboxClass, selectedLevels = [] }) {
+  const optionsWrap = document.getElementById(optionsWrapId);
+  const summary = document.getElementById(summaryId);
+  if (!optionsWrap || !summary) return;
+  const normalized = normalizeGradeLevels(selectedLevels);
+  const allSelected = normalized.includes(GRADE_LEVEL_ALL);
+  const specific = new Set(allSelected ? [] : normalized);
+  const allId = `${optionsWrapId}-all`;
+  const rows = [
+    `<div class="checklist-row"><input id="${allId}" type="checkbox" class="${allCheckboxClass}" value="${GRADE_LEVEL_ALL}"${allSelected ? " checked" : ""}><label for="${allId}">All grades</label></div>`
+  ].concat(GRADE_LEVEL_OPTIONS.map((grade) => {
+    const inputId = `${optionsWrapId}-${grade}`;
+    const checked = specific.has(grade) ? " checked" : "";
+    return `<div class="checklist-row"><input id="${inputId}" type="checkbox" class="${checkboxClass}" value="${escapeHtml(grade)}"${checked}><label for="${inputId}">${escapeHtml(gradeLevelDisplay(grade))}</label></div>`;
+  }));
+  optionsWrap.innerHTML = rows.join("");
+  summary.textContent = gradeLevelsDisplay(normalized);
+}
+
+function selectedGradeLevelsFromChecklist(checkboxClass, allCheckboxClass) {
+  const allCheckbox = document.querySelector(`.${allCheckboxClass}`);
+  if (allCheckbox instanceof HTMLInputElement && allCheckbox.checked) return [GRADE_LEVEL_ALL];
+  const selected = Array.from(document.querySelectorAll(`.${checkboxClass}:checked`))
+    .map((checkbox) => checkbox.value);
+  return normalizeGradeLevels(selected);
+}
+
+function updateGradeLevelChecklistSummary(summaryId, checkboxClass, allCheckboxClass) {
+  const summary = document.getElementById(summaryId);
+  if (!summary) return;
+  summary.textContent = gradeLevelsDisplay(selectedGradeLevelsFromChecklist(checkboxClass, allCheckboxClass));
+}
+
+function handleGradeLevelChecklistChange(target, checkboxClass, allCheckboxClass, summaryId) {
+  if (!(target instanceof HTMLInputElement)) return false;
+  const isAllCheckbox = target.classList.contains(allCheckboxClass);
+  const isGradeCheckbox = target.classList.contains(checkboxClass);
+  if (!isAllCheckbox && !isGradeCheckbox) return false;
+  const allCheckbox = document.querySelector(`.${allCheckboxClass}`);
+  const gradeCheckboxes = Array.from(document.querySelectorAll(`.${checkboxClass}`));
+  if (isAllCheckbox && target.checked) {
+    gradeCheckboxes.forEach((checkbox) => {
+      checkbox.checked = false;
+    });
+  }
+  if (isGradeCheckbox && target.checked && allCheckbox instanceof HTMLInputElement) {
+    allCheckbox.checked = false;
+  }
+  if (!gradeCheckboxes.some((checkbox) => checkbox.checked) && allCheckbox instanceof HTMLInputElement) {
+    allCheckbox.checked = true;
+  }
+  updateGradeLevelChecklistSummary(summaryId, checkboxClass, allCheckboxClass);
+  return true;
+}
+
+function renderCourseGradeLevelChecklist(selectedLevels = []) {
+  renderGradeLevelChecklist({
+    optionsWrapId: "course-grade-levels-options",
+    summaryId: "course-grade-levels-summary",
+    checkboxClass: "course-grade-level-checkbox",
+    allCheckboxClass: "course-grade-level-all-checkbox",
+    selectedLevels
+  });
+}
+
+function renderCourseSectionGradeLevelChecklist(selectedLevels = []) {
+  renderGradeLevelChecklist({
+    optionsWrapId: "course-section-grade-levels-options",
+    summaryId: "course-section-grade-levels-summary",
+    checkboxClass: "course-section-grade-level-checkbox",
+    allCheckboxClass: "course-section-grade-level-all-checkbox",
+    selectedLevels
+  });
+}
+
+function getSelectedCourseGradeLevels() {
+  return selectedGradeLevelsFromChecklist("course-grade-level-checkbox", "course-grade-level-all-checkbox");
+}
+
+function getSelectedCourseSectionGradeLevels() {
+  return selectedGradeLevelsFromChecklist("course-section-grade-level-checkbox", "course-section-grade-level-all-checkbox");
+}
+
 function courseSectionStudentName(student) {
   return `${student?.firstName || ""} ${student?.lastName || ""}`.trim() || "Unnamed student";
 }
@@ -11814,6 +12052,7 @@ function courseSectionDraftFromForm({ courseId = null, startTime = null, quarter
     courseId: courseId ?? (document.getElementById("course-section-course")?.value || ""),
     label: document.getElementById("course-section-label")?.value?.trim() || "Class",
     startTime: startTime ?? (document.getElementById("course-section-start-time")?.value || "08:00"),
+    gradeLevels: getSelectedCourseSectionGradeLevels(),
     quarterNames: quarterNames ?? getSelectedCourseSectionQuarterNames(),
     weekdays: weekdays ?? Array.from(document.querySelectorAll("input[name='course-section-weekday']:checked")).map((checkbox) => Number(checkbox.value))
   };
@@ -11963,6 +12202,7 @@ function courseSchoolDayMeta(course) {
   const classCount = getCourseSectionsForCourse(course.id).length;
   return [
     classCount ? `${classCount} class${classCount === 1 ? "" : "es"}` : "Flexible order",
+    gradeLevelsDisplay(course.gradeLevels),
     dailyMinutesSummary(course.hoursPerDay),
     weekdaySummary(course.weekdays),
     quarterSummary(course.quarterNames)
@@ -11975,6 +12215,7 @@ function courseSectionSchoolDayMeta(section) {
   const course = getCourse(section.courseId);
   return [
     instructorId ? `Instructor: ${getInstructorName(instructorId)}` : "Instructor: Unassigned",
+    gradeLevelsDisplay(section.gradeLevels),
     dailyMinutesSummary(course?.hoursPerDay),
     `Fixed ${formatClockTime(section.startTime || "08:00")}`,
     weekdaySummary(section.weekdays),
@@ -12328,6 +12569,9 @@ function syncCourseSectionFormFromCourse(courseId, { preserveExisting = true } =
   if (!preserveExisting || !getSelectedCourseSectionQuarterNames().length) {
     renderCourseSectionQuarterChecklist(course.quarterNames || []);
   }
+  if (!preserveExisting || getSelectedCourseSectionGradeLevels().includes(GRADE_LEVEL_ALL)) {
+    renderCourseSectionGradeLevelChecklist(course.gradeLevels || []);
+  }
   renderCourseSectionStudentChecklist(getSelectedCourseSectionStudentIds());
 }
 
@@ -12340,6 +12584,7 @@ function resetCourseSectionForm() {
     checkbox.checked = true;
   });
   renderCourseSectionQuarterChecklist([]);
+  renderCourseSectionGradeLevelChecklist([]);
   renderCourseSectionStudentChecklist([]);
   const timeInput = document.getElementById("course-section-start-time");
   if (timeInput) timeInput.value = normalizeSchoolDayStartTime(currentSchoolYear()?.schoolDayStartTime);
@@ -12362,6 +12607,7 @@ function beginCourseSectionEdit(sectionId) {
   document.getElementById("course-section-capacity").value = section.concurrentCapacity == null ? "" : String(section.concurrentCapacity);
   document.getElementById("course-section-start-time").value = section.startTime || "08:00";
   renderCourseSectionQuarterChecklist(section.quarterNames || []);
+  renderCourseSectionGradeLevelChecklist(section.gradeLevels || []);
   renderCourseSectionStudentChecklist(enrolledStudentIdsForCourseSection(section.id));
   document.querySelectorAll("input[name='course-section-weekday']").forEach((checkbox) => {
     checkbox.checked = Array.isArray(section.weekdays) && section.weekdays.includes(Number(checkbox.value));
@@ -12379,6 +12625,7 @@ function beginCourseSectionCreate() {
     checkbox.checked = true;
   });
   renderCourseSectionQuarterChecklist([]);
+  renderCourseSectionGradeLevelChecklist([]);
   renderCourseSectionStudentChecklist([]);
   const timeInput = document.getElementById("course-section-start-time");
   if (timeInput) timeInput.value = normalizeSchoolDayStartTime(currentSchoolYear()?.schoolDayStartTime);
@@ -12399,6 +12646,7 @@ function renderCourseSections() {
   if (showFormBtn) showFormBtn.classList.toggle("hidden", courseSectionFormOpen);
   if (submitBtn) submitBtn.textContent = editingCourseSectionId ? "Update Class" : "Add Class";
   renderCourseSectionQuarterChecklist(getSelectedCourseSectionQuarterNames());
+  renderCourseSectionGradeLevelChecklist(getSelectedCourseSectionGradeLevels());
   renderCourseSectionStudentChecklist(getSelectedCourseSectionStudentIds());
   if (!tableBody) return;
   const rows = sortedCourseSections()
@@ -22386,6 +22634,7 @@ function beginCourseEdit(courseId) {
   document.getElementById("course-instructor").value = course.instructorId || "";
   document.getElementById("course-hours").value = String(courseHoursToDailyMinutes(course.hoursPerDay));
   renderCourseQuarterChecklist(course.quarterNames || []);
+  renderCourseGradeLevelChecklist(course.gradeLevels || []);
   setCourseWeekdaySelection(course.weekdays || [1, 2, 3, 4, 5]);
   fillCourseMaterialFields(course.materials || course.material);
   renderCourses();
@@ -22399,6 +22648,7 @@ function cancelCourseEdit() {
   const instructorInput = document.getElementById("course-instructor");
   if (instructorInput) instructorInput.value = "";
   renderCourseQuarterChecklist([]);
+  renderCourseGradeLevelChecklist([]);
   setCourseWeekdaySelection([1, 2, 3, 4, 5]);
   fillCourseMaterialFields();
   renderSelects();
@@ -22412,6 +22662,7 @@ function beginCourseCreate() {
   const instructorInput = document.getElementById("course-instructor");
   if (instructorInput) instructorInput.value = "";
   renderCourseQuarterChecklist([]);
+  renderCourseGradeLevelChecklist([]);
   setCourseWeekdaySelection([1, 2, 3, 4, 5]);
   fillCourseMaterialFields();
   renderSelects();
@@ -22748,6 +22999,7 @@ function updateLegacyLocalCourse(existingCourse, payload) {
   existingCourse.exclusiveResource = payload.exclusiveResource;
   existingCourse.resourceGroup = String(payload.resourceGroup || "").trim();
   existingCourse.resourceCapacity = normalizeCourseResourceCapacity(payload.resourceCapacity, payload.exclusiveResource);
+  existingCourse.gradeLevels = normalizeGradeLevels(payload.gradeLevels);
   existingCourse.quarterNames = normalizeQuarterNames(payload.quarterNames);
   existingCourse.weekdays = normalizeWeekdays(payload.weekdays, [1, 2, 3, 4, 5]);
   existingCourse.materials = normalizeCourseMaterials(payload.materials || payload.material);
@@ -22759,6 +23011,7 @@ function createLegacyLocalCourse(payload) {
     ...payload,
     resourceGroup: String(payload.resourceGroup || "").trim(),
     resourceCapacity: normalizeCourseResourceCapacity(payload.resourceCapacity, payload.exclusiveResource),
+    gradeLevels: normalizeGradeLevels(payload.gradeLevels),
     quarterNames: normalizeQuarterNames(payload.quarterNames),
     weekdays: normalizeWeekdays(payload.weekdays, [1, 2, 3, 4, 5]),
     materials: normalizeCourseMaterials(payload.materials || payload.material)
@@ -22776,6 +23029,7 @@ function createLegacyLocalCourseSection(payload) {
     instructorId: String(payload.instructorId || "").trim(),
     resourceGroup: String(payload.resourceGroup || "").trim(),
     concurrentCapacity: payload.concurrentCapacity == null ? null : Number(payload.concurrentCapacity),
+    gradeLevels: normalizeGradeLevels(payload.gradeLevels),
     quarterNames: normalizeQuarterNames(payload.quarterNames),
     weekdays: Array.isArray(payload.weekdays) ? payload.weekdays.slice() : [1, 2, 3, 4, 5]
   };
@@ -22791,6 +23045,7 @@ function updateLegacyLocalCourseSection(existingSection, payload) {
   existingSection.resourceGroup = String(payload.resourceGroup || "").trim();
   existingSection.concurrentCapacity = payload.concurrentCapacity == null ? null : Number(payload.concurrentCapacity);
   existingSection.startTime = payload.startTime;
+  existingSection.gradeLevels = normalizeGradeLevels(payload.gradeLevels);
   existingSection.quarterNames = normalizeQuarterNames(payload.quarterNames);
   existingSection.weekdays = Array.isArray(payload.weekdays) ? payload.weekdays.slice() : [1, 2, 3, 4, 5];
   existingSection.scheduleOrder = payload.scheduleOrder == null ? null : Number(payload.scheduleOrder);
@@ -23501,7 +23756,7 @@ function bindEvents() {
     const firstName = document.getElementById("student-first").value.trim();
     const lastName = document.getElementById("student-last").value.trim();
     const birthdate = document.getElementById("student-birthdate").value;
-    const grade = document.getElementById("student-grade").value.trim();
+    const grade = normalizeStudentGrade(document.getElementById("student-grade").value);
     if (!firstName || !lastName || !birthdate || !grade) return;
     if (hostedModeEnabled) {
       (async () => {
@@ -23620,7 +23875,7 @@ function bindEvents() {
       const firstName = document.getElementById("student-summary-first").value.trim();
       const lastName = document.getElementById("student-summary-last").value.trim();
       const birthdate = document.getElementById("student-summary-birthdate").value;
-      const grade = document.getElementById("student-summary-grade").value.trim();
+      const grade = normalizeStudentGrade(document.getElementById("student-summary-grade").value);
       if (!firstName || !lastName || !birthdate || !grade) {
         setStatusMessage("student-summary-profile-message", "error", "Complete the student name, birthdate, and grade.");
         return;
@@ -23751,13 +24006,14 @@ function bindEvents() {
     const instructorId = document.getElementById("course-instructor").value.trim();
     const minutesPerDay = Number(document.getElementById("course-hours").value);
     const hoursPerDay = courseDailyMinutesToHours(minutesPerDay);
+    const gradeLevels = getSelectedCourseGradeLevels();
     const quarterNames = getSelectedCourseQuarterNames();
     const weekdays = Array.from(document.querySelectorAll("input[name='course-weekday']:checked")).map((checkbox) => Number(checkbox.value));
     const materials = readCourseMaterialFields();
     if (!name || !subjectId || !Number.isFinite(minutesPerDay) || minutesPerDay < 15) { alert("Provide course name, subject, and at least 15 minutes/day."); return; }
     if (!weekdays.length) { alert("Select at least one weekday for the course."); return; }
     if (materials.some((material) => material.type === "other" && !material.other)) { alert("Provide details when Material Type is Other."); return; }
-    const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource: false, resourceGroup: "", resourceCapacity: null, quarterNames, weekdays, materials };
+    const payload = { name, subjectId, instructorId, hoursPerDay, exclusiveResource: false, resourceGroup: "", resourceCapacity: null, gradeLevels, quarterNames, weekdays, materials };
     if (hostedModeEnabled) {
       (async () => {
         try {
@@ -23771,6 +24027,7 @@ function bindEvents() {
           e.target.reset();
           document.getElementById("course-instructor").value = "";
           renderCourseQuarterChecklist([]);
+          renderCourseGradeLevelChecklist([]);
           setCourseWeekdaySelection([1, 2, 3, 4, 5]);
           fillCourseMaterialFields();
           await refreshHostedCourses();
@@ -23791,6 +24048,7 @@ function bindEvents() {
     e.target.reset();
     document.getElementById("course-instructor").value = "";
     renderCourseQuarterChecklist([]);
+    renderCourseGradeLevelChecklist([]);
     setCourseWeekdaySelection([1, 2, 3, 4, 5]);
     fillCourseMaterialFields();
     saveState();
@@ -23822,13 +24080,14 @@ function bindEvents() {
     const capacityRaw = document.getElementById("course-section-capacity").value.trim();
     const concurrentCapacity = capacityRaw === "" ? null : Number(capacityRaw);
     const startTime = document.getElementById("course-section-start-time").value;
+    const gradeLevels = getSelectedCourseSectionGradeLevels();
     const quarterNames = getSelectedCourseSectionQuarterNames();
     const selectedStudentIds = getSelectedCourseSectionStudentIds();
     const weekdays = Array.from(document.querySelectorAll("input[name='course-section-weekday']:checked")).map((checkbox) => Number(checkbox.value));
     if (!courseId || !label || !startTime || !weekdays.length) { alert("Provide a course, class label, start time, and at least one weekday."); return; }
     if (concurrentCapacity != null && (!Number.isInteger(concurrentCapacity) || concurrentCapacity <= 0)) { alert("Class capacity must be a whole number greater than 0."); return; }
     if (!confirmEarlyClassStart(startTime)) return;
-    const payload = { courseId, label, instructorId, resourceGroup, concurrentCapacity, startTime, quarterNames, weekdays, scheduleOrder: null };
+    const payload = { courseId, label, instructorId, resourceGroup, concurrentCapacity, startTime, gradeLevels, quarterNames, weekdays, scheduleOrder: null };
     const conflictMessages = courseSectionConflictMessages(
       courseSectionDraftFromForm({ courseId, startTime, quarterNames, weekdays }),
       selectedStudentIds
@@ -25851,8 +26110,15 @@ function bindEvents() {
       renderCourseQuarterChecklist(getSelectedCourseQuarterNames());
       return;
     }
+    if (handleGradeLevelChecklistChange(t, "course-grade-level-checkbox", "course-grade-level-all-checkbox", "course-grade-levels-summary")) {
+      return;
+    }
     if (t.classList.contains("course-section-quarter-checkbox")) {
       renderCourseSectionQuarterChecklist(getSelectedCourseSectionQuarterNames());
+      renderCourseSectionStudentChecklist(getSelectedCourseSectionStudentIds());
+      return;
+    }
+    if (handleGradeLevelChecklistChange(t, "course-section-grade-level-checkbox", "course-section-grade-level-all-checkbox", "course-section-grade-levels-summary")) {
       renderCourseSectionStudentChecklist(getSelectedCourseSectionStudentIds());
       return;
     }

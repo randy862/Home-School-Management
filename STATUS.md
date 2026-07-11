@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-06-05
+Date: 2026-07-11
 
 ## Active Workstream
 
@@ -8,7 +8,7 @@ Home lab production polish and AWS commercial production migration.
 
 ## Current Focus
 
-AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and is paused while non-technical cutover prep is completed.
+Application grade-level availability and report Grade Level columns are deployed in home lab; latest authenticated smoke still needs credentials or user rerun.
 
 ## Completed Recently
 
@@ -23,11 +23,18 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 - Marking a student absent automatically excuses scheduled/open classes without generating duplicate Flex Blocks; user confirmed home lab and AWS.
 - School Day gap placement now honors the scheduling cursor when a later item has a start override, preventing stray earlier Flex Blocks.
 - Compliance Instructional Hours chart draws the green projected year-end line through the final school-year month.
+- Student grade is now a K-12 dropdown; Courses and Classes have compact K-12/All grade-level multi-selects; Course table and Student/Course/Detailed Grade reports have Grade Level columns; Student enrollment filters Courses/Classes by the selected student's grade.
+- Backend course/class grade levels use `grade_levels_json` with tenant migration `033_course_grade_levels.sql`; existing rows default to `All`; migration `033` is applied on home lab.
+- Authenticated hosted smoke passed against `https://mitchell.navigrader.com` after deployment.
+- User confirmed the compact grade-level dropdown and Course table Grade column look correct in Mitchell.
 
 ## Production State
 
 - Home lab production URL: `https://mitchell.navigrader.com/`
-- Tenant app assets: `app.js?v=202606052140`, `styles.css?v=202605281100`
+- Tenant app assets currently deployed: `app.js?v=202607111115`, `styles.css?v=202607111040`.
+- Grade-level deployment rollback root: `/home/debian/rollback/hsm/grade-levels-20260711100422/`
+- Grade-level UI polish rollback root: `/home/debian/rollback/hsm/grade-levels-ui-polish-20260711102603/`
+- Report Grade Level columns rollback root: `/home/debian/rollback/hsm/report-grade-columns-202607111115/`
 - Key rollback roots:
   - `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
   - `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`
@@ -37,9 +44,9 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 
 ## AWS State
 
-- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs home lab `app.js?v=202606052140`.
+- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs validated home lab assets including `app.js?v=202607111115`, `styles.css?v=202607111040`, report Grade Level columns, and migration `033`.
 - AWS includes password reset, dashboard gauges, filters, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks; it still needs the latest School Day gap cursor and Compliance hours projection web fixes.
-- AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`.
+- AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`; tenant migration `033` is pending after home lab validation.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com` and `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve host.
 - AWS validation password reset email/reset succeeded when temporary NAT was enabled.
 - Mitchell AWS validation tenant is restored to `tenant_mitchell_aws_validation`, mapped to `mitchell-aws-validation.navigrader.com`, and refreshed from home lab `tenant_mitchell_family`; table counts matched.
@@ -70,7 +77,7 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 ## Current Blockers
 
 - No technical blocker for the completed Stripe checkout-to-first-login rehearsal.
-- Final Mitchell data sync is complete; next blocker is enabling temporary go-live egress for mail/Stripe validation.
+- No technical blocker for syncing the validated grade-level/reporting feature to AWS.
 
 ## Current Risks
 
@@ -83,6 +90,6 @@ AWS commercial go-live is technically staged through Mitchell TLS/DNS prep and i
 
 ## Next Actions
 
-1. Create managed NAT Gateway and add the private route for APP001 egress.
-2. Validate APP001 Stripe/Postmark egress.
-3. Sync latest web assets to AWS, then continue go-live egress and wildcard/new-tenant DNS planning while keeping `mitchell.navigrader.com` on the home lab.
+1. Rerun authenticated hosted smoke against `https://mitchell.navigrader.com` when credentials are available.
+2. Sync validated code/assets/migration `033` to AWS.
+3. Continue go-live egress and wildcard/new-tenant DNS planning while keeping `mitchell.navigrader.com` on the home lab.

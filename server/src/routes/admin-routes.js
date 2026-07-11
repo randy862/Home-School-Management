@@ -349,7 +349,7 @@ function normalizeStudentPayload(input) {
   const firstName = String(input?.firstName || "").trim();
   const lastName = String(input?.lastName || "").trim();
   const birthdate = String(input?.birthdate || "").trim();
-  const grade = String(input?.grade || "").trim();
+  const grade = normalizeStudentGrade(input?.grade);
   const ageRecorded = input?.ageRecorded === "" || input?.ageRecorded == null ? null : Number(input.ageRecorded);
   const createdAt = String(input?.createdAt || "").trim() || birthdate;
   if (!firstName
@@ -362,6 +362,16 @@ function normalizeStudentPayload(input) {
     throw error;
   }
   return { ...(id ? { id } : {}), firstName, lastName, birthdate, grade, ageRecorded, createdAt };
+}
+
+function normalizeStudentGrade(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const normalized = raw.toLowerCase().replace(/^grade\s+/, "").trim();
+  if (["k", "kindergarten"].includes(normalized)) return "K";
+  const numeric = Number(normalized);
+  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 12) return String(numeric);
+  return "";
 }
 
 function normalizeInstructorPayload(input) {

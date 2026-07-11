@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Navigrader | Hosted Workspace</title>
   <script src="preview-seed.js?v=202605131650"></script>
-  <link rel="stylesheet" href="styles.css?v=202605281100">
+  <link rel="stylesheet" href="styles.css?v=202607111040">
 </head>
 <body>
   <main id="login-shell" class="shell auth-shell">
@@ -1557,7 +1557,24 @@
           <label>First Name<input id="student-first" type="text" required></label>
           <label>Last Name<input id="student-last" type="text" required></label>
           <label>Birthdate<input id="student-birthdate" type="date" required></label>
-          <label>Grade<input id="student-grade" type="text" placeholder="5" required></label>
+          <label>Grade
+            <select id="student-grade" required>
+              <option value="">Select grade</option>
+              <option value="K">K</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+            </select>
+          </label>
           <button id="student-submit-btn" type="submit">Create Student</button>
           <button id="student-cancel-edit-btn" type="button">Cancel</button>
         </form>
@@ -1630,7 +1647,24 @@
                   <label>First Name<input id="student-summary-first" type="text" required></label>
                   <label>Last Name<input id="student-summary-last" type="text" required></label>
                   <label>Birthdate<input id="student-summary-birthdate" type="date" required></label>
-                  <label>Grade<input id="student-summary-grade" type="text" required></label>
+                  <label>Grade
+                    <select id="student-summary-grade" required>
+                      <option value="">Select grade</option>
+                      <option value="K">K</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="6">6</option>
+                      <option value="7">7</option>
+                      <option value="8">8</option>
+                      <option value="9">9</option>
+                      <option value="10">10</option>
+                      <option value="11">11</option>
+                      <option value="12">12</option>
+                    </select>
+                  </label>
                   <div class="student-detail-action-row student-summary-profile-actions">
                     <button id="student-summary-save-btn" type="submit">Save Student</button>
                     <button id="student-summary-delete-btn" type="button">Delete Student</button>
@@ -1782,6 +1816,12 @@
               <label>Course Name<input id="course-name" type="text" required></label>
               <label>Subject<select id="course-subject" required></select></label>
               <label>Instructor<select id="course-instructor"><option value="">Unassigned</option></select></label>
+              <label class="course-grade-levels-field">Grade Levels
+                <details id="course-grade-levels-dropdown" class="multi-select-dropdown">
+                  <summary id="course-grade-levels-summary">All grades</summary>
+                  <div id="course-grade-levels-options" class="checklist-vertical"></div>
+                </details>
+              </label>
               <label class="course-hours-field">Minutes / Day<input id="course-hours" type="number" min="15" step="5" required></label>
               <label class="course-quarters-field">Quarters
                 <details id="course-quarters-dropdown" class="multi-select-dropdown">
@@ -1811,7 +1851,7 @@
             <div id="course-readiness-filter-panel" class="readiness-filter-panel hidden"></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th>Daily Time</th><th>Enrolled</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Course</th><th>Subject</th><th>Instructor</th><th class="course-grade-levels-heading">Grade</th><th>Daily Time</th><th>Enrolled</th><th>Actions</th></tr></thead>
                 <tbody id="course-table"></tbody>
               </table>
             </div>
@@ -1827,6 +1867,13 @@
                 <label>Course<select id="course-section-course" required></select></label>
                 <label>Class Label<input id="course-section-label" type="text" placeholder="Group A" required></label>
                 <label>Instructor<select id="course-section-instructor"><option value="">Use course instructor</option></select></label>
+                <div class="course-section-grade-levels-field course-section-field">
+                  <span class="course-section-field-label">Grade Levels</span>
+                  <details id="course-section-grade-levels-dropdown" class="multi-select-dropdown">
+                    <summary id="course-section-grade-levels-summary">All grades</summary>
+                    <div id="course-section-grade-levels-options" class="checklist-vertical"></div>
+                  </details>
+                </div>
                 <label>Resource Group<input id="course-section-resource-group" type="text" placeholder="Piano Room A"></label>
                 <label>Concurrent Capacity<input id="course-section-capacity" type="number" min="1" step="1" placeholder="3"></label>
                 <label>Start Time<input id="course-section-start-time" type="time" required value="08:00"></label>
@@ -2659,6 +2706,6 @@
       <div id="help-center-modal-body" class="account-modal-body help-center-modal-body"></div>
     </section>
   </div>
-  <script src="app.js?v=202606052140"></script>
+  <script src="app.js?v=202607111115"></script>
   </body>
   </html>

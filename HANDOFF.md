@@ -1,6 +1,6 @@
 # Session Handoff
 
-Date: 2026-06-05
+Date: 2026-07-11
 
 ## Context
 
@@ -9,16 +9,14 @@ Home lab production polish and AWS commercial production migration carry-forward
 ## Current State
 
 - Home lab production is current at `https://mitchell.navigrader.com/`.
-- Home lab WEB001 serves `styles.css?v=202605281100` and `app.js?v=202606052140`.
+- Home lab WEB001 serves `styles.css?v=202607111040` and `app.js?v=202607111115`.
 - Password recovery/login refresh, tenant-aware reset URLs, dashboard gauges, Grade Search filter/layout, Course minutes/day UI, attendance-driven automatic excusals, School Day gap cursor fix, and Compliance hours projection line fix are implemented.
+- K-12 grade-level availability is deployed to home lab: student grade dropdowns, compact course/class grade-level multi-selects with `All`, course-table Grade column, enrollment filtering by student grade, report Grade Level columns, backend normalization, and tenant migration `033_course_grade_levels.sql`.
 - Marking a student absent automatically excuses that student's scheduled/open classes for the date without generating duplicate Flex Blocks; user confirmed the fix in home lab and AWS.
-- AWS APP001/WEB001 were deployed from `saas-modern-redesign`; AWS still needs the latest home lab web asset `app.js?v=202606052140` during the next sync.
-- AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`.
-- AWS HTTPS/TLS is enabled for `aws-validation.navigrader.com` and `mitchell-aws-validation.navigrader.com`; HTTP redirects to HTTPS.
+- AWS APP001/WEB001 were deployed from `saas-modern-redesign`; AWS still needs the latest validated home lab web assets, report Grade Level columns, and migration `033`.
+- AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`; tenant/runtime migration `033` is pending.
 - Restored Mitchell validation tenant is mapped to `mitchell-aws-validation.navigrader.com`; final data sync from home lab `tenant_mitchell_family` to AWS `tenant_mitchell_aws_validation` completed and row counts matched.
 - Temporary MAINT001 NAT route/security-group/source-destination cleanup was completed; Linux IP forwarding and MASQUERADE are off, and APP001 egress to Stripe/Postmark times out again.
-- Local SSH aliases exist: `aws-maint`, `aws-app`, `aws-web`, and `aws-sql`.
-
 ## Subscription/Stripe Readiness
 
 - Public SaaS plan endpoint is live at `https://aws-validation.navigrader.com/control-api/api/public/plans`.
@@ -35,7 +33,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 
 ## Next Action
 
-Next technical action is to sync latest web assets to AWS when hosts are running, then continue AWS go-live egress/DNS planning with `mitchell.navigrader.com` staying on the home lab.
+Next technical action is to sync the validated grade-level/reporting code/assets/migration `033` to AWS, then continue go-live egress/DNS planning with `mitchell.navigrader.com` staying on the home lab.
 
 ## Risks
 
@@ -43,13 +41,13 @@ Next technical action is to sync latest web assets to AWS when hosts are running
 - `aws-maint` uses public IP `3.138.124.78`; update local SSH config if `MAINT001` restarts without a stable Elastic IP.
 - Do not leave temporary egress/NAT in place unintentionally before go-live; current temporary NAT cleanup is complete. Production go-live should use the managed NAT Gateway plan, not MAINT001 NAT.
 - Control deployment is intentionally disabled for rehearsal; provisioning prepares schema/runtime metadata and setup token flow without pushing a per-tenant runtime over the shared APP001 service.
-- Certbot renewal for the expanded AWS cert currently records a manual DNS challenge; after DNS cutover, convert renewal back to Apache/HTTP validation.
 - Untracked scratch screenshots/icons and `tmp/` remain local and should stay out of commits.
+- Home lab rollback ids: `/home/debian/rollback/hsm/grade-levels-20260711100422/`, `/home/debian/rollback/hsm/grade-levels-ui-polish-20260711102603/`, and `/home/debian/rollback/hsm/report-grade-columns-202607111115/`.
 
 ## Rollback Pointers
 
 - Home lab course minutes/day: `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
-- Home lab web fixes: `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`, `/home/debian/rollback/hsm/school-day-gap-cursor-20260605211741/web001/`, `/home/debian/rollback/hsm/compliance-hours-projection-20260605214124/web001/`
+- Home lab web fixes include the rollback ids listed above plus older roots in `STATUS.md`.
 - AWS latest branch deploy: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`
 - AWS latest WEB001 fix: `/home/admin/rollback/hsm/school-day-excused-flex-202605291610/web001/`
 - AWS runtime/mail/TLS/Mitchell validation rollback roots are recorded in `STATUS.md`.
@@ -64,11 +62,14 @@ Next technical action is to sync latest web assets to AWS when hosts are running
 
 ## Validation
 
-- Latest web fixes: `node --check web/app.js`, `git diff --check`, Apache configtest, public `https://mitchell.navigrader.com/health` HTTP 200, and hosted smoke pass by user all passed.
+- Local grade-level feature checks passed: `node --check web/app.js`, `node --check server/src/services/curriculum-service.js`, `node --check server/src/repositories/postgres/curriculum-repository.js`, `node --check server/src/routes/admin-routes.js`, and `git diff --check`.
+- Home lab grade-level/reporting deploy checks passed: migration `033`, APP001/WEB001 health, public `/health`, and public HTML references `styles.css?v=202607111040` plus `app.js?v=202607111115`.
+- Authenticated hosted smoke was not rerun for the report-only web deploy because smoke credentials were not available in this session.
+- Authenticated hosted smoke passed against `https://mitchell.navigrader.com`: login plus `/api/me`, subjects, courses, enrollments, school-year, quarters, holidays, daily-breaks, plans, grade-types, grading-criteria, attendance, and tests.
+- User confirmed the compact grade-level dropdown and Course table Grade column look correct in the Mitchell tenant.
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` redirects to HTTPS.
 - AWS password recovery reset-complete succeeded when temporary NAT was enabled.
 - Temporary NAT cleanup completed; APP001 Stripe/Postmark/checkip egress times out again, while MAINT001 still has direct internet.
 - Test checkout POST returned HTTP 201 with a Stripe test checkout session; DB rows show account `checkout_started`, checkout session `created`, and subscription `incomplete`.
 - Full Stripe browser checkout produced setup email; user completed setup and logged into `aws1.navigrader.com`.
 - AWS `aws1` setup status returns `initialized:true`; control-plane setup sync marked environment initialized and provisioning ready.
-- Forced AWS HTTPS for `mitchell.navigrader.com` returned setup-status initialized and validated against the expanded certificate.

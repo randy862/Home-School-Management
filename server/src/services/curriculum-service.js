@@ -1,5 +1,9 @@
 const { randomUUID } = require("crypto");
 
+const GRADE_LEVEL_ALL = "all";
+const GRADE_LEVEL_OPTIONS = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+const GRADE_LEVEL_ORDER = new Map(GRADE_LEVEL_OPTIONS.map((grade, index) => [grade, index]));
+
 function createCurriculumService(deps) {
   const { curriculumRepository } = deps;
 
@@ -168,6 +172,7 @@ function normalizeCoursePayload(input) {
   const exclusiveResource = resourceCapacity === 1 || (!!input?.exclusiveResource && resourceCapacity == null);
   const quarterNames = normalizeQuarterNames(input?.quarterNames);
   const weekdays = normalizeWeekdays(input?.weekdays, [1, 2, 3, 4, 5]);
+  const gradeLevels = normalizeGradeLevels(input?.gradeLevels);
   const materials = normalizeCourseMaterials(input?.materials || input?.material);
   if (!name || !subjectId || Number.isNaN(hoursPerDay) || hoursPerDay <= 0) {
     const error = new Error("Provide course name, subject, and daily instructional time.");
@@ -198,6 +203,7 @@ function normalizeCoursePayload(input) {
     exclusiveResource,
     resourceGroup,
     resourceCapacity,
+    gradeLevels,
     quarterNames,
     weekdays,
     materials
@@ -262,6 +268,7 @@ function normalizeCourseSectionPayload(input) {
   const weekdays = Array.isArray(input?.weekdays)
     ? Array.from(new Set(input.weekdays.map((day) => Number(day)).filter((day) => Number.isInteger(day) && day >= 1 && day <= 5))).sort((a, b) => a - b)
     : [];
+  const gradeLevels = normalizeGradeLevels(input?.gradeLevels);
   const quarterNames = normalizeQuarterNames(input?.quarterNames);
   const scheduleOrder = input?.scheduleOrder === "" || input?.scheduleOrder == null ? null : Number(input.scheduleOrder);
   if (!courseId || !label || !startTime || !weekdays.length
@@ -271,7 +278,40 @@ function normalizeCourseSectionPayload(input) {
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), courseId, label, instructorId, resourceGroup, concurrentCapacity, startTime, quarterNames, weekdays, scheduleOrder };
+  return { ...(id ? { id } : {}), courseId, label, instructorId, resourceGroup, concurrentCapacity, startTime, gradeLevels, quarterNames, weekdays, scheduleOrder };
+}
+
+function normalizeGradeLevel(value, { allowAll = false } = {}) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const normalized = raw.toLowerCase().replace(/^grade\s+/, "").trim();
+  if (allowAll && normalized === GRADE_LEVEL_ALL) return GRADE_LEVEL_ALL;
+  if (["k", "kindergarten"].includes(normalized)) return "K";
+  const numeric = Number(normalized);
+  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 12) return String(numeric);
+  return "";
+}
+
+function normalizeGradeLevels(input, fallback = [GRADE_LEVEL_ALL]) {
+  const rawItems = Array.isArray(input)
+    ? input
+    : String(input ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  const normalized = rawItems
+    .map((item) => normalizeGradeLevel(item, { allowAll: true }))
+    .filter(Boolean);
+  if (!normalized.length) return [...fallback];
+  if (normalized.includes(GRADE_LEVEL_ALL)) return [GRADE_LEVEL_ALL];
+  const seen = new Set();
+  return normalized
+    .filter((grade) => {
+      if (seen.has(grade)) return false;
+      seen.add(grade);
+      return true;
+    })
+    .sort((a, b) => (GRADE_LEVEL_ORDER.get(a) ?? 999) - (GRADE_LEVEL_ORDER.get(b) ?? 999));
 }
 
 function normalizeWeekdays(input, fallback = []) {

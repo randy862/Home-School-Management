@@ -1,3 +1,7 @@
+const GRADE_LEVEL_ALL = "all";
+const GRADE_LEVEL_OPTIONS = ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
+const GRADE_LEVEL_ORDER = new Map(GRADE_LEVEL_OPTIONS.map((grade, index) => [grade, index]));
+
 function createCurriculumRepository(deps) {
   const { getPostgresPool } = deps;
 
@@ -28,6 +32,10 @@ function createCurriculumRepository(deps) {
         insertColumns.push("resource_capacity");
         insertValues.push(course.resourceCapacity == null ? null : Number(course.resourceCapacity));
       }
+      if (features.hasGradeLevels) {
+        insertColumns.push("grade_levels_json");
+        insertValues.push(JSON.stringify(normalizeGradeLevels(course.gradeLevels)));
+      }
       if (features.hasQuarterNames) {
         insertColumns.push("quarter_names_json");
         insertValues.push(JSON.stringify(course.quarterNames || []));
@@ -42,7 +50,7 @@ function createCurriculumRepository(deps) {
       }
 
       const placeholders = insertColumns.map((column, index) =>
-        column === "course_materials" || column === "quarter_names_json" || column === "weekdays_json" ? `$${index + 1}::jsonb` : `$${index + 1}`);
+        column === "course_materials" || column === "grade_levels_json" || column === "quarter_names_json" || column === "weekdays_json" ? `$${index + 1}::jsonb` : `$${index + 1}`);
       const result = await pool.query(`
         INSERT INTO courses (
           ${insertColumns.join(",\n          ")}
@@ -80,11 +88,12 @@ function createCurriculumRepository(deps) {
           resource_group,
           concurrent_capacity,
           start_time,
+          grade_levels_json,
           quarter_names_json,
           weekdays_json,
           schedule_order
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::jsonb, $10::jsonb, $11)
         RETURNING
           id,
           course_id AS "courseId",
@@ -93,6 +102,7 @@ function createCurriculumRepository(deps) {
           resource_group AS "resourceGroup",
           concurrent_capacity AS "concurrentCapacity",
           start_time AS "startTime",
+          grade_levels_json AS "gradeLevelsJson",
           quarter_names_json AS "quarterNamesJson",
           weekdays_json AS "weekdaysJson",
           schedule_order AS "scheduleOrder"
@@ -104,6 +114,7 @@ function createCurriculumRepository(deps) {
         section.resourceGroup || "",
         section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
         section.startTime,
+        JSON.stringify(normalizeGradeLevels(section.gradeLevels)),
         JSON.stringify(section.quarterNames || []),
         JSON.stringify(section.weekdays || []),
         section.scheduleOrder
@@ -295,6 +306,7 @@ function createCurriculumRepository(deps) {
               cs.resource_group AS "resourceGroup",
               cs.concurrent_capacity AS "concurrentCapacity",
               cs.start_time AS "startTime",
+              cs.grade_levels_json AS "gradeLevelsJson",
               cs.quarter_names_json AS "quarterNamesJson",
               cs.weekdays_json AS "weekdaysJson",
               cs.schedule_order AS "scheduleOrder",
@@ -314,6 +326,7 @@ function createCurriculumRepository(deps) {
             resource_group AS "resourceGroup",
             concurrent_capacity AS "concurrentCapacity",
             start_time AS "startTime",
+            grade_levels_json AS "gradeLevelsJson",
             quarter_names_json AS "quarterNamesJson",
             weekdays_json AS "weekdaysJson",
             schedule_order AS "scheduleOrder"
@@ -539,6 +552,11 @@ function createCurriculumRepository(deps) {
         values.push(course.resourceCapacity == null ? null : Number(course.resourceCapacity));
         parameterIndex += 1;
       }
+      if (features.hasGradeLevels) {
+        setClauses.push(`grade_levels_json = $${parameterIndex}::jsonb`);
+        values.push(JSON.stringify(normalizeGradeLevels(course.gradeLevels)));
+        parameterIndex += 1;
+      }
       if (features.hasQuarterNames) {
         setClauses.push(`quarter_names_json = $${parameterIndex}::jsonb`);
         values.push(JSON.stringify(course.quarterNames || []));
@@ -596,9 +614,10 @@ function createCurriculumRepository(deps) {
           resource_group = $5,
           concurrent_capacity = $6,
           start_time = $7,
-          quarter_names_json = $8::jsonb,
-          weekdays_json = $9::jsonb,
-          schedule_order = $10
+          grade_levels_json = $8::jsonb,
+          quarter_names_json = $9::jsonb,
+          weekdays_json = $10::jsonb,
+          schedule_order = $11
         WHERE id = $1
         RETURNING
           id,
@@ -608,6 +627,7 @@ function createCurriculumRepository(deps) {
           resource_group AS "resourceGroup",
           concurrent_capacity AS "concurrentCapacity",
           start_time AS "startTime",
+          grade_levels_json AS "gradeLevelsJson",
           quarter_names_json AS "quarterNamesJson",
           weekdays_json AS "weekdaysJson",
           schedule_order AS "scheduleOrder"
@@ -619,6 +639,7 @@ function createCurriculumRepository(deps) {
         section.resourceGroup || "",
         section.concurrentCapacity == null ? null : Number(section.concurrentCapacity),
         section.startTime,
+        JSON.stringify(normalizeGradeLevels(section.gradeLevels)),
         JSON.stringify(section.quarterNames || []),
         JSON.stringify(section.weekdays || []),
         section.scheduleOrder
@@ -694,6 +715,7 @@ async function getCourseTableFeatures(pool) {
     hasExclusiveResource: columns.has("exclusive_resource"),
     hasResourceGroup: columns.has("resource_group"),
     hasResourceCapacity: columns.has("resource_capacity"),
+    hasGradeLevels: columns.has("grade_levels_json"),
     hasQuarterNames: columns.has("quarter_names_json"),
     hasWeekdays: columns.has("weekdays_json"),
     hasCourseMaterials: columns.has("course_materials")
@@ -708,6 +730,10 @@ async function ensureCourseTableColumns(pool) {
   await pool.query(`
     ALTER TABLE courses
     ADD COLUMN IF NOT EXISTS resource_capacity INTEGER
+  `);
+  await pool.query(`
+    ALTER TABLE courses
+    ADD COLUMN IF NOT EXISTS grade_levels_json JSONB NOT NULL DEFAULT '["all"]'::jsonb
   `);
   await pool.query(`
     ALTER TABLE courses
@@ -735,10 +761,15 @@ async function ensureCourseSectionTables(pool) {
       resource_group TEXT NOT NULL DEFAULT '',
       concurrent_capacity INTEGER,
       start_time TEXT NOT NULL DEFAULT '08:00',
+      grade_levels_json JSONB NOT NULL DEFAULT '["all"]'::jsonb,
       quarter_names_json JSONB NOT NULL DEFAULT '[]'::jsonb,
       weekdays_json JSONB NOT NULL DEFAULT '[1,2,3,4,5]'::jsonb,
       schedule_order INTEGER
     )
+  `);
+  await pool.query(`
+    ALTER TABLE course_sections
+    ADD COLUMN IF NOT EXISTS grade_levels_json JSONB NOT NULL DEFAULT '["all"]'::jsonb
   `);
   await pool.query(`
     ALTER TABLE course_sections
@@ -794,6 +825,9 @@ function buildCourseSelectColumns(features, tableAlias = "") {
     features.hasResourceCapacity
       ? `${prefix}resource_capacity AS "resourceCapacity"`
       : `NULL::integer AS "resourceCapacity"`,
+    features.hasGradeLevels
+      ? `${prefix}grade_levels_json AS "gradeLevelsJson"`
+      : `'["all"]'::jsonb AS "gradeLevelsJson"`,
     features.hasQuarterNames
       ? `${prefix}quarter_names_json AS "quarterNamesJson"`
       : `'[]'::jsonb AS "quarterNamesJson"`,
@@ -806,6 +840,39 @@ function buildCourseSelectColumns(features, tableAlias = "") {
   ].join(",\n          ");
 }
 
+function normalizeGradeLevel(value, { allowAll = false } = {}) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const normalized = raw.toLowerCase().replace(/^grade\s+/, "").trim();
+  if (allowAll && normalized === GRADE_LEVEL_ALL) return GRADE_LEVEL_ALL;
+  if (["k", "kindergarten"].includes(normalized)) return "K";
+  const numeric = Number(normalized);
+  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 12) return String(numeric);
+  return "";
+}
+
+function normalizeGradeLevels(input, fallback = [GRADE_LEVEL_ALL]) {
+  const rawItems = Array.isArray(input)
+    ? input
+    : String(input ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  const normalized = rawItems
+    .map((item) => normalizeGradeLevel(item, { allowAll: true }))
+    .filter(Boolean);
+  if (!normalized.length) return [...fallback];
+  if (normalized.includes(GRADE_LEVEL_ALL)) return [GRADE_LEVEL_ALL];
+  const seen = new Set();
+  return normalized
+    .filter((grade) => {
+      if (seen.has(grade)) return false;
+      seen.add(grade);
+      return true;
+    })
+    .sort((a, b) => (GRADE_LEVEL_ORDER.get(a) ?? 999) - (GRADE_LEVEL_ORDER.get(b) ?? 999));
+}
+
 function mapCourseRow(row) {
   return {
     id: row.id,
@@ -816,6 +883,7 @@ function mapCourseRow(row) {
     exclusiveResource: !!row.exclusiveResource,
     resourceGroup: row.resourceGroup || "",
     resourceCapacity: row.resourceCapacity == null ? null : Number(row.resourceCapacity),
+    gradeLevels: normalizeGradeLevels(row.gradeLevelsJson),
     quarterNames: Array.isArray(row.quarterNamesJson) ? row.quarterNamesJson.map((name) => String(name || "").trim()).filter(Boolean) : [],
     weekdays: Array.isArray(row.weekdaysJson) ? row.weekdaysJson.map((day) => Number(day)).filter(Number.isInteger) : [1, 2, 3, 4, 5],
     materials: normalizeCourseMaterials(row.courseMaterials)
@@ -864,6 +932,7 @@ function mapCourseSectionRow(row) {
     resourceGroup: row.resourceGroup || "",
     concurrentCapacity: row.concurrentCapacity == null ? null : Number(row.concurrentCapacity),
     startTime: row.startTime || "08:00",
+    gradeLevels: normalizeGradeLevels(row.gradeLevelsJson),
     quarterNames: Array.isArray(row.quarterNamesJson) ? row.quarterNamesJson.map((name) => String(name || "").trim()).filter(Boolean) : [],
     weekdays: Array.isArray(row.weekdaysJson) ? row.weekdaysJson.map((day) => Number(day)).filter(Number.isInteger) : [],
     scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)
