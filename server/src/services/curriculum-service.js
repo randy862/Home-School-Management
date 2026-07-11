@@ -56,7 +56,8 @@ async function assertSectionEnrollmentHasNoClassConflict(curriculumRepository, s
   }
   const existingSections = await curriculumRepository.listSectionEnrollmentSchedulesForStudent(
     sectionEnrollment.studentId,
-    excludedSectionEnrollmentId
+    excludedSectionEnrollmentId,
+    sectionEnrollment.schoolYearId
   );
   const conflict = existingSections.find((section) => courseSectionsHaveClassTimeConflict(targetSection, section));
   if (conflict) throw buildClassTimeConflictError(conflict);
@@ -79,7 +80,8 @@ async function assertCourseSectionUpdateHasNoClassConflict(curriculumRepository,
   for (const enrollment of currentEnrollments) {
     const existingSections = await curriculumRepository.listSectionEnrollmentSchedulesForStudent(
       enrollment.studentId,
-      enrollment.sectionEnrollmentId
+      enrollment.sectionEnrollmentId,
+      enrollment.schoolYearId
     );
     const conflict = existingSections.find((existingSection) => courseSectionsHaveClassTimeConflict(targetSection, existingSection));
     if (conflict) throw buildClassTimeConflictError(conflict);
@@ -246,13 +248,15 @@ function normalizeEnrollmentPayload(input) {
   const id = String(input?.id || "").trim() || randomUUID();
   const studentId = String(input?.studentId || "").trim();
   const courseId = String(input?.courseId || "").trim();
+  const schoolYearId = String(input?.schoolYearId || input?.school_year_id || "").trim();
+  const studentGrade = normalizeStudentGrade(input?.studentGrade || input?.student_grade);
   const scheduleOrder = input?.scheduleOrder === "" || input?.scheduleOrder == null ? null : Number(input.scheduleOrder);
-  if (!studentId || !courseId || (scheduleOrder != null && (!Number.isInteger(scheduleOrder) || scheduleOrder <= 0))) {
+  if (!studentId || !courseId || !schoolYearId || (scheduleOrder != null && (!Number.isInteger(scheduleOrder) || scheduleOrder <= 0))) {
     const error = new Error("Provide valid enrollment values.");
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), studentId, courseId, scheduleOrder };
+  return { ...(id ? { id } : {}), studentId, courseId, schoolYearId, studentGrade, scheduleOrder };
 }
 
 function normalizeCourseSectionPayload(input) {
@@ -290,6 +294,10 @@ function normalizeGradeLevel(value, { allowAll = false } = {}) {
   const numeric = Number(normalized);
   if (Number.isInteger(numeric) && numeric >= 1 && numeric <= 12) return String(numeric);
   return "";
+}
+
+function normalizeStudentGrade(value) {
+  return normalizeGradeLevel(value);
 }
 
 function normalizeGradeLevels(input, fallback = [GRADE_LEVEL_ALL]) {
@@ -337,13 +345,15 @@ function normalizeSectionEnrollmentPayload(input) {
   const id = String(input?.id || "").trim() || randomUUID();
   const studentId = String(input?.studentId || "").trim();
   const courseSectionId = String(input?.courseSectionId || "").trim();
+  const schoolYearId = String(input?.schoolYearId || input?.school_year_id || "").trim();
+  const studentGrade = normalizeStudentGrade(input?.studentGrade || input?.student_grade);
   const scheduleOrder = input?.scheduleOrder === "" || input?.scheduleOrder == null ? null : Number(input.scheduleOrder);
-  if (!studentId || !courseSectionId || (scheduleOrder != null && (!Number.isInteger(scheduleOrder) || scheduleOrder <= 0))) {
+  if (!studentId || !courseSectionId || !schoolYearId || (scheduleOrder != null && (!Number.isInteger(scheduleOrder) || scheduleOrder <= 0))) {
     const error = new Error("Provide valid section enrollment values.");
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), studentId, courseSectionId, scheduleOrder };
+  return { ...(id ? { id } : {}), studentId, courseSectionId, schoolYearId, studentGrade, scheduleOrder };
 }
 
 function normalizeClockTime(value) {
@@ -359,13 +369,15 @@ function normalizeStudentScheduleBlockPayload(input) {
   const id = String(input?.id || "").trim() || randomUUID();
   const studentId = String(input?.studentId || "").trim();
   const scheduleBlockId = String(input?.scheduleBlockId || "").trim();
+  const schoolYearId = String(input?.schoolYearId || input?.school_year_id || "").trim();
+  const studentGrade = normalizeStudentGrade(input?.studentGrade || input?.student_grade);
   const scheduleOrder = input?.scheduleOrder === "" || input?.scheduleOrder == null ? null : Number(input.scheduleOrder);
-  if (!studentId || !scheduleBlockId || (scheduleOrder != null && (!Number.isInteger(scheduleOrder) || scheduleOrder <= 0))) {
+  if (!studentId || !scheduleBlockId || !schoolYearId || (scheduleOrder != null && (!Number.isInteger(scheduleOrder) || scheduleOrder <= 0))) {
     const error = new Error("Provide valid scheduled block values.");
     error.statusCode = 400;
     throw error;
   }
-  return { ...(id ? { id } : {}), studentId, scheduleBlockId, scheduleOrder };
+  return { ...(id ? { id } : {}), studentId, scheduleBlockId, schoolYearId, studentGrade, scheduleOrder };
 }
 
 module.exports = {

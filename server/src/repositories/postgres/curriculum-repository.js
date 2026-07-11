@@ -64,15 +64,18 @@ function createCurriculumRepository(deps) {
 
     createEnrollment: async (enrollment) => {
       const pool = getPostgresPool();
+      await ensureEnrollmentYearColumns(pool);
       const result = await pool.query(`
-        INSERT INTO enrollments (id, student_id, course_id, schedule_order)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO enrollments (id, student_id, course_id, school_year_id, student_grade, schedule_order)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING
           id,
           student_id AS "studentId",
           course_id AS "courseId",
+          school_year_id AS "schoolYearId",
+          student_grade AS "studentGrade",
           schedule_order AS "scheduleOrder"
-      `, [enrollment.id, enrollment.studentId, enrollment.courseId, enrollment.scheduleOrder]);
+      `, [enrollment.id, enrollment.studentId, enrollment.courseId, enrollment.schoolYearId, enrollment.studentGrade || "", enrollment.scheduleOrder]);
       return mapEnrollmentRow(result.rows[0]);
     },
 
@@ -125,29 +128,35 @@ function createCurriculumRepository(deps) {
     createSectionEnrollment: async (sectionEnrollment) => {
       const pool = getPostgresPool();
       await ensureCourseSectionTables(pool);
+      await ensureEnrollmentYearColumns(pool);
       const result = await pool.query(`
-        INSERT INTO section_enrollments (id, student_id, course_section_id, schedule_order)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO section_enrollments (id, student_id, course_section_id, school_year_id, student_grade, schedule_order)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING
           id,
           student_id AS "studentId",
           course_section_id AS "courseSectionId",
+          school_year_id AS "schoolYearId",
+          student_grade AS "studentGrade",
           schedule_order AS "scheduleOrder"
-      `, [sectionEnrollment.id, sectionEnrollment.studentId, sectionEnrollment.courseSectionId, sectionEnrollment.scheduleOrder]);
+      `, [sectionEnrollment.id, sectionEnrollment.studentId, sectionEnrollment.courseSectionId, sectionEnrollment.schoolYearId, sectionEnrollment.studentGrade || "", sectionEnrollment.scheduleOrder]);
       return mapSectionEnrollmentRow(result.rows[0]);
     },
 
     createStudentScheduleBlock: async (scheduledBlock) => {
       const pool = getPostgresPool();
+      await ensureEnrollmentYearColumns(pool);
       const result = await pool.query(`
-        INSERT INTO student_schedule_blocks (id, student_id, schedule_block_id, schedule_order)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO student_schedule_blocks (id, student_id, schedule_block_id, school_year_id, student_grade, schedule_order)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING
           id,
           student_id AS "studentId",
           schedule_block_id AS "scheduleBlockId",
+          school_year_id AS "schoolYearId",
+          student_grade AS "studentGrade",
           schedule_order AS "scheduleOrder"
-      `, [scheduledBlock.id, scheduledBlock.studentId, scheduledBlock.scheduleBlockId, scheduledBlock.scheduleOrder]);
+      `, [scheduledBlock.id, scheduledBlock.studentId, scheduledBlock.scheduleBlockId, scheduledBlock.schoolYearId, scheduledBlock.studentGrade || "", scheduledBlock.scheduleOrder]);
       return mapStudentScheduleBlockRow(result.rows[0]);
     },
 
@@ -234,6 +243,7 @@ function createCurriculumRepository(deps) {
     listCoursesForUser: async (user) => {
       const pool = getPostgresPool();
       const features = await getCourseTableFeatures(pool);
+      await ensureEnrollmentYearColumns(pool);
       const selectColumns = buildCourseSelectColumns(features, user?.role === "student" ? "c" : "");
       if (user?.role === "student") {
         await ensureCourseSectionTables(pool);
@@ -265,12 +275,15 @@ function createCurriculumRepository(deps) {
 
     listEnrollmentsForUser: async (user) => {
       const pool = getPostgresPool();
+      await ensureEnrollmentYearColumns(pool);
       if (user?.role === "student") {
         const result = await pool.query(`
           SELECT
             id,
             student_id AS "studentId",
             course_id AS "courseId",
+            school_year_id AS "schoolYearId",
+            student_grade AS "studentGrade",
             schedule_order AS "scheduleOrder"
           FROM enrollments
           WHERE student_id = $1
@@ -284,6 +297,8 @@ function createCurriculumRepository(deps) {
           id,
           student_id AS "studentId",
           course_id AS "courseId",
+          school_year_id AS "schoolYearId",
+          student_grade AS "studentGrade",
           schedule_order AS "scheduleOrder"
         FROM enrollments
         ORDER BY id
@@ -294,6 +309,7 @@ function createCurriculumRepository(deps) {
     listCourseSectionsForUser: async (user) => {
       const pool = getPostgresPool();
       await ensureCourseSectionTables(pool);
+      await ensureEnrollmentYearColumns(pool);
       const result = user?.role === "student"
         ? await pool.query(`
           SELECT *
@@ -339,12 +355,15 @@ function createCurriculumRepository(deps) {
     listSectionEnrollmentsForUser: async (user) => {
       const pool = getPostgresPool();
       await ensureCourseSectionTables(pool);
+      await ensureEnrollmentYearColumns(pool);
       const result = user?.role === "student"
         ? await pool.query(`
           SELECT
             id,
             student_id AS "studentId",
             course_section_id AS "courseSectionId",
+            school_year_id AS "schoolYearId",
+            student_grade AS "studentGrade",
             schedule_order AS "scheduleOrder"
           FROM section_enrollments
           WHERE student_id = $1
@@ -355,6 +374,8 @@ function createCurriculumRepository(deps) {
             id,
             student_id AS "studentId",
             course_section_id AS "courseSectionId",
+            school_year_id AS "schoolYearId",
+            student_grade AS "studentGrade",
             schedule_order AS "scheduleOrder"
           FROM section_enrollments
           ORDER BY id
@@ -400,14 +421,16 @@ function createCurriculumRepository(deps) {
       return result.rows[0] ? mapCourseSectionScheduleRow(result.rows[0]) : null;
     },
 
-    listSectionEnrollmentSchedulesForStudent: async (studentId, excludedSectionEnrollmentId = "") => {
+    listSectionEnrollmentSchedulesForStudent: async (studentId, excludedSectionEnrollmentId = "", schoolYearId = "") => {
       const pool = getPostgresPool();
       await ensureCourseTableColumns(pool);
       await ensureCourseSectionTables(pool);
+      await ensureEnrollmentYearColumns(pool);
       const result = await pool.query(`
         SELECT
           se.id AS "sectionEnrollmentId",
           se.student_id AS "studentId",
+          se.school_year_id AS "schoolYearId",
           cs.id,
           cs.course_id AS "courseId",
           cs.label,
@@ -423,8 +446,9 @@ function createCurriculumRepository(deps) {
         JOIN courses c ON c.id = cs.course_id
         WHERE se.student_id = $1
           AND ($2 = '' OR se.id <> $2)
+          AND ($3 = '' OR se.school_year_id = $3)
         ORDER BY cs.start_time, lower(c.name), lower(cs.label), se.id
-      `, [studentId, excludedSectionEnrollmentId || ""]);
+      `, [studentId, excludedSectionEnrollmentId || "", schoolYearId || ""]);
       return result.rows.map(mapCourseSectionScheduleRow);
     },
 
@@ -432,10 +456,12 @@ function createCurriculumRepository(deps) {
       const pool = getPostgresPool();
       await ensureCourseTableColumns(pool);
       await ensureCourseSectionTables(pool);
+      await ensureEnrollmentYearColumns(pool);
       const result = await pool.query(`
         SELECT
           se.id AS "sectionEnrollmentId",
           se.student_id AS "studentId",
+          se.school_year_id AS "schoolYearId",
           cs.id,
           cs.course_id AS "courseId",
           cs.label,
@@ -457,12 +483,15 @@ function createCurriculumRepository(deps) {
 
     listStudentScheduleBlocksForUser: async (user) => {
       const pool = getPostgresPool();
+      await ensureEnrollmentYearColumns(pool);
       const result = user?.role === "student"
         ? await pool.query(`
           SELECT
             id,
             student_id AS "studentId",
             schedule_block_id AS "scheduleBlockId",
+            school_year_id AS "schoolYearId",
+            student_grade AS "studentGrade",
             schedule_order AS "scheduleOrder"
           FROM student_schedule_blocks
           WHERE student_id = $1
@@ -473,6 +502,8 @@ function createCurriculumRepository(deps) {
             id,
             student_id AS "studentId",
             schedule_block_id AS "scheduleBlockId",
+            school_year_id AS "schoolYearId",
+            student_grade AS "studentGrade",
             schedule_order AS "scheduleOrder"
           FROM student_schedule_blocks
           ORDER BY id
@@ -484,6 +515,7 @@ function createCurriculumRepository(deps) {
       const pool = getPostgresPool();
       if (user?.role === "student") {
         await ensureCourseSectionTables(pool);
+        await ensureEnrollmentYearColumns(pool);
         const result = await pool.query(`
           SELECT
             id,
@@ -586,19 +618,24 @@ function createCurriculumRepository(deps) {
 
     updateEnrollment: async (id, enrollment) => {
       const pool = getPostgresPool();
+      await ensureEnrollmentYearColumns(pool);
       const result = await pool.query(`
         UPDATE enrollments
         SET
           student_id = $2,
           course_id = $3,
-          schedule_order = $4
+          school_year_id = $4,
+          student_grade = $5,
+          schedule_order = $6
         WHERE id = $1
         RETURNING
           id,
           student_id AS "studentId",
           course_id AS "courseId",
+          school_year_id AS "schoolYearId",
+          student_grade AS "studentGrade",
           schedule_order AS "scheduleOrder"
-      `, [id, enrollment.studentId, enrollment.courseId, enrollment.scheduleOrder]);
+      `, [id, enrollment.studentId, enrollment.courseId, enrollment.schoolYearId, enrollment.studentGrade || "", enrollment.scheduleOrder]);
       return result.rows[0] ? mapEnrollmentRow(result.rows[0]) : null;
     },
 
@@ -650,37 +687,47 @@ function createCurriculumRepository(deps) {
     updateSectionEnrollment: async (id, sectionEnrollment) => {
       const pool = getPostgresPool();
       await ensureCourseSectionTables(pool);
+      await ensureEnrollmentYearColumns(pool);
       const result = await pool.query(`
         UPDATE section_enrollments
         SET
           student_id = $2,
           course_section_id = $3,
-          schedule_order = $4
+          school_year_id = $4,
+          student_grade = $5,
+          schedule_order = $6
         WHERE id = $1
         RETURNING
           id,
           student_id AS "studentId",
           course_section_id AS "courseSectionId",
+          school_year_id AS "schoolYearId",
+          student_grade AS "studentGrade",
           schedule_order AS "scheduleOrder"
-      `, [id, sectionEnrollment.studentId, sectionEnrollment.courseSectionId, sectionEnrollment.scheduleOrder]);
+      `, [id, sectionEnrollment.studentId, sectionEnrollment.courseSectionId, sectionEnrollment.schoolYearId, sectionEnrollment.studentGrade || "", sectionEnrollment.scheduleOrder]);
       return result.rows[0] ? mapSectionEnrollmentRow(result.rows[0]) : null;
     },
 
     updateStudentScheduleBlock: async (id, scheduledBlock) => {
       const pool = getPostgresPool();
+      await ensureEnrollmentYearColumns(pool);
       const result = await pool.query(`
         UPDATE student_schedule_blocks
         SET
           student_id = $2,
           schedule_block_id = $3,
-          schedule_order = $4
+          school_year_id = $4,
+          student_grade = $5,
+          schedule_order = $6
         WHERE id = $1
         RETURNING
           id,
           student_id AS "studentId",
           schedule_block_id AS "scheduleBlockId",
+          school_year_id AS "schoolYearId",
+          student_grade AS "studentGrade",
           schedule_order AS "scheduleOrder"
-      `, [id, scheduledBlock.studentId, scheduledBlock.scheduleBlockId, scheduledBlock.scheduleOrder]);
+      `, [id, scheduledBlock.studentId, scheduledBlock.scheduleBlockId, scheduledBlock.schoolYearId, scheduledBlock.studentGrade || "", scheduledBlock.scheduleOrder]);
       return result.rows[0] ? mapStudentScheduleBlockRow(result.rows[0]) : null;
     },
 
@@ -784,9 +831,23 @@ async function ensureCourseSectionTables(pool) {
       id TEXT PRIMARY KEY,
       student_id TEXT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
       course_section_id TEXT NOT NULL REFERENCES course_sections(id) ON DELETE CASCADE,
+      school_year_id TEXT NOT NULL DEFAULT '',
+      student_grade TEXT NOT NULL DEFAULT '',
       schedule_order INTEGER,
-      UNIQUE (student_id, course_section_id)
+      UNIQUE (student_id, course_section_id, school_year_id)
     )
+  `);
+  await pool.query(`
+    ALTER TABLE section_enrollments
+    ADD COLUMN IF NOT EXISTS school_year_id TEXT NOT NULL DEFAULT ''
+  `);
+  await pool.query(`
+    ALTER TABLE section_enrollments
+    ADD COLUMN IF NOT EXISTS student_grade TEXT NOT NULL DEFAULT ''
+  `);
+  await pool.query(`
+    ALTER TABLE section_enrollments
+    DROP CONSTRAINT IF EXISTS section_enrollments_student_id_course_section_id_key
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_course_sections_course_id
@@ -804,6 +865,126 @@ async function ensureCourseSectionTables(pool) {
     CREATE INDEX IF NOT EXISTS idx_section_enrollments_section_id
     ON section_enrollments(course_section_id)
   `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_section_enrollments_student_section_year
+    ON section_enrollments(student_id, course_section_id, school_year_id)
+  `);
+}
+
+async function ensureEnrollmentYearColumns(pool) {
+  const tableResult = await pool.query(`
+    SELECT
+      to_regclass('enrollments') IS NOT NULL AS "hasEnrollments",
+      to_regclass('section_enrollments') IS NOT NULL AS "hasSectionEnrollments",
+      to_regclass('student_schedule_blocks') IS NOT NULL AS "hasStudentScheduleBlocks",
+      to_regclass('school_years') IS NOT NULL AS "hasSchoolYears",
+      to_regclass('students') IS NOT NULL AS "hasStudents"
+  `);
+  const tables = tableResult.rows[0] || {};
+  if (!tables.hasEnrollments) return;
+  let fallbackSchoolYearId = "";
+  if (tables.hasSchoolYears) {
+    const fallbackResult = await pool.query(`
+      SELECT id
+      FROM school_years
+      ORDER BY is_current DESC, start_date DESC, id
+      LIMIT 1
+    `);
+    fallbackSchoolYearId = fallbackResult.rows[0]?.id || "";
+  }
+  await pool.query(`
+    ALTER TABLE enrollments
+    ADD COLUMN IF NOT EXISTS school_year_id TEXT NOT NULL DEFAULT ''
+  `);
+  await pool.query(`
+    ALTER TABLE enrollments
+    ADD COLUMN IF NOT EXISTS student_grade TEXT NOT NULL DEFAULT ''
+  `);
+  if (fallbackSchoolYearId) {
+    await pool.query(`
+      UPDATE enrollments
+      SET school_year_id = $1
+      WHERE school_year_id IS NULL OR school_year_id = ''
+    `, [fallbackSchoolYearId]);
+  }
+  if (tables.hasStudents) {
+    await pool.query(`
+      UPDATE enrollments e
+      SET student_grade = COALESCE(NULLIF(e.student_grade, ''), s.grade, '')
+      FROM students s
+      WHERE s.id = e.student_id
+    `);
+  }
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_enrollments_school_year_student
+    ON enrollments(school_year_id, student_id, schedule_order, course_id)
+  `);
+  if (tables.hasSectionEnrollments) {
+    await pool.query(`
+      ALTER TABLE section_enrollments
+      ADD COLUMN IF NOT EXISTS school_year_id TEXT NOT NULL DEFAULT ''
+    `);
+    await pool.query(`
+      ALTER TABLE section_enrollments
+      ADD COLUMN IF NOT EXISTS student_grade TEXT NOT NULL DEFAULT ''
+    `);
+    if (fallbackSchoolYearId) {
+      await pool.query(`
+        UPDATE section_enrollments
+        SET school_year_id = $1
+        WHERE school_year_id IS NULL OR school_year_id = ''
+      `, [fallbackSchoolYearId]);
+    }
+    if (tables.hasStudents) {
+      await pool.query(`
+        UPDATE section_enrollments se
+        SET student_grade = COALESCE(NULLIF(se.student_grade, ''), s.grade, '')
+        FROM students s
+        WHERE s.id = se.student_id
+      `);
+    }
+    await pool.query(`
+      ALTER TABLE section_enrollments
+      DROP CONSTRAINT IF EXISTS section_enrollments_student_id_course_section_id_key
+    `);
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_section_enrollments_student_section_year
+      ON section_enrollments(student_id, course_section_id, school_year_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_section_enrollments_school_year_student
+      ON section_enrollments(school_year_id, student_id, schedule_order, course_section_id)
+    `);
+  }
+  if (tables.hasStudentScheduleBlocks) {
+    await pool.query(`
+      ALTER TABLE student_schedule_blocks
+      ADD COLUMN IF NOT EXISTS school_year_id TEXT NOT NULL DEFAULT ''
+    `);
+    await pool.query(`
+      ALTER TABLE student_schedule_blocks
+      ADD COLUMN IF NOT EXISTS student_grade TEXT NOT NULL DEFAULT ''
+    `);
+    if (fallbackSchoolYearId) {
+      await pool.query(`
+        UPDATE student_schedule_blocks
+        SET school_year_id = $1
+        WHERE school_year_id IS NULL OR school_year_id = ''
+      `, [fallbackSchoolYearId]);
+    }
+    if (tables.hasStudents) {
+      await pool.query(`
+        UPDATE student_schedule_blocks ssb
+        SET student_grade = COALESCE(NULLIF(ssb.student_grade, ''), s.grade, '')
+        FROM students s
+        WHERE s.id = ssb.student_id
+      `);
+    }
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_student_schedule_blocks_school_year_student
+      ON student_schedule_blocks(school_year_id, student_id, schedule_order, schedule_block_id)
+    `);
+  }
 }
 
 function buildCourseSelectColumns(features, tableAlias = "") {
@@ -919,6 +1100,8 @@ function normalizeCourseMaterial(material) {
 function mapEnrollmentRow(row) {
   return {
     ...row,
+    schoolYearId: row.schoolYearId || "",
+    studentGrade: row.studentGrade || "",
     scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)
   };
 }
@@ -944,6 +1127,8 @@ function mapSectionEnrollmentRow(row) {
     id: row.id,
     studentId: row.studentId,
     courseSectionId: row.courseSectionId,
+    schoolYearId: row.schoolYearId || "",
+    studentGrade: row.studentGrade || "",
     scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)
   };
 }
@@ -961,6 +1146,7 @@ function mapCourseSectionScheduleRow(row) {
   return {
     sectionEnrollmentId: row.sectionEnrollmentId || "",
     studentId: row.studentId || "",
+    schoolYearId: row.schoolYearId || "",
     id: row.id,
     courseId: row.courseId,
     label: row.label || "",
@@ -977,6 +1163,8 @@ function mapCourseSectionScheduleRow(row) {
 function mapStudentScheduleBlockRow(row) {
   return {
     ...row,
+    schoolYearId: row.schoolYearId || "",
+    studentGrade: row.studentGrade || "",
     scheduleOrder: row.scheduleOrder == null ? null : Number(row.scheduleOrder)
   };
 }

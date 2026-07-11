@@ -9,12 +9,13 @@ Home lab production polish and AWS commercial production migration carry-forward
 ## Current State
 
 - Home lab production is current at `https://mitchell.navigrader.com/`.
-- Home lab WEB001 serves `styles.css?v=202607111040` and `app.js?v=202607111115`.
+- Home lab WEB001 serves `styles.css?v=202607111040` and `app.js?v=202607111300`.
 - Password recovery/login refresh, tenant-aware reset URLs, dashboard gauges, Grade Search filter/layout, Course minutes/day UI, attendance-driven automatic excusals, School Day gap cursor fix, and Compliance hours projection line fix are implemented.
 - K-12 grade-level availability is deployed to home lab: student grade dropdowns, compact course/class grade-level multi-selects with `All`, course-table Grade column, enrollment filtering by student grade, report Grade Level columns, backend normalization, and tenant migration `033_course_grade_levels.sql`.
+- School-year scoped enrollments are deployed to home lab: course/class/schedule-block assignments carry `school_year_id` and student grade snapshot via tenant migration `034_school_year_scoped_enrollments.sql`; Schedule/Student/report views filter by selected Academic Year; School Years has a `Start Next School Year` helper that advances active student grades without copying enrollments.
 - Marking a student absent automatically excuses that student's scheduled/open classes for the date without generating duplicate Flex Blocks; user confirmed the fix in home lab and AWS.
-- AWS APP001/WEB001 were deployed from `saas-modern-redesign`; AWS still needs the latest validated home lab web assets, report Grade Level columns, and migration `033`.
-- AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`; tenant/runtime migration `033` is pending.
+- AWS APP001/WEB001 were deployed from `saas-modern-redesign`; AWS still needs the latest validated home lab assets and migrations `033`/`034`.
+- AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`; tenant/runtime migrations `033` and `034` are pending.
 - Restored Mitchell validation tenant is mapped to `mitchell-aws-validation.navigrader.com`; final data sync from home lab `tenant_mitchell_family` to AWS `tenant_mitchell_aws_validation` completed and row counts matched.
 - Temporary MAINT001 NAT route/security-group/source-destination cleanup was completed; Linux IP forwarding and MASQUERADE are off, and APP001 egress to Stripe/Postmark times out again.
 ## Subscription/Stripe Readiness
@@ -33,7 +34,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 
 ## Next Action
 
-Next technical action is to sync the validated grade-level/reporting code/assets/migration `033` to AWS, then continue go-live egress/DNS planning with `mitchell.navigrader.com` staying on the home lab.
+Next technical action is to sync the validated grade-level/reporting plus school-year scoped enrollment release to AWS, including tenant migrations `033` and `034`, then continue go-live egress/DNS planning with `mitchell.navigrader.com` staying on the home lab.
 
 ## Risks
 
@@ -42,7 +43,7 @@ Next technical action is to sync the validated grade-level/reporting code/assets
 - Do not leave temporary egress/NAT in place unintentionally before go-live; current temporary NAT cleanup is complete. Production go-live should use the managed NAT Gateway plan, not MAINT001 NAT.
 - Control deployment is intentionally disabled for rehearsal; provisioning prepares schema/runtime metadata and setup token flow without pushing a per-tenant runtime over the shared APP001 service.
 - Untracked scratch screenshots/icons and `tmp/` remain local and should stay out of commits.
-- Home lab rollback ids: `/home/debian/rollback/hsm/grade-levels-20260711100422/`, `/home/debian/rollback/hsm/grade-levels-ui-polish-20260711102603/`, and `/home/debian/rollback/hsm/report-grade-columns-202607111115/`.
+- Home lab rollback ids include `/home/debian/rollback/hsm/grade-levels-20260711100422/`, `/home/debian/rollback/hsm/report-grade-columns-202607111115/`, and `/home/debian/rollback/hsm/school-year-scoped-enrollments-202607111300/`.
 
 ## Rollback Pointers
 
@@ -64,6 +65,7 @@ Next technical action is to sync the validated grade-level/reporting code/assets
 
 - Local grade-level feature checks passed: `node --check web/app.js`, `node --check server/src/services/curriculum-service.js`, `node --check server/src/repositories/postgres/curriculum-repository.js`, `node --check server/src/routes/admin-routes.js`, and `git diff --check`.
 - Home lab grade-level/reporting deploy checks passed: migration `033`, APP001/WEB001 health, public `/health`, and public HTML references `styles.css?v=202607111040` plus `app.js?v=202607111115`.
+- Home lab school-year scoped enrollment deploy checks passed: local/remote `node --check` for changed backend/frontend files, migration `034`, APP001 active/local health, WEB001-to-APP001 health, public Mitchell `/health`, public HTML references `app.js?v=202607111300`, clean API journal restart, and Mitchell data has zero blank `school_year_id` rows across enrollments/class enrollments/schedule blocks.
 - Authenticated hosted smoke was not rerun for the report-only web deploy because smoke credentials were not available in this session.
 - Authenticated hosted smoke passed against `https://mitchell.navigrader.com`: login plus `/api/me`, subjects, courses, enrollments, school-year, quarters, holidays, daily-breaks, plans, grade-types, grading-criteria, attendance, and tests.
 - User confirmed the compact grade-level dropdown and Course table Grade column look correct in the Mitchell tenant.

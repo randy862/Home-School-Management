@@ -647,6 +647,26 @@ function gradeLevelsMatchStudent(gradeLevels, studentGrade) {
   return normalized.includes(GRADE_LEVEL_ALL) || normalized.includes(grade);
 }
 
+function defaultSchoolYearIdForState(inputState) {
+  return String(
+    inputState?.settings?.currentSchoolYearId
+    || inputState?.settings?.schoolYear?.id
+    || inputState?.settings?.schoolYears?.[0]?.id
+    || ""
+  ).trim();
+}
+
+function validSchoolYearIdForState(inputState, value) {
+  const schoolYearId = String(value || "").trim();
+  const validIds = new Set((inputState?.settings?.schoolYears || []).map((year) => year.id));
+  return validIds.has(schoolYearId) ? schoolYearId : defaultSchoolYearIdForState(inputState);
+}
+
+function studentGradeForState(inputState, studentId) {
+  const student = (inputState?.students || []).find((entry) => entry.id === studentId);
+  return normalizeStudentGrade(student?.grade);
+}
+
 function niceTickStep(maxValue, targetTickCount = 6) {
   const safeMax = Math.max(Number(maxValue) || 0, 1);
   const roughStep = safeMax / Math.max(targetTickCount, 2);
@@ -996,7 +1016,7 @@ function sectionDisplayName(sectionId) {
 }
 
 function courseSectionEnrollmentCount(sectionId, sourceEntries = state.sectionEnrollments) {
-  return sourceEntries.filter((entry) => entry.courseSectionId === sectionId).length;
+  return sourceEntries.filter((entry) => entry.courseSectionId === sectionId && assignmentMatchesSchoolYear(entry)).length;
 }
 
 function entryCourseId(entry) {
@@ -1070,7 +1090,10 @@ function sectionEnrollmentForStudentCourse(studentId, courseId) {
       .filter((section) => section.courseId === courseId)
       .map((section) => section.id)
   );
-  return state.sectionEnrollments.find((entry) => entry.studentId === studentId && sectionIds.has(entry.courseSectionId)) || null;
+  return state.sectionEnrollments.find((entry) =>
+    entry.studentId === studentId
+    && sectionIds.has(entry.courseSectionId)
+    && assignmentMatchesSchoolYear(entry)) || null;
 }
 
 function courseSectionForStudentCourse(studentId, courseId) {
@@ -1080,21 +1103,24 @@ function courseSectionForStudentCourse(studentId, courseId) {
 
 function enrolledStudentIdsForCourseSection(sectionId) {
   return state.sectionEnrollments
-    .filter((entry) => entry.courseSectionId === sectionId)
+    .filter((entry) => entry.courseSectionId === sectionId && assignmentMatchesSchoolYear(entry))
     .map((entry) => entry.studentId)
     .filter(Boolean);
 }
 
 function courseSectionEnrollmentForStudentInCourse(studentId, courseId, excludedSectionId = "") {
   return state.sectionEnrollments.find((entry) => {
-    if (entry.studentId !== studentId || entry.courseSectionId === excludedSectionId) return false;
+    if (entry.studentId !== studentId || entry.courseSectionId === excludedSectionId || !assignmentMatchesSchoolYear(entry)) return false;
     const section = getCourseSection(entry.courseSectionId);
     return section?.courseId === courseId;
   }) || null;
 }
 
 function courseEnrollmentForStudentCourse(studentId, courseId) {
-  return state.enrollments.find((entry) => entry.studentId === studentId && entry.courseId === courseId) || null;
+  return state.enrollments.find((entry) =>
+    entry.studentId === studentId
+    && entry.courseId === courseId
+    && assignmentMatchesSchoolYear(entry)) || null;
 }
 
 function classInstructionActualEditKey(sectionId, courseId, date) {
@@ -1160,6 +1186,7 @@ function formatCourseMaterialSummary(course) {
 
 function normalizeEnrollmentsShape(inputState) {
   const s = inputState;
+  const fallbackSchoolYearId = defaultSchoolYearIdForState(s);
   if (!Array.isArray(s.enrollments)) {
     s.enrollments = [];
     return;
@@ -1173,6 +1200,8 @@ function normalizeEnrollmentsShape(inputState) {
       return {
         ...enrollment,
         id: enrollment.id || uid(),
+        schoolYearId: validSchoolYearIdForState(s, enrollment.schoolYearId || enrollment.school_year_id) || fallbackSchoolYearId,
+        studentGrade: normalizeStudentGrade(enrollment.studentGrade || enrollment.student_grade) || studentGradeForState(s, enrollment.studentId),
         scheduleOrder: Number.isInteger(parsedOrder) && parsedOrder > 0 ? parsedOrder : null
       };
     });
@@ -1182,6 +1211,7 @@ function normalizeSectionEnrollmentsShape(inputState) {
   const s = inputState;
   const validStudentIds = new Set((s.students || []).map((student) => student.id));
   const validSectionIds = new Set((s.courseSections || []).map((section) => section.id));
+  const fallbackSchoolYearId = defaultSchoolYearIdForState(s);
   if (!Array.isArray(s.sectionEnrollments)) {
     s.sectionEnrollments = [];
     return;
@@ -1196,6 +1226,8 @@ function normalizeSectionEnrollmentsShape(inputState) {
         id: entry.id || uid(),
         studentId: String(entry.studentId || "").trim(),
         courseSectionId: String(entry.courseSectionId || "").trim(),
+        schoolYearId: validSchoolYearIdForState(s, entry.schoolYearId || entry.school_year_id) || fallbackSchoolYearId,
+        studentGrade: normalizeStudentGrade(entry.studentGrade || entry.student_grade) || studentGradeForState(s, entry.studentId),
         scheduleOrder: Number.isInteger(parsedOrder) && parsedOrder > 0 ? parsedOrder : null
       };
     });
@@ -1232,6 +1264,7 @@ function normalizeStudentScheduleBlocksShape(inputState) {
   const s = inputState;
   const validStudentIds = new Set((s.students || []).map((student) => student.id));
   const validBlockIds = new Set((s.scheduleBlocks || []).map((entry) => entry.id));
+  const fallbackSchoolYearId = defaultSchoolYearIdForState(s);
   if (!Array.isArray(s.studentScheduleBlocks)) {
     s.studentScheduleBlocks = [];
     return;
@@ -1246,6 +1279,8 @@ function normalizeStudentScheduleBlocksShape(inputState) {
         id: entry.id || uid(),
         studentId: String(entry.studentId || "").trim(),
         scheduleBlockId: String(entry.scheduleBlockId || "").trim(),
+        schoolYearId: validSchoolYearIdForState(s, entry.schoolYearId || entry.school_year_id) || fallbackSchoolYearId,
+        studentGrade: normalizeStudentGrade(entry.studentGrade || entry.student_grade) || studentGradeForState(s, entry.studentId),
         scheduleOrder: Number.isInteger(parsedOrder) && parsedOrder > 0 ? parsedOrder : null
       };
     })
@@ -3157,6 +3192,8 @@ async function refreshHostedEnrollments() {
   if (Array.isArray(enrollments)) {
     state.enrollments = enrollments.map((enrollment) => ({
       ...enrollment,
+      schoolYearId: validSchoolYearIdForState(state, enrollment.schoolYearId || enrollment.school_year_id),
+      studentGrade: normalizeStudentGrade(enrollment.studentGrade || enrollment.student_grade) || studentGradeForState(state, enrollment.studentId),
       scheduleOrder: enrollment.scheduleOrder == null ? null : Number(enrollment.scheduleOrder)
     }));
   }
@@ -3169,6 +3206,8 @@ async function refreshHostedSectionEnrollments() {
   if (Array.isArray(sectionEnrollments)) {
     state.sectionEnrollments = sectionEnrollments.map((entry) => ({
       ...entry,
+      schoolYearId: validSchoolYearIdForState(state, entry.schoolYearId || entry.school_year_id),
+      studentGrade: normalizeStudentGrade(entry.studentGrade || entry.student_grade) || studentGradeForState(state, entry.studentId),
       scheduleOrder: entry.scheduleOrder == null ? null : Number(entry.scheduleOrder)
     }));
   }
@@ -3197,6 +3236,8 @@ async function refreshHostedStudentScheduleBlocks() {
   if (Array.isArray(scheduledBlocks)) {
     state.studentScheduleBlocks = scheduledBlocks.map((entry) => ({
       ...entry,
+      schoolYearId: validSchoolYearIdForState(state, entry.schoolYearId || entry.school_year_id),
+      studentGrade: normalizeStudentGrade(entry.studentGrade || entry.student_grade) || studentGradeForState(state, entry.studentId),
       scheduleOrder: entry.scheduleOrder == null ? null : Number(entry.scheduleOrder)
     }));
   }
@@ -4395,16 +4436,17 @@ function resetStudentEnrollmentDraft() {
 }
 
 function primeStudentEnrollmentDraft(studentId) {
+  const schoolYearId = activeSchoolYearId();
   studentEnrollmentDraftStudentId = studentId || "";
   studentEnrollmentDraft = [
     ...state.enrollments
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "course" })),
     ...state.sectionEnrollments
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "courseSection" })),
     ...state.studentScheduleBlocks
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
   ];
   studentEnrollmentDraftDirty = false;
@@ -4416,15 +4458,16 @@ function workingStudentEnrollments(studentId) {
   if (studentEnrollmentDraftStudentId === studentId) {
     return studentEnrollmentDraft.map((entry) => ({ ...entry }));
   }
+  const schoolYearId = activeSchoolYearId();
   return [
     ...state.enrollments
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "course" })),
     ...state.sectionEnrollments
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "courseSection" })),
     ...state.studentScheduleBlocks
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
   ];
 }
@@ -6764,6 +6807,97 @@ function getSchoolYear(id) { return state.settings.schoolYears.find((x) => x.id 
 function currentSchoolYear() {
   return getSchoolYear(state.settings.currentSchoolYearId) || state.settings.schoolYears[0] || state.settings.schoolYear;
 }
+
+function activeSchoolYearId() {
+  return String(state?.settings?.currentSchoolYearId || currentSchoolYear()?.id || "").trim();
+}
+
+function assignmentMatchesSchoolYear(entry, schoolYearId = activeSchoolYearId()) {
+  if (!entry) return false;
+  const targetSchoolYearId = String(schoolYearId || "").trim();
+  if (!targetSchoolYearId) return true;
+  return String(entry.schoolYearId || "").trim() === targetSchoolYearId;
+}
+
+function currentStudentGrade(studentId) {
+  return normalizeStudentGrade(state.students.find((student) => student.id === studentId)?.grade);
+}
+
+function studentGradeForSchoolYear(studentId, schoolYearId = activeSchoolYearId()) {
+  const matchingAssignments = [
+    ...state.enrollments,
+    ...state.sectionEnrollments,
+    ...state.studentScheduleBlocks
+  ].filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId));
+  const snapshot = matchingAssignments
+    .map((entry) => normalizeStudentGrade(entry.studentGrade))
+    .find(Boolean);
+  return snapshot || currentStudentGrade(studentId);
+}
+
+function annualAssignmentFields(studentId, schoolYearId = activeSchoolYearId()) {
+  return {
+    schoolYearId,
+    studentGrade: studentGradeForSchoolYear(studentId, schoolYearId) || currentStudentGrade(studentId)
+  };
+}
+
+function dateKeyAddYears(dateKey, yearOffset = 1) {
+  const date = toDate(dateKey);
+  if (Number.isNaN(date.getTime())) return "";
+  const originalMonth = date.getMonth();
+  date.setFullYear(date.getFullYear() + yearOffset);
+  if (date.getMonth() !== originalMonth) date.setDate(0);
+  return toISO(date);
+}
+
+function advanceGradeLevel(value) {
+  const grade = normalizeStudentGrade(value);
+  if (!grade) return "";
+  if (grade === "K") return "1";
+  const numeric = Number(grade);
+  if (!Number.isInteger(numeric)) return grade;
+  return String(Math.min(12, numeric + 1));
+}
+
+function nextSchoolYearLabel(currentLabel, nextStartDate, nextEndDate) {
+  const match = String(currentLabel || "").match(/(\d{4})\D+(\d{4})/);
+  if (match) return `${Number(match[1]) + 1}-${Number(match[2]) + 1}`;
+  const startDate = toDate(nextStartDate);
+  const endDate = toDate(nextEndDate);
+  if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {
+    return `${startDate.getFullYear()}-${endDate.getFullYear()}`;
+  }
+  return "Next School Year";
+}
+
+function nextSchoolYearDraftFromCurrent(baseSchoolYear = currentSchoolYear()) {
+  if (!baseSchoolYear || !validRange(baseSchoolYear.startDate, baseSchoolYear.endDate)) return null;
+  const startDate = dateKeyAddYears(baseSchoolYear.startDate, 1);
+  const endDate = dateKeyAddYears(baseSchoolYear.endDate, 1);
+  return {
+    label: nextSchoolYearLabel(baseSchoolYear.label, startDate, endDate),
+    startDate,
+    endDate,
+    requiredInstructionalDays: baseSchoolYear.requiredInstructionalDays ?? null,
+    requiredInstructionalHours: baseSchoolYear.requiredInstructionalHours ?? null,
+    schoolDayStartTime: normalizeSchoolDayStartTime(baseSchoolYear.schoolDayStartTime),
+    minutesBetweenClasses: normalizeMinutesBetweenClasses(baseSchoolYear.minutesBetweenClasses)
+  };
+}
+
+function studentAdvancePayload(student) {
+  const nextGrade = advanceGradeLevel(student?.grade);
+  return {
+    firstName: String(student?.firstName || "").trim(),
+    lastName: String(student?.lastName || "").trim(),
+    birthdate: normalizeApiDate(student?.birthdate),
+    grade: nextGrade || normalizeStudentGrade(student?.grade),
+    ageRecorded: student?.birthdate ? calculateAge(student.birthdate) : student?.ageRecorded ?? null,
+    createdAt: student?.createdAt || normalizeApiDate(student?.birthdate) || todayISO()
+  };
+}
+
 function resolvedPlanRange(plan) {
   if (!plan) return { startDate: "", endDate: "" };
   if (plan.planType === "annual") {
@@ -7100,7 +7234,7 @@ function scheduleBlockDisplayName(scheduleBlockId) {
 
 function sortedStudentScheduledEntries(studentId, sourceEntries = workingStudentEnrollments(studentId)) {
   const studentEntries = sourceEntries
-    .filter((entry) => entry.studentId === studentId)
+    .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry))
     .map((entry, index) => ({ ...entry, _sourceIndex: index }));
   const autoSorted = [...studentEntries].sort((a, b) => {
     const nameA = studentScheduledEntryDisplayName(a);
@@ -7135,15 +7269,16 @@ function studentScheduledEntriesForOrderUpdate(studentId) {
   if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === studentId) {
     return studentEnrollmentDraft;
   }
+  const schoolYearId = activeSchoolYearId();
   return [
     ...state.enrollments
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "course" })),
     ...state.sectionEnrollments
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "courseSection" })),
     ...state.studentScheduleBlocks
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
   ];
 }
@@ -7167,6 +7302,7 @@ function applyInsertedScheduleOrder(entries, targetEntryId, requestedOrder) {
 }
 
 function replaceStudentScheduledEntries(studentId, nextEntries) {
+  const schoolYearId = activeSchoolYearId();
   if (studentViewMode === "detail" && selectedStudentId && studentEnrollmentDraftStudentId === studentId) {
     studentEnrollmentDraft = nextEntries.map((entry) => ({ ...entry }));
     studentEnrollmentDraftDirty = true;
@@ -7185,29 +7321,30 @@ function replaceStudentScheduledEntries(studentId, nextEntries) {
     .map(({ itemType, ...entry }) => ({ ...entry }));
 
   state.enrollments = [
-    ...state.enrollments.filter((entry) => entry.studentId !== studentId),
+    ...state.enrollments.filter((entry) => entry.studentId !== studentId || !assignmentMatchesSchoolYear(entry, schoolYearId)),
     ...nextCourses
   ];
   state.sectionEnrollments = [
-    ...state.sectionEnrollments.filter((entry) => entry.studentId !== studentId),
+    ...state.sectionEnrollments.filter((entry) => entry.studentId !== studentId || !assignmentMatchesSchoolYear(entry, schoolYearId)),
     ...nextSections
   ];
   state.studentScheduleBlocks = [
-    ...state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId),
+    ...state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId || !assignmentMatchesSchoolYear(entry, schoolYearId)),
     ...nextBlocks
   ];
 }
 
 async function persistStudentScheduledEntries(studentId, nextEntries) {
+  const schoolYearId = activeSchoolYearId();
   const existingEntries = [
     ...state.enrollments
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "course" })),
     ...state.sectionEnrollments
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "courseSection" })),
     ...state.studentScheduleBlocks
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => ({ ...entry, itemType: "scheduleBlock" }))
   ];
   const existingById = new Map(existingEntries.map((entry) => [entry.id, entry]));
@@ -7222,18 +7359,24 @@ async function persistStudentScheduledEntries(studentId, nextEntries) {
       await updateHostedStudentScheduleBlock(entry.id, {
         studentId: entry.studentId,
         scheduleBlockId: entry.scheduleBlockId,
+        schoolYearId: entry.schoolYearId || schoolYearId,
+        studentGrade: entry.studentGrade || studentGradeForSchoolYear(entry.studentId, schoolYearId),
         scheduleOrder: nextOrder
       });
     } else if (entry.itemType === "courseSection") {
       await updateHostedSectionEnrollment(entry.id, {
         studentId: entry.studentId,
         courseSectionId: entry.courseSectionId,
+        schoolYearId: entry.schoolYearId || schoolYearId,
+        studentGrade: entry.studentGrade || studentGradeForSchoolYear(entry.studentId, schoolYearId),
         scheduleOrder: nextOrder
       });
     } else {
       await updateHostedEnrollment(entry.id, {
         studentId: entry.studentId,
         courseId: entry.courseId,
+        schoolYearId: entry.schoolYearId || schoolYearId,
+        studentGrade: entry.studentGrade || studentGradeForSchoolYear(entry.studentId, schoolYearId),
         scheduleOrder: nextOrder
       });
     }
@@ -7244,19 +7387,21 @@ async function persistStudentScheduledEntries(studentId, nextEntries) {
   await refreshHostedStudentScheduleBlocks();
 }
 
-function sortedStudentEnrollments(studentId, sourceEnrollments = state.enrollments) {
+function sortedStudentEnrollments(studentId, sourceEnrollments = state.enrollments, schoolYearId = activeSchoolYearId()) {
   const studentEnrollments = [
     ...sourceEnrollments
-      .filter((enrollment) => enrollment.studentId === studentId)
+      .filter((enrollment) => enrollment.studentId === studentId && assignmentMatchesSchoolYear(enrollment, schoolYearId))
       .map((enrollment, index) => ({ ...enrollment, _sourceIndex: index })),
     ...state.sectionEnrollments
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry, index) => ({
         id: entry.id,
         studentId: entry.studentId,
         courseId: getCourseSection(entry.courseSectionId)?.courseId || "",
         scheduleOrder: entry.scheduleOrder,
         courseSectionId: entry.courseSectionId,
+        schoolYearId: entry.schoolYearId,
+        studentGrade: entry.studentGrade,
         _sourceIndex: sourceEnrollments.length + index
       }))
       .filter((entry) => !!entry.courseId)
@@ -8646,13 +8791,17 @@ function syncReportsCriteriaFilterOptions() {
   const gradeSelect = document.getElementById("reports-grade");
   if (gradeSelect) {
     const current = gradeSelect.value || "all";
-    const grades = Array.from(new Set(visibleStudents(true).map((student) => String(student.grade || "").trim()).filter(Boolean)))
-      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const schoolYearId = document.getElementById("reports-school-year")?.value || activeSchoolYearId();
+    const grades = Array.from(new Set(
+      visibleStudents(true)
+        .map((student) => studentGradeForSchoolYear(student.id, schoolYearId))
+        .filter(Boolean)
+    )).sort((a, b) => (GRADE_LEVEL_ORDER.get(a) ?? 999) - (GRADE_LEVEL_ORDER.get(b) ?? 999));
     gradeSelect.innerHTML = "<option value='all'>All Grades</option>";
     grades.forEach((grade) => {
       const option = document.createElement("option");
       option.value = grade;
-      option.textContent = grade;
+      option.textContent = gradeLevelDisplay(grade);
       gradeSelect.appendChild(option);
     });
     gradeSelect.value = grades.includes(current) ? current : "all";
@@ -8801,15 +8950,13 @@ function instructionalDatesByRangeForSchoolYear(schoolYear, startDate, endDate) 
   return dates;
 }
 
-function reportStudentMatchesGrade(studentId, gradeLevel = "all") {
+function reportStudentMatchesGrade(studentId, gradeLevel = "all", schoolYearId = activeSchoolYearId()) {
   if (!gradeLevel || gradeLevel === "all") return true;
-  const student = state.students.find((entry) => entry.id === studentId);
-  return String(student?.grade || "").trim() === gradeLevel;
+  return normalizeStudentGrade(studentGradeForSchoolYear(studentId, schoolYearId)) === normalizeStudentGrade(gradeLevel);
 }
 
-function reportStudentGradeLevel(studentId) {
-  const student = state.students.find((entry) => entry.id === studentId);
-  return gradeLevelDisplay(student?.grade) || "-";
+function reportStudentGradeLevel(studentId, schoolYearId = activeSchoolYearId()) {
+  return gradeLevelDisplay(studentGradeForSchoolYear(studentId, schoolYearId)) || "-";
 }
 
 function reportCourseMatchesSubject(courseId, subjectId = "all") {
@@ -8820,6 +8967,20 @@ function reportCourseMatchesSubject(courseId, subjectId = "all") {
 function reportTestMatchesSubject(test, subjectId = "all") {
   if (!subjectId || subjectId === "all") return true;
   return (getCourse(test.courseId)?.subjectId || test.subjectId || "") === subjectId;
+}
+
+function runWithSchoolYearContext(schoolYearId, callback) {
+  const previousSchoolYearId = activeSchoolYearId();
+  if (schoolYearId && getSchoolYear(schoolYearId) && schoolYearId !== previousSchoolYearId) {
+    setCurrentSchoolYear(schoolYearId);
+  }
+  try {
+    return callback();
+  } finally {
+    if (previousSchoolYearId && previousSchoolYearId !== activeSchoolYearId() && getSchoolYear(previousSchoolYearId)) {
+      setCurrentSchoolYear(previousSchoolYearId);
+    }
+  }
 }
 
 function reportInstructionalHoursByStudent(studentIds, schoolYearId, range, options = {}) {
@@ -8840,7 +9001,7 @@ function reportInstructionalHoursByStudent(studentIds, schoolYearId, range, opti
   });
 
   reportDates.forEach((dateKey) => {
-    const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
+    const blocksByStudent = runWithSchoolYearContext(schoolYearId, () => dailyScheduledBlocks(dateKey, studentIds));
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction" || !studentIds.includes(block.studentId)) return;
       if (!reportCourseMatchesSubject(block.courseId, subjectId)) return;
@@ -8880,7 +9041,7 @@ function reportInstructionalHourRows(studentIds, range, options = {}) {
 
   const rowsByStudentCourse = new Map();
   reportDates.forEach((dateKey) => {
-    const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
+    const blocksByStudent = runWithSchoolYearContext(range.schoolYear.id, () => dailyScheduledBlocks(dateKey, studentIds));
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction" || !studentIds.includes(block.studentId)) return;
       if (!reportCourseMatchesSubject(block.courseId, subjectId)) return;
@@ -8929,7 +9090,7 @@ function reportSummaryRows(studentIds, range, options = {}) {
     const instructionalHoursSummary = instructionalHoursByStudent.get(studentId) || { earned: 0, projected: 0 };
     return {
       studentName: student ? `${student.firstName} ${student.lastName}` : "Unknown Student",
-      gradeLevel: reportStudentGradeLevel(studentId),
+      gradeLevel: reportStudentGradeLevel(studentId, range.schoolYear.id),
       gradeCount: filteredTests.length,
       averageScore,
       letterGrade: filteredTests.length ? scoreToLetterGrade(averageScore) : "",
@@ -8964,7 +9125,7 @@ function reportStudentCourseSummaryRows(studentIds, range, options = {}) {
       rows.push({
         studentId,
         student: getStudentName(studentId),
-        gradeLevel: reportStudentGradeLevel(studentId),
+        gradeLevel: reportStudentGradeLevel(studentId, range.schoolYear.id),
         course: courseId === "__unknown_course__" ? "Unknown Course" : getCourseName(courseId),
         averageScore,
         letterGrade: courseTests.length ? scoreToLetterGrade(averageScore) : "",
@@ -8981,10 +9142,11 @@ function reportStudentCourseSummaryRows(studentIds, range, options = {}) {
 function reportStudentCourseDetailRows(studentIds, options = {}) {
   const instructorId = options.instructorId || "all";
   const subjectId = options.subjectId || "all";
+  const schoolYearId = options.schoolYearId || activeSchoolYearId();
   const rows = [];
   studentIds.forEach((studentId) => {
     const seenCourseIds = new Set();
-    sortedStudentEnrollments(studentId).forEach((enrollment) => {
+    sortedStudentEnrollments(studentId, state.enrollments, schoolYearId).forEach((enrollment) => {
       if (seenCourseIds.has(enrollment.courseId)) return;
       seenCourseIds.add(enrollment.courseId);
       const course = getCourse(enrollment.courseId);
@@ -9010,6 +9172,7 @@ function reportStudentCourseDetailRows(studentIds, options = {}) {
 
 function reportRequiredSubjectRows(studentIds, options = {}) {
   const subjectId = options.subjectId || "all";
+  const schoolYearId = options.schoolYearId || activeSchoolYearId();
   const students = studentIds
     .map((studentId) => state.students.find((student) => student.id === studentId))
     .filter(Boolean);
@@ -9027,7 +9190,7 @@ function reportRequiredSubjectRows(studentIds, options = {}) {
           name: course.name,
           sections: sortedCourseSections(course.id).map((section) => section.label)
         }));
-      const missingStudents = students.filter((student) => !studentHasRequiredSubject(student.id, subject.id));
+      const missingStudents = students.filter((student) => !studentHasRequiredSubject(student.id, subject.id, schoolYearId));
       return {
         subject,
         courseItems,
@@ -9055,7 +9218,7 @@ function reportGradeRows(studentIds, range, options = {}) {
       || gradeTypeName(a).localeCompare(gradeTypeName(b)))
     .map((test) => ({
       student: getStudentName(test.studentId),
-      gradeLevel: reportStudentGradeLevel(test.studentId),
+      gradeLevel: reportStudentGradeLevel(test.studentId, range.schoolYear.id),
       subject: getSubjectName(test.subjectId),
       course: getCourseName(test.courseId),
       date: test.date,
@@ -9083,6 +9246,7 @@ function reportInstructorSessionRows(range, instructorId = "all", options = {}) 
   const schoolYear = getSchoolYear(range.schoolYear.id);
   const subjectId = options.subjectId || "all";
   const gradeLevel = options.gradeLevel || "all";
+  const schoolYearId = range.schoolYear.id;
   if (!schoolYear) return [];
   const today = todayISO();
   const reportDates = instructionalDatesByRangeForSchoolYear(schoolYear, range.startDate, range.endDate)
@@ -9091,10 +9255,10 @@ function reportInstructorSessionRows(range, instructorId = "all", options = {}) 
   const sessionMap = new Map();
 
   reportDates.forEach((dateKey) => {
-    const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
+    const blocksByStudent = runWithSchoolYearContext(schoolYearId, () => dailyScheduledBlocks(dateKey, studentIds));
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction") return;
-      if (!reportStudentMatchesGrade(block.studentId, gradeLevel)) return;
+      if (!reportStudentMatchesGrade(block.studentId, gradeLevel, schoolYearId)) return;
       if (!reportCourseMatchesSubject(block.courseId, subjectId)) return;
       if (!instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)) return;
       const effectiveInstructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
@@ -9244,9 +9408,10 @@ function reportInstructorOverviewRows(range, instructorId = "all", options = {})
 function reportInstructorPerformanceSourceTests(range, instructorId = "all", options = {}) {
   const subjectId = options.subjectId || "all";
   const gradeLevel = options.gradeLevel || "all";
+  const schoolYearId = range.schoolYear.id;
   return state.tests.filter((test) =>
     testMatchesInstructorFilter(test, instructorId)
-    && reportStudentMatchesGrade(test.studentId, gradeLevel)
+    && reportStudentMatchesGrade(test.studentId, gradeLevel, schoolYearId)
     && reportTestMatchesSubject(test, subjectId)
     && inRange(test.date, range.startDate, range.endDate));
 }
@@ -9276,6 +9441,7 @@ function reportInstructorInstructionBlockRows(range, instructorId = "all", optio
   const schoolYear = getSchoolYear(range.schoolYear.id);
   const reportSubjectId = options.subjectId || "all";
   const gradeLevel = options.gradeLevel || "all";
+  const schoolYearId = range.schoolYear.id;
   if (!schoolYear) return [];
   const today = todayISO();
   const reportDates = instructionalDatesByRangeForSchoolYear(schoolYear, range.startDate, range.endDate)
@@ -9283,10 +9449,10 @@ function reportInstructorInstructionBlockRows(range, instructorId = "all", optio
   const studentIds = state.students.map((student) => student.id);
   const rows = [];
   reportDates.forEach((dateKey) => {
-    const blocksByStudent = dailyScheduledBlocks(dateKey, studentIds);
+    const blocksByStudent = runWithSchoolYearContext(schoolYearId, () => dailyScheduledBlocks(dateKey, studentIds));
     Array.from(blocksByStudent.values()).flat().forEach((block) => {
       if (block.type !== "instruction") return;
-      if (!reportStudentMatchesGrade(block.studentId, gradeLevel)) return;
+      if (!reportStudentMatchesGrade(block.studentId, gradeLevel, schoolYearId)) return;
       if (!reportCourseMatchesSubject(block.courseId, reportSubjectId)) return;
       if (!instructionCountsTowardCompletedHours(block.studentId, block.courseId, dateKey)) return;
       const effectiveInstructorId = effectiveInstructionInstructorId(block.studentId, block.courseId, dateKey);
@@ -9778,14 +9944,14 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
   const selectedGradeLabel = gradeLevel === "all" ? "All Grades" : gradeLevel;
   const selectedContentIds = Array.from(reportSelectedContentIds);
   const configuredWeights = configuredGradeTypes();
-  const reportFilters = { instructorId, subjectId, gradeLevel };
+  const reportFilters = { instructorId, subjectId, gradeLevel, schoolYearId: range.schoolYear.id };
   const summaryRows = reportSummaryRows(studentIds, range, reportFilters);
   const studentCourseSummaryRows = reportStudentCourseSummaryRows(studentIds, range, reportFilters);
   const studentCourseDetailRows = reportStudentCourseDetailRows(studentIds, reportFilters);
   const gradeRows = reportGradeRows(studentIds, range, reportFilters);
   const attendanceRows = reportAttendanceRows(studentIds, range);
   const instructionalHourRows = reportInstructionalHourRows(studentIds, range, reportFilters);
-  const requiredSubjectRows = reportRequiredSubjectRows(studentIds, { subjectId });
+  const requiredSubjectRows = reportRequiredSubjectRows(studentIds, { subjectId, schoolYearId: range.schoolYear.id });
   const summaryTableRows = summaryRows.length
     ? summaryRows.map((row) => `<tr><td>${escapeHtml(row.studentName)}</td><td>${escapeHtml(row.gradeLevel)}</td><td>${row.gradeCount ? `${row.averageScore.toFixed(1)}%` : "No grades"}</td><td>${reportGradeBadge(row.letterGrade || "-")}</td><td>${row.gradeCount ? row.gpa.toFixed(2) : "-"}</td><td>${row.attended}</td><td>${row.absent}</td><td>${row.instructionalDaysCompleted}</td><td>${row.instructionalHoursCompleted.toFixed(2)}</td></tr>`).join("")
     : "<tr><td colspan='9'>No student summary data found for the selected filters.</td></tr>";
@@ -9927,8 +10093,8 @@ function buildPrintableStudentReportHtml({ studentIds, range, instructorId = "al
   const requiredSubjectsForCompliance = state.subjects.filter((subject) =>
     subject.required && (!subjectId || subjectId === "all" || subject.id === subjectId));
   const allRequiredSubjectsComplete = requiredSubjectsForCompliance.length
-    ? studentIds.every((studentId) => requiredSubjectsForCompliance.every((subject) => studentHasRequiredSubject(studentId, subject.id)))
-    : studentIds.every((studentId) => studentHasAllRequiredSubjects(studentId));
+    ? studentIds.every((studentId) => requiredSubjectsForCompliance.every((subject) => studentHasRequiredSubject(studentId, subject.id, range.schoolYear.id)))
+    : studentIds.every((studentId) => studentHasAllRequiredSubjects(studentId, range.schoolYear.id));
   const reportMetaItems = [
     { label: "School Year", value: range.schoolYear.label },
     { label: "Quarter", value: range.quarter ? range.quarter.name : "All Quarters" },
@@ -10389,7 +10555,6 @@ function generatePrintableReport() {
   const instructorId = document.getElementById("reports-instructor")?.value || "all";
   const subjectId = document.getElementById("reports-subject")?.value || "all";
   const gradeLevel = document.getElementById("reports-grade")?.value || "all";
-  const studentIds = Array.from(reportSelectedStudentIds).filter((studentId) => reportStudentMatchesGrade(studentId, gradeLevel));
   if (!schoolYearId || !quarterName) {
     setReportsMessage("error", "School Year and Quarter are required.");
     return;
@@ -10403,7 +10568,9 @@ function generatePrintableReport() {
     setReportsMessage("error", "The selected School Year or Quarter is not valid.");
     return;
   }
-  if (reportType === "student" && !Array.from(reportSelectedStudentIds).length) {
+  const selectedStudentIds = Array.from(reportSelectedStudentIds);
+  const studentIds = selectedStudentIds.filter((studentId) => reportStudentMatchesGrade(studentId, gradeLevel, range.schoolYear.id));
+  if (reportType === "student" && !selectedStudentIds.length) {
     setReportsMessage("error", "Select at least one student for a Student report.");
     return;
   }
@@ -10813,18 +10980,18 @@ function getPlanEligibleCourses(studentId) {
 
 function getStudentEnrollmentEligibleCourses(studentId) {
   if (!studentId) return [];
-  const student = state.students.find((entry) => entry.id === studentId);
-  const studentGrade = student?.grade || "";
+  const studentGrade = studentGradeForSchoolYear(studentId);
+  const schoolYearId = activeSchoolYearId();
   const sourceEnrollments = studentEnrollmentDraftStudentId === studentId
     ? studentEnrollmentDraft
     : state.enrollments;
   const enrolledCourseIds = new Set(
     sourceEnrollments
-      .filter((entry) => entry.studentId === studentId)
+      .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
       .map((entry) => entry.courseId)
   );
   state.sectionEnrollments
-    .filter((entry) => entry.studentId === studentId)
+    .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
     .forEach((entry) => {
       const section = getCourseSection(entry.courseSectionId);
       if (section?.courseId) enrolledCourseIds.add(section.courseId);
@@ -10836,9 +11003,10 @@ function getStudentEnrollmentEligibleCourses(studentId) {
 
 function getStudentEnrollmentEligibleScheduleBlocks(studentId) {
   if (!studentId) return [];
+  const schoolYearId = activeSchoolYearId();
   const sourceBlocks = studentEnrollmentDraftStudentId === studentId
     ? studentEnrollmentDraft.filter((entry) => entry.itemType === "scheduleBlock")
-    : state.studentScheduleBlocks.filter((entry) => entry.studentId === studentId);
+    : state.studentScheduleBlocks.filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId));
   const assignedIds = new Set(sourceBlocks.map((entry) => entry.scheduleBlockId));
   return state.scheduleBlocks.filter((entry) => !assignedIds.has(entry.id));
 }
@@ -10861,8 +11029,7 @@ function renderStudentEnrollmentCourseChecklist(preselectedCourseIds = [], stude
       .filter((entry) => entry.studentId === studentId && entry.itemType === "courseSection")
       .map((entry) => entry.courseSectionId)
   );
-  const student = state.students.find((entry) => entry.id === studentId);
-  const studentGrade = student?.grade || "";
+  const studentGrade = studentGradeForSchoolYear(studentId);
   const eligibleCourses = getStudentEnrollmentEligibleCourses(studentId)
     .filter((course) => !getCourseSectionsForCourse(course.id).length);
   const eligibleSections = sortedCourseSections()
@@ -11698,14 +11865,14 @@ function hasInstructionOrderOverride(studentId, courseId, date) {
   return !!(existing && Number.isInteger(existing.orderIndex) && existing.orderIndex > 0);
 }
 
-function studentEnrolledCourseIds(studentId, sourceEnrollments = state.enrollments, sourceSectionEnrollments = state.sectionEnrollments) {
+function studentEnrolledCourseIds(studentId, sourceEnrollments = state.enrollments, sourceSectionEnrollments = state.sectionEnrollments, schoolYearId = activeSchoolYearId()) {
   const enrolledCourseIds = new Set(
     sourceEnrollments
-      .filter((enrollment) => enrollment.studentId === studentId)
+      .filter((enrollment) => enrollment.studentId === studentId && assignmentMatchesSchoolYear(enrollment, schoolYearId))
       .map((enrollment) => enrollment.courseId)
   );
   sourceSectionEnrollments
-    .filter((entry) => entry.studentId === studentId)
+    .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
     .forEach((entry) => {
       const section = getCourseSection(entry.courseSectionId);
       if (section?.courseId) enrolledCourseIds.add(section.courseId);
@@ -11713,12 +11880,12 @@ function studentEnrolledCourseIds(studentId, sourceEnrollments = state.enrollmen
   return enrolledCourseIds;
 }
 
-function studentMissingRequiredSubjects(studentId) {
+function studentMissingRequiredSubjects(studentId, schoolYearId = activeSchoolYearId()) {
   const student = state.students.find((entry) => entry.id === studentId);
   if (studentIsArchived(student)) return [];
   const requiredSubjects = state.subjects.filter((subject) => subject.required);
   if (!requiredSubjects.length) return [];
-  const enrolledCourseIds = studentEnrolledCourseIds(studentId);
+  const enrolledCourseIds = studentEnrolledCourseIds(studentId, state.enrollments, state.sectionEnrollments, schoolYearId);
   const enrolledSubjectIds = new Set(
     Array.from(enrolledCourseIds)
       .map((courseId) => getCourse(courseId)?.subjectId || "")
@@ -11729,13 +11896,13 @@ function studentMissingRequiredSubjects(studentId) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function studentHasAllRequiredSubjects(studentId) {
-  return studentMissingRequiredSubjects(studentId).length === 0;
+function studentHasAllRequiredSubjects(studentId, schoolYearId = activeSchoolYearId()) {
+  return studentMissingRequiredSubjects(studentId, schoolYearId).length === 0;
 }
 
-function studentHasRequiredSubject(studentId, subjectId) {
+function studentHasRequiredSubject(studentId, subjectId, schoolYearId = activeSchoolYearId()) {
   if (!studentId || !subjectId) return false;
-  const enrolledCourseIds = studentEnrolledCourseIds(studentId);
+  const enrolledCourseIds = studentEnrolledCourseIds(studentId, state.enrollments, state.sectionEnrollments, schoolYearId);
   return Array.from(enrolledCourseIds).some((courseId) => getCourse(courseId)?.subjectId === subjectId);
 }
 
@@ -11779,7 +11946,8 @@ function requiredSubjectComplianceStudents() {
 function isStudentEnrolledInCourse(studentId, courseId, sourceEnrollments = state.enrollments) {
   if (sourceEnrollments.some((enrollment) =>
     enrollment.studentId === studentId
-    && enrollment.courseId === courseId)) {
+    && enrollment.courseId === courseId
+    && assignmentMatchesSchoolYear(enrollment))) {
     return true;
   }
   return !!courseSectionForStudentCourse(studentId, courseId);
@@ -12119,8 +12287,9 @@ function renderCourseSectionStudentChecklist(selectedStudentIds = []) {
       : null;
     const existingFlexibleEnrollment = courseId ? courseEnrollmentForStudentCourse(student.id, courseId) : null;
     const conflictSection = courseSectionConflictForStudent(student.id, draftSection);
+    const studentGrade = studentGradeForSchoolYear(student.id);
     const meta = [
-      student.grade ? `Grade ${student.grade}` : "",
+      studentGrade ? `Grade ${studentGrade}` : "",
       existingCourseEnrollment ? `Currently in ${sectionDisplayName(existingCourseEnrollment.courseSectionId)}` : "",
       existingFlexibleEnrollment ? "Currently enrolled outside a class" : "",
       conflictSection ? `Conflict: ${courseSectionConflictDisplay(conflictSection)}` : ""
@@ -12252,10 +12421,10 @@ function courseStudentIdsForReadiness(courseId) {
   const activeStudentIds = activeStudentIdSetForReadiness();
   const studentIds = new Set();
   state.enrollments
-    .filter((entry) => entry.courseId === courseId && activeStudentIds.has(entry.studentId))
+    .filter((entry) => entry.courseId === courseId && activeStudentIds.has(entry.studentId) && assignmentMatchesSchoolYear(entry))
     .forEach((entry) => studentIds.add(entry.studentId));
   state.sectionEnrollments.forEach((entry) => {
-    if (!activeStudentIds.has(entry.studentId)) return;
+    if (!activeStudentIds.has(entry.studentId) || !assignmentMatchesSchoolYear(entry)) return;
     const section = getCourseSection(entry.courseSectionId);
     if (section?.courseId === courseId) studentIds.add(entry.studentId);
   });
@@ -12278,7 +12447,7 @@ function scheduleBlockAssignedStudentIdsForReadiness(scheduleBlockId) {
   const activeStudentIds = activeStudentIdSetForReadiness();
   const studentIds = new Set();
   (state.studentScheduleBlocks || [])
-    .filter((entry) => entry.scheduleBlockId === scheduleBlockId && activeStudentIds.has(entry.studentId))
+    .filter((entry) => entry.scheduleBlockId === scheduleBlockId && activeStudentIds.has(entry.studentId) && assignmentMatchesSchoolYear(entry))
     .forEach((entry) => studentIds.add(entry.studentId));
   return studentIds;
 }
@@ -12835,7 +13004,8 @@ function cancelGradeTypeEdit() {
 
 function renderStudentDetailOverview({ student, archived, selectedQuarter, studentEnrollments, missingRequiredSubjects, gradeSummary, attendanceSummary }) {
   const studentName = `${student.firstName || ""} ${student.lastName || ""}`.trim();
-  const gradeLabel = student.grade ? `Grade ${student.grade}` : "Grade not set";
+  const schoolYearGrade = studentGradeForSchoolYear(student.id);
+  const gradeLabel = schoolYearGrade ? `Grade ${schoolYearGrade}` : "Grade not set";
   const ageLabel = student.birthdate ? `Age ${calculateAge(student.birthdate)}` : "Age not set";
   const quarterLabel = selectedQuarter === "all" ? "All quarters" : selectedQuarter;
   const statusLabel = archived ? "Archived" : "Active";
@@ -14180,11 +14350,7 @@ function getCoursesBySubject(subjectId) {
 }
 
 function getEligibleSubjectsForStudent(studentId, includeSubjectId) {
-  const enrolledCourseIds = new Set(
-    state.enrollments
-      .filter((e) => e.studentId === studentId)
-      .map((e) => e.courseId)
-  );
+  const enrolledCourseIds = studentEnrolledCourseIds(studentId);
 
   const subjectIds = new Set(
     state.courses
@@ -14199,9 +14365,7 @@ function getEligibleSubjectsForStudent(studentId, includeSubjectId) {
 
 function getEnrolledCoursesForStudent(studentId) {
   const enrolledCourseIds = new Set(
-    state.enrollments
-      .filter((e) => e.studentId === studentId)
-      .map((e) => e.courseId)
+    Array.from(studentEnrolledCourseIds(studentId))
   );
   return state.courses.filter((c) => enrolledCourseIds.has(c.id));
 }
@@ -15136,7 +15300,7 @@ function schoolDayScheduleBlockFilterOptions(studentIds = []) {
   if (!studentIds.length) return state.scheduleBlocks.slice();
   const assignedBlockIds = new Set(
     state.studentScheduleBlocks
-      .filter((entry) => studentIds.includes(entry.studentId))
+      .filter((entry) => studentIds.includes(entry.studentId) && assignmentMatchesSchoolYear(entry))
       .map((entry) => entry.scheduleBlockId)
       .filter(Boolean)
   );
@@ -15571,7 +15735,7 @@ function renderGradesScheduledItemChecklist(courses, preselectedScheduledItemKey
     ? null
     : new Set(
       state.sectionEnrollments
-        .filter((entry) => entry.studentId === studentFilter)
+        .filter((entry) => entry.studentId === studentFilter && assignmentMatchesSchoolYear(entry))
         .map((entry) => entry.courseSectionId)
         .filter(Boolean)
     );
@@ -15670,11 +15834,7 @@ function syncGradesFilterSubjectCourseOptions() {
 }
 
 function getEligibleCoursesForStudentSubject(studentId, subjectId, includeCourseId) {
-  const enrolledCourseIds = new Set(
-    state.enrollments
-      .filter((e) => e.studentId === studentId)
-      .map((e) => e.courseId)
-  );
+  const enrolledCourseIds = new Set(Array.from(studentEnrolledCourseIds(studentId)));
 
   if (includeCourseId) enrolledCourseIds.add(includeCourseId);
 
@@ -22223,6 +22383,85 @@ function removeSchoolYear(schoolYearId) {
   if (current) setCurrentSchoolYear(current.id);
 }
 
+async function startNextSchoolYear() {
+  if (!ensureAdminAction()) return;
+  const baseSchoolYear = currentSchoolYear();
+  const draft = nextSchoolYearDraftFromCurrent(baseSchoolYear);
+  if (!draft || !validRange(draft.startDate, draft.endDate)) {
+    alert("The current school year needs valid start and end dates before starting the next school year.");
+    return;
+  }
+
+  const duplicate = state.settings.schoolYears.find((year) =>
+    year.label.toLowerCase() === draft.label.toLowerCase()
+    || (year.startDate === draft.startDate && year.endDate === draft.endDate));
+  if (duplicate) {
+    const selectExisting = window.confirm(`${duplicate.label} already exists. Make it the active Academic Year?`);
+    if (!selectExisting) return;
+    if (hostedModeEnabled) {
+      try {
+        saveActiveAcademicYearPreference(duplicate.id);
+        await setHostedCurrentSchoolYear(duplicate.id);
+        await refreshHostedSchoolConfigState();
+        applyAcademicYearViewContext(duplicate.id);
+        rerenderAfterSchoolCalendarConfigChange();
+      } catch (error) {
+        alert(error.message || "Unable to switch school years.");
+      }
+      return;
+    }
+    setCurrentSchoolYear(duplicate.id);
+    saveActiveAcademicYearPreference(duplicate.id);
+    saveState();
+    rerenderAfterSchoolCalendarConfigChange();
+    return;
+  }
+
+  const activeStudents = state.students.filter((student) => !studentIsArchived(student));
+  const advancingStudents = activeStudents.filter((student) =>
+    advanceGradeLevel(student.grade) && advanceGradeLevel(student.grade) !== normalizeStudentGrade(student.grade));
+  const confirmed = window.confirm(
+    `Start ${draft.label} as the active Academic Year?\n\n`
+    + `This will advance ${advancingStudents.length} active student${advancingStudents.length === 1 ? "" : "s"} one grade level and will not copy Courses, Classes, or Schedule Blocks into the new year.`
+  );
+  if (!confirmed) return;
+
+  if (hostedModeEnabled) {
+    try {
+      const newSchoolYearId = uid();
+      const newSchoolYear = { id: newSchoolYearId, ...draft, isCurrent: true };
+      await createHostedSchoolYear(newSchoolYear);
+      const recommendation = recommendedQuartersForSchoolYear({ id: newSchoolYearId, ...draft });
+      if (!recommendation.error) {
+        await persistQuarterSetForSchoolYear(newSchoolYearId, recommendation.quarters, { refresh: false });
+      }
+      for (const student of advancingStudents) {
+        await updateHostedStudent(student.id, studentAdvancePayload(student));
+      }
+      saveActiveAcademicYearPreference(newSchoolYearId);
+      await setHostedCurrentSchoolYear(newSchoolYearId);
+      await refreshHostedStudents();
+      await refreshHostedSchoolConfigState();
+      applyAcademicYearViewContext(newSchoolYearId);
+      alert(`${draft.label} is now active. Student grades were advanced and the new year starts with no scheduled item enrollments.`);
+      rerenderAfterSchoolCalendarConfigChange();
+    } catch (error) {
+      alert(error.message || "Unable to start the next school year.");
+    }
+    return;
+  }
+
+  const createdSchoolYear = createLegacyLocalSchoolYear(draft);
+  const recommendation = recommendedQuartersForSchoolYear(createdSchoolYear);
+  if (!recommendation.error) persistQuarterSetForSchoolYear(createdSchoolYear.id, recommendation.quarters, { refresh: false });
+  advancingStudents.forEach((student) => updateLegacyLocalStudent(student, studentAdvancePayload(student)));
+  setCurrentSchoolYear(createdSchoolYear.id);
+  saveActiveAcademicYearPreference(createdSchoolYear.id);
+  saveState();
+  alert(`${draft.label} is now active. Student grades were advanced and the new year starts with no scheduled item enrollments.`);
+  rerenderAfterSchoolCalendarConfigChange();
+}
+
 function beginQuarterEdit(schoolYearId) {
   editingQuarterSchoolYearId = schoolYearId;
   const select = document.getElementById("quarter-school-year");
@@ -23019,7 +23258,11 @@ function createLegacyLocalCourse(payload) {
 }
 
 function createLegacyLocalEnrollment(payload) {
-  state.enrollments.push({ id: uid(), ...payload });
+  state.enrollments.push({
+    id: uid(),
+    ...annualAssignmentFields(payload.studentId),
+    ...payload
+  });
 }
 
 function createLegacyLocalCourseSection(payload) {
@@ -23052,20 +23295,26 @@ function updateLegacyLocalCourseSection(existingSection, payload) {
 }
 
 function createLegacyLocalSectionEnrollment(payload) {
-  const enrollment = { id: payload.id || uid(), ...payload };
+  const enrollment = {
+    id: payload.id || uid(),
+    ...annualAssignmentFields(payload.studentId),
+    ...payload
+  };
   state.sectionEnrollments.push(enrollment);
   return enrollment;
 }
 
 function syncLegacyCourseSectionEnrollments(sectionId, courseId, selectedStudentIds = []) {
   const selected = new Set(selectedStudentIds.filter(Boolean));
-  const existingForSection = state.sectionEnrollments.filter((entry) => entry.courseSectionId === sectionId);
+  const schoolYearId = activeSchoolYearId();
+  const existingForSection = state.sectionEnrollments.filter((entry) => entry.courseSectionId === sectionId && assignmentMatchesSchoolYear(entry, schoolYearId));
   selected.forEach((studentId) => {
+    const assignmentFields = annualAssignmentFields(studentId, schoolYearId);
     const alreadyInSection = existingForSection.some((entry) => entry.studentId === studentId);
     const flexibleCourseEnrollment = courseEnrollmentForStudentCourse(studentId, courseId);
     const otherCourseEnrollment = courseSectionEnrollmentForStudentInCourse(studentId, courseId, sectionId);
     if (!alreadyInSection) {
-      createLegacyLocalSectionEnrollment({ studentId, courseSectionId: sectionId, scheduleOrder: null });
+      createLegacyLocalSectionEnrollment({ studentId, courseSectionId: sectionId, ...assignmentFields, scheduleOrder: null });
     }
     if (flexibleCourseEnrollment) {
       removeLegacyLocalEnrollment(flexibleCourseEnrollment.id);
@@ -23081,13 +23330,15 @@ function syncLegacyCourseSectionEnrollments(sectionId, courseId, selectedStudent
 
 async function syncHostedCourseSectionEnrollments(sectionId, courseId, selectedStudentIds = []) {
   const selected = new Set(selectedStudentIds.filter(Boolean));
-  const existingForSection = state.sectionEnrollments.filter((entry) => entry.courseSectionId === sectionId);
+  const schoolYearId = activeSchoolYearId();
+  const existingForSection = state.sectionEnrollments.filter((entry) => entry.courseSectionId === sectionId && assignmentMatchesSchoolYear(entry, schoolYearId));
   for (const studentId of selected) {
+    const assignmentFields = annualAssignmentFields(studentId, schoolYearId);
     const alreadyInSection = existingForSection.some((entry) => entry.studentId === studentId);
     const flexibleCourseEnrollment = courseEnrollmentForStudentCourse(studentId, courseId);
     const otherCourseEnrollment = courseSectionEnrollmentForStudentInCourse(studentId, courseId, sectionId);
     if (!alreadyInSection) {
-      await createHostedSectionEnrollment({ id: uid(), studentId, courseSectionId: sectionId, scheduleOrder: null });
+      await createHostedSectionEnrollment({ id: uid(), studentId, courseSectionId: sectionId, ...assignmentFields, scheduleOrder: null });
     }
     if (flexibleCourseEnrollment) {
       await deleteHostedEnrollment(flexibleCourseEnrollment.id);
@@ -23105,7 +23356,7 @@ async function syncHostedCourseSectionEnrollments(sectionId, courseId, selectedS
 
 async function removeHostedCourseSectionEnrollmentsNotSelected(sectionId, selectedStudentIds = []) {
   const selected = new Set(selectedStudentIds.filter(Boolean));
-  const removedEntries = state.sectionEnrollments.filter((entry) => entry.courseSectionId === sectionId && !selected.has(entry.studentId));
+  const removedEntries = state.sectionEnrollments.filter((entry) => entry.courseSectionId === sectionId && assignmentMatchesSchoolYear(entry) && !selected.has(entry.studentId));
   if (!removedEntries.length) return 0;
   for (const entry of removedEntries) {
     await deleteHostedSectionEnrollment(entry.id);
@@ -24411,6 +24662,7 @@ function bindEvents() {
     const studentId = selectedStudentId;
     const selectedItemKeys = getSelectedStudentEnrollmentCourseIds();
     if (!studentId || !selectedItemKeys.length) return;
+    const assignmentFields = annualAssignmentFields(studentId);
     const workingEntries = studentEnrollmentDraftStudentId === studentId ? studentEnrollmentDraft : workingStudentEnrollments(studentId);
     const existingCourseIds = new Set(
       workingEntries
@@ -24446,10 +24698,10 @@ function bindEvents() {
     if (studentViewMode === "detail" && studentEnrollmentDraftStudentId === studentId) {
       studentEnrollmentDraft.push(...newItems.map((entry) => (
         entry.itemType === "scheduleBlock"
-          ? { id: uid(), itemType: "scheduleBlock", studentId, scheduleBlockId: entry.itemId, scheduleOrder: null }
+          ? { id: uid(), itemType: "scheduleBlock", studentId, scheduleBlockId: entry.itemId, ...assignmentFields, scheduleOrder: null }
           : entry.itemType === "courseSection"
-            ? { id: uid(), itemType: "courseSection", studentId, courseSectionId: entry.itemId, scheduleOrder: null }
-          : { id: uid(), itemType: "course", studentId, courseId: entry.itemId, scheduleOrder: null }
+            ? { id: uid(), itemType: "courseSection", studentId, courseSectionId: entry.itemId, ...assignmentFields, scheduleOrder: null }
+          : { id: uid(), itemType: "course", studentId, courseId: entry.itemId, ...assignmentFields, scheduleOrder: null }
       )));
       studentEnrollmentDraftDirty = true;
       studentEnrollmentEditMode = true;
@@ -24461,11 +24713,11 @@ function bindEvents() {
         try {
           for (const entry of newItems) {
             if (entry.itemType === "scheduleBlock") {
-              await createHostedStudentScheduleBlock({ id: uid(), studentId, scheduleBlockId: entry.itemId, scheduleOrder: null });
+              await createHostedStudentScheduleBlock({ id: uid(), studentId, scheduleBlockId: entry.itemId, ...assignmentFields, scheduleOrder: null });
             } else if (entry.itemType === "courseSection") {
-              await createHostedSectionEnrollment({ id: uid(), studentId, courseSectionId: entry.itemId, scheduleOrder: null });
+              await createHostedSectionEnrollment({ id: uid(), studentId, courseSectionId: entry.itemId, ...assignmentFields, scheduleOrder: null });
             } else {
-              await createHostedEnrollment({ id: uid(), studentId, courseId: entry.itemId, scheduleOrder: null });
+              await createHostedEnrollment({ id: uid(), studentId, courseId: entry.itemId, ...assignmentFields, scheduleOrder: null });
             }
           }
           await refreshHostedEnrollments();
@@ -24480,11 +24732,11 @@ function bindEvents() {
     }
     newItems.forEach((entry) => {
       if (entry.itemType === "scheduleBlock") {
-        state.studentScheduleBlocks.push({ id: uid(), studentId, scheduleBlockId: entry.itemId, scheduleOrder: null });
+        state.studentScheduleBlocks.push({ id: uid(), studentId, scheduleBlockId: entry.itemId, ...assignmentFields, scheduleOrder: null });
       } else if (entry.itemType === "courseSection") {
-        createLegacyLocalSectionEnrollment({ studentId, courseSectionId: entry.itemId, scheduleOrder: null });
+        createLegacyLocalSectionEnrollment({ studentId, courseSectionId: entry.itemId, ...assignmentFields, scheduleOrder: null });
       } else {
-        createLegacyLocalEnrollment({ studentId, courseId: entry.itemId, scheduleOrder: null });
+        createLegacyLocalEnrollment({ studentId, courseId: entry.itemId, ...assignmentFields, scheduleOrder: null });
       }
     });
     saveState();
@@ -24537,12 +24789,22 @@ function bindEvents() {
         return;
       }
       if (!ensureAdminAction()) return;
-      const existingEnrollments = state.enrollments.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry, itemType: "course" }));
-      const existingSectionEnrollments = state.sectionEnrollments.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry, itemType: "courseSection" }));
-      const existingScheduleBlocks = state.studentScheduleBlocks.filter((entry) => entry.studentId === studentId).map((entry) => ({ ...entry, itemType: "scheduleBlock" }));
+      const schoolYearId = activeSchoolYearId();
+      const assignmentFields = annualAssignmentFields(studentId, schoolYearId);
+      const existingEnrollments = state.enrollments
+        .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
+        .map((entry) => ({ ...entry, itemType: "course" }));
+      const existingSectionEnrollments = state.sectionEnrollments
+        .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
+        .map((entry) => ({ ...entry, itemType: "courseSection" }));
+      const existingScheduleBlocks = state.studentScheduleBlocks
+        .filter((entry) => entry.studentId === studentId && assignmentMatchesSchoolYear(entry, schoolYearId))
+        .map((entry) => ({ ...entry, itemType: "scheduleBlock" }));
       const draftEntries = studentEnrollmentDraft.map((entry) => ({
         ...entry,
         studentId,
+        schoolYearId: entry.schoolYearId || assignmentFields.schoolYearId,
+        studentGrade: entry.studentGrade || assignmentFields.studentGrade,
         scheduleOrder: parseScheduleOrderValue(entry.scheduleOrder)
       }));
       const draftEnrollments = draftEntries.filter((entry) => entry.itemType === "course");
@@ -24585,6 +24847,8 @@ function bindEvents() {
                   return updateHostedEnrollment(draft.id, {
                     studentId: draft.studentId,
                     courseId: draft.courseId,
+                    schoolYearId: draft.schoolYearId,
+                    studentGrade: draft.studentGrade,
                     scheduleOrder: draft.scheduleOrder
                   });
                 }
@@ -24598,6 +24862,8 @@ function bindEvents() {
                   return updateHostedSectionEnrollment(draft.id, {
                     studentId: draft.studentId,
                     courseSectionId: draft.courseSectionId,
+                    schoolYearId: draft.schoolYearId,
+                    studentGrade: draft.studentGrade,
                     scheduleOrder: draft.scheduleOrder
                   });
                 }
@@ -24611,6 +24877,8 @@ function bindEvents() {
                   return updateHostedStudentScheduleBlock(draft.id, {
                     studentId: draft.studentId,
                     scheduleBlockId: draft.scheduleBlockId,
+                    schoolYearId: draft.schoolYearId,
+                    studentGrade: draft.studentGrade,
                     scheduleOrder: draft.scheduleOrder
                   });
                 }
@@ -24619,15 +24887,15 @@ function bindEvents() {
             ]);
 
             state.enrollments = [
-              ...state.enrollments.filter((entry) => entry.studentId !== studentId),
+              ...state.enrollments.filter((entry) => entry.studentId !== studentId || !assignmentMatchesSchoolYear(entry, schoolYearId)),
               ...draftEnrollments.map(({ itemType, ...entry }) => ({ ...entry }))
             ];
             state.sectionEnrollments = [
-              ...state.sectionEnrollments.filter((entry) => entry.studentId !== studentId),
+              ...state.sectionEnrollments.filter((entry) => entry.studentId !== studentId || !assignmentMatchesSchoolYear(entry, schoolYearId)),
               ...draftSectionEnrollments.map(({ itemType, ...entry }) => ({ ...entry }))
             ];
             state.studentScheduleBlocks = [
-              ...state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId),
+              ...state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId || !assignmentMatchesSchoolYear(entry, schoolYearId)),
               ...draftScheduleBlocks.map(({ itemType, ...entry }) => ({ ...entry }))
             ];
             if (planIdsToDelete.length) {
@@ -24641,9 +24909,9 @@ function bindEvents() {
         })();
         return;
       }
-      state.enrollments = state.enrollments.filter((entry) => entry.studentId !== studentId);
-      state.sectionEnrollments = state.sectionEnrollments.filter((entry) => entry.studentId !== studentId);
-      state.studentScheduleBlocks = state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId);
+      state.enrollments = state.enrollments.filter((entry) => entry.studentId !== studentId || !assignmentMatchesSchoolYear(entry, schoolYearId));
+      state.sectionEnrollments = state.sectionEnrollments.filter((entry) => entry.studentId !== studentId || !assignmentMatchesSchoolYear(entry, schoolYearId));
+      state.studentScheduleBlocks = state.studentScheduleBlocks.filter((entry) => entry.studentId !== studentId || !assignmentMatchesSchoolYear(entry, schoolYearId));
       removedCourseIds.forEach((courseId) => removePlansForStudentCourse(studentId, courseId));
       state.enrollments.push(...draftEnrollments.map((entry) => ({ ...entry })));
       state.sectionEnrollments.push(...draftSectionEnrollments.map((entry) => ({ ...entry })));
@@ -24662,6 +24930,7 @@ function bindEvents() {
   if (reportsSchoolYearSelect) {
     reportsSchoolYearSelect.addEventListener("change", () => {
       syncReportsQuarterOptions();
+      syncReportsCriteriaFilterOptions();
       updateReportsPreviewSummary();
       setReportsMessage("", "Select report criteria and content to generate a printable report.");
     });
@@ -24798,6 +25067,12 @@ function bindEvents() {
   const schoolYearCancelEditBtn = document.getElementById("school-year-cancel-edit-btn");
   if (schoolYearCancelEditBtn) {
     schoolYearCancelEditBtn.addEventListener("click", () => cancelSchoolYearEdit());
+  }
+  const schoolYearStartNextBtn = document.getElementById("school-year-start-next-btn");
+  if (schoolYearStartNextBtn) {
+    schoolYearStartNextBtn.addEventListener("click", () => {
+      startNextSchoolYear();
+    });
   }
 
   document.getElementById("school-day-school-year")?.addEventListener("change", (event) => {
