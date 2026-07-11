@@ -66,8 +66,7 @@ Next technical action is to sync the validated grade-level/reporting plus school
 - Local grade-level feature checks passed: `node --check web/app.js`, `node --check server/src/services/curriculum-service.js`, `node --check server/src/repositories/postgres/curriculum-repository.js`, `node --check server/src/routes/admin-routes.js`, and `git diff --check`.
 - Home lab grade-level/reporting deploy checks passed: migration `033`, APP001/WEB001 health, public `/health`, and public HTML references `styles.css?v=202607111040` plus `app.js?v=202607111115`.
 - Home lab school-year scoped enrollment deploy checks passed: local/remote `node --check` for changed backend/frontend files, migration `034`, APP001 active/local health, WEB001-to-APP001 health, public Mitchell `/health`, public HTML references `app.js?v=202607111300`, clean API journal restart, and Mitchell data has zero blank `school_year_id` rows across enrollments/class enrollments/schedule blocks.
-- Authenticated hosted smoke was not rerun for the report-only web deploy because smoke credentials were not available in this session.
-- Authenticated hosted smoke passed against `https://mitchell.navigrader.com`: login plus `/api/me`, subjects, courses, enrollments, school-year, quarters, holidays, daily-breaks, plans, grade-types, grading-criteria, attendance, and tests.
+- Post-deploy authenticated hosted smoke passed against `https://mitchell.navigrader.com`: login plus `/api/me`, subjects, courses, enrollments, school-year, quarters, holidays, daily-breaks, plans, grade-types, grading-criteria, attendance, and tests.
 - User confirmed the compact grade-level dropdown and Course table Grade column look correct in the Mitchell tenant.
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` redirects to HTTPS.
 - AWS password recovery reset-complete succeeded when temporary NAT was enabled.

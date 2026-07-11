@@ -8,7 +8,7 @@ Home lab production polish and AWS commercial production migration.
 
 ## Current Focus
 
-School-year scoped enrollment/year rollover is deployed in home lab; latest authenticated smoke still needs credentials or user rerun.
+School-year scoped enrollment/year rollover is deployed and smoke-validated in home lab.
 
 ## Completed Recently
 
@@ -94,6 +94,5 @@ School-year scoped enrollment/year rollover is deployed in home lab; latest auth
 
 ## Next Actions
 
-1. Rerun authenticated hosted smoke against `https://mitchell.navigrader.com` when credentials are available.
-2. Sync validated code/assets/migrations `033` and `034` to AWS.
-3. Continue go-live egress and wildcard/new-tenant DNS planning while keeping `mitchell.navigrader.com` on the home lab.
+1. Sync validated code/assets/migrations `033` and `034` to AWS.
+2. Continue go-live egress and wildcard/new-tenant DNS planning while keeping `mitchell.navigrader.com` on the home lab.
