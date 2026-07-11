@@ -8,7 +8,7 @@ Home lab production polish and AWS commercial production migration.
 
 ## Current Focus
 
-School-year delete cleanup is deployed; Mitchell orphaned schedule rows still need one-time repair.
+Mitchell school-year reset baseline is repaired after orphan schedule cleanup.
 
 ## Completed Recently
 
@@ -33,6 +33,7 @@ School-year delete cleanup is deployed; Mitchell orphaned schedule rows still ne
 - Configured Courses now has a compact Grade column filter (`All`, `K`-`12`); `All grades` courses remain visible under each grade filter.
 - Student Schedule detail/enrollment uses current/future student profile grade for the header and scheduled-item picker, while past-year views still honor assignment grade snapshots.
 - School-year deletion removes course, class, and schedule-block assignments scoped to the deleted year and warns admins before doing so.
+- Mitchell orphaned schedule rows were repaired after deleting extra school years: moved 20 courses, 3 classes, and 4 blocks to `2025-2026`; deleted 12 course and 2 block orphan residues; orphan counts are zero.
 
 ## Production State
 
@@ -45,6 +46,7 @@ School-year delete cleanup is deployed; Mitchell orphaned schedule rows still ne
 - Course Grade filter rollback archive: `/home/debian/rollback/hsm/course-grade-filter-202607111330/web001/web.tgz`
 - Student Schedule grade-context rollback archive: `/home/debian/rollback/hsm/student-schedule-grade-context-202607111410/web001/web.tgz`
 - School-year delete cleanup rollback root: `/home/debian/rollback/hsm/school-year-delete-cleanup-202607111455/`
+- Mitchell orphan cleanup backup schema/report: `backup_mitchell_school_year_orphan_cleanup_202607112045`, `/home/debian/rollback/hsm/mitchell-school-year-orphan-cleanup-202607112045/cleanup-report.json`
 - Key rollback roots:
   - `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
   - `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`
@@ -86,7 +88,7 @@ School-year delete cleanup is deployed; Mitchell orphaned schedule rows still ne
 
 ## Current Blockers
 
-- Mitchell tenant has orphaned schedule rows from deleted school-year reset; confirm and run the one-time repair before retesting Start Next School Year.
+- No technical blocker for retesting Start Next School Year from the repaired Mitchell baseline.
 - No technical blocker for syncing the validated grade-level/reporting and school-year scoped enrollment release to AWS.
 
 ## Current Risks
@@ -100,5 +102,5 @@ School-year delete cleanup is deployed; Mitchell orphaned schedule rows still ne
 
 ## Next Actions
 
-1. Repair Mitchell tenant orphaned schedule rows after user confirms cleanup scope.
+1. Retest Start Next School Year from the repaired Mitchell `2025-2026` baseline.
 2. Sync validated code/assets/migrations `033` and `034` to AWS.
