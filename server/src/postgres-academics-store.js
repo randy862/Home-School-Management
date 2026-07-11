@@ -495,6 +495,9 @@ async function deleteSchoolYear(id) {
       await client.query("ROLLBACK");
       return false;
     }
+    await client.query("DELETE FROM enrollments WHERE school_year_id = $1", [id]);
+    await client.query("DELETE FROM section_enrollments WHERE school_year_id = $1", [id]);
+    await client.query("DELETE FROM student_schedule_blocks WHERE school_year_id = $1", [id]);
     const result = await client.query("DELETE FROM school_years WHERE id = $1", [id]);
     if (existing.isCurrent) {
       await client.query(`

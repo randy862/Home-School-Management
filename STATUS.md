@@ -8,7 +8,7 @@ Home lab production polish and AWS commercial production migration.
 
 ## Current Focus
 
-Student Schedule grade context is deployed to home lab after configured course grade filtering.
+School-year delete cleanup is deployed; Mitchell orphaned schedule rows still need one-time repair.
 
 ## Completed Recently
 
@@ -32,17 +32,19 @@ Student Schedule grade context is deployed to home lab after configured course g
 - User confirmed the compact grade-level dropdown and Course table Grade column look correct in Mitchell.
 - Configured Courses now has a compact Grade column filter (`All`, `K`-`12`); `All grades` courses remain visible under each grade filter.
 - Student Schedule detail/enrollment uses current/future student profile grade for the header and scheduled-item picker, while past-year views still honor assignment grade snapshots.
+- School-year deletion removes course, class, and schedule-block assignments scoped to the deleted year and warns admins before doing so.
 
 ## Production State
 
 - Home lab production URL: `https://mitchell.navigrader.com/`
-- Tenant app assets currently deployed: `app.js?v=202607111410`, `styles.css?v=202607111330`.
+- Tenant app assets currently deployed: `app.js?v=202607111455`, `styles.css?v=202607111330`.
 - Grade-level deployment rollback root: `/home/debian/rollback/hsm/grade-levels-20260711100422/`
 - Grade-level UI polish rollback root: `/home/debian/rollback/hsm/grade-levels-ui-polish-20260711102603/`
 - Report Grade Level columns rollback root: `/home/debian/rollback/hsm/report-grade-columns-202607111115/`
 - School-year scoped enrollment rollback root: `/home/debian/rollback/hsm/school-year-scoped-enrollments-202607111300/`
 - Course Grade filter rollback archive: `/home/debian/rollback/hsm/course-grade-filter-202607111330/web001/web.tgz`
 - Student Schedule grade-context rollback archive: `/home/debian/rollback/hsm/student-schedule-grade-context-202607111410/web001/web.tgz`
+- School-year delete cleanup rollback root: `/home/debian/rollback/hsm/school-year-delete-cleanup-202607111455/`
 - Key rollback roots:
   - `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
   - `/home/debian/rollback/hsm/school-day-excused-flex-202605291610/web001/`
@@ -52,7 +54,7 @@ Student Schedule grade context is deployed to home lab after configured course g
 
 ## AWS State
 
-- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs validated home lab assets including `app.js?v=202607111410`, `styles.css?v=202607111330`, report Grade Level columns, Configured Courses Grade filter, Student Schedule grade-context fix, school-year scoped enrollment/year rollover, and migrations `033`/`034`.
+- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs validated home lab assets including `app.js?v=202607111455`, `styles.css?v=202607111330`, report Grade Level columns, Configured Courses Grade filter, Student Schedule grade-context fix, school-year delete cleanup, school-year scoped enrollment/year rollover, and migrations `033`/`034`.
 - AWS includes password reset, dashboard gauges, filters, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks; it still needs the latest School Day gap cursor and Compliance hours projection web fixes.
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`; tenant migrations `033` and `034` are pending after home lab validation.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com` and `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve host.
@@ -84,7 +86,7 @@ Student Schedule grade context is deployed to home lab after configured course g
 
 ## Current Blockers
 
-- No technical blocker for the completed Stripe checkout-to-first-login rehearsal.
+- Mitchell tenant has orphaned schedule rows from deleted school-year reset; confirm and run the one-time repair before retesting Start Next School Year.
 - No technical blocker for syncing the validated grade-level/reporting and school-year scoped enrollment release to AWS.
 
 ## Current Risks
@@ -98,5 +100,5 @@ Student Schedule grade context is deployed to home lab after configured course g
 
 ## Next Actions
 
-1. Sync validated code/assets/migrations `033` and `034` to AWS.
-2. Continue go-live egress and wildcard/new-tenant DNS planning while keeping `mitchell.navigrader.com` on the home lab.
+1. Repair Mitchell tenant orphaned schedule rows after user confirms cleanup scope.
+2. Sync validated code/assets/migrations `033` and `034` to AWS.

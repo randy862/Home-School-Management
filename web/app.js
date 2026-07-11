@@ -22413,6 +22413,9 @@ function removeSchoolYear(schoolYearId) {
   }
   state.settings.schoolYears = state.settings.schoolYears.filter((year) => year.id !== schoolYearId);
   state.settings.allQuarters = state.settings.allQuarters.filter((quarter) => quarter.schoolYearId !== schoolYearId);
+  state.enrollments = state.enrollments.filter((entry) => !assignmentMatchesSchoolYear(entry, schoolYearId));
+  state.sectionEnrollments = state.sectionEnrollments.filter((entry) => !assignmentMatchesSchoolYear(entry, schoolYearId));
+  state.studentScheduleBlocks = state.studentScheduleBlocks.filter((entry) => !assignmentMatchesSchoolYear(entry, schoolYearId));
   if (editingSchoolYearId === schoolYearId) editingSchoolYearId = "";
   if (editingQuarterSchoolYearId === schoolYearId) editingQuarterSchoolYearId = "";
   if (state.settings.currentSchoolYearId === schoolYearId) {
@@ -26866,8 +26869,17 @@ function bindEvents() {
       const targetYear = getSchoolYear(removeSchoolYearId);
       if (!targetYear) return;
       const quarterCount = state.settings.allQuarters.filter((quarter) => quarter.schoolYearId === removeSchoolYearId).length;
-      const message = quarterCount
-        ? `Delete ${targetYear.label}? This will also remove ${quarterCount} quarter definition${quarterCount === 1 ? "" : "s"} for that school year.`
+      const scheduledItemCount = [
+        ...state.enrollments,
+        ...state.sectionEnrollments,
+        ...state.studentScheduleBlocks
+      ].filter((entry) => assignmentMatchesSchoolYear(entry, removeSchoolYearId)).length;
+      const deleteDetails = [
+        quarterCount ? `${quarterCount} quarter definition${quarterCount === 1 ? "" : "s"}` : "",
+        scheduledItemCount ? `${scheduledItemCount} scheduled item assignment${scheduledItemCount === 1 ? "" : "s"}` : ""
+      ].filter(Boolean);
+      const message = deleteDetails.length
+        ? `Delete ${targetYear.label}? This will also remove ${deleteDetails.join(" and ")} for that school year.`
         : `Delete ${targetYear.label}?`;
       if (!confirm(message)) return;
       if (hostedModeEnabled) {
