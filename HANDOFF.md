@@ -9,12 +9,13 @@ Home lab production polish and AWS commercial production migration carry-forward
 ## Current State
 
 - Home lab production is current at `https://mitchell.navigrader.com/`.
-- Home lab WEB001 serves `styles.css?v=202607111330` and `app.js?v=202607111455`.
+- Home lab WEB001 serves `styles.css?v=202607111330` and `app.js?v=202607121020`.
 - Password recovery/login refresh, tenant-aware reset URLs, dashboard gauges, Grade Search filter/layout, Course minutes/day UI, attendance-driven automatic excusals, School Day gap cursor fix, and Compliance hours projection line fix are implemented.
 - K-12 grade-level availability is deployed to home lab: student grade dropdowns, compact course/class grade-level multi-selects with `All`, course-table Grade column, enrollment filtering by student grade, report Grade Level columns, backend normalization, and tenant migration `033_course_grade_levels.sql`.
 - Configured Courses now has a compact Grade column filter (`All`, `K`-`12`); courses marked `All grades` remain visible under each grade filter.
 - Student Schedule detail/enrollment now uses current/future student profile grade for the header and scheduled-item picker, while past-year views still honor assignment grade snapshots.
 - School-year deletion now removes course, class, and schedule-block assignments scoped to the deleted year and warns admins in the confirmation text.
+- Class conflict warnings are scoped to the active Academic Year so prior-year class enrollments do not appear as conflicts while editing current-year classes.
 - Mitchell tenant orphaned schedule rows from deleted school-year reset were repaired: backup schema `backup_mitchell_school_year_orphan_cleanup_202607112045`, report `/home/debian/rollback/hsm/mitchell-school-year-orphan-cleanup-202607112045/cleanup-report.json`; moved 20 courses, 3 classes, and 4 blocks to `2025-2026`, deleted 12 course and 2 block orphan residues, orphan count is zero.
 - School-year scoped enrollments are deployed to home lab: course/class/schedule-block assignments carry `school_year_id` and student grade snapshot via tenant migration `034_school_year_scoped_enrollments.sql`; Schedule/Student/report views filter by selected Academic Year; School Years has a `Start Next School Year` helper that advances active student grades without copying enrollments.
 - User retested Start Next School Year successfully from the repaired Mitchell baseline: grades incremented, `2026-2027` became active, new year started with no enrollments, new enrollments stayed in the new year, and switching Academic Year restored the expected dashboards, School Day, and schedules for both years.
@@ -39,7 +40,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 
 ## Next Action
 
-Next technical action is to sync the validated grade-level/reporting/course-grade-filter/student-schedule-grade-context/school-year-delete-cleanup plus school-year scoped enrollment release to AWS, including tenant migrations `033` and `034`.
+Next technical action is to sync the validated grade-level/reporting/course-grade-filter/student-schedule-grade-context/school-year-delete-cleanup/class-conflict-year-scope plus school-year scoped enrollment release to AWS, including tenant migrations `033` and `034`.
 
 ## Risks
 
@@ -48,7 +49,7 @@ Next technical action is to sync the validated grade-level/reporting/course-grad
 - Do not leave temporary egress/NAT in place unintentionally before go-live; current temporary NAT cleanup is complete. Production go-live should use the managed NAT Gateway plan, not MAINT001 NAT.
 - Control deployment is intentionally disabled for rehearsal; provisioning prepares schema/runtime metadata and setup token flow without pushing a per-tenant runtime over the shared APP001 service.
 - Untracked scratch screenshots/icons and `tmp/` remain local and should stay out of commits.
-- Home lab rollback ids include `/home/debian/rollback/hsm/grade-levels-20260711100422/`, `/home/debian/rollback/hsm/report-grade-columns-202607111115/`, `/home/debian/rollback/hsm/school-year-scoped-enrollments-202607111300/`, `/home/debian/rollback/hsm/course-grade-filter-202607111330/web001/web.tgz`, `/home/debian/rollback/hsm/student-schedule-grade-context-202607111410/web001/web.tgz`, `/home/debian/rollback/hsm/school-year-delete-cleanup-202607111455/`, and Mitchell cleanup backup `backup_mitchell_school_year_orphan_cleanup_202607112045`.
+- Home lab rollback ids include `/home/debian/rollback/hsm/grade-levels-20260711100422/`, `/home/debian/rollback/hsm/report-grade-columns-202607111115/`, `/home/debian/rollback/hsm/school-year-scoped-enrollments-202607111300/`, `/home/debian/rollback/hsm/course-grade-filter-202607111330/web001/web.tgz`, `/home/debian/rollback/hsm/student-schedule-grade-context-202607111410/web001/web.tgz`, `/home/debian/rollback/hsm/school-year-delete-cleanup-202607111455/`, `/home/debian/rollback/hsm/class-conflict-year-scope-202607121020/web001/web.tgz`, and Mitchell cleanup backup `backup_mitchell_school_year_orphan_cleanup_202607112045`.
 
 ## Rollback Pointers
 
@@ -76,6 +77,7 @@ Next technical action is to sync the validated grade-level/reporting/course-grad
 - Home lab school-year delete cleanup deploy checks passed: local `node --check` for changed web/backend files, APP001 restart/local health, WEB001 deploy/reload, public Mitchell `/health`, and public HTML references `app.js?v=202607111455`.
 - Mitchell orphan cleanup validation passed: APP001/local health and public `/health`; active schedules now show Danny 10 items, Pam 10 items, Phillip 7 Grade 6 items, and orphan schedule row counts are all zero.
 - User functional rollover validation passed after cleanup: Start Next School Year, grade increments, active Academic Year switch, empty new-year enrollments, new-year course assignment, and bidirectional Academic Year switching all behaved as expected.
+- Home lab class conflict scope fix deploy checks passed: local `node --check web/app.js`, `git diff --check`, WEB001 deploy/reload, public Mitchell `/health`, and public HTML references `app.js?v=202607121020`.
 - Post-deploy authenticated hosted smoke passed against `https://mitchell.navigrader.com`: login plus `/api/me`, subjects, courses, enrollments, school-year, quarters, holidays, daily-breaks, plans, grade-types, grading-criteria, attendance, and tests.
 - User confirmed the compact grade-level dropdown and Course table Grade column look correct in the Mitchell tenant.
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` redirects to HTTPS.

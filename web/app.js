@@ -12275,7 +12275,7 @@ function courseSectionDraftFromForm({ courseId = null, startTime = null, quarter
 function courseSectionConflictForStudent(studentId, draftSection) {
   if (!studentId || !draftSection?.courseId) return null;
   return state.sectionEnrollments
-    .filter((entry) => entry.studentId === studentId && entry.courseSectionId !== draftSection.id)
+    .filter((entry) => entry.studentId === studentId && entry.courseSectionId !== draftSection.id && assignmentMatchesSchoolYear(entry))
     .map((entry) => getCourseSection(entry.courseSectionId))
     .filter(Boolean)
     .find((section) => courseSectionsHaveTimeConflict(draftSection, section)) || null;
