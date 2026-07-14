@@ -18448,7 +18448,7 @@ function renderDashboardExpandableTables() {
 
   const studentMetrics = dashboardStudents
     .map((student) => {
-      const studentTests = state.tests.filter((t) => t.studentId === student.id && testMatchesInstructorFilter(t, studentPerformanceInstructorFilter));
+      const studentTests = state.tests.filter((t) => t.studentId === student.id && recordDateInActiveYear(t) && testMatchesInstructorFilter(t, studentPerformanceInstructorFilter));
       const q1Tests = q1 ? studentTests.filter((t) => inRange(t.date, q1.startDate, q1.endDate)) : [];
       const q2Tests = q2 ? studentTests.filter((t) => inRange(t.date, q2.startDate, q2.endDate)) : [];
       const q3Tests = q3 ? studentTests.filter((t) => inRange(t.date, q3.startDate, q3.endDate)) : [];
@@ -18616,7 +18616,7 @@ function buildDashboardExpandableMetrics(
 
   const performanceMetrics = includePerformance ? dashboardStudents
     .map((student) => {
-      const studentTests = state.tests.filter((t) => t.studentId === student.id && testMatchesInstructorFilter(t, studentPerformanceInstructorFilter));
+      const studentTests = state.tests.filter((t) => t.studentId === student.id && recordDateInActiveYear(t) && testMatchesInstructorFilter(t, studentPerformanceInstructorFilter));
       const q1Tests = q1 ? studentTests.filter((t) => inRange(t.date, q1.startDate, q1.endDate)) : [];
       const q2Tests = q2 ? studentTests.filter((t) => inRange(t.date, q2.startDate, q2.endDate)) : [];
       const q3Tests = q3 ? studentTests.filter((t) => inRange(t.date, q3.startDate, q3.endDate)) : [];

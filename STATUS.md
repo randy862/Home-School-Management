@@ -36,11 +36,12 @@ Mitchell school-year/class conflict fixes are validated and queued for AWS sync.
 - Mitchell orphaned schedule rows were repaired after deleting extra school years: moved 20 courses, 3 classes, and 4 blocks to `2025-2026`; deleted 12 course and 2 block orphan residues; orphan counts are zero.
 - User retested Start Next School Year successfully: grades incremented, `2026-2027` became active, new year started empty, new enrollments stayed in `2026-2027`, and switching between `2025-2026` and `2026-2027` showed the correct Dashboard, School Day, and schedule context.
 - Class conflict warnings now filter section enrollments by active Academic Year so previous-year class assignments do not appear as current-year conflicts.
+- Performance Dashboard total averages now filter grades by active Academic Year so prior-year grade types/scores do not appear in the current-year Total Average column.
 
 ## Production State
 
 - Home lab production URL: `https://mitchell.navigrader.com/`
-- Tenant app assets currently deployed: `app.js?v=202607121020`, `styles.css?v=202607111330`.
+- Tenant app assets currently deployed: `app.js?v=202607132015`, `styles.css?v=202607111330`.
 - Grade-level deployment rollback root: `/home/debian/rollback/hsm/grade-levels-20260711100422/`
 - Grade-level UI polish rollback root: `/home/debian/rollback/hsm/grade-levels-ui-polish-20260711102603/`
 - Report Grade Level columns rollback root: `/home/debian/rollback/hsm/report-grade-columns-202607111115/`
@@ -49,6 +50,7 @@ Mitchell school-year/class conflict fixes are validated and queued for AWS sync.
 - Student Schedule grade-context rollback archive: `/home/debian/rollback/hsm/student-schedule-grade-context-202607111410/web001/web.tgz`
 - School-year delete cleanup rollback root: `/home/debian/rollback/hsm/school-year-delete-cleanup-202607111455/`
 - Class conflict year-scope rollback archive: `/home/debian/rollback/hsm/class-conflict-year-scope-202607121020/web001/web.tgz`
+- Performance total-average year-scope rollback archive: `/home/debian/rollback/hsm/performance-total-average-year-scope-202607132015/web001/web.tgz`
 - Mitchell orphan cleanup backup schema/report: `backup_mitchell_school_year_orphan_cleanup_202607112045`, `/home/debian/rollback/hsm/mitchell-school-year-orphan-cleanup-202607112045/cleanup-report.json`
 - Key rollback roots:
   - `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
@@ -59,7 +61,7 @@ Mitchell school-year/class conflict fixes are validated and queued for AWS sync.
 
 ## AWS State
 
-- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs validated home lab assets including `app.js?v=202607121020`, `styles.css?v=202607111330`, report Grade Level columns, Configured Courses Grade filter, Student Schedule grade-context fix, school-year delete cleanup, class conflict year-scope fix, school-year scoped enrollment/year rollover, and migrations `033`/`034`.
+- AWS APP001/WEB001 are deployed through branch snapshot `1272ab3`; next AWS sync needs validated home lab assets including `app.js?v=202607132015`, `styles.css?v=202607111330`, report Grade Level columns, Configured Courses Grade filter, Student Schedule grade-context fix, school-year delete cleanup, class conflict/performance total-average year-scope fixes, school-year scoped enrollment/year rollover, and migrations `033`/`034`.
 - AWS includes password reset, dashboard gauges, filters, Grade Search layout, Course minutes/day UI, and attendance-driven excusals without duplicate Flex Blocks; it still needs the latest School Day gap cursor and Compliance hours projection web fixes.
 - AWS SQL001 has tenant/runtime migrations through `032` and control-plane migrations through `012`; tenant migrations `033` and `034` are pending after home lab validation.
 - HTTPS/TLS is enabled for `aws-validation.navigrader.com` and `mitchell-aws-validation.navigrader.com`; HTTP redirects preserve host.
