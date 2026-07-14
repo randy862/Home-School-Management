@@ -8,7 +8,7 @@ Home lab production polish and AWS commercial production migration.
 
 ## Current Focus
 
-Mitchell school-year/class conflict fixes are validated and queued for AWS sync.
+Mitchell school-year/performance year-scope fixes are validated and queued for AWS sync.
 
 ## Completed Recently
 
@@ -28,7 +28,7 @@ Mitchell school-year/class conflict fixes are validated and queued for AWS sync.
 - Course, class, and schedule-block assignments are now scoped by school year with a student grade snapshot; selected Academic Year drives student schedules/enrollment views and report grade context.
 - School Years now includes `Start Next School Year`, which creates the next year, creates recommended quarters, advances active student grades, and starts the new year with no copied enrollments.
 - Tenant migration `034_school_year_scoped_enrollments.sql` is applied on home lab; Mitchell has zero blank `school_year_id` rows in enrollment tables.
-- Authenticated hosted smoke passed against `https://mitchell.navigrader.com` after deployment.
+- Authenticated hosted smoke passed against `https://mitchell.navigrader.com` after the latest dashboard year-scope deployment.
 - User confirmed the compact grade-level dropdown and Course table Grade column look correct in Mitchell.
 - Configured Courses now has a compact Grade column filter (`All`, `K`-`12`); `All grades` courses remain visible under each grade filter.
 - Student Schedule detail/enrollment uses current/future student profile grade for the header and scheduled-item picker, while past-year views still honor assignment grade snapshots.

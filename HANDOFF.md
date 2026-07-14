@@ -9,7 +9,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 ## Current State
 
 - Home lab production is current at `https://mitchell.navigrader.com/`.
-- Home lab WEB001 serves `styles.css?v=202607111330` and `app.js?v=202607121020`.
+- Home lab WEB001 serves `styles.css?v=202607111330` and `app.js?v=202607132015`.
 - Password recovery/login refresh, tenant-aware reset URLs, dashboard gauges, Grade Search filter/layout, Course minutes/day UI, attendance-driven automatic excusals, School Day gap cursor fix, and Compliance hours projection line fix are implemented.
 - K-12 grade-level availability is deployed to home lab: student grade dropdowns, compact course/class grade-level multi-selects with `All`, course-table Grade column, enrollment filtering by student grade, report Grade Level columns, backend normalization, and tenant migration `033_course_grade_levels.sql`.
 - Configured Courses now has a compact Grade column filter (`All`, `K`-`12`); courses marked `All grades` remain visible under each grade filter.
@@ -77,7 +77,7 @@ Next technical action is to sync the validated grade-level/reporting/course-grad
 - Home lab school-year delete cleanup deploy checks passed: local `node --check` for changed web/backend files, APP001 restart/local health, WEB001 deploy/reload, public Mitchell `/health`, and public HTML references `app.js?v=202607111455`.
 - Mitchell orphan cleanup validation passed: APP001/local health and public `/health`; active schedules now show Danny 10 items, Pam 10 items, Phillip 7 Grade 6 items, and orphan schedule row counts are all zero.
 - User functional rollover validation passed after cleanup: Start Next School Year, grade increments, active Academic Year switch, empty new-year enrollments, new-year course assignment, and bidirectional Academic Year switching all behaved as expected.
-- Home lab class conflict and Performance Dashboard total-average scope deploy checks passed: local `node --check web/app.js`, `git diff --check`, WEB001 deploy/reload, public Mitchell `/health`, and public HTML references `app.js?v=202607132015`; hosted smoke needs credentials.
+- Home lab class conflict and Performance Dashboard total-average scope deploy checks passed: local `node --check web/app.js`, `git diff --check`, WEB001 deploy/reload, public Mitchell `/health`, public HTML references `app.js?v=202607132015`, and authenticated hosted smoke.
 - Post-deploy authenticated hosted smoke passed against `https://mitchell.navigrader.com`: login plus `/api/me`, subjects, courses, enrollments, school-year, quarters, holidays, daily-breaks, plans, grade-types, grading-criteria, attendance, and tests.
 - User confirmed the compact grade-level dropdown and Course table Grade column look correct in the Mitchell tenant.
 - AWS HTTPS `/health`, `/control-api/health`, and `/api/setup/status` returned HTTP 200; HTTP `/health` redirects to HTTPS.
