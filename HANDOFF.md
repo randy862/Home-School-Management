@@ -8,7 +8,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 
 ## Current State
 
-- Home lab production is current at `https://mitchell.navigrader.com/`; home lab wildcard TLS now serves `*.navigrader.com` from Certbot cert `wildcard.navigrader.com`, expiring 2026-10-15; renewal still needs GoDaddy DNS-01 automation or manual TXT renewal.
+- Home lab production is current at `https://mitchell.navigrader.com/`; home lab wildcard TLS now serves `*.navigrader.com` from Certbot cert `wildcard.navigrader.com`, expiring 2026-10-15; the old expired `navigrader.com` lineage was removed, and renewal still needs GoDaddy DNS-01 automation or manual TXT renewal.
 - Home lab WEB001 serves `styles.css?v=202607111330` and `app.js?v=202607132015`.
 - Password recovery/login refresh, tenant-aware reset URLs, dashboard gauges, Grade Search filter/layout, Course minutes/day UI, attendance-driven automatic excusals, School Day gap cursor fix, and Compliance hours projection line fix are implemented.
 - K-12 grade-level availability is deployed to home lab: student grade dropdowns, compact course/class grade-level multi-selects with `All`, course-table Grade column, enrollment filtering by student grade, report Grade Level columns, backend normalization, and tenant migration `033_course_grade_levels.sql`.
@@ -54,7 +54,7 @@ Next technical action is to sync the validated grade-level/reporting/course-grad
 ## Rollback Pointers
 
 - Home lab course minutes/day: `/home/debian/rollback/hsm/course-minutes-day-202605291000/`
-- Home lab web fixes include the rollback ids listed above plus older roots in `STATUS.md`.
+- Home lab web/TLS fixes include the rollback ids listed above plus older roots in `STATUS.md`; expired cert lineage cleanup backup is `/home/debian/rollback/hsm/remove-expired-navigrader-lineage-202607172120/web001/navigrader.com.conf.before`.
 - AWS latest branch deploy: `/home/admin/rollback/hsm/hsm-aws-1272ab3-202605291805/`
 - AWS latest WEB001 fix: `/home/admin/rollback/hsm/school-day-excused-flex-202605291610/web001/`
 - AWS runtime/mail/TLS/Mitchell validation rollback roots are recorded in `STATUS.md`.
