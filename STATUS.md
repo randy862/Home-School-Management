@@ -40,7 +40,7 @@ Mitchell school-year/performance year-scope fixes are validated and queued for A
 
 ## Production State
 
-- Home lab production URL: `https://mitchell.navigrader.com/`
+- Home lab production URL: `https://mitchell.navigrader.com/`; wildcard TLS cert `wildcard.navigrader.com` covers `*.navigrader.com` through 2026-10-15.
 - Tenant app assets currently deployed: `app.js?v=202607132015`, `styles.css?v=202607111330`.
 - Grade-level deployment rollback root: `/home/debian/rollback/hsm/grade-levels-20260711100422/`
 - Grade-level UI polish rollback root: `/home/debian/rollback/hsm/grade-levels-ui-polish-20260711102603/`
@@ -101,6 +101,7 @@ Mitchell school-year/performance year-scope fixes are validated and queued for A
 - Keep Postmark, database, Stripe, smoke credentials, and runtime env files out of the repo.
 - `aws-maint` currently points to public IP `3.138.124.78`; update `C:/Users/rmitchell/.ssh/config` if `MAINT001` receives a new public IP.
 - Temporary NAT and hosts-override cleanup is complete; keep it that way until the planned go-live egress step.
+- Home lab wildcard TLS renewal is not automated yet because GoDaddy DNS-01 validation is manual; automate DNS API hooks or renew manually before 2026-10-15.
 - Control deployment remains disabled intentionally during rehearsal.
 - Expanded AWS cert currently uses a manual DNS challenge renewal config; convert to Apache/HTTP renewal after live DNS points to AWS.
 - Untracked local scratch assets and `tmp/` remain outside intended commits.

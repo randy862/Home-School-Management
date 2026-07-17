@@ -8,7 +8,7 @@ Home lab production polish and AWS commercial production migration carry-forward
 
 ## Current State
 
-- Home lab production is current at `https://mitchell.navigrader.com/`.
+- Home lab production is current at `https://mitchell.navigrader.com/`; home lab wildcard TLS now serves `*.navigrader.com` from Certbot cert `wildcard.navigrader.com`, expiring 2026-10-15; renewal still needs GoDaddy DNS-01 automation or manual TXT renewal.
 - Home lab WEB001 serves `styles.css?v=202607111330` and `app.js?v=202607132015`.
 - Password recovery/login refresh, tenant-aware reset URLs, dashboard gauges, Grade Search filter/layout, Course minutes/day UI, attendance-driven automatic excusals, School Day gap cursor fix, and Compliance hours projection line fix are implemented.
 - K-12 grade-level availability is deployed to home lab: student grade dropdowns, compact course/class grade-level multi-selects with `All`, course-table Grade column, enrollment filtering by student grade, report Grade Level columns, backend normalization, and tenant migration `033_course_grade_levels.sql`.
